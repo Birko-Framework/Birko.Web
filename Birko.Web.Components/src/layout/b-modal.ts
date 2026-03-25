@@ -18,7 +18,8 @@ export class BModal extends BaseComponent {
       :host { display: contents; }
       .modal {
         background: var(--b-bg-elevated); border-radius: var(--b-radius-xl);
-        box-shadow: var(--b-shadow-xl); width: 90%; max-width: var(--b-modal-width, 32.5rem);
+        box-shadow: var(--b-shadow-xl); width: 90%; min-width: min(25rem, 95vw);
+        max-width: var(--b-modal-width, 32.5rem);
         max-height: 85vh; display: flex; flex-direction: column;
       }
       :host([size="sm"]) .modal { max-width: var(--b-modal-width-sm, 23.75rem); }
