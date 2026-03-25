@@ -75,7 +75,7 @@ export class BMultiSelect extends BaseComponent {
         font-size: var(--b-text-base, 0.875rem);
         padding: 0.125rem 0;
       }
-      .dropdown { left: 0; right: 0; }
+      .dropdown { width: 100%; }
       .option {
         display: flex;
         align-items: center;
@@ -182,9 +182,23 @@ export class BMultiSelect extends BaseComponent {
       });
     });
 
-    // Sync aria-expanded with popover state
+    // Sync aria-expanded with popover state + position
     dropdown.addEventListener('toggle', ((e: ToggleEvent) => {
       container.setAttribute('aria-expanded', e.newState === 'open' ? 'true' : 'false');
+      if (e.newState === 'open') {
+        const rect = container.getBoundingClientRect();
+        const gap = 4;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        if (spaceBelow < dropdown.offsetHeight && rect.top > spaceBelow) {
+          dropdown.style.top = '';
+          dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+        } else {
+          dropdown.style.bottom = '';
+          dropdown.style.top = `${rect.bottom + gap}px`;
+        }
+        dropdown.style.left = `${rect.left}px`;
+        dropdown.style.width = `${rect.width}px`;
+      }
     }) as EventListener);
   }
 

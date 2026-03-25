@@ -14,7 +14,8 @@ export class BButton extends BaseComponent {
     return `
       :host { display: inline-block; }
       button {
-        display: inline-flex; align-items: center; gap: var(--b-space-sm);
+        display: inline-flex; align-items: center; justify-content: center; gap: var(--b-space-sm);
+        width: 100%; box-sizing: border-box;
         padding: var(--b-space-sm) var(--b-space-lg);
         border: var(--b-border-width, 1px) solid transparent;
         border-radius: var(--b-radius);

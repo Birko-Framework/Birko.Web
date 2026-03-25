@@ -130,6 +130,9 @@ export class BForm extends BaseComponent {
         padding: 0;
         margin: 0;
       }
+      .b-form-group--root-bare > .b-form-group-body {
+        padding: 0;
+      }
       .b-form-group--invalid { border-color: var(--b-color-danger); }
       .b-form-group-error {
         font-size: var(--b-text-xs, 0.6875rem);
@@ -171,7 +174,7 @@ export class BForm extends BaseComponent {
     this._groupErrors.clear();
 
     const data = this.getValues();
-    this._validateGroup(this._schema, data, '');
+    this._validateGroup(this._schema, data, '', true);
 
     const errors: Record<string, string> = {};
     for (const [k, v] of this._errors) errors[k] = v;
@@ -308,13 +311,13 @@ export class BForm extends BaseComponent {
     const classes = `b-form-field ${field.fullWidth ? 'b-form-field--full' : ''} ${field.hidden ? 'b-form-field--hidden' : ''}`;
 
     if (field.type === 'custom') {
-      return `<div class="${classes}" data-path="${path}"><slot name="${field.name}"></slot></div>`;
+      return `<div class="${classes}" data-field="${path}"><slot name="${field.name}"></slot></div>`;
     }
 
     const tag = this._fieldTag(field);
     const attrs = this._fieldAttrs(field, path, error, disabled || readonly);
 
-    return `<div class="${classes}" data-path="${path}">${tag(attrs)}</div>`;
+    return `<div class="${classes}" data-field="${path}">${tag(attrs)}</div>`;
   }
 
   private _fieldTag(field: FormField): (attrs: string) => string {
@@ -451,8 +454,8 @@ export class BForm extends BaseComponent {
 
   // ── Validation ──
 
-  private _validateGroup(group: FormGroupDef, data: Record<string, unknown>, prefix: string) {
-    const path = prefix ? `${prefix}.${group.name}` : group.name;
+  private _validateGroup(group: FormGroupDef, data: Record<string, unknown>, prefix: string, isRoot = false) {
+    const path = prefix ? `${prefix}.${group.name}` : (isRoot ? '' : group.name);
 
     for (const child of group.children) {
       if (isGroup(child)) {

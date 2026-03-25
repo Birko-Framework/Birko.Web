@@ -138,6 +138,7 @@ dialog:not([open]) {
    Shared input/select styling: border, focus ring, error state, disabled. */
 
 input, select, textarea {
+  box-sizing: border-box;
   padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
@@ -169,9 +170,9 @@ input.has-error:focus, select.has-error:focus {
    and any future component that needs a positioned popover list. */
 
 .dropdown-panel {
-  position: absolute;
-  top: 100%;
-  margin: var(--b-space-xs, 0.25rem) 0 0 0;
+  position: fixed;
+  inset: auto;
+  margin: 0;
   padding: var(--b-space-xs, 0.25rem) 0;
   min-width: 10rem;
   background: var(--b-bg-elevated);
@@ -180,6 +181,7 @@ input.has-error:focus, select.has-error:focus {
   box-shadow: var(--b-shadow-md);
   max-height: 12.5rem;
   overflow-y: auto;
+  z-index: 9999;
 }
 .dropdown-panel:popover-open { display: block; }
 

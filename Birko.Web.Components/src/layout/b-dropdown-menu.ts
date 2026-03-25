@@ -24,9 +24,7 @@ export class BDropdownMenu extends BaseComponent {
     return `
       :host { display: inline-block; position: relative; }
       .trigger { display: inline-block; }
-      .menu { overflow: visible; }
-      :host([align="right"]) .menu { right: 0; left: auto; }
-      :host(:not([align="right"])) .menu { left: 0; right: auto; }
+      .menu { overflow-x: visible; }
       .item {
         display: flex;
         align-items: center;
@@ -153,16 +151,42 @@ export class BDropdownMenu extends BaseComponent {
       }
     });
 
-    // Focus first item when popover opens + track expanded state
+    // Focus first item when popover opens + track expanded state + position
     menu.addEventListener('toggle', ((e: ToggleEvent) => {
       if (e.newState === 'open') {
         setExpanded(true);
+        this._positionMenu(menu);
         const first = this.$<HTMLElement>('.item');
         first?.focus();
       } else {
         setExpanded(false);
       }
     }) as EventListener);
+  }
+
+  private _positionMenu(menu: HTMLElement) {
+    const rect = this.getBoundingClientRect();
+    const align = this.getAttribute('align');
+    const gap = 4; // --b-space-xs fallback
+
+    // Reset all inset properties to prevent UA popover defaults
+    menu.style.inset = 'auto';
+
+    // Vertical: prefer below, flip above if not enough space
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const above = spaceBelow < menu.offsetHeight && rect.top > spaceBelow;
+    if (above) {
+      menu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    } else {
+      menu.style.top = `${rect.bottom + gap}px`;
+    }
+
+    // Horizontal: align to left or right edge of trigger
+    if (align === 'right') {
+      menu.style.right = `${window.innerWidth - rect.right}px`;
+    } else {
+      menu.style.left = `${rect.left}px`;
+    }
   }
 
   toggle() {

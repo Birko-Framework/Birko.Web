@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 29 Shadow DOM web components covering inputs, layout, data, feedback, and navigation. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 30 Shadow DOM web components covering inputs, layout, data, feedback, and navigation. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -15,7 +15,7 @@ src/
 │                    # b-dropdown-menu, b-tooltip
 ├── data/            # b-table, b-data-table, b-pagination, b-badge, b-chart
 ├── feedback/        # b-toast (+ toast manager), b-spinner, b-empty, b-skeleton
-├── nav/             # b-sidebar, b-breadcrumb
+├── nav/             # b-sidebar, b-breadcrumb, b-ribbon
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
 └── shared-styles.css# Source CSS with @sheet sections
 css/
@@ -152,11 +152,12 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-empty>` | `icon`, `message` attributes |
 | `<b-skeleton>` | `type` (text\|circle\|table\|form), `rows`, `columns` attributes |
 
-### Navigation (2)
+### Navigation (3)
 | Tag | Class | Key methods |
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()` |
 
 ## Modern HTML & JavaScript
 

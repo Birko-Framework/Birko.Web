@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-29 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+30 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
 
 ## Install
 
@@ -13,7 +13,7 @@
 ```
 
 ```typescript
-import 'birko-web-components';  // registers all 29 components
+import 'birko-web-components';  // registers all 30 components
 
 // Or import individually:
 import { BModal, BDataTable, toast } from 'birko-web-components';
@@ -252,7 +252,7 @@ if (confirmed) deleteItem();
   { divider: true },
   { id: 'delete', label: 'Delete', variant: 'danger' },
 ]);
-el.addEventListener('item-click', e => console.log(e.detail.id));
+el.addEventListener('select', e => console.log(e.detail.id));
 ```
 
 ### b-tooltip
@@ -416,6 +416,34 @@ Attributes: `collapsed`, `active` (item id)
   { label: 'Zone A' },
 ]);
 ```
+
+### b-ribbon
+
+Office-style ribbon header with module tabs, grouped items, and context actions.
+
+```typescript
+(el as BRibbon).setTabs([
+  {
+    id: 'iot',
+    label: 'IoT',
+    groups: [
+      {
+        id: 'main',
+        label: 'Main',
+        items: [
+          { id: 'devices', label: 'Devices', href: '#/iot/devices' },
+          { id: 'alarms', label: 'Alarms', href: '#/iot/alarms' },
+        ],
+      },
+    ],
+  },
+]);
+```
+
+Attributes: `active` (tab id)
+Slots: `before-tabs`, `after-tabs`
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId }`, `pin` → `{ pinned }`
 
 ---
 

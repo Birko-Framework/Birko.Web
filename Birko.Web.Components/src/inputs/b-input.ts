@@ -16,6 +16,8 @@ export class BInput extends BaseComponent {
     `;
   }
 
+  private _value = '';
+
   render() {
     const label = this.attr('label');
     const error = this.attr('error');
@@ -26,7 +28,6 @@ export class BInput extends BaseComponent {
           type="${this.attr('type', 'text')}"
           name="${this.attr('name')}"
           placeholder="${this.attr('placeholder')}"
-          value="${this.attr('value')}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
@@ -38,14 +39,25 @@ export class BInput extends BaseComponent {
 
   protected onUpdated() {
     const input = this.$<HTMLInputElement>('input');
-    input?.addEventListener('input', (e) => {
-      const value = (e.target as HTMLInputElement).value;
-      this.emit('change', { name: this.attr('name'), value });
+    if (!input) return;
+
+    // Restore value after re-render (attribute value or last typed value)
+    input.value = this._value || this.attr('value');
+
+    input.addEventListener('input', (e) => {
+      this._value = (e.target as HTMLInputElement).value;
+      this.emit('change', { name: this.attr('name'), value: this._value });
     });
   }
 
   get inputValue(): string {
-    return this.$<HTMLInputElement>('input')?.value ?? '';
+    return this.$<HTMLInputElement>('input')?.value ?? this._value;
+  }
+
+  set inputValue(v: string) {
+    this._value = v;
+    const input = this.$<HTMLInputElement>('input');
+    if (input) input.value = v;
   }
 }
 
