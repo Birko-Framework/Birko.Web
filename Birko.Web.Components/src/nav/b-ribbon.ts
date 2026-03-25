@@ -542,9 +542,13 @@ export class BRibbon extends BaseComponent {
   // ── Private ────────────────────────────────────────────────────────────────
 
   private _selectTab(tabId: string) {
-    if (tabId === this.attr('active')) return;
-    this.setAttribute('active', tabId);
-    this.emit('tab-change', { tab: tabId });
+    const changed = tabId !== this.attr('active');
+    if (changed) {
+      this.setAttribute('active', tabId);
+      this.emit('tab-change', { tab: tabId });
+    }
+    // Always expand panel so sub-pages are visible
+    this.expand();
   }
 
   private _clearTimers() {
