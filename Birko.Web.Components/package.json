@@ -1,0 +1,16 @@
+{
+  "name": "birko-web-components",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./inputs": "./src/inputs/index.ts",
+    "./layout": "./src/layout/index.ts",
+    "./data": "./src/data/index.ts",
+    "./feedback": "./src/feedback/index.ts",
+    "./nav": "./src/nav/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}
