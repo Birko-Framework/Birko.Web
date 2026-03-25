@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-30 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+31 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
 
 ## Install
 
@@ -13,7 +13,7 @@
 ```
 
 ```typescript
-import 'birko-web-components';  // registers all 30 components
+import 'birko-web-components';  // registers all 31 components
 
 // Or import individually:
 import { BModal, BDataTable, toast } from 'birko-web-components';
@@ -444,6 +444,47 @@ Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId }`, `pin` → `{ pinned }`
+
+### b-tree-menu
+
+Hierarchical tree menu with unlimited nesting depth, expand/collapse, keyboard navigation, and guide lines.
+
+```typescript
+(el as BTreeMenu).setItems([
+  {
+    id: 'buildings', label: 'Buildings', icon: '🏢', expanded: true,
+    children: [
+      {
+        id: 'floor-1', label: 'Floor 1', icon: '📐',
+        children: [
+          { id: 'zone-a', label: 'Zone A', href: '#/zones/a' },
+          { id: 'zone-b', label: 'Zone B', href: '#/zones/b', badge: 3 },
+        ],
+      },
+      { id: 'floor-2', label: 'Floor 2', icon: '📐' },
+    ],
+  },
+  { id: 'devices', label: 'Devices', icon: '📡', href: '#/devices' },
+]);
+```
+
+```typescript
+interface TreeMenuItem {
+  id: string;
+  label: string;
+  icon?: string;        // HTML entity or text
+  href?: string;        // Navigate on click (renders <a>)
+  badge?: number|string;// Count badge on right
+  disabled?: boolean;
+  expanded?: boolean;   // Initially expanded
+  children?: TreeMenuItem[];
+}
+```
+
+Attributes: `active` (item id — highlights the node)
+Methods: `setItems()`, `expandAll()`, `collapseAll()`, `expand(id)`, `collapse(id)`, `toggle(id)`, `reveal(id)` (expands all ancestors)
+Emits: `select` → `{ id, item }`, `toggle` → `{ id, expanded }`
+Keyboard: `↑`/`↓` move, `→` expand/enter child, `←` collapse/go to parent, `Enter`/`Space` select, `Home`/`End`
 
 ---
 
