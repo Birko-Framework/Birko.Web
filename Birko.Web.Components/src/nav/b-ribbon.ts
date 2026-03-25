@@ -7,6 +7,7 @@ export interface RibbonTab {
   label: string;
   icon?: string;
   badge?: number;
+  disabled?: boolean;
   groups: RibbonGroup[];
 }
 
@@ -73,6 +74,9 @@ export class BRibbon extends BaseComponent {
       .ribbon-tab:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .ribbon-tab[aria-selected="true"] {
         color: var(--b-color-primary); border-bottom-color: var(--b-color-primary);
+      }
+      .ribbon-tab[aria-disabled="true"] {
+        opacity: var(--b-disabled-opacity, 0.5); pointer-events: none;
       }
       .ribbon-tab-icon { font-size: var(--b-icon-base, 1rem); }
       .ribbon-tab-badge {
@@ -169,14 +173,10 @@ export class BRibbon extends BaseComponent {
       }
 
       /* ── Group separator ── */
-      .ribbon-group + .ribbon-group::before {
-        content: ''; display: block;
-        width: 1px; height: 2rem; align-self: center;
-        background: var(--b-border);
-        margin-right: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
+      .ribbon-group + .ribbon-group {
+        border-left: 1px solid var(--b-border);
+        padding-left: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
       }
-      /* Fix: separator as sibling, so use a wrapper approach instead */
-      .ribbon-group + .ribbon-group { position: relative; }
 
       /* ── Mobile ── */
       .mobile-hamburger {
@@ -303,10 +303,11 @@ export class BRibbon extends BaseComponent {
               const isActive = tab.id === active;
               const badge = tab.badge ? `<span class="ribbon-tab-badge">${tab.badge > 99 ? '99+' : tab.badge}</span>` : '';
               const icon = tab.icon ? `<span class="ribbon-tab-icon" aria-hidden="true">${tab.icon}</span>` : '';
+              const disabled = tab.disabled ? 'aria-disabled="true"' : '';
               return `<button class="ribbon-tab" role="tab"
                 aria-selected="${isActive}" aria-controls="ribbon-panel-${tab.id}"
                 id="ribbon-tab-${tab.id}" tabindex="${isActive ? '0' : '-1'}"
-                data-tab="${tab.id}">
+                data-tab="${tab.id}" ${disabled}>
                 ${icon}<span class="ribbon-tab-label">${tab.label}</span>${badge}
               </button>`;
             }).join('')}
