@@ -62,21 +62,23 @@ export class BSidebar extends BaseComponent {
     const active = this.attr('active');
     const collapsed = this.boolAttr('collapsed');
     return `
-      <nav class="sidebar">
+      <nav class="sidebar" aria-label="Main navigation">
         <div class="brand" part="brand">
           <slot name="brand"></slot>
         </div>
-        <div class="nav">
+        <div class="nav" role="list">
           ${this._items.map(item => `
             <a class="nav-item ${item.id === active ? 'active' : ''}"
-               href="${item.href ?? '#/' + item.id}" data-id="${item.id}">
-              <span class="nav-icon">${item.icon ?? ''}</span>
+               href="${item.href ?? '#/' + item.id}" data-id="${item.id}"
+               role="listitem"
+               ${item.id === active ? 'aria-current="page"' : ''}>
+              <span class="nav-icon" aria-hidden="true">${item.icon ?? ''}</span>
               <span class="nav-label">${item.label}</span>
             </a>
           `).join('')}
         </div>
         <div class="footer">
-          <button class="toggle-btn">${collapsed ? '&#9654;' : '&#9664;'}</button>
+          <button class="toggle-btn" aria-label="${collapsed ? 'Expand sidebar' : 'Collapse sidebar'}">${collapsed ? '&#9654;' : '&#9664;'}</button>
         </div>
       </nav>
     `;

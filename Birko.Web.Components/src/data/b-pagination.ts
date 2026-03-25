@@ -33,18 +33,18 @@ export class BPagination extends BaseComponent {
     const pages = this._getPageNumbers(page, totalPages);
 
     return `
-      <div class="pagination">
+      <nav class="pagination" role="navigation" aria-label="Pagination">
         <span class="info">${totalCount ? `${totalCount} items` : `Page ${page} of ${totalPages}`}</span>
         <div class="pages">
-          <button class="page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''}>&lsaquo;</button>
+          <button class="page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} aria-label="Previous page">&lsaquo;</button>
           ${pages.map(p =>
             p === '...'
               ? '<span class="ellipsis">...</span>'
-              : `<button class="page-btn ${p === page ? 'active' : ''}" data-page="${p}">${p}</button>`
+              : `<button class="page-btn ${p === page ? 'active' : ''}" data-page="${p}" ${p === page ? 'aria-current="page"' : ''} aria-label="Page ${p}">${p}</button>`
           ).join('')}
-          <button class="page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''}>&rsaquo;</button>
+          <button class="page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} aria-label="Next page">&rsaquo;</button>
         </div>
-      </div>
+      </nav>
     `;
   }
 

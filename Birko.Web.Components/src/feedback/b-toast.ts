@@ -41,6 +41,9 @@ class ToastManager {
     if (!container) {
       container = document.createElement('div');
       container.id = id;
+      container.setAttribute('role', 'status');
+      container.setAttribute('aria-live', id === 'b-toast-system' ? 'polite' : 'polite');
+      container.setAttribute('aria-atomic', 'false');
 
       const isTop = position.startsWith('top');
       const isLeft = position.endsWith('left');
@@ -130,11 +133,14 @@ export class BToastItem extends BaseComponent {
 
   render() {
     const icon = this.attr('icon');
+    const variant = this.attr('variant', 'info');
+    const role = variant === 'error' ? 'alert' : 'status';
+    const live = variant === 'error' ? 'assertive' : 'polite';
     return `
-      <div class="toast ${this.attr('variant', 'info')}">
-        ${icon ? `<span class="icon">${icon}</span>` : ''}
+      <div class="toast ${variant}" role="${role}" aria-live="${live}">
+        ${icon ? `<span class="icon" aria-hidden="true">${icon}</span>` : ''}
         <span class="msg">${this.attr('message')}</span>
-        <button class="close">&times;</button>
+        <button class="close" aria-label="Dismiss">&times;</button>
       </div>
     `;
   }

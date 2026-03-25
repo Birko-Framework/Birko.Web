@@ -23,7 +23,7 @@ export class BSpinner extends BaseComponent {
     `;
   }
 
-  render() { return '<div class="spinner"></div>'; }
+  render() { return '<div class="spinner" role="status" aria-label="Loading"></div>'; }
 }
 
 define('b-spinner', BSpinner);

@@ -20,6 +20,7 @@ export class BTabs extends BaseComponent {
         margin-bottom: -2px; transition: all var(--b-transition, 150ms ease); white-space: nowrap;
       }
       .tab:hover { color: var(--b-text); }
+      .tab:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .tab.active { color: var(--b-color-primary); border-bottom-color: var(--b-color-primary); }
       .tab-content { padding: var(--b-space-lg, 1rem) 0; }
     `;
@@ -36,22 +37,60 @@ export class BTabs extends BaseComponent {
   render() {
     const active = this.attr('active');
     return `
-      <div class="tab-bar">
-        ${this._tabs.map(t =>
-          `<button class="tab ${t.id === active ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`
-        ).join('')}
+      <div class="tab-bar" role="tablist">
+        ${this._tabs.map(t => {
+          const isActive = t.id === active;
+          const panelId = `tabpanel-${t.id}`;
+          return `<button class="tab ${isActive ? 'active' : ''}"
+            role="tab"
+            aria-selected="${isActive}"
+            aria-controls="${panelId}"
+            tabindex="${isActive ? '0' : '-1'}"
+            data-tab="${t.id}">${t.label}</button>`;
+        }).join('')}
       </div>
-      <div class="tab-content"><slot name="${active}"></slot></div>
+      <div class="tab-content" role="tabpanel" id="tabpanel-${active}" aria-labelledby="${active}">
+        <slot name="${active}"></slot>
+      </div>
     `;
   }
 
   protected onUpdated() {
-    this.$$('.tab').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.setAttribute('active', btn.dataset.tab!);
-        this.emit('tab-change', { tab: btn.dataset.tab });
-      });
+    const tabs = this.$$<HTMLElement>('.tab');
+
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => this._selectTab(btn.dataset.tab!));
     });
+
+    // Keyboard navigation: Arrow Left/Right, Home/End
+    this.$('.tab-bar')?.addEventListener('keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      const current = Array.from(tabs).findIndex(t => t.dataset.tab === this.attr('active'));
+      let next = -1;
+
+      if (ke.key === 'ArrowRight' || ke.key === 'ArrowLeft') {
+        ke.preventDefault();
+        next = ke.key === 'ArrowRight'
+          ? (current + 1) % tabs.length
+          : (current - 1 + tabs.length) % tabs.length;
+      } else if (ke.key === 'Home') {
+        ke.preventDefault();
+        next = 0;
+      } else if (ke.key === 'End') {
+        ke.preventDefault();
+        next = tabs.length - 1;
+      }
+
+      if (next >= 0) {
+        this._selectTab(tabs[next].dataset.tab!);
+        tabs[next].focus();
+      }
+    });
+  }
+
+  private _selectTab(tabId: string) {
+    this.setAttribute('active', tabId);
+    this.emit('tab-change', { tab: tabId });
   }
 }
 

@@ -74,15 +74,16 @@ export class BDropdownMenu extends BaseComponent {
       <div class="trigger">
         <slot name="trigger"></slot>
       </div>
-      <div class="menu dropdown-panel" id="${menuId}" popover>
+      <div class="menu dropdown-panel" id="${menuId}" popover role="menu">
         ${this._items.map(item => {
           const parts: string[] = [];
-          if (item.divider) parts.push('<div class="divider"></div>');
+          if (item.divider) parts.push('<div class="divider" role="separator"></div>');
           parts.push(`
             <button class="item ${item.variant ?? ''}"
                     data-id="${item.id}"
-                    type="button">
-              ${item.icon ? `<span class="item-icon">${item.icon}</span>` : ''}
+                    type="button"
+                    role="menuitem">
+              ${item.icon ? `<span class="item-icon" aria-hidden="true">${item.icon}</span>` : ''}
               <span>${item.label}</span>
             </button>
           `);
@@ -95,6 +96,15 @@ export class BDropdownMenu extends BaseComponent {
   protected onUpdated() {
     const menu = this.$<HTMLElement>('.menu');
     if (!menu) return;
+
+    // Set aria-expanded on trigger
+    const triggerSlot = this.$<HTMLSlotElement>('slot[name="trigger"]');
+    const triggerEl = triggerSlot?.assignedElements?.()[0] as HTMLElement | undefined;
+
+    const setExpanded = (open: boolean) => {
+      triggerEl?.setAttribute('aria-expanded', String(open));
+      triggerEl?.setAttribute('aria-haspopup', 'menu');
+    };
 
     // Trigger click toggles popover
     this.$('.trigger')?.addEventListener('click', () => {
@@ -123,14 +133,34 @@ export class BDropdownMenu extends BaseComponent {
         e.preventDefault();
         const prev = current > 0 ? current - 1 : items.length - 1;
         items[prev]?.focus();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        menu.hidePopover();
+        triggerEl?.focus();
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        // Enter/Space on focused item triggers click
+        const focused = this.$<HTMLElement>('.item:focus');
+        if (focused) {
+          e.preventDefault();
+          focused.click();
+        }
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        items[0]?.focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        items[items.length - 1]?.focus();
       }
     });
 
-    // Focus first item when popover opens
+    // Focus first item when popover opens + track expanded state
     menu.addEventListener('toggle', ((e: ToggleEvent) => {
       if (e.newState === 'open') {
+        setExpanded(true);
         const first = this.$<HTMLElement>('.item');
         first?.focus();
+      } else {
+        setExpanded(false);
       }
     }) as EventListener);
   }

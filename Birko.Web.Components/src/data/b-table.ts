@@ -79,11 +79,14 @@ export class BTable extends BaseComponent {
               ${this._columns.map(c => {
                 const isSorted = this._sortKey === c.key;
                 const arrow = isSorted ? (this._sortDesc ? '&#9660;' : '&#9650;') : '&#9650;';
+                const ariaSort = !c.sortable ? '' : isSorted ? (this._sortDesc ? 'aria-sort="descending"' : 'aria-sort="ascending"') : 'aria-sort="none"';
                 return `<th
+                  scope="col"
                   class="${c.sortable ? 'sortable' : ''} ${isSorted ? 'sorted' : ''} ${c.align ? 'align-' + c.align : ''}"
                   style="${c.width ? 'width:' + c.width : ''}"
                   data-key="${c.key}"
-                >${c.label}${c.sortable ? `<span class="sort-icon">${arrow}</span>` : ''}</th>`;
+                  ${ariaSort}
+                >${c.label}${c.sortable ? `<span class="sort-icon" aria-hidden="true">${arrow}</span>` : ''}</th>`;
               }).join('')}
             </tr>
           </thead>
