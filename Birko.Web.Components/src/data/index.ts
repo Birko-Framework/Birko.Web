@@ -6,6 +6,7 @@ export {
   type BulkAction, type RowAction, type ExportOption,
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';
+export { createCellRenderers, type CellRenderers } from './cell-renderers.js';
 export {
   BChart,
   type ChartData, type ChartSeries, type DataPoint, type ChartOptions,
