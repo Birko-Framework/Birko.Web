@@ -40,7 +40,7 @@ export class BRibbon extends BaseComponent {
 
   static get styles() {
     return `
-      :host { display: block; flex-shrink: 0; z-index: var(--b-z-sticky, 200); }
+      :host { display: block; flex-shrink: 0; z-index: var(--b-z-sticky, 200); position: relative; }
 
       /* ── Tab Row ── */
       .ribbon-tab-row {
@@ -104,6 +104,12 @@ export class BRibbon extends BaseComponent {
       }
       :host([expanded]) .ribbon-panel {
         max-height: var(--b-ribbon-panel-height, 4.5rem);
+      }
+      /* Unpinned: overlay content instead of pushing it down */
+      :host(:not([pinned])) .ribbon-panel {
+        position: absolute; left: 0; right: 0; top: 100%;
+        z-index: var(--b-z-dropdown, 300);
+        box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
       }
       .ribbon-panel-inner {
         display: flex; align-items: flex-start;
