@@ -171,6 +171,8 @@ export class BDataTable extends BaseComponent {
     this._selected.clear();
     this._activeFilters.clear();
     this._searchQuery = '';
+    this.update();
+    this._applyData();
   }
 
   async load(page?: number): Promise<void> {

@@ -488,20 +488,31 @@ export class BRibbon extends BaseComponent {
     this.$('#ribbon-toggle')?.addEventListener('click', () => this.toggleExpand());
     this.$('#ribbon-pin')?.addEventListener('click', () => this.togglePin());
 
-    // Hover expand/collapse (desktop only)
-    const ribbon = this.$<HTMLElement>('.ribbon');
-    ribbon?.addEventListener('mouseenter', () => {
+    // Hover expand/collapse (desktop only) — only on tabs and panel, not other ribbon elements
+    let overTabs = false;
+    let overPanel = false;
+
+    const maybeExpand = () => {
       this._clearTimers();
       if (!this.boolAttr('pinned') && !this.boolAttr('expanded')) {
         this._expandTimer = setTimeout(() => this.expand(), 100);
       }
-    });
-    ribbon?.addEventListener('mouseleave', () => {
+    };
+
+    const maybeCollapse = () => {
       this._clearTimers();
-      if (!this.boolAttr('pinned') && this.boolAttr('expanded')) {
+      if (!overTabs && !overPanel && !this.boolAttr('pinned') && this.boolAttr('expanded')) {
         this._collapseTimer = setTimeout(() => this.collapse(), 300);
       }
-    });
+    };
+
+    const tabs = this.$<HTMLElement>('.ribbon-tabs');
+    const panel = this.$<HTMLElement>('.ribbon-panel');
+
+    tabs?.addEventListener('mouseenter', () => { overTabs = true; maybeExpand(); });
+    tabs?.addEventListener('mouseleave', () => { overTabs = false; maybeCollapse(); });
+    panel?.addEventListener('mouseenter', () => { overPanel = true; this._clearTimers(); });
+    panel?.addEventListener('mouseleave', () => { overPanel = false; maybeCollapse(); });
 
     // Mobile dialog
     this.$('#mobile-hamburger')?.addEventListener('click', () => this._openMobileMenu());
@@ -543,6 +554,9 @@ export class BRibbon extends BaseComponent {
   // ── Private ────────────────────────────────────────────────────────────────
 
   private _selectTab(tabId: string) {
+    const tab = this._tabs.find(t => t.id === tabId);
+    if (!tab || tab.disabled) return;
+
     const changed = tabId !== this.attr('active');
     if (changed) {
       this.setAttribute('active', tabId);
