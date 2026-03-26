@@ -14,6 +14,7 @@ export class BTable extends BaseComponent {
 
   private _columns: TableColumn[] = [];
   private _data: Record<string, unknown>[] = [];
+  private _idField: string | null = null;
   private _sortKey: string | null = null;
   private _sortDesc = false;
 
@@ -59,6 +60,10 @@ export class BTable extends BaseComponent {
     this.update();
   }
 
+  setIdField(field: string) {
+    this._idField = field;
+  }
+
   render() {
     const loading = this.boolAttr('loading');
     const emptyText = this.attr('empty-text', 'No data');
@@ -93,7 +98,7 @@ export class BTable extends BaseComponent {
           <tbody>
             ${sorted.length === 0
               ? `<tr><td colspan="${this._columns.length}" class="empty">${emptyText}</td></tr>`
-              : sorted.map(row => `<tr data-id="${row['id'] ?? row['guid'] ?? ''}">${
+              : sorted.map(row => `<tr data-id="${this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? '')}">${
                   this._columns.map(c => {
                     const val = row[c.key];
                     const rendered = c.render ? c.render(val, row) : this._escape(val);

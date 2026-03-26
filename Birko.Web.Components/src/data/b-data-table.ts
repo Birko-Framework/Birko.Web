@@ -68,6 +68,9 @@ export interface DataTableConfig {
   selectable?: boolean;
   bulkActions?: BulkAction[];
 
+  // Row identity
+  idField?: string;
+
   // Row actions
   rowActions?: RowAction[];
 
@@ -228,6 +231,14 @@ export class BDataTable extends BaseComponent {
     await this.load(this._page);
   }
 
+  // ── Data API ──
+
+  getData(): Record<string, unknown>[] { return this._allData; }
+
+  getRowById(id: string): Record<string, unknown> | undefined {
+    return this._allData.find(r => this._rowId(r) === id);
+  }
+
   // ── Selection API ──
 
   getSelected(): string[] { return [...this._selected]; }
@@ -379,9 +390,11 @@ export class BDataTable extends BaseComponent {
       }
     }) as EventListener);
 
-    // Table events
+    // Table events — enrich row-click with full row data
     this.$<HTMLElement>('b-table')?.addEventListener('row-click', ((e: CustomEvent) => {
-      this.emit('row-click', e.detail);
+      const id = e.detail?.id;
+      const row = this._allData.find(r => this._rowId(r) === id);
+      this.emit('row-click', row ?? e.detail);
     }) as EventListener);
 
     this.$<HTMLElement>('b-table')?.addEventListener('sort', ((e: CustomEvent) => {
@@ -449,6 +462,7 @@ export class BDataTable extends BaseComponent {
     }
 
     table.setColumns(columns);
+    if (this._config?.idField) table.setIdField(this._config.idField);
 
     const pageData = this._getPageData();
     table.setData(pageData);
@@ -567,6 +581,7 @@ export class BDataTable extends BaseComponent {
   }
 
   private _rowId(row: Record<string, unknown>): string {
+    if (this._config?.idField) return String(row[this._config.idField] ?? '');
     return String(row['id'] ?? row['guid'] ?? '');
   }
 }
