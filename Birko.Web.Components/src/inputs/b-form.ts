@@ -35,6 +35,7 @@ export interface FormField {
   fullWidth?: boolean;
   hidden?: boolean;
   options?: { value: string; label: string }[];
+  searchable?: boolean;
   default?: unknown;
   required?: boolean;
   rules?: ValidationRule[];
@@ -366,6 +367,9 @@ export class BForm extends BaseComponent {
         break;
       case 'textarea':
         if (field.rows) parts.push(`rows="${field.rows}"`);
+        break;
+      case 'select':
+        if (field.searchable) parts.push('searchable');
         break;
     }
 
