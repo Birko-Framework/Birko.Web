@@ -190,33 +190,18 @@ export class BMultiSelect extends BaseComponent {
       });
     });
 
-    // Search input
+    // Search input — only patch dropdown options, no full re-render
     const searchInput = this.$<HTMLInputElement>('.dd-search');
     if (searchInput) {
       searchInput.addEventListener('input', () => {
         this._filter = searchInput.value;
-        this._emitAndUpdate();
-        // Re-focus search after re-render
-        requestAnimationFrame(() => {
-          const si = this.$<HTMLInputElement>('.dd-search');
-          if (si) { si.focus(); si.selectionStart = si.selectionEnd = si.value.length; }
-        });
+        this._updateDropdownOptions(dropdown);
       });
-      // Prevent popover close on search input clicks
       searchInput.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    // Checkbox changes in dropdown
-    this.$$<HTMLInputElement>('.option input').forEach(input => {
-      input.addEventListener('change', () => {
-        if (input.checked) {
-          this._selected.add(input.value);
-        } else {
-          this._selected.delete(input.value);
-        }
-        this._emitAndUpdate();
-      });
-    });
+    // Checkbox changes — patch dropdown + chips, no full re-render
+    this._wireOptionCheckboxes(dropdown);
 
     // Sync aria-expanded with popover state + position
     dropdown.addEventListener('toggle', ((e: ToggleEvent) => {
@@ -235,17 +220,85 @@ export class BMultiSelect extends BaseComponent {
         dropdown.style.left = `${rect.left}px`;
         dropdown.style.width = `${rect.width}px`;
       }
-      // Clear filter when closing
       if (e.newState === 'closed' && this._filter) {
         this._filter = '';
-        this.update();
+        this._updateDropdownOptions(dropdown);
       }
     }) as EventListener);
   }
 
-  private _emitAndUpdate() {
-    this.emit('change', { name: this.attr('name'), values: this.getSelected() });
-    this.update();
+  /** Patch only the options inside the dropdown — no full re-render. */
+  private _updateDropdownOptions(dropdown: HTMLElement) {
+    const searchWrap = dropdown.querySelector('.search-wrap');
+    const filterLower = this._filter.toLowerCase();
+    const filtered = this._filter
+      ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
+      : this._options;
+
+    // Remove all children except search wrap
+    const children = Array.from(dropdown.children);
+    for (const child of children) {
+      if (child !== searchWrap) child.remove();
+    }
+
+    if (filtered.length === 0) {
+      dropdown.insertAdjacentHTML('beforeend', '<div class="no-results">No matches</div>');
+    } else {
+      dropdown.insertAdjacentHTML('beforeend', filtered.map(o => `
+        <label class="option">
+          <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
+          ${o.label}
+        </label>
+      `).join(''));
+    }
+
+    this._wireOptionCheckboxes(dropdown);
+  }
+
+  /** Wire checkbox change handlers inside the dropdown. */
+  private _wireOptionCheckboxes(dropdown: HTMLElement) {
+    dropdown.querySelectorAll<HTMLInputElement>('.option input').forEach(input => {
+      input.addEventListener('change', () => {
+        if (input.checked) {
+          this._selected.add(input.value);
+        } else {
+          this._selected.delete(input.value);
+        }
+        this.emit('change', { name: this.attr('name'), values: this.getSelected() });
+        this._updateChips();
+        this._updateDropdownOptions(dropdown);
+      });
+    });
+  }
+
+  /** Patch only the chips area — no full re-render. */
+  private _updateChips() {
+    const container = this.$<HTMLElement>('.container');
+    if (!container) return;
+    const placeholder = this.attr('placeholder', 'Select...');
+
+    const chips = this._options
+      .filter(o => this._selected.has(o.value))
+      .map(o => `
+        <span class="chip">
+          ${o.label}
+          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="Remove ${o.label}">&times;</button>
+        </span>
+      `).join('');
+
+    container.innerHTML = chips || `<span class="placeholder">${placeholder}</span>`;
+
+    // Re-wire chip remove buttons
+    container.querySelectorAll<HTMLElement>('.chip-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._selected.delete(btn.dataset.value!);
+        this.emit('change', { name: this.attr('name'), values: this.getSelected() });
+        this._updateChips();
+        const dropdown = this.$<HTMLElement>('.dropdown');
+        if (dropdown) this._updateDropdownOptions(dropdown);
+      });
+    });
   }
 }
 

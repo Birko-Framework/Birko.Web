@@ -159,6 +159,10 @@ export class BForm extends BaseComponent {
     this.update();
   }
 
+  setValue(name: string, value: unknown) {
+    this.setValues({ [name]: value });
+  }
+
   setValues(values: Record<string, unknown>) {
     if (!this._schema) return;
     this._setGroupValues(this._schema, values, '');

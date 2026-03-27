@@ -128,9 +128,20 @@ export class BTable extends BaseComponent {
 
     this.$$<HTMLElement>('tbody tr[data-id]').forEach(tr => {
       tr.addEventListener('click', (e: Event) => {
+        // Walk composedPath to find [data-action] across shadow boundaries (e.g. inside b-button)
+        const path = e.composedPath() as HTMLElement[];
+        const actionEl = path.find(el => el?.dataset?.action) as HTMLElement | undefined;
+        if (actionEl) {
+          e.stopPropagation();
+          this.emit('action-click', { action: actionEl.dataset.action, id: tr.dataset.id });
+          return;
+        }
+
         // Don't emit row-click when the user clicked an interactive element inside the row
-        const target = e.target as HTMLElement;
-        if (target?.closest?.('button, a, input, select, textarea, b-button, b-dropdown-menu, [role="button"]')) return;
+        const isInteractive = path.some(el =>
+          el !== tr && el.nodeType === 1 && el.matches?.('button, a, input, select, textarea, b-button, b-dropdown-menu, [role="button"]')
+        );
+        if (isInteractive) return;
         this.emit('row-click', { id: tr.dataset.id });
       });
     });

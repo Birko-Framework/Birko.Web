@@ -392,14 +392,22 @@ export class BDataTable extends BaseComponent {
       }
     }) as EventListener);
 
-    // Table events — enrich row-click with full row data
-    this.$<HTMLElement>('b-table')?.addEventListener('row-click', ((e: CustomEvent) => {
+    // Table events — enrich with full row data
+    const innerTable = this.$<HTMLElement>('b-table');
+
+    innerTable?.addEventListener('row-click', ((e: CustomEvent) => {
       const id = e.detail?.id;
       const row = this._allData.find(r => this._rowId(r) === id);
       this.emit('row-click', row ?? e.detail);
     }) as EventListener);
 
-    this.$<HTMLElement>('b-table')?.addEventListener('sort', ((e: CustomEvent) => {
+    innerTable?.addEventListener('action-click', ((e: CustomEvent) => {
+      const id = e.detail?.id;
+      const row = this._allData.find(r => this._rowId(r) === id);
+      this.emit('action-click', { action: e.detail.action, id, row: row ?? {} });
+    }) as EventListener);
+
+    innerTable?.addEventListener('sort', ((e: CustomEvent) => {
       this.emit('sort', e.detail);
     }) as EventListener);
 
