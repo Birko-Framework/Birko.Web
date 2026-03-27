@@ -9,6 +9,10 @@ export class BModal extends BaseComponent {
 
   private _previousFocus: HTMLElement | null = null;
 
+  private get _hasForm(): boolean {
+    return this.querySelector('b-form') !== null;
+  }
+
   static get sharedStyles() {
     return [dialogBaseSheet, closeButtonSheet, overlayHeaderSheet, overlayBodySheet, overlayFooterSheet];
   }
@@ -51,7 +55,7 @@ export class BModal extends BaseComponent {
 
     this.$('.close-btn')?.addEventListener('click', () => this.close());
     dlg.addEventListener('click', (e) => {
-      if (e.target === dlg) this.close();
+      if (e.target === dlg && !this._hasForm) this.close();
     });
     dlg.addEventListener('close', () => this.emit('close'));
 
