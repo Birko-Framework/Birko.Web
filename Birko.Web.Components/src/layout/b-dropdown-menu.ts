@@ -25,6 +25,7 @@ export class BDropdownMenu extends BaseComponent {
       :host { display: inline-block; position: relative; }
       .trigger { display: inline-block; }
       .menu { overflow-x: visible; }
+      .menu:popover-open { display: flex; flex-direction: column; }
       .item {
         display: flex;
         align-items: center;
@@ -36,6 +37,7 @@ export class BDropdownMenu extends BaseComponent {
         background: none;
         border: none;
         width: 100%;
+        box-sizing: border-box;
         text-align: left;
         white-space: nowrap;
         transition: background var(--b-transition, 150ms ease);
