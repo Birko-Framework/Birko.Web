@@ -1,5 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { formFieldSheet, formControlSheet, dropdownPanelSheet, comboControlSheet } from '../shared-styles';
+import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
 
 interface Option {
   value: string;
@@ -13,9 +13,12 @@ export class BSelect extends BaseComponent {
 
   private _options: Option[] = [];
   private _filter = '';
+  private _open = false;
+  private _skipNextUpdate = false;
+  private _outsideClickHandler: ((e: MouseEvent) => void) | null = null;
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet, dropdownPanelSheet, comboControlSheet];
+    return [formFieldSheet, formControlSheet, comboControlSheet];
   }
 
   static get styles() {
@@ -23,7 +26,7 @@ export class BSelect extends BaseComponent {
       :host { display: block; position: relative; }
       select { cursor: pointer; }
 
-      /* ── Searchable mode (layout uses .combo-container from comboControlSheet) ── */
+      /* ── Searchable mode ── */
       .combo { padding: 0; }
       .combo-input {
         flex: 1; border: none; outline: none; background: transparent;
@@ -43,7 +46,21 @@ export class BSelect extends BaseComponent {
         padding: 0 var(--b-space-xs, 0.25rem); line-height: 1;
       }
       .combo-clear:hover { color: var(--b-text); }
-      .dropdown { width: 100%; max-height: 15rem; overflow-y: auto; }
+
+      .dropdown {
+        display: none;
+        position: fixed;
+        z-index: 10;
+        padding: var(--b-space-xs, 0.25rem) 0;
+        background: var(--b-bg-elevated);
+        border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem);
+        box-shadow: var(--b-shadow-md);
+        max-height: 12.5rem;
+        overflow-y: auto;
+      }
+      .dropdown.open { display: block; }
+
       .option {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
         cursor: pointer; font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text);
@@ -75,8 +92,6 @@ export class BSelect extends BaseComponent {
     return this._renderNative();
   }
 
-  // ── Native <select> mode ──
-
   private _renderNative(): string {
     const label = this.attr('label');
     const error = this.attr('error');
@@ -94,8 +109,6 @@ export class BSelect extends BaseComponent {
     `;
   }
 
-  // ── Searchable combobox mode ──
-
   private _renderSearchable(): string {
     const label = this.attr('label');
     const error = this.attr('error');
@@ -103,7 +116,6 @@ export class BSelect extends BaseComponent {
     const placeholder = this.attr('placeholder', 'Select...');
     const disabled = this.boolAttr('disabled');
     const selectedLabel = this._options.find(o => o.value === value)?.label ?? '';
-    const dropdownId = 'dd-' + (this.id || 'sel');
 
     const filtered = this._filter
       ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
@@ -121,7 +133,7 @@ export class BSelect extends BaseComponent {
           ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
-        <div class="dropdown dropdown-panel" id="${dropdownId}" popover>
+        <div class="dropdown ${this._open ? 'open' : ''}">
           ${filtered.length === 0
             ? '<div class="no-results">No matches</div>'
             : filtered.map(o => `
@@ -143,6 +155,11 @@ export class BSelect extends BaseComponent {
     }
   }
 
+  protected update(): void {
+    if (this._skipNextUpdate) return;
+    super.update();
+  }
+
   private _wireNative() {
     this.$<HTMLSelectElement>('select')?.addEventListener('change', (e) => {
       const value = (e.target as HTMLSelectElement).value;
@@ -157,61 +174,136 @@ export class BSelect extends BaseComponent {
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (!combo || !input || !dropdown) return;
 
-    // Open dropdown on input focus / combo click
-    input.addEventListener('focus', () => dropdown.showPopover());
+    // Toggle dropdown on combo click
     combo.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).classList.contains('combo-clear')) return;
-      input.focus();
+      if (this._open) {
+        this._closeDropdown();
+      } else {
+        this._openDropdown(input, dropdown);
+      }
+    });
+
+    // Outside click → close
+    if (this._outsideClickHandler) {
+      document.removeEventListener('mousedown', this._outsideClickHandler);
+    }
+    this._outsideClickHandler = (e: MouseEvent) => {
+      const path = e.composedPath();
+      if (!path.includes(combo) && !path.includes(dropdown)) {
+        this._closeDropdown();
+      }
+    };
+    document.addEventListener('mousedown', this._outsideClickHandler);
+
+    // Keyboard
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { this._closeDropdown(); input.blur(); }
+      if (e.key === 'Backspace' && !input.value && this.attr('value')) {
+        this._selectValue('');
+      }
     });
 
     // Filter as user types
     input.addEventListener('input', () => {
       this._filter = input.value;
-      // Re-render dropdown options without full component update
-      this._updateDropdownOptions(dropdown);
-    });
-
-    // Clear selection on backspace when input is empty and there's a value
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Backspace' && !input.value && this.attr('value')) {
-        this._clearSelection(input);
-      }
+      this._refreshOptions();
     });
 
     // Clear button
-    this.$('.combo-clear')?.addEventListener('click', () => this._clearSelection(input));
+    this.$('.combo-clear')?.addEventListener('click', () => this._selectValue(''));
 
-    // Option click
-    this._wireOptionClicks(dropdown, input);
-
-    // Position dropdown on open
-    dropdown.addEventListener('toggle', ((e: ToggleEvent) => {
-      if (e.newState === 'open') {
-        const rect = combo.getBoundingClientRect();
-        const gap = 4;
-        const spaceBelow = window.innerHeight - rect.bottom;
-        if (spaceBelow < dropdown.offsetHeight && rect.top > spaceBelow) {
-          dropdown.style.top = '';
-          dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
-        } else {
-          dropdown.style.bottom = '';
-          dropdown.style.top = `${rect.bottom + gap}px`;
-        }
-        dropdown.style.left = `${rect.left}px`;
-        dropdown.style.width = `${rect.width}px`;
-        // Clear filter on open to show all options
-        this._filter = '';
-        input.value = '';
-        input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
-          || this.attr('placeholder', 'Select...');
-        this._updateDropdownOptions(dropdown);
-      }
-    }) as EventListener);
-
-    // Close dropdown on outside click handled by popover API
+    // Wire option clicks on current options
+    this._wireOptionClicks(dropdown);
   }
 
-  private _updateDropdownOptions(dropdown: HTMLElement) {
+  private _openDropdown(input: HTMLInputElement, dropdown: HTMLElement) {
+    this._open = true;
+    this._filter = '';
+    input.value = '';
+    input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
+      || this.attr('placeholder', 'Select...');
+    dropdown.classList.add('open');
+    this._refreshOptions();
+    input.focus();
+
+    // Position fixed dropdown below the combo
+    const combo = this.$<HTMLElement>('.combo');
+    if (combo) {
+      const rect = combo.getBoundingClientRect();
+      const gap = 4;
+      dropdown.style.left = `${rect.left}px`;
+      dropdown.style.width = `${rect.width}px`;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 200 && rect.top > spaceBelow) {
+        dropdown.style.top = '';
+        dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+      } else {
+        dropdown.style.bottom = '';
+        dropdown.style.top = `${rect.bottom + gap}px`;
+      }
+    }
+  }
+
+  private _closeDropdown() {
+    if (!this._open) return;
+    this._open = false;
+    const dropdown = this.$<HTMLElement>('.dropdown');
+    dropdown?.classList.remove('open');
+    // Restore input display
+    const input = this.$<HTMLInputElement>('.combo-input');
+    if (input) {
+      const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
+      this._filter = '';
+      input.value = selectedLabel;
+      input.placeholder = selectedLabel || this.attr('placeholder', 'Select...');
+    }
+  }
+
+  private _selectValue(val: string) {
+    this._filter = '';
+    this._open = false;
+
+    // Patch display directly
+    const input = this.$<HTMLInputElement>('.combo-input');
+    const dropdown = this.$<HTMLElement>('.dropdown');
+    const label = this._options.find(o => o.value === val)?.label ?? '';
+
+    if (input) {
+      input.value = label;
+      input.placeholder = label || this.attr('placeholder', 'Select...');
+    }
+    if (dropdown) dropdown.classList.remove('open');
+
+    // Update clear button
+    const combo = this.$<HTMLElement>('.combo');
+    if (combo) {
+      const clearBtn = combo.querySelector('.combo-clear');
+      if (val && !clearBtn) {
+        const arrow = combo.querySelector('.combo-arrow');
+        if (arrow) {
+          arrow.insertAdjacentHTML('beforebegin', '<button class="combo-clear" type="button">&times;</button>');
+          combo.querySelector('.combo-clear')?.addEventListener('click', () => this._selectValue(''));
+        }
+      } else if (!val && clearBtn) {
+        clearBtn.remove();
+      }
+    }
+
+    // Set attribute without full re-render
+    this._skipNextUpdate = true;
+    if (val) this.setAttribute('value', val);
+    else this.removeAttribute('value');
+    this._skipNextUpdate = false;
+
+    this.emit('change', { name: this.attr('name'), value: val });
+  }
+
+  /** Refresh dropdown options in-place without full re-render. */
+  private _refreshOptions() {
+    const dropdown = this.$<HTMLElement>('.dropdown');
+    if (!dropdown) return;
+
     const value = this.attr('value');
     const filtered = this._filter
       ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
@@ -225,28 +317,16 @@ export class BSelect extends BaseComponent {
           </div>
         `).join('');
 
-    this._wireOptionClicks(dropdown, this.$<HTMLInputElement>('.combo-input')!);
+    this._wireOptionClicks(dropdown);
   }
 
-  private _wireOptionClicks(dropdown: HTMLElement, input: HTMLInputElement) {
+  private _wireOptionClicks(dropdown: HTMLElement) {
     dropdown.querySelectorAll<HTMLElement>('.option[data-value]').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const val = opt.dataset.value!;
-        this.setAttribute('value', val);
-        this._filter = '';
-        input.value = this._options.find(o => o.value === val)?.label ?? '';
-        dropdown.hidePopover();
-        this.emit('change', { name: this.attr('name'), value: val });
+      opt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this._selectValue(opt.dataset.value!);
       });
     });
-  }
-
-  private _clearSelection(input: HTMLInputElement) {
-    this.removeAttribute('value');
-    this._filter = '';
-    input.value = '';
-    input.placeholder = this.attr('placeholder', 'Select...');
-    this.emit('change', { name: this.attr('name'), value: '' });
   }
 }
 
