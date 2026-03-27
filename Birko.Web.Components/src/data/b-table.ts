@@ -127,7 +127,10 @@ export class BTable extends BaseComponent {
     });
 
     this.$$<HTMLElement>('tbody tr[data-id]').forEach(tr => {
-      tr.addEventListener('click', () => {
+      tr.addEventListener('click', (e: Event) => {
+        // Don't emit row-click when the user clicked an interactive element inside the row
+        const target = e.target as HTMLElement;
+        if (target?.closest?.('button, a, input, select, textarea, b-button, b-dropdown-menu, [role="button"]')) return;
         this.emit('row-click', { id: tr.dataset.id });
       });
     });
