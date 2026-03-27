@@ -31,6 +31,7 @@ export interface FormField {
   type: FieldType;
   label: string;
   placeholder?: string;
+  value?: unknown;
   rows?: number;
   fullWidth?: boolean;
   hidden?: boolean;
@@ -66,9 +67,33 @@ function isGroup(child: FormField | FormGroupDef): child is FormGroupDef {
   return 'children' in child;
 }
 
+// ── Localisation ──
+
+export type FormTranslateFn = (key: string, params?: Record<string, string | number>) => string;
+
+let _t: FormTranslateFn | null = null;
+
+function fmt(key: string, params: Record<string, string | number>, fallback: string): string {
+  if (_t) {
+    const result = _t(key, params);
+    if (result !== key) return result;  // key was resolved
+  }
+  // Fallback: interpolate params into the fallback string
+  return fallback.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? k));
+}
+
 // ── Component ──
 
 export class BForm extends BaseComponent {
+  /**
+   * Set a global translation function for validation messages.
+   * Keys follow the pattern: `common.required`, `common.minLength`, etc.
+   * Params: `{label}`, `{value}`, `{min}`, `{max}`.
+   */
+  static setTranslate(fn: FormTranslateFn): void {
+    _t = fn;
+  }
+
   static get observedAttributes() {
     return ['layout', 'validate-on', 'readonly', 'disabled'];
   }
@@ -359,6 +384,7 @@ export class BForm extends BaseComponent {
       if (field.label) parts.push(`label="${field.label}"`);
     }
 
+    if (field.value !== undefined && field.value !== '') parts.push(`value="${String(field.value)}"`);
     if (field.placeholder) parts.push(`placeholder="${field.placeholder}"`);
     if (error) parts.push(`error="${error}"`);
     if (disabled) parts.push('disabled');
@@ -493,7 +519,8 @@ export class BForm extends BaseComponent {
     // Required check
     if (field.required) {
       if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-        this._errors.set(path, field.rules?.find(r => r.type === 'required')?.message ?? `${field.label} is required`);
+        this._errors.set(path, field.rules?.find(r => r.type === 'required')?.message
+          ?? fmt('common.required', { label: field.label }, '{label} is required'));
         return; // Stop on first error
       }
     }
@@ -518,39 +545,39 @@ export class BForm extends BaseComponent {
     switch (rule.type) {
       case 'minLength':
         if (str.length < (rule.value as number))
-          return rule.message ?? `${field.label} must be at least ${rule.value} characters`;
+          return rule.message ?? fmt('common.minLength', { label: field.label, value: rule.value as number }, '{label} must be at least {value} characters');
         break;
       case 'maxLength':
         if (str.length > (rule.value as number))
-          return rule.message ?? `${field.label} must be at most ${rule.value} characters`;
+          return rule.message ?? fmt('common.maxLength', { label: field.label, value: rule.value as number }, '{label} must be at most {value} characters');
         break;
       case 'min':
         if (num < (rule.value as number))
-          return rule.message ?? `${field.label} must be at least ${rule.value}`;
+          return rule.message ?? fmt('common.min', { label: field.label, value: rule.value as number }, '{label} must be at least {value}');
         break;
       case 'max':
         if (num > (rule.value as number))
-          return rule.message ?? `${field.label} must be at most ${rule.value}`;
+          return rule.message ?? fmt('common.max', { label: field.label, value: rule.value as number }, '{label} must be at most {value}');
         break;
       case 'range': {
         const [min, max] = rule.value as [number, number];
         if (num < min || num > max)
-          return rule.message ?? `${field.label} must be between ${min} and ${max}`;
+          return rule.message ?? fmt('common.range', { label: field.label, min, max }, '{label} must be between {min} and {max}');
         break;
       }
       case 'pattern': {
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value as string);
         if (!regex.test(str))
-          return rule.message ?? `${field.label} format is invalid`;
+          return rule.message ?? fmt('common.invalidFormat', { label: field.label }, '{label} format is invalid');
         break;
       }
       case 'email':
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str))
-          return rule.message ?? 'Invalid email address';
+          return rule.message ?? fmt('common.invalidEmail', { label: field.label }, 'Invalid email address');
         break;
       case 'match':
         if (str !== String(allData[rule.value as string] ?? ''))
-          return rule.message ?? `${field.label} must match ${rule.value}`;
+          return rule.message ?? fmt('common.mustMatch', { label: field.label, value: rule.value as string }, '{label} must match {value}');
         break;
       case 'custom': {
         const fn = rule.value as ValidatorFn;

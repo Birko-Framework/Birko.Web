@@ -12,5 +12,5 @@ export { BFileUpload, type UploadFile, type UploadResult } from './b-file-upload
 export {
   BForm,
   type FormSchema, type FormGroupDef, type FormField, type FormResult,
-  type FieldType, type ValidationRule, type GroupRule, type ValidatorFn,
+  type FieldType, type ValidationRule, type GroupRule, type ValidatorFn, type FormTranslateFn,
 } from './b-form.js';
