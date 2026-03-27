@@ -1,5 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { formFieldSheet, formControlSheet, dropdownPanelSheet } from '../shared-styles';
+import { formFieldSheet, formControlSheet, dropdownPanelSheet, comboControlSheet } from '../shared-styles';
 
 interface Option {
   value: string;
@@ -15,33 +15,16 @@ export class BSelect extends BaseComponent {
   private _filter = '';
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet, dropdownPanelSheet];
+    return [formFieldSheet, formControlSheet, dropdownPanelSheet, comboControlSheet];
   }
 
   static get styles() {
     return `
-      :host { display: block; }
+      :host { display: block; position: relative; }
       select { cursor: pointer; }
 
-      /* ── Searchable mode ── */
-      :host { position: relative; }
-      .combo {
-        display: flex; align-items: center;
-        padding: 0;
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        background: var(--b-bg);
-        min-height: 2.25rem;
-        cursor: pointer;
-        transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
-      }
-      .combo:focus-within {
-        border-color: var(--b-border-focus);
-        box-shadow: var(--b-focus-ring);
-      }
-      .combo.has-error { border-color: var(--b-color-danger); }
-      .combo.has-error:focus-within { box-shadow: var(--b-focus-ring-danger); }
-      .combo.disabled { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
+      /* ── Searchable mode (layout uses .combo-container from comboControlSheet) ── */
+      .combo { padding: 0; }
       .combo-input {
         flex: 1; border: none; outline: none; background: transparent;
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
@@ -129,7 +112,7 @@ export class BSelect extends BaseComponent {
     return `
       <div class="field">
         ${label ? `<label>${label}</label>` : ''}
-        <div class="combo ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
+        <div class="combo combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <input class="combo-input" type="text"
                  value="${this._filter || selectedLabel}"
                  placeholder="${value ? selectedLabel : placeholder}"

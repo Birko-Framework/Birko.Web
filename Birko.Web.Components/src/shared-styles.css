@@ -214,6 +214,38 @@ input.has-error:focus, select.has-error:focus {
 }
 
 
+/* @sheet comboControl
+   Shared container styling for composite inputs that wrap their own
+   inner elements (b-select searchable, b-multi-select).
+   Mirrors formControl patterns: border, focus ring, error, disabled. */
+
+.combo-container {
+  display: flex;
+  align-items: center;
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  background: var(--b-bg);
+  min-height: 2.25rem;
+  cursor: pointer;
+  transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
+}
+.combo-container:focus-within {
+  border-color: var(--b-border-focus);
+  box-shadow: var(--b-focus-ring);
+}
+.combo-container.has-error {
+  border-color: var(--b-color-danger);
+}
+.combo-container.has-error:focus-within {
+  box-shadow: var(--b-focus-ring-danger);
+}
+.combo-container.disabled {
+  opacity: var(--b-disabled-opacity, 0.5);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+
 /* @sheet spin
    Shared spinner keyframes. Used by b-spinner and b-button. */
 

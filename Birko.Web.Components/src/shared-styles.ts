@@ -70,5 +70,8 @@ export const dropdownPanelSheet = getSheet('dropdownPanel');
 /** Wrapper, label, disabled, focus for toggle-like inputs (switch, checkbox, radio). */
 export const formToggleSheet = getSheet('formToggle');
 
+/** Container styling for composite inputs (b-select searchable, b-multi-select). */
+export const comboControlSheet = getSheet('comboControl');
+
 /** Spinner keyframes animation. */
 export const spinSheet = getSheet('spin');

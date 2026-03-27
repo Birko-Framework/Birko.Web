@@ -1,5 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { formFieldSheet, dropdownPanelSheet } from '../shared-styles';
+import { formFieldSheet, dropdownPanelSheet, comboControlSheet } from '../shared-styles';
 
 interface Option {
   value: string;
@@ -16,39 +16,17 @@ export class BMultiSelect extends BaseComponent {
   private _filter = '';
 
   static get sharedStyles() {
-    return [formFieldSheet, dropdownPanelSheet];
+    return [formFieldSheet, dropdownPanelSheet, comboControlSheet];
   }
 
   static get styles() {
     return `
       :host { display: block; position: relative; }
+      /* Layout extension — base border/focus/error/disabled from comboControlSheet */
       .container {
-        display: flex;
         flex-wrap: wrap;
-        align-items: center;
         gap: var(--b-space-xs, 0.25rem);
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        background: var(--b-bg);
-        min-height: 2.25rem;
-        cursor: pointer;
-        transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
-      }
-      .container:focus-within {
-        border-color: var(--b-border-focus);
-        box-shadow: var(--b-focus-ring);
-      }
-      .container.has-error {
-        border-color: var(--b-color-danger);
-      }
-      .container.has-error:focus-within {
-        box-shadow: var(--b-focus-ring-danger);
-      }
-      .container.disabled {
-        opacity: var(--b-disabled-opacity, 0.5);
-        cursor: not-allowed;
-        pointer-events: none;
       }
       .chip {
         display: inline-flex;
@@ -169,7 +147,7 @@ export class BMultiSelect extends BaseComponent {
     return `
       <div class="field">
         ${label ? `<label>${label}</label>` : ''}
-        <div class="container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
+        <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
              aria-haspopup="listbox"
              aria-expanded="false">
