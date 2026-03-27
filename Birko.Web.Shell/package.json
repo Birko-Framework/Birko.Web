@@ -1,0 +1,16 @@
+{
+  "name": "birko-web-shell",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./shell": "./src/shell/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./modules": "./src/modules/index.ts",
+    "./tenants": "./src/tenants/index.ts",
+    "./notifications": "./src/notifications/index.ts",
+    "./connection": "./src/connection/index.ts",
+    "./commands": "./src/commands/index.ts",
+    "./feedback": "./src/feedback/index.ts"
+  }
+}
