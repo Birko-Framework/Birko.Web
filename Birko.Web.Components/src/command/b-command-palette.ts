@@ -26,6 +26,7 @@ interface PaletteState {
 }
 
 export class BCommandPalette extends BaseComponent {
+  static get observedAttributes() { return ['placeholder', 'label-esc-close', 'label-searching', 'label-no-results', 'label-type-to-search', 'label-navigate', 'label-select', 'label-close', 'label-palette']; }
   private _state: PaletteState = { query: '', results: [], activeIdx: -1, loading: false };
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _unsub: (() => void) | null = null;
@@ -208,7 +209,7 @@ export class BCommandPalette extends BaseComponent {
 
     return `
       <div class="palette-backdrop open" id="backdrop">
-        <div class="palette-panel" role="dialog" aria-modal="true" aria-label="Command palette">
+        <div class="palette-panel" role="dialog" aria-modal="true" aria-label="${this.attr('label-palette', 'Command palette')}">
 
           <div class="search-row">
             <span class="search-icon">\u2315</span>
@@ -221,14 +222,14 @@ export class BCommandPalette extends BaseComponent {
               autocomplete="off"
               spellcheck="false"
             />
-            <span class="search-hint"><kbd>Esc</kbd> to close</span>
+            <span class="search-hint"><kbd>Esc</kbd> ${this.attr('label-esc-close', 'to close')}</span>
           </div>
 
           <div class="results" id="results" role="listbox">
             ${loading
-              ? `<div class="empty-state"><b-spinner></b-spinner> Searching\u2026</div>`
+              ? `<div class="empty-state"><b-spinner></b-spinner> ${this.attr('label-searching', 'Searching\u2026')}</div>`
               : groups.length === 0
-                ? `<div class="empty-state">${query ? 'No results found' : 'Type to search\u2026'}</div>`
+                ? `<div class="empty-state">${query ? this.attr('label-no-results', 'No results found') : this.attr('label-type-to-search', 'Type to search\u2026')}</div>`
                 : groups.map(g => `
                     <div class="category-label">${g.category}</div>
                     ${g.items.map(item => {
@@ -253,9 +254,9 @@ export class BCommandPalette extends BaseComponent {
           </div>
 
           <div class="palette-footer">
-            <span class="footer-hint"><kbd>\u2191</kbd><kbd>\u2193</kbd> Navigate</span>
-            <span class="footer-hint"><kbd>\u21B5</kbd> Select</span>
-            <span class="footer-hint"><kbd>Esc</kbd> Close</span>
+            <span class="footer-hint"><kbd>\u2191</kbd><kbd>\u2193</kbd> ${this.attr('label-navigate', 'Navigate')}</span>
+            <span class="footer-hint"><kbd>\u21B5</kbd> ${this.attr('label-select', 'Select')}</span>
+            <span class="footer-hint"><kbd>Esc</kbd> ${this.attr('label-close', 'Close')}</span>
           </div>
         </div>
       </div>

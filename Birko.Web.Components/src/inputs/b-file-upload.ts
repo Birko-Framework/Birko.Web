@@ -23,7 +23,9 @@ export interface UploadResult {
 
 export class BFileUpload extends BaseComponent {
   static get observedAttributes() {
-    return ['accept', 'multiple', 'max-size', 'max-files', 'disabled', 'label', 'endpoint'];
+    return ['accept', 'multiple', 'max-size', 'max-files', 'disabled', 'label', 'endpoint',
+            'label-drop', 'label-drop-more', 'label-drop-empty', 'label-max', 'label-pending',
+            'label-error', 'label-too-large', 'label-upload-failed', 'label-network-error', 'label-remove'];
   }
 
   private _files: UploadFile[] = [];
@@ -152,8 +154,13 @@ export class BFileUpload extends BaseComponent {
     const maxSize = this.numAttr('max-size', 10485760);
     const hasFiles = this._files.length > 0;
 
-    const hint = `Max ${this._formatSize(maxSize)}` +
+    const lMax = this.attr('label-max', 'Max');
+    const hint = `${lMax} ${this._formatSize(maxSize)}` +
       (accept !== '*' ? ` · ${accept}` : '');
+
+    const lDrop = this.attr('label-drop', 'Drop to upload');
+    const lDropMore = this.attr('label-drop-more', 'Drop more files or click to browse');
+    const lDropEmpty = this.attr('label-drop-empty', 'Drop files here or click to browse');
 
     return `
       <div class="field">
@@ -164,11 +171,11 @@ export class BFileUpload extends BaseComponent {
                  ${multiple ? 'multiple' : ''}
                  ${disabled ? 'disabled' : ''} />
           ${this._dragging
-            ? '<span class="dz-text">Drop to upload</span>'
+            ? `<span class="dz-text">${lDrop}</span>`
             : hasFiles
-              ? '<span class="dz-text">Drop more files or click to browse</span>'
+              ? `<span class="dz-text">${lDropMore}</span>`
               : `<span class="dz-icon">&#128193;</span>
-                 <span class="dz-text">Drop files here or click to browse</span>
+                 <span class="dz-text">${lDropEmpty}</span>
                  <span class="dz-hint">${hint}</span>`
           }
         </div>
@@ -189,9 +196,9 @@ export class BFileUpload extends BaseComponent {
     } else if (f.status === 'complete') {
       status = '<span class="file-status status-complete">&#10003;</span>';
     } else if (f.status === 'error') {
-      status = `<span class="file-status status-error">${f.error ?? 'Error'}</span>`;
+      status = `<span class="file-status status-error">${f.error ?? this.attr('label-error', 'Error')}</span>`;
     } else {
-      status = '<span class="file-status status-pending">Pending</span>';
+      status = `<span class="file-status status-pending">${this.attr('label-pending', 'Pending')}</span>`;
     }
 
     return `
@@ -202,7 +209,7 @@ export class BFileUpload extends BaseComponent {
           <span class="file-meta">${this._formatSize(f.size)}</span>
         </div>
         ${status}
-        <button class="file-remove" data-id="${f.id}" type="button" aria-label="Remove ${f.name}">&times;</button>
+        <button class="file-remove" data-id="${f.id}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${f.name}">&times;</button>
       </div>
     `;
   }
@@ -273,7 +280,7 @@ export class BFileUpload extends BaseComponent {
         type: file.type,
         status: file.size > maxSize ? 'error' : 'pending',
         progress: 0,
-        error: file.size > maxSize ? 'File too large' : undefined,
+        error: file.size > maxSize ? (this.attr('label-too-large', 'File too large')) : undefined,
       };
 
       // Generate thumbnail for images
@@ -325,7 +332,7 @@ export class BFileUpload extends BaseComponent {
         }
       } else {
         file.status = 'error';
-        file.error = `Upload failed (${xhr.status})`;
+        file.error = `${this.attr('label-upload-failed', 'Upload failed')} (${xhr.status})`;
         this.emit('upload-error', { fileId: file.id, error: file.error });
       }
       this.update();
@@ -334,7 +341,7 @@ export class BFileUpload extends BaseComponent {
 
     xhr.addEventListener('error', () => {
       file.status = 'error';
-      file.error = 'Network error';
+      file.error = this.attr('label-network-error', 'Network error');
       this.emit('upload-error', { fileId: file.id, error: file.error });
       this.update();
       this._checkAllComplete();

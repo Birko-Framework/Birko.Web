@@ -1,7 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 
 export class BInlineEdit extends BaseComponent {
-  static get observedAttributes() { return ['value', 'placeholder', 'type']; }
+  static get observedAttributes() { return ['value', 'placeholder', 'type', 'label-save', 'label-cancel']; }
 
   private _editing = false;
   private _originalValue = '';
@@ -62,8 +62,8 @@ export class BInlineEdit extends BaseComponent {
       return `
         <span class="edit-wrap">
           <input type="${type}" value="${value}" />
-          <button class="action-btn save" aria-label="Save">&#10003;</button>
-          <button class="action-btn cancel" aria-label="Cancel">&#10005;</button>
+          <button class="action-btn save" aria-label="${this.attr('label-save', 'Save')}">&#10003;</button>
+          <button class="action-btn cancel" aria-label="${this.attr('label-cancel', 'Cancel')}">&#10005;</button>
         </span>
       `;
     }

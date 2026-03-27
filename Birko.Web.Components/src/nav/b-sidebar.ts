@@ -9,7 +9,7 @@ export interface SidebarItem {
 }
 
 export class BSidebar extends BaseComponent {
-  static get observedAttributes() { return ['collapsed', 'active']; }
+  static get observedAttributes() { return ['collapsed', 'active', 'label-nav', 'label-expand', 'label-collapse']; }
 
   private _items: SidebarItem[] = [];
 
@@ -62,7 +62,7 @@ export class BSidebar extends BaseComponent {
     const active = this.attr('active');
     const collapsed = this.boolAttr('collapsed');
     return `
-      <nav class="sidebar" aria-label="Main navigation">
+      <nav class="sidebar" aria-label="${this.attr('label-nav', 'Main navigation')}">
         <div class="brand" part="brand">
           <slot name="brand"></slot>
         </div>
@@ -78,7 +78,7 @@ export class BSidebar extends BaseComponent {
           `).join('')}
         </div>
         <div class="footer">
-          <button class="toggle-btn" aria-label="${collapsed ? 'Expand sidebar' : 'Collapse sidebar'}">${collapsed ? '&#9654;' : '&#9664;'}</button>
+          <button class="toggle-btn" aria-label="${collapsed ? this.attr('label-expand', 'Expand sidebar') : this.attr('label-collapse', 'Collapse sidebar')}">${collapsed ? '&#9654;' : '&#9664;'}</button>
         </div>
       </nav>
     `;

@@ -5,7 +5,7 @@ import {
 } from '../shared-styles';
 
 export class BModal extends BaseComponent {
-  static get observedAttributes() { return ['title', 'size']; }
+  static get observedAttributes() { return ['title', 'size', 'label-close']; }
 
   private _previousFocus: HTMLElement | null = null;
 
@@ -40,7 +40,7 @@ export class BModal extends BaseComponent {
         <div class="modal">
           <div class="overlay-header">
             <span id="${titleId}">${title}</span>
-            <button class="close-btn" aria-label="Close">&times;</button>
+            <button class="close-btn" aria-label="${this.attr('label-close', 'Close')}">&times;</button>
           </div>
           <div class="overlay-body"><slot></slot></div>
           <div class="overlay-footer"><slot name="footer"></slot></div>

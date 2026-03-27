@@ -1,7 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 
 export class BEmpty extends BaseComponent {
-  static get observedAttributes() { return ['icon', 'message']; }
+  static get observedAttributes() { return ['icon', 'message', 'label-empty']; }
 
   static get styles() {
     return `
@@ -19,7 +19,7 @@ export class BEmpty extends BaseComponent {
     return `
       <div class="empty">
         <span class="icon">${this.attr('icon', '📭')}</span>
-        <span class="message">${this.attr('message', 'Nothing here yet')}</span>
+        <span class="message">${this.attr('message', this.attr('label-empty', 'Nothing here yet'))}</span>
         <slot></slot>
       </div>
     `;

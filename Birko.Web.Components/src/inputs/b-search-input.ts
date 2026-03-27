@@ -3,7 +3,7 @@ import { formControlSheet } from '../shared-styles';
 
 export class BSearchInput extends BaseComponent {
   static get observedAttributes() {
-    return ['placeholder', 'value', 'debounce'];
+    return ['placeholder', 'value', 'debounce', 'label-clear'];
   }
 
   private _timer: ReturnType<typeof setTimeout> | null = null;
@@ -76,7 +76,7 @@ export class BSearchInput extends BaseComponent {
                value="${value}"
                placeholder="${placeholder}"
                aria-label="${placeholder}" />
-        <button class="clear" aria-label="Clear search">&times;</button>
+        <button class="clear" aria-label="${this.attr('label-clear', 'Clear search')}">&times;</button>
       </div>
     `;
   }

@@ -100,7 +100,7 @@ class ToastManager {
 export const toast = new ToastManager();
 
 export class BToastItem extends BaseComponent {
-  static get observedAttributes() { return ['variant', 'message', 'href', 'icon']; }
+  static get observedAttributes() { return ['variant', 'message', 'href', 'icon', 'label-dismiss']; }
 
   static get styles() {
     return `
@@ -140,7 +140,7 @@ export class BToastItem extends BaseComponent {
       <div class="toast ${variant}" role="${role}" aria-live="${live}">
         ${icon ? `<span class="icon" aria-hidden="true">${icon}</span>` : ''}
         <span class="msg">${this.attr('message')}</span>
-        <button class="close" aria-label="Dismiss">&times;</button>
+        <button class="close" aria-label="${this.attr('label-dismiss', 'Dismiss')}">&times;</button>
       </div>
     `;
   }

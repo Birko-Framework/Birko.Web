@@ -8,7 +8,7 @@ interface Option {
 
 export class BMultiSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable'];
+    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'label-search', 'label-remove'];
   }
 
   private _options: Option[] = [];
@@ -116,7 +116,7 @@ export class BMultiSelect extends BaseComponent {
       .map(o => `
         <span class="chip">
           ${o.label}
-          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="Remove ${o.label}">&times;</button>
+          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
         </span>
       `).join('');
 
@@ -124,6 +124,9 @@ export class BMultiSelect extends BaseComponent {
     const filtered = searchable && this._filter
       ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
       : this._options;
+
+    const noMatchesLabel = this.attr('label-no-matches', 'No matches');
+    const searchLabel = this.attr('label-search', 'Search...');
 
     return `
       <div class="field">
@@ -135,13 +138,13 @@ export class BMultiSelect extends BaseComponent {
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
         <div class="dropdown ${this._open ? 'open' : ''}" role="listbox">
-          ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="Search..." value="${this._filter}" /></div>` : ''}
+          ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${this._filter}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
               <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
               ${o.label}
             </label>
-          `).join('') : `<div class="no-results">No matches</div>`}
+          `).join('') : `<div class="no-results">${noMatchesLabel}</div>`}
         </div>
         ${error ? `<span class="error">${error}</span>` : ''}
       </div>
@@ -261,7 +264,7 @@ export class BMultiSelect extends BaseComponent {
     }
 
     if (filtered.length === 0) {
-      dropdown.insertAdjacentHTML('beforeend', '<div class="no-results">No matches</div>');
+      dropdown.insertAdjacentHTML('beforeend', `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`);
     } else {
       dropdown.insertAdjacentHTML('beforeend', filtered.map(o => `
         <label class="option">
@@ -298,7 +301,7 @@ export class BMultiSelect extends BaseComponent {
       .map(o => `
         <span class="chip">
           ${o.label}
-          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="Remove ${o.label}">&times;</button>
+          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
         </span>
       `).join('');
 

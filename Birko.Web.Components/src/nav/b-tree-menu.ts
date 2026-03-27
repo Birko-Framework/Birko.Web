@@ -12,7 +12,7 @@ export interface TreeMenuItem {
 }
 
 export class BTreeMenu extends BaseComponent {
-  static get observedAttributes() { return ['active']; }
+  static get observedAttributes() { return ['active', 'label-expand', 'label-collapse']; }
 
   private _items: TreeMenuItem[] = [];
   private _expanded = new Set<string>();
@@ -175,7 +175,7 @@ export class BTreeMenu extends BaseComponent {
       const toggleHtml = hasChildren
         ? `<button class="toggle ${isExpanded ? 'expanded' : ''}"
                   data-toggle="${item.id}" type="button" tabindex="-1"
-                  aria-label="${isExpanded ? 'Collapse' : 'Expand'}">&#9654;</button>`
+                  aria-label="${isExpanded ? this.attr('label-collapse', 'Collapse') : this.attr('label-expand', 'Expand')}">&#9654;</button>`
         : `<span class="toggle-placeholder"></span>`;
 
       const iconHtml = item.icon

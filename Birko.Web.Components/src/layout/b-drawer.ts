@@ -5,7 +5,7 @@ import {
 } from '../shared-styles';
 
 export class BDrawer extends BaseComponent {
-  static get observedAttributes() { return ['title', 'size', 'modal']; }
+  static get observedAttributes() { return ['title', 'size', 'modal', 'label-close']; }
 
   static get sharedStyles() {
     return [dialogBaseSheet, closeButtonSheet, overlayHeaderSheet, overlayBodySheet, overlayFooterSheet];
@@ -50,7 +50,7 @@ export class BDrawer extends BaseComponent {
         <div class="drawer">
           <div class="overlay-header">
             <span>${title}</span>
-            <button class="close-btn" aria-label="Close">&times;</button>
+            <button class="close-btn" aria-label="${this.attr('label-close', 'Close')}">&times;</button>
           </div>
           <div class="overlay-body"><slot></slot></div>
           <div class="overlay-footer"><slot name="footer"></slot></div>

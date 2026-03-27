@@ -2,7 +2,7 @@ import { BaseComponent, define } from 'birko-web-core';
 import { spinSheet } from '../shared-styles';
 
 export class BSpinner extends BaseComponent {
-  static get observedAttributes() { return ['size']; }
+  static get observedAttributes() { return ['size', 'label-loading']; }
 
   static get sharedStyles() {
     return [spinSheet];
@@ -23,7 +23,7 @@ export class BSpinner extends BaseComponent {
     `;
   }
 
-  render() { return '<div class="spinner" role="status" aria-label="Loading"></div>'; }
+  render() { return `<div class="spinner" role="status" aria-label="${this.attr('label-loading', 'Loading')}"></div>`; }
 }
 
 define('b-spinner', BSpinner);

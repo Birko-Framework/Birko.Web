@@ -8,7 +8,7 @@ interface Option {
 
 export class BSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches'];
   }
 
   private _options: Option[] = [];
@@ -135,7 +135,7 @@ export class BSelect extends BaseComponent {
         </div>
         <div class="dropdown ${this._open ? 'open' : ''}">
           ${filtered.length === 0
-            ? '<div class="no-results">No matches</div>'
+            ? `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`
             : filtered.map(o => `
                 <div class="option ${o.value === value ? 'selected' : ''}" data-value="${o.value}">
                   ${o.label}
@@ -310,7 +310,7 @@ export class BSelect extends BaseComponent {
       : this._options;
 
     dropdown.innerHTML = filtered.length === 0
-      ? '<div class="no-results">No matches</div>'
+      ? `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`
       : filtered.map(o => `
           <div class="option ${o.value === value ? 'selected' : ''}" data-value="${o.value}">
             ${o.label}
