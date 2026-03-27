@@ -59,8 +59,18 @@ export class BRibbon extends BaseComponent {
         flex: 1; min-width: 0; overflow-x: auto;
         scrollbar-width: none;
         gap: 0;
+        scroll-behavior: smooth;
       }
       .ribbon-tabs::-webkit-scrollbar { display: none; }
+
+      .ribbon-scroll-btn {
+        display: none; background: var(--b-bg-elevated); border: none; cursor: pointer;
+        color: var(--b-text-muted); padding: 0 var(--b-space-xs, 0.25rem);
+        font-size: 0.75rem; flex-shrink: 0; align-items: center; justify-content: center;
+        z-index: 1;
+      }
+      .ribbon-scroll-btn:hover { color: var(--b-text); background: var(--b-bg-tertiary); }
+      .ribbon-scroll-btn.visible { display: flex; }
 
       .ribbon-tab {
         display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
@@ -245,6 +255,7 @@ export class BRibbon extends BaseComponent {
         .ribbon-tabs { display: none; }
         .ribbon-panel { display: none; }
         .ribbon-ctrl { display: none; }
+        .ribbon-scroll-btn { display: none !important; }
         .mobile-hamburger { display: flex; }
         .mobile-active-label { display: block; flex: 1; min-width: 0; }
       }
@@ -300,6 +311,7 @@ export class BRibbon extends BaseComponent {
           <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.attr('label-open-nav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
 
+          <button class="ribbon-scroll-btn" id="scroll-left" aria-label="Scroll left">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
             ${this._tabs.map(tab => {
               const isActive = tab.id === active;
@@ -314,6 +326,7 @@ export class BRibbon extends BaseComponent {
               </button>`;
             }).join('')}
           </div>
+          <button class="ribbon-scroll-btn" id="scroll-right" aria-label="Scroll right">&#9656;</button>
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
@@ -416,6 +429,9 @@ export class BRibbon extends BaseComponent {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   protected onUpdated() {
+    // Scroll buttons for overflowing tabs
+    this._setupTabScroll();
+
     // Tab clicks
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
       btn.addEventListener('click', () => this._selectTab(btn.dataset.tab!));
@@ -566,6 +582,27 @@ export class BRibbon extends BaseComponent {
     }
     // Always expand panel so sub-pages are visible
     this.expand();
+  }
+
+  private _setupTabScroll() {
+    const tabs = this.$<HTMLElement>('.ribbon-tabs');
+    const leftBtn = this.$<HTMLElement>('#scroll-left');
+    const rightBtn = this.$<HTMLElement>('#scroll-right');
+    if (!tabs || !leftBtn || !rightBtn) return;
+
+    const updateArrows = () => {
+      const canLeft = tabs.scrollLeft > 1;
+      const canRight = tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1;
+      leftBtn.classList.toggle('visible', canLeft);
+      rightBtn.classList.toggle('visible', canRight);
+    };
+
+    tabs.addEventListener('scroll', updateArrows, { passive: true });
+    leftBtn.addEventListener('click', () => { tabs.scrollLeft -= tabs.clientWidth * 0.5; });
+    rightBtn.addEventListener('click', () => { tabs.scrollLeft += tabs.clientWidth * 0.5; });
+
+    // Check on next frame (layout may not be ready yet)
+    requestAnimationFrame(updateArrows);
   }
 
   private _clearTimers() {
