@@ -10,7 +10,7 @@ export interface TableColumn {
 }
 
 export class BTable extends BaseComponent {
-  static get observedAttributes() { return ['loading', 'empty-text', 'striped', 'hoverable', 'sortable']; }
+  static get observedAttributes() { return ['loading', 'empty-text', 'striped', 'hoverable', 'sortable', 'label-no-data']; }
 
   private _columns: TableColumn[] = [];
   private _data: Record<string, unknown>[] = [];
@@ -21,7 +21,7 @@ export class BTable extends BaseComponent {
   static get styles() {
     return `
       :host { display: block; }
-      .table-wrap { overflow-x: auto; }
+      .table-wrap { overflow-x: auto; overflow-y: auto; max-height: var(--b-table-max-height, none); }
       table { width: 100%; border-collapse: collapse; font-size: var(--b-text-sm, 0.8125rem); }
       th {
         text-align: left; padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
@@ -29,6 +29,7 @@ export class BTable extends BaseComponent {
         font-size: var(--b-text-xs, 0.6875rem); text-transform: uppercase; letter-spacing: var(--b-letter-spacing-caps, 0.03125rem);
         border-bottom: 2px solid var(--b-border); white-space: nowrap;
         user-select: none;
+        position: sticky; top: 0; z-index: 1; background: var(--b-bg);
       }
       th.sortable { cursor: pointer; }
       th.sortable:hover { color: var(--b-text); }
@@ -66,7 +67,7 @@ export class BTable extends BaseComponent {
 
   render() {
     const loading = this.boolAttr('loading');
-    const emptyText = this.attr('empty-text', 'No data');
+    const emptyText = this.attr('empty-text') ?? this.attr('label-no-data', 'No data');
 
     const sorted = this._sortKey ? [...this._data].sort((a, b) => {
       const aVal = a[this._sortKey!];

@@ -2,6 +2,7 @@ import { BaseComponent, define } from 'birko-web-core';
 import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import type { TableColumn } from './b-table.js';
 import type { DropdownItem } from '../layout/b-dropdown-menu.js';
+import { DEFAULT_PAGE_SIZES } from './b-pagination.js';
 import './b-table.js';
 import './b-pagination.js';
 import '../inputs/b-search-input.js';
@@ -52,6 +53,7 @@ export interface DataTableConfig {
   columns: TableColumn[];
   apiClient: ApiClient;
   pageSize?: number;
+  pageSizeOptions?: number[] | false;
   dataKey?: string | null;
   totalKey?: string | null;
   params?: Record<string, string>;
@@ -77,7 +79,31 @@ export interface DataTableConfig {
   // Export
   exportable?: boolean;
   exportFormats?: ExportOption[];
+
+  // Labels (i18n)
+  paginationLabels?: PaginationLabels;
+  labels?: DataTableLabels;
 }
+
+export interface PaginationLabels {
+  items?: string;
+  page?: string;
+  of?: string;
+  perPage?: string;
+  prev?: string;
+  next?: string;
+  pageSize?: string;
+}
+
+export interface DataTableLabels {
+  selected?: string;
+  export?: string;
+  confirmDefault?: string;
+  noData?: string;
+}
+
+/** localStorage key for default page size (set via Settings page). */
+export const PAGE_SIZE_STORAGE_KEY = 'symbio-page-size';
 
 /**
  * Auto-fetching data table with toolbar, selection, bulk actions, row actions, export, and pagination.
@@ -88,6 +114,7 @@ export class BDataTable extends BaseComponent {
   private _config: DataTableConfig | null = null;
   private _allData: Record<string, unknown>[] = [];
   private _page = 1;
+  private _pageSize = 20;
   private _totalPages = 1;
   private _totalCount = 0;
   private _loading = false;
@@ -143,6 +170,9 @@ export class BDataTable extends BaseComponent {
         justify-content: space-between;
         flex-wrap: wrap;
         gap: var(--b-space-sm, 0.5rem);
+        position: sticky; bottom: 0; z-index: 1;
+        background: var(--b-bg);
+        padding-top: var(--b-space-xs, 0.25rem);
       }
       .bulk-bar {
         display: flex;
@@ -171,6 +201,7 @@ export class BDataTable extends BaseComponent {
     this._selected.clear();
     this._activeFilters.clear();
     this._searchQuery = '';
+    this._pageSize = this._resolvePageSize();
     this.update();
     this._applyData();
   }
@@ -184,7 +215,7 @@ export class BDataTable extends BaseComponent {
 
     try {
       const params: Record<string, string> = { ...this._config.params };
-      const pageSize = this._config.pageSize ?? 20;
+      const pageSize = this._pageSize;
 
       if (!this._config.flatArray) {
         params['page'] = String(this._page);
@@ -270,13 +301,18 @@ export class BDataTable extends BaseComponent {
     const hasToolbar = this._config.searchable || this._config.filters?.length || this._config.actions?.length || this._config.exportable;
     const hasBulk = this._selected.size > 0 && this._config.bulkActions?.length;
 
+    const pageSizeAttr = this._showPageSizePicker() ? ` page-size="${this._pageSize}"` : '';
+    const pageSizesAttr = Array.isArray(this._config.pageSizeOptions)
+      ? ` page-sizes="${this._config.pageSizeOptions.join(',')}"` : '';
+    const labelAttrs = this._buildLabelAttrs();
+
     return `
       <div class="data-table">
         ${hasToolbar ? this._renderToolbar() : ''}
-        <b-table ${this._loading ? 'loading' : ''} hoverable striped></b-table>
+        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${this._config.labels.noData}"` : ''}></b-table>
         <div class="footer">
           ${hasBulk ? this._renderBulkBar() : '<span></span>'}
-          <b-pagination page="${this._page}" total-pages="${this._totalPages}" total-count="${this._totalCount}"></b-pagination>
+          <b-pagination page="${this._page}" total-pages="${this._totalPages}" total-count="${this._totalCount}"${pageSizeAttr}${pageSizesAttr}${labelAttrs}></b-pagination>
         </div>
       </div>
     `;
@@ -324,7 +360,8 @@ export class BDataTable extends BaseComponent {
       `<button class="bulk-btn ${a.variant ?? ''}" data-bulk="${a.id}" data-confirm="${a.confirm ?? false}" data-msg="${(a.confirmMessage ?? '').replace('{count}', String(count))}">${a.icon ?? ''}${a.label}</button>`
     ).join('');
 
-    return `<div class="bulk-bar"><span class="bulk-count">${count} selected</span>${buttons}</div>`;
+    const lSelected = this._config!.labels?.selected ?? 'selected';
+    return `<div class="bulk-bar"><span class="bulk-count">${count} ${lSelected}</span>${buttons}</div>`;
   }
 
   protected onUpdated() {
@@ -361,7 +398,7 @@ export class BDataTable extends BaseComponent {
         trigger.setAttribute('variant', 'secondary');
         trigger.setAttribute('size', 'sm');
         trigger.setAttribute('slot', 'trigger');
-        trigger.textContent = 'Export';
+        trigger.textContent = this._config!.labels?.export ?? 'Export';
         menu.appendChild(trigger);
         menu.addEventListener('select', ((e: CustomEvent) => {
           this._emitExport(e.detail.id);
@@ -392,6 +429,19 @@ export class BDataTable extends BaseComponent {
       }
     }) as EventListener);
 
+    // Page size change
+    this.$<HTMLElement>('b-pagination')?.addEventListener('page-size-change', ((e: CustomEvent) => {
+      this._pageSize = e.detail.pageSize;
+      this._page = 1;
+      if (this._config?.flatArray) {
+        this._totalPages = Math.max(1, Math.ceil(this._totalCount / this._pageSize));
+        this.update();
+        this._applyData();
+      } else {
+        this.load(1);
+      }
+    }) as EventListener);
+
     // Table events — enrich with full row data
     const innerTable = this.$<HTMLElement>('b-table');
 
@@ -416,7 +466,8 @@ export class BDataTable extends BaseComponent {
       btn.addEventListener('click', () => {
         const action = btn.dataset.bulk!;
         const needsConfirm = btn.dataset.confirm === 'true';
-        const msg = btn.dataset.msg || `Are you sure? (${this._selected.size} items)`;
+        const lConfirm = this._config!.labels?.confirmDefault ?? 'Are you sure?';
+        const msg = btn.dataset.msg || `${lConfirm} (${this._selected.size} items)`;
 
         if (needsConfirm) {
           // Use native confirm — can be replaced with b-confirm-dialog later
@@ -582,10 +633,9 @@ export class BDataTable extends BaseComponent {
 
   private _getPageData(): Record<string, unknown>[] {
     if (!this._config) return [];
-    const pageSize = this._config.pageSize ?? 20;
     if (this._config.flatArray) {
-      const start = (this._page - 1) * pageSize;
-      return this._allData.slice(start, start + pageSize);
+      const start = (this._page - 1) * this._pageSize;
+      return this._allData.slice(start, start + this._pageSize);
     }
     return this._allData;
   }
@@ -593,6 +643,42 @@ export class BDataTable extends BaseComponent {
   private _rowId(row: Record<string, unknown>): string {
     if (this._config?.idField) return String(row[this._config.idField] ?? '');
     return String(row['id'] ?? row['guid'] ?? '');
+  }
+
+  /** Resolve effective page size: config.pageSize > localStorage default > 20. */
+  private _resolvePageSize(): number {
+    if (this._config?.pageSize) return this._config.pageSize;
+    const stored = localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+    if (stored) {
+      const n = Number(stored);
+      if (n > 0) return n;
+    }
+    return 20;
+  }
+
+  /** Whether to show the page size picker (disabled when pageSizeOptions === false). */
+  private _showPageSizePicker(): boolean {
+    if (!this._config) return false;
+    return this._config.pageSizeOptions !== false;
+  }
+
+  /** Build label-* attributes string for b-pagination from config.paginationLabels. */
+  private _buildLabelAttrs(): string {
+    const l = this._config?.paginationLabels;
+    if (!l) return '';
+    const map: Record<string, string | undefined> = {
+      'label-items': l.items,
+      'label-page': l.page,
+      'label-of': l.of,
+      'label-per-page': l.perPage,
+      'label-prev': l.prev,
+      'label-next': l.next,
+      'label-page-size': l.pageSize,
+    };
+    return Object.entries(map)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => ` ${k}="${v}"`)
+      .join('');
   }
 }
 

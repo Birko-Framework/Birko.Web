@@ -1,8 +1,9 @@
 export { BTable, type TableColumn } from './b-table.js';
-export { BPagination } from './b-pagination.js';
+export { BPagination, DEFAULT_PAGE_SIZES } from './b-pagination.js';
 export {
-  BDataTable,
-  type DataTableConfig, type ColumnFilter, type ToolbarAction,
+  BDataTable, PAGE_SIZE_STORAGE_KEY,
+  type DataTableConfig, type PaginationLabels, type DataTableLabels,
+  type ColumnFilter, type ToolbarAction,
   type BulkAction, type RowAction, type ExportOption,
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';
