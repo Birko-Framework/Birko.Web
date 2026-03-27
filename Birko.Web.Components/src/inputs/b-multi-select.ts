@@ -8,11 +8,12 @@ interface Option {
 
 export class BMultiSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'placeholder', 'error', 'disabled'];
+    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable'];
   }
 
   private _options: Option[] = [];
   private _selected = new Set<string>();
+  private _filter = '';
 
   static get sharedStyles() {
     return [formFieldSheet, dropdownPanelSheet];
@@ -92,6 +93,40 @@ export class BMultiSelect extends BaseComponent {
         margin: 0;
         cursor: pointer;
       }
+      .search-input {
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: var(--b-text-sm, 0.8125rem);
+        color: var(--b-text);
+        min-width: 4rem;
+        flex: 1;
+        padding: 0.125rem 0;
+      }
+      .search-input::placeholder { color: var(--b-text-muted); }
+      .search-wrap {
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+        position: sticky;
+        top: 0;
+        background: var(--b-bg);
+        z-index: 1;
+      }
+      .search-wrap input {
+        width: 100%;
+        border: none;
+        outline: none;
+        background: transparent;
+        font-size: var(--b-text-sm, 0.8125rem);
+        color: var(--b-text);
+        padding: var(--b-space-xs, 0.25rem) 0;
+      }
+      .search-wrap input::placeholder { color: var(--b-text-muted); }
+      .no-results {
+        padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+        color: var(--b-text-muted);
+        font-size: var(--b-text-sm, 0.8125rem);
+      }
     `;
   }
 
@@ -114,6 +149,7 @@ export class BMultiSelect extends BaseComponent {
     const error = this.attr('error');
     const placeholder = this.attr('placeholder', 'Select...');
     const disabled = this.boolAttr('disabled');
+    const searchable = this.boolAttr('searchable');
     const dropdownId = 'dd-' + (this.id || 'ms');
 
     const chips = this._options
@@ -125,6 +161,11 @@ export class BMultiSelect extends BaseComponent {
         </span>
       `).join('');
 
+    const filterLower = this._filter.toLowerCase();
+    const filtered = searchable && this._filter
+      ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
+      : this._options;
+
     return `
       <div class="field">
         ${label ? `<label>${label}</label>` : ''}
@@ -135,14 +176,15 @@ export class BMultiSelect extends BaseComponent {
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
         <div class="dropdown dropdown-panel" id="${dropdownId}" popover role="listbox">
-          ${this._options.map(o => `
+          ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="Search..." value="${this._filter}" /></div>` : ''}
+          ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
               <input type="checkbox"
                      value="${o.value}"
                      ${this._selected.has(o.value) ? 'checked' : ''} />
               ${o.label}
             </label>
-          `).join('')}
+          `).join('') : `<div class="no-results">No matches</div>`}
         </div>
         ${error ? `<span class="error">${error}</span>` : ''}
       </div>
@@ -169,6 +211,22 @@ export class BMultiSelect extends BaseComponent {
         this._emitAndUpdate();
       });
     });
+
+    // Search input
+    const searchInput = this.$<HTMLInputElement>('.dd-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        this._filter = searchInput.value;
+        this._emitAndUpdate();
+        // Re-focus search after re-render
+        requestAnimationFrame(() => {
+          const si = this.$<HTMLInputElement>('.dd-search');
+          if (si) { si.focus(); si.selectionStart = si.selectionEnd = si.value.length; }
+        });
+      });
+      // Prevent popover close on search input clicks
+      searchInput.addEventListener('click', (e) => e.stopPropagation());
+    }
 
     // Checkbox changes in dropdown
     this.$$<HTMLInputElement>('.option input').forEach(input => {
@@ -198,6 +256,11 @@ export class BMultiSelect extends BaseComponent {
         }
         dropdown.style.left = `${rect.left}px`;
         dropdown.style.width = `${rect.width}px`;
+      }
+      // Clear filter when closing
+      if (e.newState === 'closed' && this._filter) {
+        this._filter = '';
+        this.update();
       }
     }) as EventListener);
   }

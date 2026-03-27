@@ -369,6 +369,7 @@ export class BForm extends BaseComponent {
         if (field.rows) parts.push(`rows="${field.rows}"`);
         break;
       case 'select':
+      case 'multi-select':
         if (field.searchable) parts.push('searchable');
         break;
     }
