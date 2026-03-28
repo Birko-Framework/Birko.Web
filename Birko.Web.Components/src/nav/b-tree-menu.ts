@@ -1,5 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 
+// ── Interfaces ───────────────────────────────────────────────────────────────
+
 export interface TreeMenuItem {
   id: string;
   label: string;
@@ -9,13 +11,34 @@ export interface TreeMenuItem {
   disabled?: boolean;
   expanded?: boolean;
   children?: TreeMenuItem[];
+  actions?: TreeNodeAction[];
 }
 
+export interface TreeNodeAction {
+  id: string;
+  label: string;
+  icon?: string;
+  variant?: 'danger';
+}
+
+export interface TreeConfig {
+  items?: TreeMenuItem[];
+  onExpand?: (id: string, item: TreeMenuItem) => Promise<TreeMenuItem[] | void>;
+  actions?: TreeNodeAction[];
+  expandOn?: 'click' | 'hover';
+  emptyMessage?: string;
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+
 export class BTreeMenu extends BaseComponent {
-  static get observedAttributes() { return ['active', 'label-expand', 'label-collapse']; }
+  static get observedAttributes() { return ['active', 'expand-on', 'label-expand', 'label-collapse']; }
 
   private _items: TreeMenuItem[] = [];
   private _expanded = new Set<string>();
+  private _config: TreeConfig = {};
+  private _loadingNodes = new Set<string>();
+  private _loadedNodes = new Set<string>();
 
   static get styles() {
     return `
@@ -95,6 +118,41 @@ export class BTreeMenu extends BaseComponent {
         line-height: 1;
       }
 
+      /* ── Node actions ── */
+      .node-actions {
+        display: none;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      .node-row:hover .node-actions,
+      .node-row:focus-within .node-actions { display: flex; }
+
+      .node-action-btn {
+        border: none; background: none;
+        padding: 2px 4px;
+        border-radius: var(--b-radius-sm, 0.25rem);
+        cursor: pointer;
+        font-size: var(--b-text-xs, 0.6875rem);
+        color: var(--b-text-muted);
+        line-height: 1;
+        white-space: nowrap;
+      }
+      .node-action-btn:hover { background: var(--b-bg-secondary); color: var(--b-text); }
+      .node-action-btn.danger:hover { background: var(--b-color-danger-light, #fee2e2); color: var(--b-color-danger); }
+
+      /* ── Loading spinner ── */
+      .node-loading {
+        width: 0.75rem; height: 0.75rem;
+        border: 2px solid var(--b-border);
+        border-top-color: var(--b-color-primary);
+        border-radius: 50%;
+        animation: tree-spin 0.6s linear infinite;
+        flex-shrink: 0;
+      }
+      @keyframes tree-spin { to { transform: rotate(360deg); } }
+
       /* ── Children (nested) ── */
       .children {
         margin: 0;
@@ -113,18 +171,61 @@ export class BTreeMenu extends BaseComponent {
     `;
   }
 
+  // ── Public API ──────────────────────────────────────────────────────────────
+
+  setConfig(config: TreeConfig) {
+    this._config = config;
+    if (config.items) {
+      this._items = config.items;
+      this._collectExpanded(config.items);
+    }
+    this.update();
+  }
+
   setItems(items: TreeMenuItem[]) {
     this._items = items;
-    // Pre-expand items marked as expanded
+    // Only add newly-marked expanded items; preserve existing expanded state
     this._collectExpanded(items);
     this.update();
   }
 
-  expandAll() {
+  updateNode(id: string, children: TreeMenuItem[]) {
+    const item = this._findItem(this._items, id);
+    if (item) {
+      item.children = children;
+      this._collectExpanded(children);
+    }
+    this._loadedNodes.add(id);
+    this.update();
+  }
+
+  async expandAll() {
+    // Expand all currently known parent nodes
     this._walkItems(this._items, item => {
-      if (item.children?.length) this._expanded.add(item.id);
+      if (item.children?.length || this._hasLazyChildren(item)) {
+        this._expanded.add(item.id);
+      }
     });
     this.update();
+
+    // Trigger lazy loads for unloaded nodes
+    if (this._config.onExpand) {
+      const toLoad: { id: string; item: TreeMenuItem }[] = [];
+      this._walkItems(this._items, item => {
+        if (this._needsLoad(item)) {
+          toLoad.push({ id: item.id, item });
+        }
+      });
+
+      if (toLoad.length) {
+        await Promise.all(toLoad.map(({ id, item }) => this._loadChildren(id, item)));
+        // After loading, expand newly discovered parent nodes
+        this._walkItems(this._items, item => {
+          if (item.children?.length) this._expanded.add(item.id);
+        });
+        this.update();
+      }
+    }
   }
 
   collapseAll() {
@@ -142,10 +243,22 @@ export class BTreeMenu extends BaseComponent {
     this.update();
   }
 
-  toggle(id: string) {
-    if (this._expanded.has(id)) this._expanded.delete(id);
-    else this._expanded.add(id);
-    this.update();
+  async toggle(id: string) {
+    if (this._expanded.has(id)) {
+      this._expanded.delete(id);
+      this.update();
+      this.emit('toggle', { id, expanded: false });
+    } else {
+      this._expanded.add(id);
+      const item = this._findItem(this._items, id);
+
+      if (item && this._needsLoad(item)) {
+        await this._loadChildren(id, item);
+      }
+
+      this.update();
+      this.emit('toggle', { id, expanded: true });
+    }
   }
 
   /** Expand all ancestors of a node so it becomes visible. */
@@ -158,7 +271,17 @@ export class BTreeMenu extends BaseComponent {
     this.update();
   }
 
+  getExpanded(): string[] {
+    return Array.from(this._expanded);
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
   render() {
+    if (!this._items.length) {
+      const msg = this._config.emptyMessage;
+      if (msg) return `<div style="padding:var(--b-space-md);color:var(--b-text-muted);font-size:var(--b-text-sm);text-align:center;">${msg}</div>`;
+    }
     return `<ul class="tree" role="tree">${this._renderLevel(this._items, 0)}</ul>`;
   }
 
@@ -166,17 +289,21 @@ export class BTreeMenu extends BaseComponent {
     const active = this.attr('active');
 
     return items.map(item => {
-      const hasChildren = !!(item.children?.length);
+      const hasChildren = this._isParentNode(item);
       const isExpanded = this._expanded.has(item.id);
+      const isLoading = this._loadingNodes.has(item.id);
       const isActive = item.id === active;
       const tag = item.href ? 'a' : 'div';
       const hrefAttr = item.href ? `href="${item.href}"` : '';
 
-      const toggleHtml = hasChildren
-        ? `<button class="toggle ${isExpanded ? 'expanded' : ''}"
-                  data-toggle="${item.id}" type="button" tabindex="-1"
-                  aria-label="${isExpanded ? this.attr('label-collapse', 'Collapse') : this.attr('label-expand', 'Expand')}">&#9654;</button>`
-        : `<span class="toggle-placeholder"></span>`;
+      // Toggle / loading spinner / placeholder
+      const toggleHtml = isLoading
+        ? `<span class="node-loading"></span>`
+        : hasChildren
+          ? `<button class="toggle ${isExpanded ? 'expanded' : ''}"
+                    data-toggle="${item.id}" type="button" tabindex="-1"
+                    aria-label="${isExpanded ? this.attr('label-collapse', 'Collapse') : this.attr('label-expand', 'Expand')}">&#9654;</button>`
+          : `<span class="toggle-placeholder"></span>`;
 
       const iconHtml = item.icon
         ? `<span class="node-icon" aria-hidden="true">${item.icon}</span>`
@@ -186,9 +313,21 @@ export class BTreeMenu extends BaseComponent {
         ? `<span class="node-badge">${item.badge}</span>`
         : '';
 
-      const childrenHtml = hasChildren
+      // Actions
+      const nodeActions = item.actions ?? this._config.actions ?? [];
+      const actionsHtml = nodeActions.length
+        ? `<span class="node-actions">${nodeActions.map(a =>
+            `<button class="node-action-btn ${a.variant === 'danger' ? 'danger' : ''}"
+                    data-action="${a.id}" data-node="${item.id}"
+                    type="button" tabindex="-1"
+                    title="${a.label}">${a.icon ?? a.label}</button>`
+          ).join('')}</span>`
+        : '';
+
+      // Children
+      const childrenHtml = (item.children?.length)
         ? `<ul class="children ${isExpanded ? '' : 'collapsed'}" role="group">
-             ${this._renderLevel(item.children!, depth + 1)}
+             ${this._renderLevel(item.children, depth + 1)}
            </ul>`
         : '';
 
@@ -205,6 +344,7 @@ export class BTreeMenu extends BaseComponent {
             ${iconHtml}
             <span class="node-label">${item.label}</span>
             ${badgeHtml}
+            ${actionsHtml}
           </${tag}>
           ${childrenHtml}
         </li>
@@ -212,35 +352,65 @@ export class BTreeMenu extends BaseComponent {
     }).join('');
   }
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+
   protected onUpdated() {
+    const expandOn = this._config.expandOn ?? this.attr('expand-on', 'click');
+
     // Toggle expand/collapse
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-toggle]').forEach(btn => {
       btn.addEventListener('click', (e: Event) => {
         e.stopPropagation();
         e.preventDefault();
-        const id = btn.dataset.toggle!;
-        this.toggle(id);
-        this.emit('toggle', { id, expanded: this._expanded.has(id) });
+        this.toggle(btn.dataset.toggle!);
       });
     });
 
-    // Item click → emit select
+    // Item click → select or toggle
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
       row.addEventListener('click', (e: Event) => {
-        // Don't fire if toggle button was clicked
         if ((e.target as HTMLElement).closest?.('[data-toggle]')) return;
+        if ((e.target as HTMLElement).closest?.('[data-action]')) return;
         const id = row.dataset.item!;
         const item = this._findItem(this._items, id);
         if (!item || item.disabled) return;
 
-        // If has children and no href, toggle instead
-        if (item.children?.length && !item.href) {
-          this.toggle(id);
-          this.emit('toggle', { id, expanded: this._expanded.has(id) });
+        if (this._isParentNode(item) && !item.href) {
+          if (expandOn === 'hover') {
+            // Hover mode: clicking parent selects it
+            this.emit('select', { id, item });
+          } else {
+            this.toggle(id);
+          }
           return;
         }
 
         this.emit('select', { id, item });
+      });
+    });
+
+    // Hover expand
+    if (expandOn === 'hover') {
+      this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+          const id = row.dataset.item!;
+          const item = this._findItem(this._items, id);
+          if (item && this._isParentNode(item) && !this._expanded.has(id)) {
+            this.toggle(id);
+          }
+        });
+      });
+    }
+
+    // Node action buttons
+    this.shadowRoot?.querySelectorAll<HTMLElement>('[data-action]').forEach(btn => {
+      btn.addEventListener('click', (e: Event) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const action = btn.dataset.action!;
+        const nodeId = btn.dataset.node!;
+        const item = this._findItem(this._items, nodeId);
+        this.emit('action-click', { action, id: nodeId, item });
       });
     });
 
@@ -268,12 +438,10 @@ export class BTreeMenu extends BaseComponent {
           break;
         case 'ArrowRight':
           ke.preventDefault();
-          if (currentItem?.children?.length) {
+          if (currentItem && this._isParentNode(currentItem)) {
             if (!this._expanded.has(currentId)) {
-              this.expand(currentId);
-              this.emit('toggle', { id: currentId, expanded: true });
+              this.toggle(currentId);
             } else {
-              // Focus first child
               requestAnimationFrame(() => {
                 const childRows = Array.from(
                   this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]') ?? []
@@ -286,11 +454,10 @@ export class BTreeMenu extends BaseComponent {
           break;
         case 'ArrowLeft':
           ke.preventDefault();
-          if (currentItem?.children?.length && this._expanded.has(currentId)) {
+          if (currentItem && this._isParentNode(currentItem) && this._expanded.has(currentId)) {
             this.collapse(currentId);
             this.emit('toggle', { id: currentId, expanded: false });
           } else {
-            // Focus parent
             const path = this._findPath(this._items, currentId);
             if (path && path.length > 1) {
               const parentId = path[path.length - 2].id;
@@ -316,7 +483,42 @@ export class BTreeMenu extends BaseComponent {
     });
   }
 
-  // ── Helpers ──
+  // ── Lazy Loading ────────────────────────────────────────────────────────────
+
+  private _needsLoad(item: TreeMenuItem): boolean {
+    if (this._loadedNodes.has(item.id)) return false;
+    if (!this._config.onExpand) return false;
+    return !item.children ||
+      (item.children.length === 1 && item.children[0].id.endsWith('-loading'));
+  }
+
+  private _hasLazyChildren(item: TreeMenuItem): boolean {
+    return item.children === undefined && !!this._config.onExpand;
+  }
+
+  private _isParentNode(item: TreeMenuItem): boolean {
+    return !!(item.children?.length) || this._hasLazyChildren(item);
+  }
+
+  private async _loadChildren(id: string, item: TreeMenuItem): Promise<void> {
+    if (this._loadingNodes.has(id)) return;
+    this._loadingNodes.add(id);
+    this.emit('load', { id, item });
+    this.update();
+
+    try {
+      const children = await this._config.onExpand!(id, item);
+      if (children) {
+        item.children = children;
+        this._collectExpanded(children);
+      }
+      this._loadedNodes.add(id);
+    } finally {
+      this._loadingNodes.delete(id);
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
 
   private _collectExpanded(items: TreeMenuItem[]) {
     for (const item of items) {
