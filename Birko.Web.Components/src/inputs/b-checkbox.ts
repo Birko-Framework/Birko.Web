@@ -3,7 +3,7 @@ import { formToggleSheet } from '../shared-styles';
 
 export class BCheckbox extends BaseComponent {
   static get observedAttributes() {
-    return ['checked', 'indeterminate', 'disabled', 'name', 'label'];
+    return ['checked', 'indeterminate', 'disabled', 'name', 'label', 'hint'];
   }
 
   static get sharedStyles() {
@@ -68,6 +68,7 @@ export class BCheckbox extends BaseComponent {
     const checked = this.boolAttr('checked');
     const disabled = this.boolAttr('disabled');
     const label = this.attr('label');
+    const hint = this.attr('hint');
 
     return `
       <label class="toggle-wrapper ${disabled ? 'disabled' : ''}">
@@ -77,6 +78,7 @@ export class BCheckbox extends BaseComponent {
                name="${this.attr('name')}"
                ${label ? `aria-label="${label}"` : ''} />
         ${label ? `<span class="toggle-label">${label}</span>` : ''}
+        ${hint ? `<b-tooltip text="${hint}"><span class="hint-icon">?</span></b-tooltip>` : ''}
       </label>
     `;
   }

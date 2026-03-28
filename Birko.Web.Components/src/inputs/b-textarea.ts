@@ -1,9 +1,10 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { renderLabel } from './label-hint';
 
 export class BTextarea extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'rows'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'rows', 'hint'];
   }
 
   static get sharedStyles() {
@@ -19,10 +20,11 @@ export class BTextarea extends BaseComponent {
 
   render() {
     const label = this.attr('label');
+    const hint = this.attr('hint');
     const error = this.attr('error');
     return `
       <div class="field">
-        ${label ? `<label>${label}</label>` : ''}
+        ${renderLabel(label, hint, this.boolAttr('required'))}
         <textarea
           name="${this.attr('name')}"
           placeholder="${this.attr('placeholder')}"

@@ -6,7 +6,7 @@ export type FieldType =
   | 'text' | 'password' | 'email' | 'number'
   | 'textarea' | 'select' | 'multi-select'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'file' | 'custom';
+  | 'option-group' | 'file' | 'custom';
 
 export type RuleType =
   | 'required' | 'minLength' | 'maxLength'
@@ -31,6 +31,7 @@ export interface FormField {
   type: FieldType;
   label: string;
   placeholder?: string;
+  hint?: string;
   value?: unknown;
   rows?: number;
   fullWidth?: boolean;
@@ -367,6 +368,8 @@ export class BForm extends BaseComponent {
         return (a) => (field.options ?? []).map(o =>
           `<b-radio name="${field.name}" value="${o.value}" label="${o.label}" ${a.includes('disabled') ? 'disabled' : ''}></b-radio>`
         ).join('');
+      case 'option-group':
+        return (a) => `<b-option-group ${a}></b-option-group>`;
       case 'search':
         return (a) => `<b-search-input ${a}></b-search-input>`;
       case 'file':
@@ -384,11 +387,13 @@ export class BForm extends BaseComponent {
       if (field.label) parts.push(`label="${field.label}"`);
     }
 
+    if (field.hint) parts.push(`hint="${field.hint}"`);
     if (field.value !== undefined && field.value !== '') parts.push(`value="${String(field.value)}"`);
     if (field.placeholder) parts.push(`placeholder="${field.placeholder}"`);
     if (error) parts.push(`error="${error}"`);
     if (disabled) parts.push('disabled');
-    if (field.required) parts.push('required');
+    const isRequired = field.required || field.rules?.some(r => r.type === 'required');
+    if (isRequired) parts.push('required');
 
     // Type-specific
     switch (field.type) {
@@ -477,7 +482,7 @@ export class BForm extends BaseComponent {
         continue;
       }
 
-      if ((child.type === 'select' || child.type === 'multi-select') && child.options) {
+      if ((child.type === 'select' || child.type === 'multi-select' || child.type === 'option-group') && child.options) {
         const fieldPath = path ? `${path}.${child.name}` : child.name;
         const el = this._getFieldElement(fieldPath);
         if (el && 'setOptions' in el) {

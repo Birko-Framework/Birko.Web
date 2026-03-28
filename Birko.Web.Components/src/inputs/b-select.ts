@@ -1,5 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
+import { renderLabel } from './label-hint';
 
 interface Option {
   value: string;
@@ -8,7 +9,7 @@ interface Option {
 
 export class BSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'hint'];
   }
 
   private _options: Option[] = [];
@@ -94,12 +95,13 @@ export class BSelect extends BaseComponent {
 
   private _renderNative(): string {
     const label = this.attr('label');
+    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.attr('placeholder');
     return `
       <div class="field">
-        ${label ? `<label>${label}</label>` : ''}
+        ${renderLabel(label, hint, this.boolAttr('required'))}
         <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}>
           ${placeholder ? `<option value="" disabled ${!value ? 'selected' : ''}>${placeholder}</option>` : ''}
           ${this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('')}
@@ -111,6 +113,7 @@ export class BSelect extends BaseComponent {
 
   private _renderSearchable(): string {
     const label = this.attr('label');
+    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.attr('placeholder', 'Select...');
@@ -123,7 +126,7 @@ export class BSelect extends BaseComponent {
 
     return `
       <div class="field">
-        ${label ? `<label>${label}</label>` : ''}
+        ${renderLabel(label, hint, this.boolAttr('required'))}
         <div class="combo combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <input class="combo-input" type="text"
                  value="${this._filter || selectedLabel}"

@@ -22,6 +22,11 @@
   --b-bg-tertiary: #f1f5f9;
   --b-bg-elevated: #ffffff;
 
+  /* ── Tooltip ── */
+  --b-tooltip-bg: #1e293b;
+  --b-tooltip-text: #e2e8f0;
+  --b-tooltip-border: #334155;
+
   /* ── Text ── */
   --b-text: #0f172a;
   --b-text-secondary: #475569;
@@ -147,6 +152,10 @@
   --b-bg-secondary: #1e293b;
   --b-bg-tertiary: #334155;
   --b-bg-elevated: #1e293b;
+
+  --b-tooltip-bg: #0f172a;
+  --b-tooltip-text: #e2e8f0;
+  --b-tooltip-border: #1e293b;
 
   --b-text: #f1f5f9;
   --b-text-secondary: #94a3b8;

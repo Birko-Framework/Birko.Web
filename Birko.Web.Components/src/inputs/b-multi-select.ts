@@ -1,5 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
+import { renderLabel } from './label-hint';
 
 interface Option {
   value: string;
@@ -8,7 +9,7 @@ interface Option {
 
 export class BMultiSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'label-search', 'label-remove'];
+    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'label-search', 'label-remove', 'hint'];
   }
 
   private _options: Option[] = [];
@@ -128,9 +129,10 @@ export class BMultiSelect extends BaseComponent {
     const noMatchesLabel = this.attr('label-no-matches', 'No matches');
     const searchLabel = this.attr('label-search', 'Search...');
 
+    const hint = this.attr('hint');
     return `
       <div class="field">
-        ${label ? `<label>${label}</label>` : ''}
+        ${renderLabel(label, hint, this.boolAttr('required'))}
         <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
              aria-haspopup="listbox"

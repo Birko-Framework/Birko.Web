@@ -1,5 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet } from '../shared-styles';
+import { renderLabel } from './label-hint';
 
 export interface UploadFile {
   id: string;
@@ -25,7 +26,7 @@ export class BFileUpload extends BaseComponent {
   static get observedAttributes() {
     return ['accept', 'multiple', 'max-size', 'max-files', 'disabled', 'label', 'endpoint',
             'label-drop', 'label-drop-more', 'label-drop-empty', 'label-max', 'label-pending',
-            'label-error', 'label-too-large', 'label-upload-failed', 'label-network-error', 'label-remove'];
+            'label-error', 'label-too-large', 'label-upload-failed', 'label-network-error', 'label-remove', 'hint'];
   }
 
   private _files: UploadFile[] = [];
@@ -155,16 +156,17 @@ export class BFileUpload extends BaseComponent {
     const hasFiles = this._files.length > 0;
 
     const lMax = this.attr('label-max', 'Max');
-    const hint = `${lMax} ${this._formatSize(maxSize)}` +
+    const sizeHint = `${lMax} ${this._formatSize(maxSize)}` +
       (accept !== '*' ? ` · ${accept}` : '');
 
     const lDrop = this.attr('label-drop', 'Drop to upload');
     const lDropMore = this.attr('label-drop-more', 'Drop more files or click to browse');
     const lDropEmpty = this.attr('label-drop-empty', 'Drop files here or click to browse');
 
+    const fieldHint = this.attr('hint');
     return `
       <div class="field">
-        ${label ? `<label>${label}</label>` : ''}
+        ${renderLabel(label, fieldHint, this.boolAttr('required'))}
         <div class="dropzone ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}">
           <input type="file"
                  ${accept !== '*' ? `accept="${accept}"` : ''}
@@ -176,7 +178,7 @@ export class BFileUpload extends BaseComponent {
               ? `<span class="dz-text">${lDropMore}</span>`
               : `<span class="dz-icon">&#128193;</span>
                  <span class="dz-text">${lDropEmpty}</span>
-                 <span class="dz-hint">${hint}</span>`
+                 <span class="dz-hint">${sizeHint}</span>`
           }
         </div>
         ${hasFiles ? `<div class="file-list">${this._files.map(f => this._renderFile(f)).join('')}</div>` : ''}

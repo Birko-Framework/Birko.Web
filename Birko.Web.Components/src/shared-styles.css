@@ -128,6 +128,32 @@ dialog:not([open]) {
   font-weight: var(--b-font-weight-medium, 500);
   color: var(--b-text-secondary);
 }
+.field .label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--b-space-2xs, 0.125rem);
+}
+.field .label-row label { margin: 0; }
+.field .required-mark {
+  color: var(--b-color-danger);
+  margin-left: 0.125rem;
+}
+.field .label-row b-tooltip { line-height: 1; }
+.field .hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--b-radius-full, 50%);
+  background: var(--b-border);
+  color: var(--b-text-secondary);
+  font-size: 0.5625rem;
+  font-weight: var(--b-font-weight-bold, 700);
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: help;
+}
 .field .error {
   font-size: var(--b-text-xs, 0.6875rem);
   color: var(--b-color-danger);
@@ -211,6 +237,25 @@ input.has-error:focus, select.has-error:focus {
 .toggle-control:focus-visible {
   outline: none;
   box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
+}
+.toggle-wrapper .required-mark {
+  color: var(--b-color-danger);
+  margin-left: 0.125rem;
+}
+.toggle-wrapper .hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--b-radius-full, 50%);
+  background: var(--b-border);
+  color: var(--b-text-secondary);
+  font-size: 0.5625rem;
+  font-weight: var(--b-font-weight-bold, 700);
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: help;
 }
 
 

@@ -13,6 +13,7 @@ export class BButton extends BaseComponent {
   static get styles() {
     return `
       :host { display: inline-block; }
+      :host([hidden]) { display: none; }
       button {
         display: inline-flex; align-items: center; justify-content: center; gap: var(--b-space-sm);
         width: 100%; box-sizing: border-box;

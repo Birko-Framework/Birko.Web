@@ -5,110 +5,39 @@ export class BTooltip extends BaseComponent {
     return ['text', 'position'];
   }
 
-  private _showTimer: ReturnType<typeof setTimeout> | null = null;
-  private _hideTimer: ReturnType<typeof setTimeout> | null = null;
-
   static get styles() {
     return `
-      :host { display: inline-block; position: relative; }
-      .trigger { display: inline-block; }
+      :host { display: inline-flex; position: relative; cursor: help; }
+      .trigger { display: inline-flex; align-items: center; }
       .tip {
-        position: absolute;
+        display: none;
+        position: fixed;
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        background: var(--b-bg-elevated);
-        border: var(--b-border-width, 1px) solid var(--b-border);
+        background: var(--b-tooltip-bg, #1e293b);
+        color: var(--b-tooltip-text, #e2e8f0);
+        border: var(--b-border-width, 1px) solid var(--b-tooltip-border, #334155);
         border-radius: var(--b-radius, 0.375rem);
         box-shadow: var(--b-shadow-md);
         font-size: var(--b-text-xs, 0.6875rem);
-        color: var(--b-text);
-        white-space: nowrap;
-        max-width: 15rem;
+        white-space: normal;
+        max-width: 16rem;
+        width: max-content;
+        z-index: 9999;
         pointer-events: none;
-        z-index: 1;
+        line-height: 1.4;
       }
-      .tip:popover-open { display: block; }
-      /* Arrow — 4px CSS triangle */
-      .arrow {
-        position: absolute;
-        width: 0.5rem;
-        height: 0.5rem;
-        background: var(--b-bg-elevated);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        transform: rotate(45deg);
-      }
-      /* Position: top (default) */
-      :host(:not([position])) .tip, :host([position="top"]) .tip {
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-bottom: var(--b-space-xs, 0.25rem);
-      }
-      :host(:not([position])) .arrow, :host([position="top"]) .arrow {
-        bottom: -0.3125rem;
-        left: 50%;
-        transform: translateX(-50%) rotate(45deg);
-        border-top: none;
-        border-left: none;
-      }
-      /* Position: bottom */
-      :host([position="bottom"]) .tip {
-        top: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        margin-top: var(--b-space-xs, 0.25rem);
-      }
-      :host([position="bottom"]) .arrow {
-        top: -0.3125rem;
-        left: 50%;
-        transform: translateX(-50%) rotate(45deg);
-        border-bottom: none;
-        border-right: none;
-      }
-      /* Position: left */
-      :host([position="left"]) .tip {
-        right: 100%;
-        top: 50%;
-        transform: translateY(-50%);
-        margin-right: var(--b-space-xs, 0.25rem);
-      }
-      :host([position="left"]) .arrow {
-        right: -0.3125rem;
-        top: 50%;
-        transform: translateY(-50%) rotate(45deg);
-        border-bottom: none;
-        border-left: none;
-      }
-      /* Position: right */
-      :host([position="right"]) .tip {
-        left: 100%;
-        top: 50%;
-        transform: translateY(-50%);
-        margin-left: var(--b-space-xs, 0.25rem);
-      }
-      :host([position="right"]) .arrow {
-        left: -0.3125rem;
-        top: 50%;
-        transform: translateY(-50%) rotate(45deg);
-        border-top: none;
-        border-right: none;
-      }
+      .tip.visible { display: block; }
     `;
   }
 
   render() {
     const text = this.attr('text');
-    const tipId = 'tip-' + (this.id || 'tt');
 
     return `
       <span class="trigger">
         <slot></slot>
       </span>
-      ${text ? `
-        <div class="tip" id="${tipId}" popover="manual" role="tooltip">
-          <span class="arrow"></span>
-          ${text}
-        </div>
-      ` : ''}
+      ${text ? `<div class="tip" role="tooltip">${text}</div>` : ''}
     `;
   }
 
@@ -117,29 +46,56 @@ export class BTooltip extends BaseComponent {
     const tip = this.$<HTMLElement>('.tip');
     if (!trigger || !tip) return;
 
-    trigger.addEventListener('mouseenter', () => this._scheduleShow(tip));
-    trigger.addEventListener('focusin', () => this._scheduleShow(tip));
-    trigger.addEventListener('mouseleave', () => this._scheduleHide(tip));
-    trigger.addEventListener('focusout', () => this._scheduleHide(tip));
+    this.listen(trigger, 'mouseenter', () => this._show(trigger, tip));
+    this.listen(trigger, 'focusin', () => this._show(trigger, tip));
+    this.listen(trigger, 'mouseleave', () => tip.classList.remove('visible'));
+    this.listen(trigger, 'focusout', () => tip.classList.remove('visible'));
   }
 
-  protected onUnmount() {
-    if (this._showTimer) clearTimeout(this._showTimer);
-    if (this._hideTimer) clearTimeout(this._hideTimer);
-  }
+  private _show(trigger: HTMLElement, tip: HTMLElement) {
+    const rect = trigger.getBoundingClientRect();
+    const pos = this.attr('position', 'top');
 
-  private _scheduleShow(tip: HTMLElement) {
-    if (this._hideTimer) { clearTimeout(this._hideTimer); this._hideTimer = null; }
-    this._showTimer = setTimeout(() => {
-      tip.showPopover();
-    }, 300);
-  }
+    // Show briefly to measure
+    tip.style.visibility = 'hidden';
+    tip.classList.add('visible');
+    const tipRect = tip.getBoundingClientRect();
 
-  private _scheduleHide(tip: HTMLElement) {
-    if (this._showTimer) { clearTimeout(this._showTimer); this._showTimer = null; }
-    this._hideTimer = setTimeout(() => {
-      tip.hidePopover();
-    }, 100);
+    let top: number;
+    let left: number;
+
+    switch (pos) {
+      case 'bottom':
+        top = rect.bottom + 6;
+        left = rect.left;
+        break;
+      case 'left':
+        top = rect.top + rect.height / 2 - tipRect.height / 2;
+        left = rect.left - tipRect.width - 6;
+        break;
+      case 'right':
+        top = rect.top + rect.height / 2 - tipRect.height / 2;
+        left = rect.right + 6;
+        break;
+      default: // top
+        top = rect.top - tipRect.height - 6;
+        left = rect.left;
+        break;
+    }
+
+    // Clamp to viewport
+    if (left + tipRect.width > window.innerWidth - 8) {
+      left = window.innerWidth - tipRect.width - 8;
+    }
+    if (left < 8) left = 8;
+    if (top < 8) {
+      // Flip to bottom
+      top = rect.bottom + 6;
+    }
+
+    tip.style.top = `${top}px`;
+    tip.style.left = `${left}px`;
+    tip.style.visibility = '';
   }
 }
 
