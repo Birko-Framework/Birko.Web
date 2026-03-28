@@ -40,6 +40,7 @@ export class BRibbon extends BaseComponent {
   private _expandTimer: ReturnType<typeof setTimeout> | null = null;
   private _collapseTimer: ReturnType<typeof setTimeout> | null = null;
   private _mobileOpen = false;
+  private _hoverTabId: string | null = null;
 
   static get styles() {
     return `
@@ -381,33 +382,59 @@ export class BRibbon extends BaseComponent {
   }
 
   private _renderPanel(active: string, activeTab: RibbonTab | undefined): string {
-    if (!activeTab) return `<div class="ribbon-panel" role="tabpanel" id="ribbon-panel-${active}"></div>`;
-
-    const groups = activeTab.groups;
-    const hasContext = this._contextActions.length > 0;
-
+    const labelledBy = activeTab ? ` aria-labelledby="ribbon-tab-${active}"` : '';
     return `
-      <div class="ribbon-panel" role="tabpanel" id="ribbon-panel-${active}" aria-labelledby="ribbon-tab-${active}">
+      <div class="ribbon-panel" role="tabpanel" id="ribbon-panel-${active}"${labelledBy}>
         <div class="ribbon-panel-inner">
-          ${groups.map(group => `
-            <div class="ribbon-group" role="group" aria-label="${group.label}">
-              <span class="ribbon-group-label">${group.label}</span>
-              <div class="ribbon-group-items">
-                ${group.items.map(item => this._renderItem(activeTab.id, group.id, item)).join('')}
-              </div>
-            </div>
-          `).join('')}
-          ${hasContext ? `
-            <div class="ribbon-group" role="group" aria-label="${this.attr('label-actions', 'Actions')}">
-              <span class="ribbon-group-label">${this.attr('label-actions', 'Actions')}</span>
-              <div class="ribbon-group-items">
-                ${this._contextActions.map(item => this._renderItem(activeTab.id, '_context', item)).join('')}
-              </div>
-            </div>
-          ` : ''}
+          ${activeTab ? this._renderPanelInner(activeTab) : ''}
         </div>
       </div>
     `;
+  }
+
+  private _renderPanelInner(tab: RibbonTab): string {
+    const hasContext = this._contextActions.length > 0;
+
+    return `
+      ${tab.groups.map(group => `
+        <div class="ribbon-group" role="group" aria-label="${group.label}">
+          <span class="ribbon-group-label">${group.label}</span>
+          <div class="ribbon-group-items">
+            ${group.items.map(item => this._renderItem(tab.id, group.id, item)).join('')}
+          </div>
+        </div>
+      `).join('')}
+      ${hasContext ? `
+        <div class="ribbon-group" role="group" aria-label="${this.attr('label-actions', 'Actions')}">
+          <span class="ribbon-group-label">${this.attr('label-actions', 'Actions')}</span>
+          <div class="ribbon-group-items">
+            ${this._contextActions.map(item => this._renderItem(tab.id, '_context', item)).join('')}
+          </div>
+        </div>
+      ` : ''}
+    `;
+  }
+
+  private _showTabContent(tabId: string) {
+    const tab = this._tabs.find(t => t.id === tabId);
+    const panelInner = this.$<HTMLElement>('.ribbon-panel-inner');
+    if (!panelInner || !tab) return;
+    panelInner.innerHTML = this._renderPanelInner(tab);
+    this._bindPanelItems();
+  }
+
+  private _bindPanelItems() {
+    this.$$<HTMLElement>('.ribbon-panel .ribbon-item').forEach(el => {
+      el.addEventListener('click', (e: Event) => {
+        const target = e.currentTarget as HTMLElement;
+        this.emit('item-click', {
+          tabId: target.dataset.tab,
+          groupId: target.dataset.group,
+          itemId: target.dataset.item,
+        });
+        if (!this.boolAttr('pinned')) this.collapse();
+      });
+    });
   }
 
   private _renderItem(tabId: string, groupId: string, item: RibbonItem): string {
@@ -489,46 +516,56 @@ export class BRibbon extends BaseComponent {
     });
 
     // Panel item clicks
-    this.$$<HTMLElement>('.ribbon-panel .ribbon-item').forEach(el => {
-      el.addEventListener('click', (e: Event) => {
-        const target = e.currentTarget as HTMLElement;
-        this.emit('item-click', {
-          tabId: target.dataset.tab,
-          groupId: target.dataset.group,
-          itemId: target.dataset.item,
-        });
-        // Auto-collapse if not pinned
-        if (!this.boolAttr('pinned')) this.collapse();
-      });
-    });
+    this._bindPanelItems();
 
     // Expand/collapse toggle
     this.$('#ribbon-toggle')?.addEventListener('click', () => this.toggleExpand());
     this.$('#ribbon-pin')?.addEventListener('click', () => this.togglePin());
 
-    // Hover expand/collapse (desktop only) — only on tabs and panel, not other ribbon elements
-    let overTabs = false;
+    // Hover expand/collapse (desktop only) — per-tab hover with panel content preview
+    let overTab = false;
     let overPanel = false;
-
-    const maybeExpand = () => {
-      this._clearTimers();
-      if (!this.boolAttr('pinned') && !this.boolAttr('expanded')) {
-        this._expandTimer = setTimeout(() => this.expand(), 100);
-      }
-    };
 
     const maybeCollapse = () => {
       this._clearTimers();
-      if (!overTabs && !overPanel && !this.boolAttr('pinned') && this.boolAttr('expanded')) {
-        this._collapseTimer = setTimeout(() => this.collapse(), 300);
+      if (!overTab && !overPanel && !this.boolAttr('pinned') && this.boolAttr('expanded')) {
+        this._collapseTimer = setTimeout(() => {
+          this.collapse();
+          // Revert panel to active tab content
+          this._hoverTabId = null;
+          this._showTabContent(this.attr('active'));
+        }, 300);
+      }
+      // Pinned: revert to active tab when leaving
+      if (!overTab && !overPanel && this.boolAttr('pinned') && this._hoverTabId) {
+        this._collapseTimer = setTimeout(() => {
+          this._hoverTabId = null;
+          this._showTabContent(this.attr('active'));
+        }, 200);
       }
     };
 
-    const tabs = this.$<HTMLElement>('.ribbon-tabs');
-    const panel = this.$<HTMLElement>('.ribbon-panel');
+    // Each tab button gets its own mouseenter
+    this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        overTab = true;
+        this._clearTimers();
+        const tabId = btn.dataset.tab!;
+        this._hoverTabId = tabId;
+        // Show hovered tab's panel content
+        this._showTabContent(tabId);
+        // Expand if unpinned and collapsed
+        if (!this.boolAttr('pinned') && !this.boolAttr('expanded')) {
+          this._expandTimer = setTimeout(() => this.expand(), 100);
+        }
+      });
+      btn.addEventListener('mouseleave', () => {
+        overTab = false;
+        maybeCollapse();
+      });
+    });
 
-    tabs?.addEventListener('mouseenter', () => { overTabs = true; maybeExpand(); });
-    tabs?.addEventListener('mouseleave', () => { overTabs = false; maybeCollapse(); });
+    const panel = this.$<HTMLElement>('.ribbon-panel');
     panel?.addEventListener('mouseenter', () => { overPanel = true; this._clearTimers(); });
     panel?.addEventListener('mouseleave', () => { overPanel = false; maybeCollapse(); });
 
