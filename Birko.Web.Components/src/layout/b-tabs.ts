@@ -7,10 +7,10 @@ export class BTabs extends BaseComponent {
 
   static get styles() {
     return `
-      :host { display: block; }
+      :host { display: block; overflow: visible; }
       .tab-bar {
         display: flex; border-bottom: 2px solid var(--b-border);
-        gap: 0; overflow-x: auto;
+        gap: 0; overflow-x: auto; overflow-y: hidden;
       }
       .tab {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
