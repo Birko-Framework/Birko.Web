@@ -88,6 +88,23 @@ export class BSelect extends BaseComponent {
     return this.$<HTMLSelectElement>('select')?.value ?? this.attr('value') ?? '';
   }
 
+  set inputValue(v: string) {
+    if (this.boolAttr('searchable')) {
+      this._selectValue(v);
+    } else {
+      const select = this.$<HTMLSelectElement>('select');
+      if (select) {
+        select.value = v;
+        if (v) this.setAttribute('value', v);
+        else this.removeAttribute('value');
+      } else {
+        if (v) this.setAttribute('value', v);
+        else this.removeAttribute('value');
+        this.update();
+      }
+    }
+  }
+
   render() {
     if (this.boolAttr('searchable')) return this._renderSearchable();
     return this._renderNative();

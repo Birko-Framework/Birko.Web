@@ -98,6 +98,10 @@ export class BSwitch extends BaseComponent {
       this.removeAttribute('checked');
     }
   }
+
+  /** Unified interface — returns 'true'/'false' string */
+  get inputValue(): string { return String(this.checked); }
+  set inputValue(v: string) { this.checked = v === 'true' || v === '1'; }
 }
 
 define('b-switch', BSwitch);

@@ -105,6 +105,11 @@ export class BMultiSelect extends BaseComponent {
     this.update();
   }
 
+  /** Unified interface — comma-separated string */
+  get inputValue(): string { return this.getSelected().join(','); }
+  set inputValue(v: string) { this.setSelected(v ? v.split(',') : []); }
+
+
   render() {
     const label = this.attr('label');
     const error = this.attr('error');

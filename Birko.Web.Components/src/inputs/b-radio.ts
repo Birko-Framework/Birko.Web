@@ -118,6 +118,10 @@ export class BRadio extends BaseComponent {
       this.removeAttribute('checked');
     }
   }
+
+  /** Unified interface — returns the value attr when checked, empty when not */
+  get inputValue(): string { return this.checked ? (this.attr('value') ?? 'true') : ''; }
+  set inputValue(v: string) { this.checked = !!v; }
 }
 
 define('b-radio', BRadio);

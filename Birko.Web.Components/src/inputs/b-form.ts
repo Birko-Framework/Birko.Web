@@ -770,6 +770,7 @@ export class BForm extends BaseComponent {
         return Number(raw) || 0;
       }
       default:
+        // All Birko input components expose unified inputValue getter
         return 'inputValue' in el ? (el as any).inputValue : el.getAttribute('value') ?? '';
     }
   }
@@ -784,9 +785,6 @@ export class BForm extends BaseComponent {
       case 'multi-select':
         if ('setSelected' in el) (el as any).setSelected(value as string[]);
         break;
-      case 'select':
-        el.setAttribute('value', String(value));
-        break;
       case 'range':
         if ('inputValue' in el) {
           (el as any).inputValue = typeof value === 'object'
@@ -795,7 +793,8 @@ export class BForm extends BaseComponent {
         }
         break;
       default:
-        // Use inputValue setter if available (clears _value cache in b-input/b-textarea/b-search-input)
+        // All Birko input components expose unified inputValue setter
+        // (b-input, b-textarea, b-select, b-search-input, b-date-picker, b-option-group)
         if ('inputValue' in el) {
           (el as any).inputValue = String(value ?? '');
         } else {

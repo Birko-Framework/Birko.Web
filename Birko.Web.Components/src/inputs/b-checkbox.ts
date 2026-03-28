@@ -124,6 +124,10 @@ export class BCheckbox extends BaseComponent {
     }
   }
 
+  /** Unified interface — returns 'true'/'false' string */
+  get inputValue(): string { return String(this.checked); }
+  set inputValue(v: string) { this.checked = v === 'true' || v === '1'; }
+
   get indeterminate(): boolean {
     return this.boolAttr('indeterminate');
   }

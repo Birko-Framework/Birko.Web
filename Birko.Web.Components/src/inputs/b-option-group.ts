@@ -119,6 +119,10 @@ export class BOptionGroup extends BaseComponent {
   set value(val: string) {
     this.setAttribute('value', val);
   }
+
+  /** Unified interface — alias for value */
+  get inputValue(): string { return this.value; }
+  set inputValue(v: string) { this.value = v; }
 }
 
 define('b-option-group', BOptionGroup);
