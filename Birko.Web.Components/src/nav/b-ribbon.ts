@@ -8,6 +8,7 @@ export interface RibbonTab {
   icon?: string;
   badge?: number;
   disabled?: boolean;
+  category?: string;
   groups: RibbonGroup[];
 }
 
@@ -98,6 +99,11 @@ export class BRibbon extends BaseComponent {
         background: var(--b-color-danger); color: #fff;
         font-size: 0.625rem; font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
+      }
+
+      .ribbon-tab-divider {
+        width: 1px; height: 1.25rem; align-self: center; flex-shrink: 0;
+        background: var(--b-border); margin: 0 var(--b-space-xs, 0.25rem);
       }
 
       .ribbon-after { display: flex; align-items: center; height: 100%; flex-shrink: 0; }
@@ -314,12 +320,15 @@ export class BRibbon extends BaseComponent {
 
           <button class="ribbon-scroll-btn" id="scroll-left" aria-label="Scroll left">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
-            ${this._tabs.map(tab => {
+            ${this._tabs.map((tab, i) => {
               const isActive = tab.id === active;
               const badge = tab.badge ? `<span class="ribbon-tab-badge">${tab.badge > 99 ? '99+' : tab.badge}</span>` : '';
               const icon = tab.icon ? `<span class="ribbon-tab-icon" aria-hidden="true">${tab.icon}</span>` : '';
               const disabled = tab.disabled ? 'aria-disabled="true"' : '';
-              return `<button class="ribbon-tab" role="tab"
+              const prevCat = i > 0 ? this._tabs[i - 1].category : undefined;
+              const divider = tab.category && prevCat && tab.category !== prevCat
+                ? '<span class="ribbon-tab-divider" aria-hidden="true"></span>' : '';
+              return `${divider}<button class="ribbon-tab" role="tab"
                 aria-selected="${isActive}" aria-controls="ribbon-panel-${tab.id}"
                 id="ribbon-tab-${tab.id}" tabindex="${isActive ? '0' : '-1'}"
                 data-tab="${tab.id}" ${disabled}>
