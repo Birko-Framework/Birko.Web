@@ -9,8 +9,5 @@
     "./data": "./src/data/index.ts",
     "./feedback": "./src/feedback/index.ts",
     "./nav": "./src/nav/index.ts"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.0"
   }
 }
