@@ -417,7 +417,7 @@ export class BForm extends BaseComponent {
 
     // Wire up collapsible group toggles
     this.$$<HTMLElement>('.b-form-legend--toggle').forEach(legend => {
-      legend.addEventListener('click', () => {
+      this.listen(legend, 'click', () => {
         const icon = legend.querySelector('.b-form-collapse-icon') as HTMLElement;
         const groupName = icon?.dataset.group;
         if (!groupName) return;
@@ -450,7 +450,7 @@ export class BForm extends BaseComponent {
       if (!el) continue;
 
       const eventName = child.type === 'search' ? 'search' : 'change';
-      el.addEventListener(eventName, ((e: CustomEvent) => {
+      this.listen(el, eventName, ((e: CustomEvent) => {
         // Clear field error on change
         if (this._errors.has(fieldPath)) {
           this._errors.delete(fieldPath);

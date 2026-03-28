@@ -434,7 +434,7 @@ export class BRibbon extends BaseComponent {
 
   private _bindPanelItems() {
     this.$$<HTMLElement>('.ribbon-panel .ribbon-item').forEach(el => {
-      el.addEventListener('click', (e: Event) => {
+      this.listen(el, 'click', (e: Event) => {
         const target = e.currentTarget as HTMLElement;
         this.emit('item-click', {
           tabId: target.dataset.tab,
@@ -470,11 +470,12 @@ export class BRibbon extends BaseComponent {
 
     // Tab clicks
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
-      btn.addEventListener('click', () => this._selectTab(btn.dataset.tab!));
+      this.listen(btn, 'click', () => this._selectTab(btn.dataset.tab!));
     });
 
     // Tab keyboard navigation
-    this.$('.ribbon-tabs')?.addEventListener('keydown', (e: Event) => {
+    const tabsEl = this.$('.ribbon-tabs');
+    if (tabsEl) this.listen(tabsEl, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       const tabs = this.$$<HTMLElement>('.ribbon-tab');
       const current = Array.from(tabs).findIndex(t => t.dataset.tab === this.attr('active'));
@@ -504,7 +505,8 @@ export class BRibbon extends BaseComponent {
     });
 
     // Panel keyboard: Escape returns to tab row
-    this.$('.ribbon-panel')?.addEventListener('keydown', (e: Event) => {
+    const panelEl = this.$('.ribbon-panel');
+    if (panelEl) this.listen(panelEl, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       if (ke.key === 'Escape') {
         ke.preventDefault();
@@ -528,8 +530,10 @@ export class BRibbon extends BaseComponent {
     this._bindPanelItems();
 
     // Expand/collapse toggle
-    this.$('#ribbon-toggle')?.addEventListener('click', () => this.toggleExpand());
-    this.$('#ribbon-pin')?.addEventListener('click', () => this.togglePin());
+    const toggleBtn = this.$('#ribbon-toggle');
+    if (toggleBtn) this.listen(toggleBtn, 'click', () => this.toggleExpand());
+    const pinBtn = this.$('#ribbon-pin');
+    if (pinBtn) this.listen(pinBtn, 'click', () => this.togglePin());
 
     // Hover expand/collapse (desktop only) — per-tab hover with panel content preview
     let overTab = false;
@@ -556,7 +560,7 @@ export class BRibbon extends BaseComponent {
 
     // Each tab button gets its own mouseenter
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
-      btn.addEventListener('mouseenter', () => {
+      this.listen(btn, 'mouseenter', () => {
         overTab = true;
         this._clearTimers();
         const tabId = btn.dataset.tab!;
@@ -568,23 +572,27 @@ export class BRibbon extends BaseComponent {
           this._expandTimer = setTimeout(() => this.expand(), 100);
         }
       });
-      btn.addEventListener('mouseleave', () => {
+      this.listen(btn, 'mouseleave', () => {
         overTab = false;
         maybeCollapse();
       });
     });
 
     const panel = this.$<HTMLElement>('.ribbon-panel');
-    panel?.addEventListener('mouseenter', () => { overPanel = true; this._clearTimers(); });
-    panel?.addEventListener('mouseleave', () => { overPanel = false; maybeCollapse(); });
+    if (panel) {
+      this.listen(panel, 'mouseenter', () => { overPanel = true; this._clearTimers(); });
+      this.listen(panel, 'mouseleave', () => { overPanel = false; maybeCollapse(); });
+    }
 
     // Mobile dialog
-    this.$('#mobile-hamburger')?.addEventListener('click', () => this._openMobileMenu());
-    this.$('#mobile-dialog-close')?.addEventListener('click', () => this._closeMobileMenu());
+    const hamburger = this.$('#mobile-hamburger');
+    if (hamburger) this.listen(hamburger, 'click', () => this._openMobileMenu());
+    const dialogClose = this.$('#mobile-dialog-close');
+    if (dialogClose) this.listen(dialogClose, 'click', () => this._closeMobileMenu());
 
     // Mobile tab headers (toggle group visibility)
     this.$$<HTMLElement>('.mobile-tab-header').forEach(btn => {
-      btn.addEventListener('click', () => {
+      this.listen(btn, 'click', () => {
         const tabId = btn.dataset.mobileTab!;
         // Select tab
         this._selectTab(tabId);
@@ -600,7 +608,7 @@ export class BRibbon extends BaseComponent {
 
     // Mobile item clicks
     this.$$<HTMLElement>('.mobile-item').forEach(el => {
-      el.addEventListener('click', () => {
+      this.listen(el, 'click', () => {
         this.emit('item-click', {
           tabId: el.dataset.tab,
           groupId: el.dataset.group,
@@ -643,9 +651,9 @@ export class BRibbon extends BaseComponent {
       rightBtn.classList.toggle('visible', canRight);
     };
 
-    tabs.addEventListener('scroll', updateArrows, { passive: true });
-    leftBtn.addEventListener('click', () => { tabs.scrollLeft -= tabs.clientWidth * 0.5; });
-    rightBtn.addEventListener('click', () => { tabs.scrollLeft += tabs.clientWidth * 0.5; });
+    this.listen(tabs, 'scroll', updateArrows, { passive: true });
+    this.listen(leftBtn, 'click', () => { tabs.scrollLeft -= tabs.clientWidth * 0.5; });
+    this.listen(rightBtn, 'click', () => { tabs.scrollLeft += tabs.clientWidth * 0.5; });
 
     // Check on next frame (layout may not be ready yet)
     requestAnimationFrame(updateArrows);

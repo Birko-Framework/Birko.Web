@@ -92,9 +92,10 @@ export class BRadio extends BaseComponent {
   }
 
   protected onUpdated() {
-    this.$<HTMLInputElement>('input')?.addEventListener('change', (e) => {
-      const input = e.target as HTMLInputElement;
-      if (input.checked) {
+    const input = this.$<HTMLInputElement>('input');
+    if (input) this.listen(input, 'change', (e: Event) => {
+      const inp = e.target as HTMLInputElement;
+      if (inp.checked) {
         this.setAttribute('checked', '');
         // Notify siblings via a group event on the parent
         this.parentElement?.dispatchEvent(new CustomEvent('b-radio-change', {

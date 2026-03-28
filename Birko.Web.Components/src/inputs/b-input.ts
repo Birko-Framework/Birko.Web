@@ -44,7 +44,7 @@ export class BInput extends BaseComponent {
     // Restore value after re-render (attribute value or last typed value)
     input.value = this._value || this.attr('value');
 
-    input.addEventListener('input', (e) => {
+    this.listen(input, 'input', (e: Event) => {
       this._value = (e.target as HTMLInputElement).value;
       this.emit('change', { name: this.attr('name'), value: this._value });
     });

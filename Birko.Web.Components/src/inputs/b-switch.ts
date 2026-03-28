@@ -73,14 +73,15 @@ export class BSwitch extends BaseComponent {
   }
 
   protected onUpdated() {
-    this.$<HTMLInputElement>('input')?.addEventListener('change', (e) => {
-      const input = e.target as HTMLInputElement;
-      if (input.checked) {
+    const input = this.$<HTMLInputElement>('input');
+    if (input) this.listen(input, 'change', (e: Event) => {
+      const inp = e.target as HTMLInputElement;
+      if (inp.checked) {
         this.setAttribute('checked', '');
       } else {
         this.removeAttribute('checked');
       }
-      this.emit('change', { name: this.attr('name'), checked: input.checked });
+      this.emit('change', { name: this.attr('name'), checked: inp.checked });
     });
   }
 

@@ -107,13 +107,14 @@ export class BDropdownMenu extends BaseComponent {
     };
 
     // Trigger click toggles popover
-    this.$('.trigger')?.addEventListener('click', () => {
+    const trigger = this.$('.trigger');
+    if (trigger) this.listen(trigger, 'click', () => {
       menu.togglePopover();
     });
 
     // Item click → emit select + close
     this.$$<HTMLElement>('.item').forEach(item => {
-      item.addEventListener('click', () => {
+      this.listen(item, 'click', () => {
         const id = item.dataset.id!;
         menu.hidePopover();
         this.emit('select', { id });
@@ -121,7 +122,7 @@ export class BDropdownMenu extends BaseComponent {
     });
 
     // Keyboard navigation
-    menu.addEventListener('keydown', (e: KeyboardEvent) => {
+    this.listen(menu, 'keydown', (e: KeyboardEvent) => {
       const items = this.$$<HTMLElement>('.item');
       const current = items.indexOf(this.$('.item:focus') as HTMLElement);
 
@@ -154,7 +155,7 @@ export class BDropdownMenu extends BaseComponent {
     });
 
     // Focus first item when popover opens + track expanded state + position
-    menu.addEventListener('toggle', ((e: ToggleEvent) => {
+    this.listen(menu, 'toggle', ((e: ToggleEvent) => {
       if (e.newState === 'open') {
         setExpanded(true);
         this._positionMenu(menu);

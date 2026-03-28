@@ -15,7 +15,7 @@ export class BSelect extends BaseComponent {
   private _filter = '';
   private _open = false;
   private _skipNextUpdate = false;
-  private _outsideClickHandler: ((e: MouseEvent) => void) | null = null;
+  private _outsideClickHandler: ((e: Event) => void) | null = null;
 
   static get sharedStyles() {
     return [formFieldSheet, formControlSheet, comboControlSheet];
@@ -191,7 +191,7 @@ export class BSelect extends BaseComponent {
     if (this._outsideClickHandler) {
       document.removeEventListener('mousedown', this._outsideClickHandler);
     }
-    this._outsideClickHandler = (e: MouseEvent) => {
+    this._outsideClickHandler = (e: Event) => {
       const path = e.composedPath();
       if (!path.includes(combo) && !path.includes(dropdown)) {
         this._closeDropdown();
@@ -329,7 +329,7 @@ export class BSelect extends BaseComponent {
 
   private _wireOptionClicks(dropdown: HTMLElement) {
     dropdown.querySelectorAll<HTMLElement>('.option[data-value]').forEach(opt => {
-      opt.addEventListener('click', (e) => {
+      this.listen(opt, 'click', (e: Event) => {
         e.stopPropagation();
         this._selectValue(opt.dataset.value!);
       });

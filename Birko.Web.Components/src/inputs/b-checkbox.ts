@@ -88,16 +88,17 @@ export class BCheckbox extends BaseComponent {
   protected onUpdated() {
     this._syncIndeterminate();
 
-    this.$<HTMLInputElement>('input')?.addEventListener('change', (e) => {
-      const input = e.target as HTMLInputElement;
+    const input = this.$<HTMLInputElement>('input');
+    if (input) this.listen(input, 'change', (e: Event) => {
+      const inp = e.target as HTMLInputElement;
       // Native click clears indeterminate automatically
       this.removeAttribute('indeterminate');
-      if (input.checked) {
+      if (inp.checked) {
         this.setAttribute('checked', '');
       } else {
         this.removeAttribute('checked');
       }
-      this.emit('change', { name: this.attr('name'), checked: input.checked });
+      this.emit('change', { name: this.attr('name'), checked: inp.checked });
     });
   }
 

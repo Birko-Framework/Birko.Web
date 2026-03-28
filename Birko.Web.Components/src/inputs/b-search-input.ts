@@ -85,13 +85,14 @@ export class BSearchInput extends BaseComponent {
     const input = this.$<HTMLInputElement>('input');
     if (!input) return;
 
-    input.addEventListener('input', () => {
+    this.listen(input, 'input', () => {
       const value = input.value;
       this.setAttribute('value', value);
       this._debounceEmit(value);
     });
 
-    this.$('.clear')?.addEventListener('click', () => {
+    const clearBtn = this.$('.clear');
+    if (clearBtn) this.listen(clearBtn, 'click', () => {
       this.setAttribute('value', '');
       input.value = '';
       input.focus();

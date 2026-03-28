@@ -36,7 +36,8 @@ export class BTextarea extends BaseComponent {
   }
 
   protected onUpdated() {
-    this.$<HTMLTextAreaElement>('textarea')?.addEventListener('input', (e) => {
+    const textarea = this.$<HTMLTextAreaElement>('textarea');
+    if (textarea) this.listen(textarea, 'input', (e: Event) => {
       const value = (e.target as HTMLTextAreaElement).value;
       this.emit('change', { name: this.attr('name'), value });
     });

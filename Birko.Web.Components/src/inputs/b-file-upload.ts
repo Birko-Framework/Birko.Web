@@ -220,10 +220,10 @@ export class BFileUpload extends BaseComponent {
     if (!dropzone || !input) return;
 
     // Click to browse
-    dropzone.addEventListener('click', () => input.click());
+    this.listen(dropzone, 'click', () => input.click());
 
     // File input change
-    input.addEventListener('change', () => {
+    this.listen(input, 'change', () => {
       if (input.files?.length) {
         this._addFiles(Array.from(input.files));
         input.value = '';  // reset so same file can be re-selected
@@ -231,26 +231,26 @@ export class BFileUpload extends BaseComponent {
     });
 
     // Drag and drop
-    dropzone.addEventListener('dragover', (e) => {
+    this.listen(dropzone, 'dragover', (e: Event) => {
       e.preventDefault();
       this._dragging = true;
       this.update();
     });
-    dropzone.addEventListener('dragleave', () => {
+    this.listen(dropzone, 'dragleave', () => {
       this._dragging = false;
       this.update();
     });
-    dropzone.addEventListener('drop', (e) => {
+    this.listen(dropzone, 'drop', (e: Event) => {
       e.preventDefault();
       this._dragging = false;
-      if (e.dataTransfer?.files.length) {
-        this._addFiles(Array.from(e.dataTransfer.files));
+      if ((e as DragEvent).dataTransfer?.files.length) {
+        this._addFiles(Array.from((e as DragEvent).dataTransfer!.files));
       }
     });
 
     // Remove buttons
     this.$$<HTMLElement>('.file-remove').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      this.listen(btn, 'click', (e: Event) => {
         e.stopPropagation();
         this.removeFile(btn.dataset.id!);
       });

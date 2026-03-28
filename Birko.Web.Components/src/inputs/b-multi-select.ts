@@ -15,7 +15,7 @@ export class BMultiSelect extends BaseComponent {
   private _selected = new Set<string>();
   private _filter = '';
   private _open = false;
-  private _outsideClickHandler: ((e: MouseEvent) => void) | null = null;
+  private _outsideClickHandler: ((e: Event) => void) | null = null;
 
   static get sharedStyles() {
     return [formFieldSheet, comboControlSheet];
@@ -170,7 +170,7 @@ export class BMultiSelect extends BaseComponent {
     if (this._outsideClickHandler) {
       document.removeEventListener('mousedown', this._outsideClickHandler);
     }
-    this._outsideClickHandler = (e: MouseEvent) => {
+    this._outsideClickHandler = (e: Event) => {
       const path = e.composedPath();
       if (!path.includes(container) && !path.includes(dropdown)) {
         this._closeDropdown();
@@ -279,7 +279,7 @@ export class BMultiSelect extends BaseComponent {
 
   private _wireOptionCheckboxes(dropdown: HTMLElement) {
     dropdown.querySelectorAll<HTMLInputElement>('.option input').forEach(input => {
-      input.addEventListener('change', () => {
+      this.listen(input, 'change', () => {
         if (input.checked) {
           this._selected.add(input.value);
         } else {

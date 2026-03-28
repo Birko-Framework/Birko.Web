@@ -26,9 +26,11 @@ export class BTabs extends BaseComponent {
     `;
   }
 
-  setTabs(tabs: { id: string; label: string }[]) {
+  setTabs(tabs: { id: string; label: string }[], active?: string) {
     this._tabs = tabs;
-    if (!this.attr('active') && tabs.length > 0) {
+    if (active) {
+      this.setAttribute('active', active);
+    } else if (!this.attr('active') && tabs.length > 0) {
       this.setAttribute('active', tabs[0].id);
     }
     this.update();
@@ -56,15 +58,18 @@ export class BTabs extends BaseComponent {
   }
 
   protected onUpdated() {
-    const tabs = this.$$<HTMLElement>('.tab');
+    const tabBar = this.$('.tab-bar');
+    if (!tabBar) return;
 
-    tabs.forEach(btn => {
-      btn.addEventListener('click', () => this._selectTab(btn.dataset.tab!));
+    // Event delegation — this.listen() auto-cleans via AbortController
+    this.listen(tabBar, 'click', (e: Event) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.tab');
+      if (btn?.dataset.tab) this._selectTab(btn.dataset.tab);
     });
 
-    // Keyboard navigation: Arrow Left/Right, Home/End
-    this.$('.tab-bar')?.addEventListener('keydown', (e: Event) => {
+    this.listen(tabBar, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
+      const tabs = this.$$<HTMLElement>('.tab');
       const current = Array.from(tabs).findIndex(t => t.dataset.tab === this.attr('active'));
       let next = -1;
 

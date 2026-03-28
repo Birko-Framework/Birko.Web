@@ -53,14 +53,15 @@ export class BModal extends BaseComponent {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     if (!dlg) return;
 
-    this.$('.close-btn')?.addEventListener('click', () => this.close());
-    dlg.addEventListener('click', (e) => {
+    const closeBtn = this.$('.close-btn');
+    if (closeBtn) this.listen(closeBtn, 'click', () => this.close());
+    this.listen(dlg, 'click', (e) => {
       if (e.target === dlg && !this._hasForm) this.close();
     });
-    dlg.addEventListener('close', () => this.emit('close'));
+    this.listen(dlg, 'close', () => this.emit('close'));
 
     // Focus trap: Tab cycles within modal
-    dlg.addEventListener('keydown', (e: KeyboardEvent) => {
+    this.listen(dlg, 'keydown', (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
         const focusable = dlg.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'

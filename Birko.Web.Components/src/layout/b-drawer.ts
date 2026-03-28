@@ -63,14 +63,15 @@ export class BDrawer extends BaseComponent {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     if (!dlg) return;
 
-    this.$('.close-btn')?.addEventListener('click', () => this.close());
+    const closeBtn = this.$('.close-btn');
+    if (closeBtn) this.listen(closeBtn, 'click', () => this.close());
 
     // Backdrop click closes in modal mode
-    dlg.addEventListener('click', (e) => {
+    this.listen(dlg, 'click', (e) => {
       if (e.target === dlg && this.boolAttr('modal')) this.close();
     });
 
-    dlg.addEventListener('close', () => this.emit('close'));
+    this.listen(dlg, 'close', () => this.emit('close'));
   }
 
   open() {

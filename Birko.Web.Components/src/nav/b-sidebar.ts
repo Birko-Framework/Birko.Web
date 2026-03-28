@@ -85,7 +85,8 @@ export class BSidebar extends BaseComponent {
   }
 
   protected onUpdated() {
-    this.$('.toggle-btn')?.addEventListener('click', () => {
+    const toggleBtn = this.$('.toggle-btn');
+    if (toggleBtn) this.listen(toggleBtn, 'click', () => {
       this.toggleAttribute('collapsed');
       this.emit('toggle', { collapsed: this.boolAttr('collapsed') });
     });

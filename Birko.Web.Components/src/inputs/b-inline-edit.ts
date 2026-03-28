@@ -79,21 +79,26 @@ export class BInlineEdit extends BaseComponent {
   protected onUpdated() {
     if (this._editing) {
       const input = this.$<HTMLInputElement>('input');
-      input?.focus();
-      input?.select();
-      input?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') this._save();
-        if (e.key === 'Escape') this._cancel();
-      });
-      input?.addEventListener('blur', (e) => {
-        const related = (e as FocusEvent).relatedTarget as HTMLElement | null;
-        if (related?.classList.contains('action-btn')) return;
-        this._save();
-      });
-      this.$('.action-btn.save')?.addEventListener('click', () => this._save());
-      this.$('.action-btn.cancel')?.addEventListener('click', () => this._cancel());
+      if (input) {
+        input.focus();
+        input.select();
+        this.listen(input, 'keydown', (e: Event) => {
+          if ((e as KeyboardEvent).key === 'Enter') this._save();
+          if ((e as KeyboardEvent).key === 'Escape') this._cancel();
+        });
+        this.listen(input, 'blur', (e: Event) => {
+          const related = (e as FocusEvent).relatedTarget as HTMLElement | null;
+          if (related?.classList.contains('action-btn')) return;
+          this._save();
+        });
+      }
+      const saveBtn = this.$('.action-btn.save');
+      if (saveBtn) this.listen(saveBtn, 'click', () => this._save());
+      const cancelBtn = this.$('.action-btn.cancel');
+      if (cancelBtn) this.listen(cancelBtn, 'click', () => this._cancel());
     } else {
-      this.$('.display')?.addEventListener('click', () => this._startEdit());
+      const display = this.$('.display');
+      if (display) this.listen(display, 'click', () => this._startEdit());
     }
   }
 

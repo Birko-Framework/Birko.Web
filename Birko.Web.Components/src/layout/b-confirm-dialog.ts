@@ -56,11 +56,13 @@ export class BConfirmDialog extends BaseComponent {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     if (!dlg) return;
 
-    this.$('.btn-cancel')?.addEventListener('click', () => this._answer(false));
-    this.$('.btn-confirm')?.addEventListener('click', () => this._answer(true));
+    const cancelBtn = this.$('.btn-cancel');
+    if (cancelBtn) this.listen(cancelBtn, 'click', () => this._answer(false));
+    const confirmBtn = this.$('.btn-confirm');
+    if (confirmBtn) this.listen(confirmBtn, 'click', () => this._answer(true));
 
     // Prevent ESC from closing without resolving — force explicit choice
-    dlg.addEventListener('cancel', (e) => {
+    this.listen(dlg, 'cancel', (e) => {
       e.preventDefault();
       this._answer(false);
     });

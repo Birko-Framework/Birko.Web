@@ -82,7 +82,7 @@ export class BPagination extends BaseComponent {
 
   protected onUpdated() {
     this.$$<HTMLButtonElement>('.page-btn:not(:disabled)').forEach(btn => {
-      btn.addEventListener('click', () => {
+      this.listen(btn, 'click', () => {
         const page = Number(btn.dataset.page);
         if (page > 0) {
           this.setAttribute('page', String(page));
@@ -91,7 +91,8 @@ export class BPagination extends BaseComponent {
       });
     });
 
-    this.$<HTMLSelectElement>('.page-size-select')?.addEventListener('change', (e) => {
+    const sizeSelect = this.$<HTMLSelectElement>('.page-size-select');
+    if (sizeSelect) this.listen(sizeSelect, 'change', (e: Event) => {
       const size = Number((e.target as HTMLSelectElement).value);
       this.setAttribute('page-size', String(size));
       this.emit('page-size-change', { pageSize: size });

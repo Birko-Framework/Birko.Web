@@ -114,7 +114,7 @@ export class BTable extends BaseComponent {
 
   protected onUpdated() {
     this.$$<HTMLElement>('th.sortable').forEach(th => {
-      th.addEventListener('click', () => {
+      this.listen(th, 'click', () => {
         const key = th.dataset.key!;
         if (this._sortKey === key) {
           this._sortDesc = !this._sortDesc;
@@ -128,7 +128,7 @@ export class BTable extends BaseComponent {
     });
 
     this.$$<HTMLElement>('tbody tr[data-id]').forEach(tr => {
-      tr.addEventListener('click', (e: Event) => {
+      this.listen(tr, 'click', (e: Event) => {
         // Walk composedPath to find [data-action] across shadow boundaries (e.g. inside b-button)
         const path = e.composedPath() as HTMLElement[];
         const actionEl = path.find(el => el?.dataset?.action) as HTMLElement | undefined;

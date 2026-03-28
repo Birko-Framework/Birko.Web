@@ -146,14 +146,16 @@ export class BToastItem extends BaseComponent {
   }
 
   protected onUpdated() {
-    this.$('.close')?.addEventListener('click', (e) => {
+    const closeBtn = this.$('.close');
+    if (closeBtn) this.listen(closeBtn, 'click', (e: Event) => {
       e.stopPropagation();
       this.remove();
     });
 
     const href = this.attr('href');
     if (href) {
-      this.$('.toast')?.addEventListener('click', () => {
+      const toastEl = this.$('.toast');
+      if (toastEl) this.listen(toastEl, 'click', () => {
         window.location.hash = href.startsWith('#') ? href : `#${href}`;
         this.remove();
       });
