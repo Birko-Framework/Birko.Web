@@ -592,10 +592,12 @@ export class BForm extends BaseComponent {
   }
 
   private _validateField(field: FormField, value: unknown, allData: Record<string, unknown>, path: string) {
-    // Required check
-    if (field.required) {
+    // Required check — honour both field.required and rules: [{ type: 'required' }]
+    const requiredRule = field.rules?.find(r => r.type === 'required');
+    const isRequired = field.required || !!requiredRule;
+    if (isRequired) {
       if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-        this._errors.set(path, field.rules?.find(r => r.type === 'required')?.message
+        this._errors.set(path, requiredRule?.message
           ?? fmt('common.required', { label: field.label }, '{label} is required'));
         return; // Stop on first error
       }
@@ -603,8 +605,12 @@ export class BForm extends BaseComponent {
 
     if (!field.rules) return;
 
+    // Skip other rules on empty optional fields — no point validating format of blank value
+    const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+
     for (const rule of field.rules) {
       if (rule.type === 'required') continue; // Already handled above
+      if (isEmpty) continue; // Don't validate format/length/etc. of blank optional fields
 
       const err = this._checkRule(rule, field, value, allData);
       if (err) {
