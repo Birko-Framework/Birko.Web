@@ -3,10 +3,10 @@ import { BaseComponent, define } from 'birko-web-core';
 // ── Types ──
 
 export type FieldType =
-  | 'text' | 'password' | 'email' | 'number'
+  | 'text' | 'password' | 'email' | 'number' | 'percent'
   | 'textarea' | 'select' | 'multi-select'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'option-group' | 'file' | 'custom';
+  | 'option-group' | 'file' | 'range' | 'date' | 'custom';
 
 export type RuleType =
   | 'required' | 'minLength' | 'maxLength'
@@ -41,6 +41,15 @@ export interface FormField {
   default?: unknown;
   required?: boolean;
   rules?: ValidationRule[];
+  // Range-specific
+  mode?: 'single' | 'range';
+  display?: 'both' | 'slider' | 'input';
+  valueType?: 'number' | 'int' | 'percent';
+  min?: number | string;
+  max?: number | string;
+  step?: number;
+  // Date-specific
+  native?: boolean;
 }
 
 export interface FormGroupDef {
@@ -151,6 +160,19 @@ export class BForm extends BaseComponent {
         grid-column: 1 / -1;
         flex: 1 0 100%;
       }
+      /* Nested groups (fieldsets) always span full row in grid parent */
+      .b-form-group--grid > .b-form-group,
+      .b-form-group--grid > .b-form-group--root-bare {
+        grid-column: 1 / -1;
+      }
+      /* Label-less nested groups are pure layout wrappers — no chrome */
+      .b-form-group:not(:has(legend)) {
+        border: none;
+        margin: 0;
+      }
+      .b-form-group:not(:has(legend)) > .b-form-group-body {
+        padding: 0;
+      }
       .b-form-field--hidden { display: none; }
       .b-form-group--root-bare {
         border: none;
@@ -166,6 +188,20 @@ export class BForm extends BaseComponent {
         color: var(--b-color-danger);
         font-weight: var(--b-font-weight-normal, 400);
         margin-left: var(--b-space-sm, 0.5rem);
+      }
+      .b-form-percent-wrap {
+        position: relative;
+      }
+      .b-form-percent-sign {
+        position: absolute;
+        right: var(--b-space-sm, 0.5rem);
+        bottom: 0;
+        height: calc(var(--b-text-base, 0.875rem) + 2 * var(--b-space-sm, 0.5rem) + var(--b-border-width, 1px) * 2);
+        display: flex;
+        align-items: center;
+        color: var(--b-text-secondary);
+        font-size: var(--b-text-sm, 0.8125rem);
+        pointer-events: none;
       }
       @media (max-width: 640px) {
         .b-form-group--grid { grid-template-columns: 1fr; }
@@ -191,12 +227,17 @@ export class BForm extends BaseComponent {
 
   setValues(values: Record<string, unknown>) {
     if (!this._schema) return;
-    this._setGroupValues(this._schema, values, '');
+    // Convert percent fields from storage (0-1) to display (0-100) before setting
+    const display = { ...values };
+    this._convertPercent(this._schema, display, false);
+    this._setGroupValues(this._schema, display, '');
   }
 
   getValues(): Record<string, unknown> {
     if (!this._schema) return {};
-    return this._getGroupValues(this._schema, '');
+    const data = this._getGroupValues(this._schema, '');
+    this._convertPercent(this._schema, data, true);
+    return data;
   }
 
   validate(): FormResult {
@@ -204,8 +245,13 @@ export class BForm extends BaseComponent {
     this._errors.clear();
     this._groupErrors.clear();
 
-    const data = this.getValues();
-    this._validateGroup(this._schema, data, '', true);
+    // Validate against display values (percent as 0-100) so rules/messages make sense
+    const displayData = this._getGroupValues(this._schema, '');
+    this._validateGroup(this._schema, displayData, '', true);
+
+    // Convert percent fields to storage values (0-1) for output
+    const data = { ...displayData };
+    this._convertPercent(this._schema, data, true);
 
     const errors: Record<string, string> = {};
     for (const [k, v] of this._errors) errors[k] = v;
@@ -348,6 +394,10 @@ export class BForm extends BaseComponent {
     const tag = this._fieldTag(field);
     const attrs = this._fieldAttrs(field, path, error, disabled || readonly);
 
+    if (field.type === 'percent') {
+      return `<div class="${classes}" data-field="${path}"><div class="b-form-percent-wrap">${tag(attrs)}<span class="b-form-percent-sign">%</span></div></div>`;
+    }
+
     return `<div class="${classes}" data-field="${path}">${tag(attrs)}</div>`;
   }
 
@@ -374,6 +424,10 @@ export class BForm extends BaseComponent {
         return (a) => `<b-search-input ${a}></b-search-input>`;
       case 'file':
         return (a) => `<b-file-upload ${a}></b-file-upload>`;
+      case 'range':
+        return (a) => `<b-range ${a}></b-range>`;
+      case 'date':
+        return (a) => `<b-date-picker ${a}></b-date-picker>`;
       default: // text, password, email, number
         return (a) => `<b-input ${a}></b-input>`;
     }
@@ -400,12 +454,28 @@ export class BForm extends BaseComponent {
       case 'password': case 'email': case 'number':
         parts.push(`type="${field.type}"`);
         break;
+      case 'percent':
+        parts.push('type="number"');
+        break;
       case 'textarea':
         if (field.rows) parts.push(`rows="${field.rows}"`);
         break;
       case 'select':
       case 'multi-select':
         if (field.searchable) parts.push('searchable');
+        break;
+      case 'range':
+        if (field.mode) parts.push(`mode="${field.mode}"`);
+        if (field.display) parts.push(`display="${field.display}"`);
+        if (field.valueType) parts.push(`value-type="${field.valueType}"`);
+        if (field.min !== undefined) parts.push(`min="${field.min}"`);
+        if (field.max !== undefined) parts.push(`max="${field.max}"`);
+        if (field.step !== undefined) parts.push(`step="${field.step}"`);
+        break;
+      case 'date':
+        if (field.min !== undefined) parts.push(`min="${field.min}"`);
+        if (field.max !== undefined) parts.push(`max="${field.max}"`);
+        if (field.native) parts.push('native');
         break;
     }
 
@@ -474,11 +544,12 @@ export class BForm extends BaseComponent {
   }
 
   private _populateOptions(group: FormGroupDef, prefix: string) {
-    const path = prefix ? `${prefix}.${group.name}` : '';
+    const isRoot = group.name === 'root' && !prefix;
+    const path = isRoot ? '' : (prefix ? `${prefix}.${group.name}` : group.name);
 
     for (const child of group.children) {
       if (isGroup(child)) {
-        this._populateOptions(child, path || group.name);
+        this._populateOptions(child, path);
         continue;
       }
 
@@ -685,6 +756,13 @@ export class BForm extends BaseComponent {
         return 'getSelected' in el ? (el as any).getSelected() : [];
       case 'file':
         return 'getFiles' in el ? (el as any).getFiles() : [];
+      case 'range': {
+        const raw = 'inputValue' in el ? (el as any).inputValue : '';
+        if ((field.mode ?? 'single') === 'range') {
+          try { return JSON.parse(raw); } catch { return { from: 0, to: 0 }; }
+        }
+        return Number(raw) || 0;
+      }
       default:
         return 'inputValue' in el ? (el as any).inputValue : el.getAttribute('value') ?? '';
     }
@@ -703,6 +781,13 @@ export class BForm extends BaseComponent {
       case 'select':
         el.setAttribute('value', String(value));
         break;
+      case 'range':
+        if ('inputValue' in el) {
+          (el as any).inputValue = typeof value === 'object'
+            ? JSON.stringify(value)
+            : String(value ?? '');
+        }
+        break;
       default:
         // Use inputValue setter if available (clears _value cache in b-input/b-textarea/b-search-input)
         if ('inputValue' in el) {
@@ -710,6 +795,39 @@ export class BForm extends BaseComponent {
         } else {
           el.setAttribute('value', String(value ?? ''));
         }
+    }
+  }
+
+  // ── Percent conversion ──
+
+  /** Walk schema tree and convert percent fields in data: toStorage divides by 100, toDisplay multiplies by 100. */
+  private _convertPercent(group: FormGroupDef, data: Record<string, unknown>, toStorage: boolean) {
+    for (const child of group.children) {
+      if (isGroup(child)) {
+        const nested = data[child.name];
+        if (nested && typeof nested === 'object') {
+          this._convertPercent(child, nested as Record<string, unknown>, toStorage);
+        }
+      } else if ((child as FormField).type === 'percent' && child.name in data) {
+        const n = Number(data[child.name]);
+        if (!isNaN(n)) {
+          data[child.name] = toStorage ? n / 100 : n * 100;
+        }
+      } else if ((child as FormField).type === 'range' && (child as FormField).valueType === 'percent' && child.name in data) {
+        const val = data[child.name];
+        if (typeof val === 'object' && val !== null) {
+          const obj = val as { from: number; to: number };
+          data[child.name] = {
+            from: toStorage ? obj.from / 100 : obj.from * 100,
+            to: toStorage ? obj.to / 100 : obj.to * 100,
+          };
+        } else {
+          const n = Number(val);
+          if (!isNaN(n)) {
+            data[child.name] = toStorage ? n / 100 : n * 100;
+          }
+        }
+      }
     }
   }
 

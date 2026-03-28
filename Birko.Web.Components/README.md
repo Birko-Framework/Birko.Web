@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-31 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+32 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
 
 ## Install
 
@@ -105,6 +105,30 @@ Emits: `search` → `{ value }` (debounced)
 
 Emits: `save` → `{ value }`, `cancel`
 
+### b-range
+
+Slider/input for single values or from-to ranges. Supports number, int, and percent value types.
+
+```html
+<!-- Single slider + input (default) -->
+<b-range label="Volume" name="volume" min="0" max="100" step="1"></b-range>
+
+<!-- Percent: user sees 0-100, stored as 0-1 -->
+<b-range label="Opacity" name="opacity" value-type="percent" min="0" max="100"></b-range>
+
+<!-- Range mode: from-to -->
+<b-range label="Price range" name="price" mode="range" min="0" max="1000" step="10"></b-range>
+
+<!-- Slider only -->
+<b-range label="Brightness" name="brightness" display="slider" min="0" max="255"></b-range>
+
+<!-- Input only -->
+<b-range label="Temperature" name="temp" display="input" min="-40" max="80" step="0.5"></b-range>
+```
+
+Attributes: `label`, `name`, `min`, `max`, `step`, `mode` (single|range), `display` (both|slider|input), `value-type` (number|int|percent), `error`, `disabled`, `required`
+Emits: `change` → `{ name, value }` (single) or `{ name, value: { from, to } }` (range)
+
 ### b-form
 
 Schema-driven form builder with validation.
@@ -132,7 +156,7 @@ form.setFieldError('email', 'Email already taken');
 ```
 
 **Validation rule types:** `required`, `minLength`, `maxLength`, `min`, `max`, `range`, `pattern`, `email`, `match`, `custom`
-**Field types:** `text`, `email`, `number`, `password`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `file`, `custom`
+**Field types:** `text`, `email`, `number`, `password`, `percent`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `range`, `file`, `custom`
 
 Grouped form with grid layout:
 

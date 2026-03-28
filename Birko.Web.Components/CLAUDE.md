@@ -10,7 +10,7 @@ Component library built on `Birko.Web.Core`. 31 Shadow DOM web components coveri
 src/
 ├── inputs/          # b-input, b-select, b-button, b-checkbox, b-switch, b-radio,
 │                    # b-textarea, b-multi-select, b-search-input, b-file-upload,
-│                    # b-inline-edit, b-form
+│                    # b-inline-edit, b-range, b-form
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
 │                    # b-dropdown-menu, b-tooltip
 ├── data/            # b-table, b-data-table, b-pagination, b-badge, b-chart
@@ -108,7 +108,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 
 ## Component inventory
 
-### Inputs (12)
+### Inputs (13)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
@@ -122,6 +122,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-search-input>` | BSearchInput | — | `placeholder`, `value`, `debounce` |
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
+| `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `reset()` | `validate-on` |
 
 ### Layout (7)

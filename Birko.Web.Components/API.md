@@ -173,6 +173,40 @@ Slot: default (button label/content).
 | `all-complete` | `{ succeeded, failed }` |
 | `file-removed` | `{ fileId }` |
 
+### `<b-range>`
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `hint` | string |
+| `name` | string |
+| `error` | string (shows error message) |
+| `disabled` | boolean |
+| `required` | boolean |
+| `min` | number (default 0) |
+| `max` | number (default 100) |
+| `step` | number (default 1) |
+| `mode` | `single` \| `range` (default `single`) |
+| `display` | `both` \| `slider` \| `input` (default `both`) |
+| `value-type` | `number` \| `int` \| `percent` (default `number`) |
+| `value` | string — single: `"42"`, range: `{"from":10,"to":50}` |
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `inputValue` | `string` (getter/setter) | Single: number string. Range: JSON `{"from":X,"to":Y}` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | Single: `{ name, value }` — Range: `{ name, value: { from, to } }` |
+
+**Modes:**
+- `single` — one value with slider thumb + number input
+- `range` — from-to with two slider thumbs + two number inputs
+
+**Value types:**
+- `number` — decimal, stored as-is
+- `int` — rounded to nearest integer
+- `percent` — displayed 0-100, stored 0-1 (b-form converts automatically)
+
 ### `<b-form>`
 | Attribute | Values |
 |-----------|--------|
