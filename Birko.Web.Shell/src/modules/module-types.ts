@@ -4,6 +4,7 @@ export interface ModuleManifest {
   labelKey?: string;
   icon: string;
   order: number;
+  category?: string;
   options: ModuleOption[];
   permissions: string[];
   status?: ModuleStatus;

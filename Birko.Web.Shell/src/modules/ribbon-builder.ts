@@ -48,6 +48,7 @@ export function buildRibbon(
         id: mod.id,
         label: modLabel,
         icon: mod.icon,
+        category: mod.category,
         groups,
       };
     });
