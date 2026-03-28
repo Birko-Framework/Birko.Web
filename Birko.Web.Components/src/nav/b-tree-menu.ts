@@ -43,6 +43,7 @@ export class BTreeMenu extends BaseComponent {
   private _config: TreeConfig = {};
   private _loadingNodes = new Set<string>();
   private _loadedNodes = new Set<string>();
+  private _dragSourceId: string | null = null;
 
   static get styles() {
     return `
@@ -128,7 +129,6 @@ export class BTreeMenu extends BaseComponent {
         align-items: center;
         gap: 2px;
         flex-shrink: 0;
-        margin-left: auto;
       }
       .node-row:hover .node-actions,
       .node-row:focus-within .node-actions { display: flex; }
@@ -159,7 +159,7 @@ export class BTreeMenu extends BaseComponent {
       .node-row.active .node-sort { display: flex; }
 
       .sort-order {
-        width: 2.5rem; text-align: center;
+        width: 2.5rem; text-align: right;
         padding: 1px 2px;
         border: 1px solid var(--b-border);
         border-radius: var(--b-radius-sm, 0.25rem);
@@ -185,6 +185,18 @@ export class BTreeMenu extends BaseComponent {
       .sort-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); border-color: var(--b-text-muted); }
       .sort-btn:disabled { opacity: 0.2; cursor: default; }
       .sort-btn:disabled:hover { background: var(--b-bg); color: var(--b-text-muted); border-color: var(--b-border); }
+
+      /* ── Drag and drop ── */
+      .node-row[draggable="true"] { cursor: grab; }
+      .node-row[draggable="true"]:active { cursor: grabbing; }
+      .node-row.dragging { opacity: 0.4; }
+      .node.drop-before > .node-row { box-shadow: 0 -2px 0 0 var(--b-color-primary); }
+      .node.drop-after > .node-row { box-shadow: 0 2px 0 0 var(--b-color-primary); }
+      .node.drop-inside > .node-row {
+        outline: 2px solid var(--b-color-primary);
+        outline-offset: -2px;
+        background: var(--b-color-primary-light);
+      }
 
       /* ── Loading spinner ── */
       .node-loading {
@@ -392,6 +404,7 @@ export class BTreeMenu extends BaseComponent {
                ${hrefAttr}
                data-item="${item.id}"
                tabindex="0"
+               ${this._config.sortable ? 'draggable="true"' : ''}
                ${isActive ? 'aria-current="page"' : ''}>
             ${toggleHtml}
             ${iconHtml}
@@ -474,6 +487,79 @@ export class BTreeMenu extends BaseComponent {
       this.listen(input, 'click', (e: Event) => e.stopPropagation());
     });
 
+    // Drag and drop reordering
+    if (this._config.sortable) {
+      this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
+        this.listen(row, 'dragstart', (e: Event) => {
+          const de = e as DragEvent;
+          this._dragSourceId = row.dataset.item!;
+          row.classList.add('dragging');
+          de.dataTransfer!.effectAllowed = 'move';
+          de.dataTransfer!.setData('text/plain', this._dragSourceId);
+        });
+
+        this.listen(row, 'dragend', () => {
+          row.classList.remove('dragging');
+          this._dragSourceId = null;
+          this._clearDropIndicators();
+        });
+
+        const node = row.closest('.node') as HTMLElement;
+        if (!node) return;
+
+        this.listen(node, 'dragover', (e: Event) => {
+          const de = e as DragEvent;
+          if (!this._dragSourceId || this._dragSourceId === row.dataset.item) return;
+          de.preventDefault();
+          de.dataTransfer!.dropEffect = 'move';
+
+          this._clearDropIndicators();
+          const rect = row.getBoundingClientRect();
+          const y = de.clientY - rect.top;
+          const zone = y / rect.height;
+
+          if (zone < 0.25) {
+            node.classList.add('drop-before');
+          } else if (zone > 0.75) {
+            node.classList.add('drop-after');
+          } else {
+            node.classList.add('drop-inside');
+          }
+        });
+
+        this.listen(node, 'dragleave', (e: Event) => {
+          const de = e as DragEvent;
+          // Only clear if leaving the node entirely (not entering a child)
+          if (!node.contains(de.relatedTarget as Node)) {
+            node.classList.remove('drop-before', 'drop-after', 'drop-inside');
+          }
+        });
+
+        this.listen(node, 'drop', (e: Event) => {
+          const de = e as DragEvent;
+          de.preventDefault();
+          const sourceId = this._dragSourceId;
+          const targetId = row.dataset.item!;
+          if (!sourceId || sourceId === targetId) return;
+
+          const rect = row.getBoundingClientRect();
+          const y = de.clientY - rect.top;
+          const zone = y / rect.height;
+          let position: 'before' | 'after' | 'inside';
+          if (zone < 0.25) position = 'before';
+          else if (zone > 0.75) position = 'after';
+          else position = 'inside';
+
+          this._clearDropIndicators();
+          this._dragSourceId = null;
+
+          const sourceItem = this._findItem(this._items, sourceId);
+          const targetItem = this._findItem(this._items, targetId);
+          this.emit('reorder', { sourceId, targetId, position, sourceItem, targetItem });
+        });
+      });
+    }
+
     // Node action buttons
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-action]').forEach(btn => {
       this.listen(btn, 'click', (e: Event) => {
@@ -553,6 +639,12 @@ export class BTreeMenu extends BaseComponent {
           rows[rows.length - 1]?.focus();
           break;
       }
+    });
+  }
+
+  private _clearDropIndicators() {
+    this.shadowRoot?.querySelectorAll('.drop-before, .drop-after, .drop-inside').forEach(el => {
+      el.classList.remove('drop-before', 'drop-after', 'drop-inside');
     });
   }
 
