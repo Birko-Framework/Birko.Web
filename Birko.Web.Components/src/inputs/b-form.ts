@@ -699,7 +699,12 @@ export class BForm extends BaseComponent {
         el.setAttribute('value', String(value));
         break;
       default:
-        el.setAttribute('value', String(value ?? ''));
+        // Use inputValue setter if available (clears _value cache in b-input/b-textarea/b-search-input)
+        if ('inputValue' in el) {
+          (el as any).inputValue = String(value ?? '');
+        } else {
+          el.setAttribute('value', String(value ?? ''));
+        }
     }
   }
 

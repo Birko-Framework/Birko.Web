@@ -115,6 +115,12 @@ export class BSearchInput extends BaseComponent {
   get inputValue(): string {
     return this.$<HTMLInputElement>('input')?.value ?? '';
   }
+
+  set inputValue(v: string) {
+    this.setAttribute('value', v);
+    const input = this.$<HTMLInputElement>('input');
+    if (input) input.value = v;
+  }
 }
 
 define('b-search-input', BSearchInput);
