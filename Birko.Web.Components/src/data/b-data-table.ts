@@ -368,15 +368,18 @@ export class BDataTable extends BaseComponent {
     if (!this._config) return;
 
     // Search
-    this.$<HTMLElement>('b-search-input')?.addEventListener('search', ((e: CustomEvent) => {
-      this._searchQuery = e.detail.value;
-      this._page = 1;
-      this.load();
-    }) as EventListener);
+    const searchInput = this.$<HTMLElement>('b-search-input');
+    if (searchInput) {
+      this.listen(searchInput, 'search', ((e: CustomEvent) => {
+        this._searchQuery = e.detail.value;
+        this._page = 1;
+        this.load();
+      }) as EventListener);
+    }
 
     // Filters
     this.$$<HTMLSelectElement>('.filter-select').forEach(sel => {
-      sel.addEventListener('change', () => {
+      this.listen(sel, 'change', () => {
         const key = sel.dataset.filter!;
         if (sel.value) {
           this._activeFilters.set(key, sel.value);
@@ -400,70 +403,78 @@ export class BDataTable extends BaseComponent {
         trigger.setAttribute('slot', 'trigger');
         trigger.textContent = this._config!.labels?.export ?? 'Export';
         menu.appendChild(trigger);
-        menu.addEventListener('select', ((e: CustomEvent) => {
+        this.listen(menu, 'select', ((e: CustomEvent) => {
           this._emitExport(e.detail.id);
         }) as EventListener);
       }
     }
 
     // Export single button
-    this.$<HTMLElement>('.export-btn')?.addEventListener('click', () => {
-      this._emitExport(this.$<HTMLElement>('.export-btn')?.dataset.format ?? '');
-    });
+    const exportBtn = this.$<HTMLElement>('.export-btn');
+    if (exportBtn) {
+      this.listen(exportBtn, 'click', () => {
+        this._emitExport(exportBtn.dataset.format ?? '');
+      });
+    }
 
     // Toolbar actions
     this.$$<HTMLElement>('.toolbar-action').forEach(btn => {
-      btn.addEventListener('click', () => {
+      this.listen(btn, 'click', () => {
         this.emit('toolbar-action', { action: btn.dataset.action });
       });
     });
 
     // Pagination
-    this.$<HTMLElement>('b-pagination')?.addEventListener('page-change', ((e: CustomEvent) => {
-      this._page = e.detail.page;
-      if (this._config?.flatArray) {
-        this.update();
-        this._applyData();
-      } else {
-        this.load(e.detail.page);
-      }
-    }) as EventListener);
+    const pagination = this.$<HTMLElement>('b-pagination');
+    if (pagination) {
+      this.listen(pagination, 'page-change', ((e: CustomEvent) => {
+        this._page = e.detail.page;
+        if (this._config?.flatArray) {
+          this.update();
+          this._applyData();
+        } else {
+          this.load(e.detail.page);
+        }
+      }) as EventListener);
 
-    // Page size change
-    this.$<HTMLElement>('b-pagination')?.addEventListener('page-size-change', ((e: CustomEvent) => {
-      this._pageSize = e.detail.pageSize;
-      this._page = 1;
-      if (this._config?.flatArray) {
-        this._totalPages = Math.max(1, Math.ceil(this._totalCount / this._pageSize));
-        this.update();
-        this._applyData();
-      } else {
-        this.load(1);
-      }
-    }) as EventListener);
+      // Page size change
+      this.listen(pagination, 'page-size-change', ((e: CustomEvent) => {
+        this._pageSize = e.detail.pageSize;
+        this._page = 1;
+        if (this._config?.flatArray) {
+          this._totalPages = Math.max(1, Math.ceil(this._totalCount / this._pageSize));
+          this.update();
+          this._applyData();
+        } else {
+          this.load(1);
+        }
+      }) as EventListener);
+    }
 
     // Table events — enrich with full row data
     const innerTable = this.$<HTMLElement>('b-table');
 
-    innerTable?.addEventListener('row-click', ((e: CustomEvent) => {
-      const id = e.detail?.id;
-      const row = this._allData.find(r => this._rowId(r) === id);
-      this.emit('row-click', row ?? e.detail);
-    }) as EventListener);
+    if (innerTable) {
+      this.listen(innerTable, 'row-click', ((e: CustomEvent) => {
+        const id = e.detail?.id;
+        const row = this._allData.find(r => this._rowId(r) === id);
+        this.emit('row-click', row ?? e.detail);
+      }) as EventListener);
 
-    innerTable?.addEventListener('action-click', ((e: CustomEvent) => {
-      const id = e.detail?.id;
-      const row = this._allData.find(r => this._rowId(r) === id);
-      this.emit('action-click', { action: e.detail.action, id, row: row ?? {} });
-    }) as EventListener);
+      this.listen(innerTable, 'action-click', ((e: CustomEvent) => {
+        const id = e.detail?.id;
+        const row = this._allData.find(r => this._rowId(r) === id);
+        this.emit('action-click', { action: e.detail.action, id, row: row ?? {} });
+      }) as EventListener);
 
-    innerTable?.addEventListener('sort', ((e: CustomEvent) => {
-      this.emit('sort', e.detail);
-    }) as EventListener);
+      this.listen(innerTable, 'sort', ((e: CustomEvent) => {
+        this.emit('sort', e.detail);
+      }) as EventListener);
+    }
 
     // Bulk action buttons
     this.$$<HTMLElement>('.bulk-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      this.listen(btn, 'click', () => {
         const action = btn.dataset.bulk!;
         const needsConfirm = btn.dataset.confirm === 'true';
         const lConfirm = this._config!.labels?.confirmDefault ?? 'Are you sure?';

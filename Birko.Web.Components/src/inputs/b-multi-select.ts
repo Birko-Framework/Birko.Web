@@ -157,7 +157,7 @@ export class BMultiSelect extends BaseComponent {
     if (!container || !dropdown) return;
 
     // Toggle dropdown on container click
-    container.addEventListener('click', (e) => {
+    this.listen(container, 'click', (e) => {
       if ((e.target as HTMLElement).classList.contains('chip-remove')) return;
       if (this._open) {
         this._closeDropdown();
@@ -176,16 +176,16 @@ export class BMultiSelect extends BaseComponent {
         this._closeDropdown();
       }
     };
-    document.addEventListener('mousedown', this._outsideClickHandler);
+    this.listen(document, 'mousedown', this._outsideClickHandler);
 
     // Close on Escape
-    container.addEventListener('keydown', (e) => {
+    this.listen(container, 'keydown', (e) => {
       if ((e as KeyboardEvent).key === 'Escape') this._closeDropdown();
     });
 
     // Chip remove buttons
     this.$$<HTMLElement>('.chip-remove').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      this.listen(btn, 'click', (e) => {
         e.stopPropagation();
         this._selected.delete(btn.dataset.value!);
         this._emitAndUpdate();
@@ -195,11 +195,11 @@ export class BMultiSelect extends BaseComponent {
     // Search input
     const searchInput = this.$<HTMLInputElement>('.dd-search');
     if (searchInput) {
-      searchInput.addEventListener('input', () => {
+      this.listen(searchInput, 'input', () => {
         this._filter = searchInput.value;
         this._refreshOptions(dropdown);
       });
-      searchInput.addEventListener('click', (e) => e.stopPropagation());
+      this.listen(searchInput, 'click', (e) => e.stopPropagation());
     }
 
     // Checkbox changes

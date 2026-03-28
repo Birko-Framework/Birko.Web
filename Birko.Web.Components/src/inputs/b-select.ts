@@ -161,11 +161,14 @@ export class BSelect extends BaseComponent {
   }
 
   private _wireNative() {
-    this.$<HTMLSelectElement>('select')?.addEventListener('change', (e) => {
-      const value = (e.target as HTMLSelectElement).value;
-      this.setAttribute('value', value);
-      this.emit('change', { name: this.attr('name'), value });
-    });
+    const select = this.$<HTMLSelectElement>('select');
+    if (select) {
+      this.listen(select, 'change', (e: Event) => {
+        const value = (e.target as HTMLSelectElement).value;
+        this.setAttribute('value', value);
+        this.emit('change', { name: this.attr('name'), value });
+      });
+    }
   }
 
   private _wireSearchable() {
@@ -175,7 +178,7 @@ export class BSelect extends BaseComponent {
     if (!combo || !input || !dropdown) return;
 
     // Toggle dropdown on combo click
-    combo.addEventListener('click', (e) => {
+    this.listen(combo, 'click', (e: Event) => {
       if ((e.target as HTMLElement).classList.contains('combo-clear')) return;
       if (this._open) {
         this._closeDropdown();
@@ -194,24 +197,28 @@ export class BSelect extends BaseComponent {
         this._closeDropdown();
       }
     };
-    document.addEventListener('mousedown', this._outsideClickHandler);
+    this.listen(document, 'mousedown', this._outsideClickHandler);
 
     // Keyboard
-    input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') { this._closeDropdown(); input.blur(); }
-      if (e.key === 'Backspace' && !input.value && this.attr('value')) {
+    this.listen(input, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Escape') { this._closeDropdown(); input.blur(); }
+      if (ke.key === 'Backspace' && !input.value && this.attr('value')) {
         this._selectValue('');
       }
     });
 
     // Filter as user types
-    input.addEventListener('input', () => {
+    this.listen(input, 'input', () => {
       this._filter = input.value;
       this._refreshOptions();
     });
 
     // Clear button
-    this.$('.combo-clear')?.addEventListener('click', () => this._selectValue(''));
+    const clearBtn = this.$('.combo-clear');
+    if (clearBtn) {
+      this.listen(clearBtn, 'click', () => this._selectValue(''));
+    }
 
     // Wire option clicks on current options
     this._wireOptionClicks(dropdown);

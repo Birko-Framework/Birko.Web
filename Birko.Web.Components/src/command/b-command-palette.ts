@@ -298,23 +298,26 @@ export class BCommandPalette extends BaseComponent {
     const input = this.$<HTMLInputElement>('#search-input');
     if (input) {
       input.value = this._state.query;
-      input.addEventListener('input', (e) => {
+      this.listen(input, 'input', (e) => {
         const q = (e.target as HTMLInputElement).value;
         this._state.query = q;
         this._state.activeIdx = -1;
         this._scheduleSearch(q);
       });
-      input.addEventListener('keydown', (e) => this._onInputKey(e));
+      this.listen(input, 'keydown', (e) => this._onInputKey(e as KeyboardEvent));
     }
 
     // Backdrop click → close
-    this.$('#backdrop')?.addEventListener('click', (e) => {
-      if ((e.target as HTMLElement).id === 'backdrop') closeCommandPalette();
-    });
+    const backdrop = this.$('#backdrop');
+    if (backdrop) {
+      this.listen(backdrop, 'click', (e) => {
+        if ((e.target as HTMLElement).id === 'backdrop') closeCommandPalette();
+      });
+    }
 
     // Row clicks
     this.shadowRoot?.querySelectorAll('.result-row').forEach(row => {
-      row.addEventListener('click', () => {
+      this.listen(row, 'click', () => {
         const idx = parseInt((row as HTMLElement).dataset['idx'] ?? '-1', 10);
         this._execute(idx);
       });

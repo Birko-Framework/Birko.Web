@@ -12,6 +12,8 @@ export interface TreeMenuItem {
   expanded?: boolean;
   children?: TreeMenuItem[];
   actions?: TreeNodeAction[];
+  /** Sort order value — displayed as editable input when config.sortable is true. */
+  sortOrder?: number;
 }
 
 export interface TreeNodeAction {
@@ -27,6 +29,8 @@ export interface TreeConfig {
   actions?: TreeNodeAction[];
   expandOn?: 'click' | 'hover';
   emptyMessage?: string;
+  /** When true, shows sort order input and move up/down buttons on each node. */
+  sortable?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -141,6 +145,46 @@ export class BTreeMenu extends BaseComponent {
       }
       .node-action-btn:hover { background: var(--b-bg-secondary); color: var(--b-text); }
       .node-action-btn.danger:hover { background: var(--b-color-danger-light, #fee2e2); color: var(--b-color-danger); }
+
+      /* ── Sortable controls ── */
+      .node-sort {
+        display: none;
+        align-items: center;
+        gap: 2px;
+        flex-shrink: 0;
+        margin-left: auto;
+      }
+      .node-row:hover .node-sort,
+      .node-row:focus-within .node-sort,
+      .node-row.active .node-sort { display: flex; }
+
+      .sort-order {
+        width: 2.5rem; text-align: center;
+        padding: 1px 2px;
+        border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-sm, 0.25rem);
+        font-size: var(--b-text-xs, 0.6875rem);
+        color: var(--b-text);
+        background: var(--b-bg);
+        line-height: 1.25;
+      }
+      .sort-order:focus {
+        outline: none;
+        border-color: var(--b-color-primary);
+        box-shadow: 0 0 0 1px var(--b-color-primary-light);
+      }
+
+      .sort-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 1.25rem; height: 1.25rem;
+        border: 1px solid var(--b-border); border-radius: var(--b-radius-sm, 0.25rem);
+        background: var(--b-bg); color: var(--b-text-muted);
+        cursor: pointer; font-size: 0.625rem; padding: 0;
+        line-height: 1;
+      }
+      .sort-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); border-color: var(--b-text-muted); }
+      .sort-btn:disabled { opacity: 0.2; cursor: default; }
+      .sort-btn:disabled:hover { background: var(--b-bg); color: var(--b-text-muted); border-color: var(--b-border); }
 
       /* ── Loading spinner ── */
       .node-loading {
@@ -313,6 +357,15 @@ export class BTreeMenu extends BaseComponent {
         ? `<span class="node-badge">${item.badge}</span>`
         : '';
 
+      // Sortable controls
+      const sortableHtml = this._config.sortable
+        ? `<span class="node-sort">
+            <button class="sort-btn" data-sort="up" data-node="${item.id}" type="button" tabindex="-1" title="Move up">&#9650;</button>
+            <input type="number" class="sort-order" data-sort-input="${item.id}" value="${item.sortOrder ?? 0}" min="0" tabindex="-1" />
+            <button class="sort-btn" data-sort="down" data-node="${item.id}" type="button" tabindex="-1" title="Move down">&#9660;</button>
+          </span>`
+        : '';
+
       // Actions
       const nodeActions = item.actions ?? this._config.actions ?? [];
       const actionsHtml = nodeActions.length
@@ -344,6 +397,7 @@ export class BTreeMenu extends BaseComponent {
             ${iconHtml}
             <span class="node-label">${item.label}</span>
             ${badgeHtml}
+            ${sortableHtml}
             ${actionsHtml}
           </${tag}>
           ${childrenHtml}
@@ -359,7 +413,7 @@ export class BTreeMenu extends BaseComponent {
 
     // Toggle expand/collapse
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-toggle]').forEach(btn => {
-      btn.addEventListener('click', (e: Event) => {
+      this.listen(btn, 'click', (e: Event) => {
         e.stopPropagation();
         e.preventDefault();
         this.toggle(btn.dataset.toggle!);
@@ -368,22 +422,15 @@ export class BTreeMenu extends BaseComponent {
 
     // Item click → select or toggle
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
-      row.addEventListener('click', (e: Event) => {
-        if ((e.target as HTMLElement).closest?.('[data-toggle]')) return;
-        if ((e.target as HTMLElement).closest?.('[data-action]')) return;
+      this.listen(row, 'click', (e: Event) => {
+        const clicked = e.target as HTMLElement;
+        if (clicked.closest?.('[data-toggle]')) return;
+        if (clicked.closest?.('[data-action]')) return;
+        if (clicked.closest?.('[data-sort]')) return;
+        if (clicked.closest?.('[data-sort-input]')) return;
         const id = row.dataset.item!;
         const item = this._findItem(this._items, id);
         if (!item || item.disabled) return;
-
-        if (this._isParentNode(item) && !item.href) {
-          if (expandOn === 'hover') {
-            // Hover mode: clicking parent selects it
-            this.emit('select', { id, item });
-          } else {
-            this.toggle(id);
-          }
-          return;
-        }
 
         this.emit('select', { id, item });
       });
@@ -392,7 +439,7 @@ export class BTreeMenu extends BaseComponent {
     // Hover expand
     if (expandOn === 'hover') {
       this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
-        row.addEventListener('mouseenter', () => {
+        this.listen(row, 'mouseenter', () => {
           const id = row.dataset.item!;
           const item = this._findItem(this._items, id);
           if (item && this._isParentNode(item) && !this._expanded.has(id)) {
@@ -402,9 +449,34 @@ export class BTreeMenu extends BaseComponent {
       });
     }
 
+    // Sort buttons (move up/down)
+    this.shadowRoot?.querySelectorAll<HTMLElement>('[data-sort]').forEach(btn => {
+      this.listen(btn, 'click', (e: Event) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const direction = btn.dataset.sort as 'up' | 'down';
+        const nodeId = btn.dataset.node!;
+        const item = this._findItem(this._items, nodeId);
+        this.emit('sort', { id: nodeId, direction, item });
+      });
+    });
+
+    // Sort order input
+    this.shadowRoot?.querySelectorAll<HTMLInputElement>('[data-sort-input]').forEach(input => {
+      this.listen(input, 'change', (e: Event) => {
+        e.stopPropagation();
+        const nodeId = input.dataset.sortInput!;
+        const value = parseInt(input.value, 10);
+        if (isNaN(value)) return;
+        const item = this._findItem(this._items, nodeId);
+        this.emit('sort-order', { id: nodeId, sortOrder: value, item });
+      });
+      this.listen(input, 'click', (e: Event) => e.stopPropagation());
+    });
+
     // Node action buttons
     this.shadowRoot?.querySelectorAll<HTMLElement>('[data-action]').forEach(btn => {
-      btn.addEventListener('click', (e: Event) => {
+      this.listen(btn, 'click', (e: Event) => {
         e.stopPropagation();
         e.preventDefault();
         const action = btn.dataset.action!;
@@ -415,7 +487,8 @@ export class BTreeMenu extends BaseComponent {
     });
 
     // Keyboard navigation
-    this.shadowRoot?.querySelector('.tree')?.addEventListener('keydown', (e: Event) => {
+    const tree = this.shadowRoot?.querySelector('.tree');
+    if (tree) this.listen(tree, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       const rows = Array.from(
         this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]') ?? []
