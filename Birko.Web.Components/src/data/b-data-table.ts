@@ -234,13 +234,28 @@ export class BDataTable extends BaseComponent {
         this._allData = [];
         this._totalCount = 0;
         this._totalPages = 1;
-      } else if (this._config.flatArray || Array.isArray(resp.data)) {
+      } else if (Array.isArray(resp.data)) {
         const all = (this._config.dataKey
           ? (resp.data as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[]
           : resp.data) as Record<string, unknown>[];
         this._allData = all;
         this._totalCount = all.length;
         this._totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+      } else if (this._config.flatArray && !Array.isArray(resp.data) && typeof resp.data === 'object' && resp.data !== null && 'items' in (resp.data as object)) {
+        // PagedResult response unwrap: { items, totalCount, page, pageSize }
+        const data = resp.data as Record<string, unknown>;
+        const all = (data['items'] ?? []) as Record<string, unknown>[];
+        this._allData = all;
+        this._totalCount = (data['totalCount'] as number) ?? all.length;
+        this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
+      } else if (this._config.flatArray) {
+        // Legacy flat array (resp.data is the array directly)
+        const all = (this._config.dataKey
+          ? (resp.data as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[]
+          : resp.data) as Record<string, unknown>[];
+        this._allData = all ?? [];
+        this._totalCount = this._allData.length;
+        this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
       } else {
         const data = resp.data as Record<string, unknown>;
         const items = (this._config.dataKey ? data[this._config.dataKey] : data['items']) as Record<string, unknown>[];
