@@ -232,6 +232,7 @@ export class BSelect extends BaseComponent {
     this.listen(input, 'input', () => {
       this._filter = input.value;
       this._refreshOptions();
+      this.emit('search', { query: this._filter, name: this.attr('name') });
     });
 
     // Clear button
