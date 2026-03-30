@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 31 Shadow DOM web components covering inputs, layout, data, feedback, and navigation. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 38 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -10,12 +10,13 @@ Component library built on `Birko.Web.Core`. 31 Shadow DOM web components coveri
 src/
 ├── inputs/          # b-input, b-select, b-button, b-checkbox, b-switch, b-radio,
 │                    # b-textarea, b-multi-select, b-search-input, b-file-upload,
-│                    # b-inline-edit, b-range, b-form
+│                    # b-inline-edit, b-range, b-form, b-date-picker, b-option-group
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
-│                    # b-dropdown-menu, b-tooltip
+│                    # b-dropdown-menu, b-tooltip, b-split-panel
 ├── data/            # b-table, b-data-table, b-pagination, b-badge, b-chart
-├── feedback/        # b-toast (+ toast manager), b-spinner, b-empty, b-skeleton
+├── feedback/        # b-toast (+ toast manager), b-spinner, b-empty, b-skeleton, b-stale-banner
 ├── nav/             # b-sidebar, b-breadcrumb, b-ribbon, b-tree-menu
+├── command/         # b-command-palette, command-provider
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
 └── shared-styles.css# Source CSS with @sheet sections
 css/
@@ -108,7 +109,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 
 ## Component inventory
 
-### Inputs (13)
+### Inputs (15)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
@@ -123,9 +124,11 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
+| `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
+| `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `reset()` | `validate-on` |
 
-### Layout (7)
+### Layout (8)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|lg\|xl) |
@@ -135,6 +138,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
+| `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap` |
 
 ### Data (5)
 | Tag | Class | Key methods | Key attributes |
@@ -145,13 +149,14 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-badge>` | BBadge | — | `variant` (success\|warning\|danger\|info\|secondary) |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
 
-### Feedback (4)
+### Feedback (5)
 | Tag / Export | Key API |
 |---|---|
 | `toast` (manager) | `toast.success(msg)`, `toast.error(msg)`, `toast.warning(msg)`, `toast.info(msg)`, `toast.notify(msg, opts)` |
 | `<b-spinner>` | `size` attribute (sm\|md\|lg) |
 | `<b-empty>` | `icon`, `message` attributes |
 | `<b-skeleton>` | `type` (text\|circle\|table\|form), `rows`, `columns` attributes |
+| `<b-stale-banner>` | `show(cachedAt)` method, `message` attribute — stale/cached data warning |
 
 ### Navigation (4)
 | Tag | Class | Key methods |
@@ -160,6 +165,13 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
 | `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()` |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
+
+### Command (1)
+| Tag | Class | Key methods |
+|-----|-------|-------------|
+| `<b-command-palette>` | BCommandPalette | `openCommandPalette()`, `closeCommandPalette()`, `toggleCommandPalette()` (module exports) |
+
+Supports pluggable `CommandProvider` via `registerProvider()`. Built-in `createRecentProvider()` for recent items.
 
 ## Modern HTML & JavaScript
 

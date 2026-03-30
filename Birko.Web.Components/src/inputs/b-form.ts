@@ -38,6 +38,7 @@ export interface FormField {
   hidden?: boolean;
   options?: { value: string; label: string }[];
   searchable?: boolean;
+  creatable?: boolean;
   default?: unknown;
   required?: boolean;
   rules?: ValidationRule[];
@@ -324,6 +325,14 @@ export class BForm extends BaseComponent {
     }
   }
 
+  /** Add a single option to a multi-select field and optionally select it (no full re-render). */
+  addFieldOption(path: string, option: { value: string; label: string; color?: string }, select = true) {
+    const el = this._getFieldElement(path);
+    if (el && 'addOption' in el) {
+      (el as any).addOption(option, select);
+    }
+  }
+
   focusField(path: string) {
     const el = this._getFieldElement(path);
     if (el) {
@@ -463,6 +472,7 @@ export class BForm extends BaseComponent {
       case 'select':
       case 'multi-select':
         if (field.searchable) parts.push('searchable');
+        if (field.creatable) parts.push('creatable');
         break;
       case 'range':
         if (field.mode) parts.push(`mode="${field.mode}"`);

@@ -2,17 +2,22 @@ import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
 import { renderLabel } from './label-hint';
 
-interface Option {
+export interface MultiSelectOption {
   value: string;
   label: string;
+  color?: string;
 }
+
+/** @deprecated Use MultiSelectOption instead */
+export type Option = MultiSelectOption;
 
 export class BMultiSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'label-search', 'label-remove', 'hint'];
+    return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'creatable',
+            'label-no-matches', 'label-search', 'label-remove', 'label-create', 'hint'];
   }
 
-  private _options: Option[] = [];
+  private _options: MultiSelectOption[] = [];
   private _selected = new Set<string>();
   private _filter = '';
   private _open = false;
@@ -40,6 +45,11 @@ export class BMultiSelect extends BaseComponent {
         font-size: var(--b-text-sm, 0.8125rem);
         color: var(--b-text);
         white-space: nowrap;
+      }
+      .chip-dot {
+        width: 0.5rem; height: 0.5rem;
+        border-radius: var(--b-radius-full, 9999px);
+        flex-shrink: 0;
       }
       .chip-remove {
         background: none; border: none; cursor: pointer; padding: 0;
@@ -73,6 +83,20 @@ export class BMultiSelect extends BaseComponent {
       }
       .option:hover { background: var(--b-bg-tertiary); }
       .option input { width: auto; margin: 0; cursor: pointer; }
+      .option-dot {
+        width: 0.5rem; height: 0.5rem;
+        border-radius: var(--b-radius-full, 9999px);
+        flex-shrink: 0;
+      }
+      .option-create {
+        display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);
+        padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+        cursor: pointer; font-size: var(--b-text-sm, 0.8125rem);
+        color: var(--b-color-primary);
+        transition: background var(--b-transition, 150ms ease);
+        border-top: var(--b-border-width, 1px) solid var(--b-border);
+      }
+      .option-create:hover { background: var(--b-bg-tertiary); }
       .search-wrap {
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
         border-bottom: var(--b-border-width, 1px) solid var(--b-border);
@@ -91,7 +115,7 @@ export class BMultiSelect extends BaseComponent {
     `;
   }
 
-  setOptions(options: Option[]) {
+  setOptions(options: MultiSelectOption[]) {
     this._options = options;
     this.update();
   }
@@ -103,6 +127,18 @@ export class BMultiSelect extends BaseComponent {
   setSelected(values: string[]) {
     this._selected = new Set(values);
     this.update();
+  }
+
+  /** Add a single option and optionally select it — surgical DOM update, no full re-render. */
+  addOption(option: MultiSelectOption, select = true) {
+    // Avoid duplicates
+    if (!this._options.some(o => o.value === option.value)) {
+      this._options.push(option);
+    }
+    if (select) {
+      this._selected.add(option.value);
+    }
+    this._emitAndUpdate();
   }
 
   /** Unified interface — comma-separated string */
@@ -121,6 +157,7 @@ export class BMultiSelect extends BaseComponent {
       .filter(o => this._selected.has(o.value))
       .map(o => `
         <span class="chip">
+          ${o.color ? `<span class="chip-dot" style="background:${o.color}"></span>` : ''}
           ${o.label}
           <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
         </span>
@@ -149,6 +186,7 @@ export class BMultiSelect extends BaseComponent {
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
               <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
+              ${o.color ? `<span class="option-dot" style="background:${o.color}"></span>` : ''}
               ${o.label}
             </label>
           `).join('') : `<div class="no-results">${noMatchesLabel}</div>`}
@@ -211,6 +249,9 @@ export class BMultiSelect extends BaseComponent {
 
     // Checkbox changes
     this._wireOptionCheckboxes(dropdown);
+
+    // Creatable option click
+    this._wireCreateOption(dropdown);
   }
 
   private _openDropdown(container: HTMLElement, dropdown: HTMLElement) {
@@ -270,18 +311,31 @@ export class BMultiSelect extends BaseComponent {
       if (child !== searchWrap) child.remove();
     }
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && !this._canCreate()) {
       dropdown.insertAdjacentHTML('beforeend', `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`);
-    } else {
+    } else if (filtered.length > 0) {
       dropdown.insertAdjacentHTML('beforeend', filtered.map(o => `
         <label class="option">
           <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
+          ${o.color ? `<span class="option-dot" style="background:${o.color}"></span>` : ''}
           ${o.label}
         </label>
       `).join(''));
     }
 
+    // Show create option when creatable and filter doesn't match existing
+    if (this._canCreate() && this._filter.trim()) {
+      const exactMatch = this._options.some(o => o.label.toLowerCase() === this._filter.trim().toLowerCase());
+      if (!exactMatch) {
+        const createLabel = this.attr('label-create', 'Create');
+        dropdown.insertAdjacentHTML('beforeend',
+          `<div class="option-create" data-create-value="${this._escapeAttr(this._filter.trim())}">+ ${createLabel} &ldquo;${this._escapeHtml(this._filter.trim())}&rdquo;</div>`
+        );
+      }
+    }
+
     this._wireOptionCheckboxes(dropdown);
+    this._wireCreateOption(dropdown);
   }
 
   private _wireOptionCheckboxes(dropdown: HTMLElement) {
@@ -297,6 +351,20 @@ export class BMultiSelect extends BaseComponent {
     });
   }
 
+  private _wireCreateOption(dropdown: HTMLElement) {
+    const createEl = dropdown.querySelector<HTMLElement>('.option-create');
+    if (!createEl) return;
+    this.listen(createEl, 'click', (e) => {
+      e.stopPropagation();
+      const name = createEl.dataset.createValue ?? this._filter.trim();
+      if (!name) return;
+      this.emit('create', { name });
+      this._filter = '';
+      const searchInput = this.$<HTMLInputElement>('.dd-search');
+      if (searchInput) searchInput.value = '';
+    });
+  }
+
   /** Patch only the chips area — no full re-render. */
   private _updateChips() {
     const container = this.$<HTMLElement>('.container');
@@ -307,6 +375,7 @@ export class BMultiSelect extends BaseComponent {
       .filter(o => this._selected.has(o.value))
       .map(o => `
         <span class="chip">
+          ${o.color ? `<span class="chip-dot" style="background:${o.color}"></span>` : ''}
           ${o.label}
           <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
         </span>
@@ -322,6 +391,18 @@ export class BMultiSelect extends BaseComponent {
         this._emitAndUpdate();
       });
     });
+  }
+
+  private _canCreate(): boolean {
+    return this.boolAttr('creatable');
+  }
+
+  private _escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  private _escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

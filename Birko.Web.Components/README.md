@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-32 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+38 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
 
 ## Install
 
@@ -13,7 +13,7 @@
 ```
 
 ```typescript
-import 'birko-web-components';  // registers all 31 components
+import 'birko-web-components';  // registers all 38 components
 
 // Or import individually:
 import { BModal, BDataTable, toast } from 'birko-web-components';
@@ -158,6 +158,43 @@ form.setFieldError('email', 'Email already taken');
 **Validation rule types:** `required`, `minLength`, `maxLength`, `min`, `max`, `range`, `pattern`, `email`, `match`, `custom`
 **Field types:** `text`, `email`, `number`, `password`, `percent`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `range`, `file`, `custom`
 
+### b-date-picker
+
+Calendar dropdown date picker with locale support.
+
+```html
+<b-date-picker label="Start date" name="start" min="2026-01-01" max="2026-12-31"></b-date-picker>
+
+<!-- Native browser date input (fallback): -->
+<b-date-picker label="Date" name="d" native></b-date-picker>
+```
+
+```typescript
+// Set locale once on app init:
+BDatePicker.setLocale({ months: [...], days: [...], today: 'Dnes', clear: 'Vymazať' });
+```
+
+Attributes: `label`, `name`, `value` (ISO yyyy-MM-dd), `min`, `max`, `native`, `placeholder`, `error`, `disabled`, `required`, `hint`
+Emits: `change` → `{ name, value }`
+
+### b-option-group
+
+Segmented button group for selecting a single value from a small set of options.
+
+```html
+<b-option-group label="Theme" name="theme" value="light"></b-option-group>
+```
+
+```typescript
+(el as BOptionGroup).setOptions([
+  { value: 'light', label: 'Light', icon: '☀' },
+  { value: 'dark', label: 'Dark', icon: '☾' },
+]);
+```
+
+Attributes: `label`, `name`, `value`, `disabled`, `hint`
+Emits: `change` → `{ name, value }`
+
 Grouped form with grid layout:
 
 ```typescript
@@ -287,6 +324,20 @@ el.addEventListener('select', e => console.log(e.detail.id));
 </b-tooltip>
 ```
 
+### b-split-panel
+
+Master-detail split layout with responsive collapse.
+
+```html
+<b-split-panel master-width="20rem" detail-width="1fr" gap="1rem">
+  <div slot="master">List panel</div>
+  <div slot="detail">Detail panel</div>
+</b-split-panel>
+```
+
+Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`
+Slots: `master`, `detail`
+
 ---
 
 ## Data
@@ -410,6 +461,22 @@ toast.notify('Door sensor triggered', {
 <b-skeleton type="form" rows="3"></b-skeleton>
 ```
 
+### b-stale-banner
+
+Shows a warning when displayed data is from cache.
+
+```typescript
+const banner = document.querySelector('#stale') as BStaleBanner;
+if (response.fromCache) banner.show(response.cachedAt);
+```
+
+```html
+<b-stale-banner id="stale" hidden></b-stale-banner>
+```
+
+Attributes: `message`, `hidden`
+Methods: `show(cachedAt: Date | string)`
+
 ---
 
 ## Navigation
@@ -509,6 +576,35 @@ Attributes: `active` (item id — highlights the node)
 Methods: `setItems()`, `expandAll()`, `collapseAll()`, `expand(id)`, `collapse(id)`, `toggle(id)`, `reveal(id)` (expands all ancestors)
 Emits: `select` → `{ id, item }`, `toggle` → `{ id, expanded }`
 Keyboard: `↑`/`↓` move, `→` expand/enter child, `←` collapse/go to parent, `Enter`/`Space` select, `Home`/`End`
+
+---
+
+## Command
+
+### b-command-palette
+
+Ctrl+K / Cmd+K command palette with pluggable providers.
+
+```typescript
+import { BCommandPalette, openCommandPalette, registerProvider, createRecentProvider } from 'birko-web-components';
+
+// Register a search provider:
+registerProvider({
+  id: 'pages',
+  search: async (query) => [
+    { id: 'dashboard', label: 'Dashboard', action: () => location.hash = '#/' },
+  ],
+});
+
+// Open the palette:
+openCommandPalette();
+```
+
+```html
+<b-command-palette placeholder="Search or type a command..."></b-command-palette>
+```
+
+Exports: `openCommandPalette()`, `closeCommandPalette()`, `toggleCommandPalette()`, `onPaletteChange()`, `registerProvider()`, `createRecentProvider()`
 
 ---
 
