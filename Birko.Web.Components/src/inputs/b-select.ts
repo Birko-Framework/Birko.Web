@@ -78,7 +78,12 @@ export class BSelect extends BaseComponent {
 
   setOptions(options: Option[]) {
     this._options = options;
-    this.update();
+    if (this._open) {
+      // Refresh dropdown in-place to preserve position and filter state
+      this._refreshOptions();
+    } else {
+      this.update();
+    }
   }
 
   get inputValue(): string {

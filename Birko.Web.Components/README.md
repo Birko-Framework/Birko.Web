@@ -153,10 +153,28 @@ if (!valid) return;
 
 // Report server errors:
 form.setFieldError('email', 'Email already taken');
+
+// Dynamic field options (select / multi-select):
+form.setFieldOptions('group.fieldName', [{ value: 'a', label: 'Option A' }]);
+
+// Enable/disable individual fields at runtime:
+form.setFieldDisabled('group.addressId', true);
+
+// React to specific field changes (cascading selects):
+// NOTE: callbacks fire only on user interaction, not on programmatic setValues()
+form.onFieldChange('group.customerId', (value, data) => {
+  // value = new field value, data = full form data
+  loadAddresses(value);
+  form.setValues({ group: { name: '...' } }); // safe — won't re-trigger callbacks
+});
+
+// Focus a field:
+form.focusField('email');
 ```
 
 **Validation rule types:** `required`, `minLength`, `maxLength`, `min`, `max`, `range`, `pattern`, `email`, `match`, `custom`
 **Field types:** `text`, `email`, `number`, `password`, `percent`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `range`, `file`, `custom`
+**Per-field schema properties:** `disabled`, `searchable`, `creatable`, `fullWidth`, `hidden`, `hint`, `placeholder`, `rules`, `options`
 
 ### b-date-picker
 

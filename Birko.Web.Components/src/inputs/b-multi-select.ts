@@ -117,7 +117,12 @@ export class BMultiSelect extends BaseComponent {
 
   setOptions(options: MultiSelectOption[]) {
     this._options = options;
-    this.update();
+    if (this._open) {
+      const dropdown = this.$<HTMLElement>('.dropdown');
+      if (dropdown) this._refreshOptions(dropdown);
+    } else {
+      this.update();
+    }
   }
 
   getSelected(): string[] {
@@ -243,6 +248,7 @@ export class BMultiSelect extends BaseComponent {
       this.listen(searchInput, 'input', () => {
         this._filter = searchInput.value;
         this._refreshOptions(dropdown);
+        this.emit('search', { query: this._filter, name: this.attr('name') });
       });
       this.listen(searchInput, 'click', (e) => e.stopPropagation());
     }

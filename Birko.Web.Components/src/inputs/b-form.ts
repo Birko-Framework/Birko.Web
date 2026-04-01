@@ -36,6 +36,7 @@ export interface FormField {
   rows?: number;
   fullWidth?: boolean;
   hidden?: boolean;
+  disabled?: boolean;
   options?: { value: string; label: string }[];
   searchable?: boolean;
   creatable?: boolean;
@@ -112,6 +113,8 @@ export class BForm extends BaseComponent {
   private _schema: FormSchema | null = null;
   private _collapsed = new Set<string>();
   private _errors = new Map<string, string>();       // dot-path → error
+  private _fieldCallbacks?: Map<string, ((value: unknown, data: Record<string, unknown>) => void)[]>;
+  private _settingValues = false;
   private _groupErrors = new Map<string, string[]>(); // group name → errors
 
   static get styles() {
@@ -175,6 +178,11 @@ export class BForm extends BaseComponent {
         padding: 0;
       }
       .b-form-field--hidden { display: none; }
+      /* Align toggle fields (switch, checkbox, radio) with adjacent inputs in grid */
+      .b-form-group--grid > .b-form-field--toggle {
+        align-self: end;
+        padding-bottom: var(--b-space-xs, 0.25rem);
+      }
       .b-form-group--root-bare {
         border: none;
         padding: 0;
@@ -228,10 +236,12 @@ export class BForm extends BaseComponent {
 
   setValues(values: Record<string, unknown>) {
     if (!this._schema) return;
+    this._settingValues = true;
     // Convert percent fields from storage (0-1) to display (0-100) before setting
     const display = { ...values };
     this._convertPercent(this._schema, display, false);
     this._setGroupValues(this._schema, display, '');
+    this._settingValues = false;
   }
 
   getValues(): Record<string, unknown> {
@@ -341,6 +351,22 @@ export class BForm extends BaseComponent {
     }
   }
 
+  setFieldDisabled(path: string, disabled: boolean) {
+    const el = this._getFieldElement(path);
+    if (el) {
+      if (disabled) el.setAttribute('disabled', '');
+      else el.removeAttribute('disabled');
+    }
+  }
+
+  /** Register a callback for when a specific field value changes. */
+  onFieldChange(path: string, callback: (value: unknown, data: Record<string, unknown>) => void) {
+    this._fieldCallbacks ??= new Map();
+    let list = this._fieldCallbacks.get(path);
+    if (!list) { list = []; this._fieldCallbacks.set(path, list); }
+    list.push(callback);
+  }
+
   // ── Rendering ──
 
   render() {
@@ -394,14 +420,15 @@ export class BForm extends BaseComponent {
     const error = this._errors.get(path) ?? '';
     const disabled = this.boolAttr('disabled');
     const readonly = this.boolAttr('readonly');
-    const classes = `b-form-field ${field.fullWidth ? 'b-form-field--full' : ''} ${field.hidden ? 'b-form-field--hidden' : ''}`;
+    const isToggle = field.type === 'switch' || field.type === 'checkbox' || field.type === 'radio';
+    const classes = `b-form-field ${field.fullWidth ? 'b-form-field--full' : ''} ${field.hidden ? 'b-form-field--hidden' : ''} ${isToggle ? 'b-form-field--toggle' : ''}`;
 
     if (field.type === 'custom') {
       return `<div class="${classes}" data-field="${path}"><slot name="${field.name}"></slot></div>`;
     }
 
     const tag = this._fieldTag(field);
-    const attrs = this._fieldAttrs(field, path, error, disabled || readonly);
+    const attrs = this._fieldAttrs(field, path, error, disabled || readonly || !!field.disabled);
 
     if (field.type === 'percent') {
       return `<div class="${classes}" data-field="${path}"><div class="b-form-percent-wrap">${tag(attrs)}<span class="b-form-percent-sign">%</span></div></div>`;
@@ -498,7 +525,7 @@ export class BForm extends BaseComponent {
     if (!this._schema) return;
 
     // Wire up field change events
-    this._wireFieldEvents(this._schema, '');
+    this._wireFieldEvents(this._schema, '', true);
 
     // Wire up collapsible group toggles
     this.$$<HTMLElement>('.b-form-legend--toggle').forEach(legend => {
@@ -521,12 +548,12 @@ export class BForm extends BaseComponent {
     this._populateOptions(this._schema, '');
   }
 
-  private _wireFieldEvents(group: FormGroupDef, prefix: string) {
-    const path = prefix ? `${prefix}.${group.name}` : '';
+  private _wireFieldEvents(group: FormGroupDef, prefix: string, isRoot = false) {
+    const path = prefix ? `${prefix}.${group.name}` : (isRoot ? '' : group.name);
 
     for (const child of group.children) {
       if (isGroup(child)) {
-        this._wireFieldEvents(child, path || group.name);
+        this._wireFieldEvents(child, path, false);
         continue;
       }
 
@@ -548,7 +575,12 @@ export class BForm extends BaseComponent {
           this._applyErrors();
         }
 
-        this.emit('change', { path: fieldPath, value: e.detail?.value ?? e.detail?.checked ?? e.detail?.values, data: this.getValues() });
+        if (this._settingValues) return;
+        const changeValue = e.detail?.value ?? e.detail?.checked ?? e.detail?.values;
+        const changeData = this.getValues();
+        this.emit('change', { path: fieldPath, value: changeValue, data: changeData });
+        const cbs = this._fieldCallbacks?.get(fieldPath);
+        if (cbs?.length) queueMicrotask(() => cbs.forEach(cb => cb(changeValue, changeData as Record<string, unknown>)));
       }) as EventListener);
     }
   }

@@ -126,7 +126,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
-| `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `reset()` | `validate-on` |
+| `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
 ### Layout (8)
 | Tag | Class | Key methods | Key attributes |

@@ -674,6 +674,8 @@ export class BTreeMenu extends BaseComponent {
     try {
       const children = await this._config.onExpand!(id, item);
       if (children) {
+        // Mark leaf nodes (no children) so they aren't treated as lazy-loadable
+        this._markLeaves(children);
         item.children = children;
         this._collectExpanded(children);
       }
@@ -684,6 +686,14 @@ export class BTreeMenu extends BaseComponent {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /** Set children=[] on leaf nodes so _hasLazyChildren doesn't treat them as expandable. */
+  private _markLeaves(items: TreeMenuItem[]) {
+    for (const item of items) {
+      if (item.children === undefined) item.children = [];
+      if (item.children.length) this._markLeaves(item.children);
+    }
+  }
 
   private _collectExpanded(items: TreeMenuItem[]) {
     for (const item of items) {
