@@ -242,7 +242,7 @@ Slot: default (button label/content).
 | Attribute | Values |
 |-----------|--------|
 | `loading` | boolean (shows loading bar) |
-| `empty-text` | string (default: "No data") |
+| `empty-text` / `label-no-data` | string (default: "No data") |
 | `striped` | boolean |
 | `hoverable` | boolean |
 | `sortable` | boolean |

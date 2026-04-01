@@ -362,15 +362,30 @@ Slots: `master`, `detail`
 
 ### b-table
 
-Static table with optional sort.
+Client-side data table with sort, row-click, and per-row action buttons.
+Use for local data (detail sub-tables, dashboard, preview). For server-side paginated data, use `b-data-table`.
+
+**Attributes:** `striped`, `hoverable`, `label-no-data`, `loading`
+
+**Methods:** `setColumns(columns)`, `setData(data)`, `setIdField(field)`
+
+**Events:** `row-click` (`{ id }`), `action-click` (`{ action, id }`), `sort` (`{ key, desc }`)
 
 ```typescript
-const table = document.querySelector('#table') as BTable;
-table.setColumns([
+// Typed access via child<T>() (preferred)
+const table = this.child<BTable>('#table');
+table?.setColumns([
   { key: 'name', label: 'Name', sortable: true },
   { key: 'status', label: 'Status', render: v => `<b-badge variant="success">${v}</b-badge>` },
+  { key: 'id', label: '', width: '3rem', render: () =>
+    `<b-button variant="ghost" size="sm" data-action="remove">&times;</b-button>` },
 ]);
-table.setData(rows);
+table?.setData(rows);
+
+// Per-row actions — b-table emits action-click with { action, id }
+this.shadowRoot?.addEventListener('action-click', ((e: CustomEvent) => {
+  if (e.detail.action === 'remove') this._remove(e.detail.id);
+}) as EventListener);
 ```
 
 ### b-data-table
