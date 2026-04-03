@@ -6,7 +6,7 @@ export type FieldType =
   | 'text' | 'password' | 'email' | 'number' | 'percent'
   | 'textarea' | 'select' | 'multi-select'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'option-group' | 'file' | 'range' | 'date' | 'custom';
+  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'custom';
 
 export type RuleType =
   | 'required' | 'minLength' | 'maxLength'
@@ -464,6 +464,8 @@ export class BForm extends BaseComponent {
         return (a) => `<b-range ${a}></b-range>`;
       case 'date':
         return (a) => `<b-date-picker ${a}></b-date-picker>`;
+      case 'datetime':
+        return (a) => `<b-datetime-picker ${a}></b-datetime-picker>`;
       default: // text, password, email, number
         return (a) => `<b-input ${a}></b-input>`;
     }
@@ -513,6 +515,10 @@ export class BForm extends BaseComponent {
         if (field.min !== undefined) parts.push(`min="${field.min}"`);
         if (field.max !== undefined) parts.push(`max="${field.max}"`);
         if (field.native) parts.push('native');
+        break;
+      case 'datetime':
+        if (field.min !== undefined) parts.push(`min="${field.min}"`);
+        if (field.max !== undefined) parts.push(`max="${field.max}"`);
         break;
     }
 
