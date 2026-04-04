@@ -164,8 +164,8 @@ export class BForm extends BaseComponent {
         grid-column: 1 / -1;
         flex: 1 0 100%;
       }
-      /* Nested groups (fieldsets) always span full row in grid parent */
-      .b-form-group--grid > .b-form-group,
+      /* Labeled nested groups (fieldsets with legend) span full row in grid parent */
+      .b-form-group--grid > .b-form-group:has(legend),
       .b-form-group--grid > .b-form-group--root-bare {
         grid-column: 1 / -1;
       }

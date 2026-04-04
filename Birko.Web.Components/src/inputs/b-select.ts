@@ -5,6 +5,7 @@ import { renderLabel } from './label-hint';
 interface Option {
   value: string;
   label: string;
+  group?: string;
 }
 
 export class BSelect extends BaseComponent {
@@ -73,6 +74,20 @@ export class BSelect extends BaseComponent {
         padding: var(--b-space-md, 0.75rem);
         text-align: center; color: var(--b-text-muted); font-size: var(--b-text-sm, 0.8125rem);
       }
+      .opt-group-label {
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
+        font-size: var(--b-text-xs, 0.6875rem);
+        font-weight: var(--b-font-weight-semibold, 600);
+        color: var(--b-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        user-select: none;
+      }
+      .opt-group-label:not(:first-child) {
+        margin-top: var(--b-space-xs, 0.25rem);
+        border-top: 1px solid var(--b-border);
+        padding-top: var(--b-space-sm, 0.5rem);
+      }
     `;
   }
 
@@ -126,7 +141,7 @@ export class BSelect extends BaseComponent {
         ${renderLabel(label, hint, this.boolAttr('required'))}
         <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}>
           ${placeholder ? `<option value="" disabled ${!value ? 'selected' : ''}>${placeholder}</option>` : ''}
-          ${this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('')}
+          ${this._renderNativeOptions(value)}
         </select>
         ${error ? `<span class="error">${error}</span>` : ''}
       </div>
@@ -159,13 +174,7 @@ export class BSelect extends BaseComponent {
           <span class="combo-arrow">&#9660;</span>
         </div>
         <div class="dropdown ${this._open ? 'open' : ''}">
-          ${filtered.length === 0
-            ? `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`
-            : filtered.map(o => `
-                <div class="option ${o.value === value ? 'selected' : ''}" data-value="${o.value}">
-                  ${o.label}
-                </div>
-              `).join('')}
+          ${this._renderOptionsHtml(filtered, value)}
         </div>
         ${error ? `<span class="error">${error}</span>` : ''}
       </div>
@@ -332,6 +341,52 @@ export class BSelect extends BaseComponent {
     this.emit('change', { name: this.attr('name'), value: val });
   }
 
+  /** Render native <select> options with optional <optgroup>. */
+  private _renderNativeOptions(value: string | null): string {
+    const hasGroups = this._options.some(o => o.group);
+    if (!hasGroups) {
+      return this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('');
+    }
+    let html = '';
+    let lastGroup = '';
+    for (const o of this._options) {
+      const group = o.group ?? '';
+      if (group !== lastGroup) {
+        if (lastGroup) html += '</optgroup>';
+        if (group) html += `<optgroup label="${group}">`;
+        lastGroup = group;
+      }
+      html += `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`;
+    }
+    if (lastGroup) html += '</optgroup>';
+    return html;
+  }
+
+  /** Render options HTML with optional group headers. */
+  private _renderOptionsHtml(options: Option[], selectedValue: string | null): string {
+    if (options.length === 0)
+      return `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`;
+
+    const hasGroups = options.some(o => o.group);
+    if (!hasGroups) {
+      return options.map(o => `
+        <div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${o.value}">${o.label}</div>
+      `).join('');
+    }
+
+    let html = '';
+    let lastGroup = '';
+    for (const o of options) {
+      const group = o.group ?? '';
+      if (group !== lastGroup) {
+        if (group) html += `<div class="opt-group-label">${group}</div>`;
+        lastGroup = group;
+      }
+      html += `<div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${o.value}">${o.label}</div>`;
+    }
+    return html;
+  }
+
   /** Refresh dropdown options in-place without full re-render. */
   private _refreshOptions() {
     const dropdown = this.$<HTMLElement>('.dropdown');
@@ -342,14 +397,7 @@ export class BSelect extends BaseComponent {
       ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
       : this._options;
 
-    dropdown.innerHTML = filtered.length === 0
-      ? `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`
-      : filtered.map(o => `
-          <div class="option ${o.value === value ? 'selected' : ''}" data-value="${o.value}">
-            ${o.label}
-          </div>
-        `).join('');
-
+    dropdown.innerHTML = this._renderOptionsHtml(filtered, value);
     this._wireOptionClicks(dropdown);
   }
 

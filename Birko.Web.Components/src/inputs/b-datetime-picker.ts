@@ -348,6 +348,7 @@ export class BDatetimePicker extends BaseComponent {
       <div class="dp-footer">
         <button data-nav="now">${this._nowLabel()}</button>
         <button data-nav="clear">${this._clearLabel()}</button>
+        ${this._selectedDate ? `<button data-nav="set" style="font-weight:var(--b-font-weight-medium,500)">OK</button>` : ''}
       </div>
     `;
   }
@@ -435,6 +436,12 @@ export class BDatetimePicker extends BaseComponent {
           this._close();
           return;
         }
+        case 'set':
+          if (this._selectedDate) {
+            this._emitValue();
+            this._close();
+          }
+          return;
         case 'clear':
           this._selectDateTime('');
           return;
