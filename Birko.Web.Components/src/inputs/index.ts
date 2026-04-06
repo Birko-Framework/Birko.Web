@@ -13,6 +13,7 @@ export { BFileUpload, type UploadFile, type UploadResult } from './b-file-upload
 export { BRange } from './b-range.js';
 export { BDatePicker } from './b-date-picker.js';
 export { BDatetimePicker } from './b-datetime-picker.js';
+export { BTime } from './b-time.js';
 export {
   BForm,
   type FormSchema, type FormGroupDef, type FormField, type FormResult,
