@@ -126,7 +126,7 @@ export class BRibbon extends BaseComponent {
         transition: max-height var(--b-transition-slow, 300ms ease);
       }
       :host([expanded]) .ribbon-panel {
-        max-height: var(--b-ribbon-panel-height, 4.5rem);
+        max-height: var(--b-ribbon-panel-height, 8rem);
       }
       /* Unpinned: overlay content instead of pushing it down */
       :host(:not([pinned])) .ribbon-panel {
@@ -138,7 +138,7 @@ export class BRibbon extends BaseComponent {
         display: flex; align-items: flex-start;
         gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
-        height: var(--b-ribbon-panel-height, 4.5rem);
+        height: var(--b-ribbon-panel-height, 8rem);
         overflow-x: auto;
         scrollbar-width: none;
       }
