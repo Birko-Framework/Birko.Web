@@ -396,7 +396,7 @@ export class BRibbon extends BaseComponent {
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel-${active}"${labelledBy}>
         <div class="ribbon-panel-inner">
-          ${activeTab ? this._renderPanelInner(activeTab) : ''}
+          ${activeTab ? this._renderPanelInner(activeTab) : '<slot name="empty"></slot>'}
         </div>
       </div>
     `;
