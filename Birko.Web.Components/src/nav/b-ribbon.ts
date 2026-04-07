@@ -26,6 +26,7 @@ export interface RibbonItem {
   action?: boolean;
   badge?: number;
   disabled?: boolean;
+  active?: boolean;
   variant?: 'primary' | 'danger';
 }
 
@@ -449,6 +450,7 @@ export class BRibbon extends BaseComponent {
   private _renderItem(tabId: string, groupId: string, item: RibbonItem): string {
     const cls = [
       'ribbon-item',
+      item.active ? 'active' : '',
       item.variant ? `variant-${item.variant}` : '',
     ].filter(Boolean).join(' ');
     const icon = item.icon ? `<span class="ribbon-item-icon" aria-hidden="true">${item.icon}</span>` : '';
