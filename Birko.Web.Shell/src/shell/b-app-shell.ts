@@ -244,6 +244,13 @@ export abstract class BAppShell extends BaseComponent {
         overflow: hidden;
       }
 
+      .ribbon-empty {
+        display: flex; align-items: center; justify-content: center;
+        padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
+        color: var(--b-text-muted);
+        font-size: var(--b-text-sm, 0.8125rem);
+        font-style: italic;
+      }
       .app-brand {
         display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);
         padding: 0 var(--b-space-lg, 1rem);
@@ -414,6 +421,10 @@ export abstract class BAppShell extends BaseComponent {
         label-close="${this.t('comp.ribbon.close')}">
         <div slot="before-tabs" class="app-brand">
           <a class="brand-name" href="${this.brandHref}" id="brand-link">${this.brandName}</a>
+        </div>
+
+        <div slot="empty" class="ribbon-empty">
+          <span class="ribbon-empty-text">${this.t('comp.ribbon.selectModule', 'Select a module from the tabs above')}</span>
         </div>
 
         <div slot="after-tabs" class="app-actions">
