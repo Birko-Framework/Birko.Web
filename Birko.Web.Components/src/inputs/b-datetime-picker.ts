@@ -22,7 +22,13 @@ function toISO(y: number, m: number, d: number): string {
 
 function parseDateTime(s: string): { year: number; month: number; day: number; hour: number; minute: number } | null {
   if (!s) return null;
-  // Supports "YYYY-MM-DD", "YYYY-MM-DDTHH:mm", "YYYY-MM-DD HH:mm"
+  // If the string has timezone info (Z or ±offset), parse via Date to convert UTC → local
+  if (/Z|[+-]\d{2}:\d{2}$/.test(s)) {
+    const d = new Date(s);
+    if (isNaN(d.getTime())) return null;
+    return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), hour: d.getHours(), minute: d.getMinutes() };
+  }
+  // Plain strings without timezone: parse directly
   const [datePart, timePart] = s.split(/[T ]/);
   const dp = datePart?.split('-');
   if (!dp || dp.length !== 3) return null;
@@ -538,7 +544,10 @@ export class BDatetimePicker extends BaseComponent {
 
   private _emitValue() {
     if (!this._selectedDate) return;
-    const iso = `${this._selectedDate}T${pad(this._hour)}:${pad(this._minute)}`;
+    // _selectedDate is local "YYYY-MM-DD", _hour/_minute are local — convert to UTC ISO
+    const [y, m, d] = this._selectedDate.split('-').map(Number);
+    const dt = new Date(y, m - 1, d, this._hour, this._minute);
+    const iso = dt.toISOString();
     this._selectDateTime(iso);
   }
 
