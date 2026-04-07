@@ -143,8 +143,14 @@ export abstract class BAppShell extends BaseComponent {
   refreshRibbon(): void {
     const ribbon = this.$<BRibbon>('#ribbon');
     if (!ribbon) return;
+    const prevActive = ribbon.getAttribute('active');
     ribbon.setTabs(this.getRibbonTabs());
-    ribbon.setAttribute('active', this.getActiveTabId() ?? '');
+    const nextActive = this.getActiveTabId() ?? '';
+    ribbon.setAttribute('active', nextActive);
+    // Keep panel expanded when staying in the same tab (e.g. switching modules within a category)
+    if (prevActive === nextActive && nextActive) {
+      ribbon.expand();
+    }
   }
 
   refreshStatusBar(): void {
