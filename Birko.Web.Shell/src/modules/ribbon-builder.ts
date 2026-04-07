@@ -77,6 +77,7 @@ export function buildCategoryRibbon(
   categories: CategoryDef[],
   resolveLabel?: LabelResolver,
   activeModuleId?: string,
+  activeRoute?: string,
 ): RibbonTab[] {
   const resolve = resolveLabel ?? defaultResolver;
   const sorted = modules.slice().sort((a, b) => a.order - b.order);
@@ -117,6 +118,7 @@ export function buildCategoryRibbon(
         label: modLabel,
         icon: mod.icon,
         href: firstRoute ? `#${firstRoute}` : undefined,
+        active: mod.id === activeModuleId,
       });
     }
     if (moduleItems.length > 0) {
@@ -129,6 +131,7 @@ export function buildCategoryRibbon(
       if (activeMod) {
         const visible = getVisibleOptions(activeMod);
         const modLabel = resolve(activeMod.labelKey, activeMod.label);
+        const activeHref = activeRoute ? `#${activeRoute}` : '';
         const pageItems: RibbonItem[] = visible.map(opt => ({
           id: `${activeMod.id}:${opt.id}`,
           label: resolve(opt.labelKey, opt.label),
@@ -136,6 +139,7 @@ export function buildCategoryRibbon(
           href: opt.actionOnly ? undefined : `#${opt.route}`,
           action: opt.actionOnly,
           badge: opt.badge,
+          active: !opt.actionOnly && activeHref === `#${opt.route}`,
         }));
         if (pageItems.length > 0) {
           groups.push({ id: activeMod.id, label: modLabel, items: pageItems });
