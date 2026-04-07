@@ -424,7 +424,7 @@ export abstract class BAppShell extends BaseComponent {
         </div>
 
         <div slot="empty" class="ribbon-empty">
-          <span class="ribbon-empty-text">${this.t('comp.ribbon.selectModule', 'Select a module from the tabs above')}</span>
+          <span class="ribbon-empty-text">${this.t('comp.ribbon.selectModule')}</span>
         </div>
 
         <div slot="after-tabs" class="app-actions">
