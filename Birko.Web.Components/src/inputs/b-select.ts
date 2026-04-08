@@ -242,9 +242,28 @@ export class BSelect extends BaseComponent {
       }
     });
 
-    // Filter as user types
+    // Filter as user types — auto-open dropdown on typing
     this.listen(input, 'input', () => {
       this._filter = input.value;
+      if (!this._open) {
+        this._open = true;
+        dropdown.classList.add('open');
+        const combo = this.$<HTMLElement>('.combo');
+        if (combo) {
+          const rect = combo.getBoundingClientRect();
+          const gap = 4;
+          dropdown.style.left = `${rect.left}px`;
+          dropdown.style.width = `${rect.width}px`;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          if (spaceBelow < 200 && rect.top > spaceBelow) {
+            dropdown.style.top = '';
+            dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+          } else {
+            dropdown.style.bottom = '';
+            dropdown.style.top = `${rect.bottom + gap}px`;
+          }
+        }
+      }
       this._refreshOptions();
       this.emit('search', { query: this._filter, name: this.attr('name') });
     });
