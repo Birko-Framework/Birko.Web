@@ -17,7 +17,7 @@ export class BSelect extends BaseComponent {
   private _filter = '';
   private _open = false;
   private _skipNextUpdate = false;
-  private _outsideClickHandler: ((e: Event) => void) | null = null;
+  private _wiredCombo: HTMLElement | null = null;
 
   static get sharedStyles() {
     return [formFieldSheet, formControlSheet, comboControlSheet];
@@ -40,7 +40,7 @@ export class BSelect extends BaseComponent {
       .combo-arrow {
         padding: 0 var(--b-space-sm, 0.5rem);
         color: var(--b-text-muted); font-size: 0.625rem;
-        flex-shrink: 0; pointer-events: none;
+        flex-shrink: 0; cursor: pointer; user-select: none;
       }
       .combo-clear {
         background: none; border: none; cursor: pointer;
@@ -94,7 +94,6 @@ export class BSelect extends BaseComponent {
   setOptions(options: Option[]) {
     this._options = options;
     if (this._open) {
-      // Refresh dropdown in-place to preserve position and filter state
       this._refreshOptions();
     } else {
       this.update();
@@ -130,6 +129,22 @@ export class BSelect extends BaseComponent {
     return this._renderNative();
   }
 
+  protected onUpdated() {
+    if (this.boolAttr('searchable')) {
+      this._wireSearchable();
+    } else {
+      this._wireNative();
+    }
+  }
+
+  protected update(): void {
+    if (this._skipNextUpdate) return;
+    this._wiredCombo = null;
+    super.update();
+  }
+
+  // ── Native select ──
+
   private _renderNative(): string {
     const label = this.attr('label');
     const hint = this.attr('hint');
@@ -147,6 +162,39 @@ export class BSelect extends BaseComponent {
       </div>
     `;
   }
+
+  private _wireNative() {
+    const select = this.$<HTMLSelectElement>('select');
+    if (select) {
+      this.listen(select, 'change', (e: Event) => {
+        const value = (e.target as HTMLSelectElement).value;
+        this.setAttribute('value', value);
+        this.emit('change', { name: this.attr('name'), value });
+      });
+    }
+  }
+
+  private _renderNativeOptions(value: string | null): string {
+    const hasGroups = this._options.some(o => o.group);
+    if (!hasGroups) {
+      return this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('');
+    }
+    let html = '';
+    let lastGroup = '';
+    for (const o of this._options) {
+      const group = o.group ?? '';
+      if (group !== lastGroup) {
+        if (lastGroup) html += '</optgroup>';
+        if (group) html += `<optgroup label="${group}">`;
+        lastGroup = group;
+      }
+      html += `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`;
+    }
+    if (lastGroup) html += '</optgroup>';
+    return html;
+  }
+
+  // ── Searchable combo ──
 
   private _renderSearchable(): string {
     const label = this.attr('label');
@@ -181,59 +229,26 @@ export class BSelect extends BaseComponent {
     `;
   }
 
-  protected onUpdated() {
-    if (this.boolAttr('searchable')) {
-      this._wireSearchable();
-    } else {
-      this._wireNative();
-    }
-  }
-
-  protected update(): void {
-    if (this._skipNextUpdate) return;
-    super.update();
-  }
-
-  private _wireNative() {
-    const select = this.$<HTMLSelectElement>('select');
-    if (select) {
-      this.listen(select, 'change', (e: Event) => {
-        const value = (e.target as HTMLSelectElement).value;
-        this.setAttribute('value', value);
-        this.emit('change', { name: this.attr('name'), value });
-      });
-    }
-  }
-
   private _wireSearchable() {
     const combo = this.$<HTMLElement>('.combo');
     const input = this.$<HTMLInputElement>('.combo-input');
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (!combo || !input || !dropdown) return;
+    if (this._wiredCombo === combo) return;
+    this._wiredCombo = combo;
 
-    // Toggle dropdown on combo click
     this.listen(combo, 'click', (e: Event) => {
       if ((e.target as HTMLElement).classList.contains('combo-clear')) return;
-      if (this._open) {
-        this._closeDropdown();
-      } else {
-        this._openDropdown(input, dropdown);
-      }
+      if (this._open) this._closeDropdown();
+      else this._openDropdown(input, dropdown);
     });
 
-    // Outside click → close
-    if (this._outsideClickHandler) {
-      document.removeEventListener('mousedown', this._outsideClickHandler);
-    }
-    this._outsideClickHandler = (e: Event) => {
-      const path = e.composedPath();
-      if (!path.includes(combo) && !path.includes(dropdown)) {
-        this._closeDropdown();
-      }
-    };
-    this.listen(document, 'mousedown', this._outsideClickHandler);
+    this.listen(document, 'mousedown', (e: Event) => {
+      if (!this._open) return;
+      if (e.composedPath().includes(this)) return;
+      this._closeDropdown();
+    });
 
-    // Keyboard
     this.listen(input, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       if (ke.key === 'Escape') { this._closeDropdown(); input.blur(); }
@@ -242,39 +257,22 @@ export class BSelect extends BaseComponent {
       }
     });
 
-    // Filter as user types — auto-open dropdown on typing
     this.listen(input, 'input', () => {
       this._filter = input.value;
       if (!this._open) {
         this._open = true;
         dropdown.classList.add('open');
-        const combo = this.$<HTMLElement>('.combo');
-        if (combo) {
-          const rect = combo.getBoundingClientRect();
-          const gap = 4;
-          dropdown.style.left = `${rect.left}px`;
-          dropdown.style.width = `${rect.width}px`;
-          const spaceBelow = window.innerHeight - rect.bottom;
-          if (spaceBelow < 200 && rect.top > spaceBelow) {
-            dropdown.style.top = '';
-            dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
-          } else {
-            dropdown.style.bottom = '';
-            dropdown.style.top = `${rect.bottom + gap}px`;
-          }
-        }
+        this._positionDropdown(dropdown);
       }
       this._refreshOptions();
       this.emit('search', { query: this._filter, name: this.attr('name') });
     });
 
-    // Clear button
     const clearBtn = this.$('.combo-clear');
     if (clearBtn) {
       this.listen(clearBtn, 'click', () => this._selectValue(''));
     }
 
-    // Wire option clicks on current options
     this._wireOptionClicks(dropdown);
   }
 
@@ -287,23 +285,7 @@ export class BSelect extends BaseComponent {
     dropdown.classList.add('open');
     this._refreshOptions();
     input.focus();
-
-    // Position fixed dropdown below the combo
-    const combo = this.$<HTMLElement>('.combo');
-    if (combo) {
-      const rect = combo.getBoundingClientRect();
-      const gap = 4;
-      dropdown.style.left = `${rect.left}px`;
-      dropdown.style.width = `${rect.width}px`;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      if (spaceBelow < 200 && rect.top > spaceBelow) {
-        dropdown.style.top = '';
-        dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
-      } else {
-        dropdown.style.bottom = '';
-        dropdown.style.top = `${rect.bottom + gap}px`;
-      }
-    }
+    this._positionDropdown(dropdown);
   }
 
   private _closeDropdown() {
@@ -311,7 +293,6 @@ export class BSelect extends BaseComponent {
     this._open = false;
     const dropdown = this.$<HTMLElement>('.dropdown');
     dropdown?.classList.remove('open');
-    // Restore input display
     const input = this.$<HTMLInputElement>('.combo-input');
     if (input) {
       const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
@@ -321,11 +302,27 @@ export class BSelect extends BaseComponent {
     }
   }
 
+  private _positionDropdown(dropdown: HTMLElement) {
+    const combo = this.$<HTMLElement>('.combo');
+    if (!combo) return;
+    const rect = combo.getBoundingClientRect();
+    const gap = 4;
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.width = `${rect.width}px`;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    if (spaceBelow < 200 && rect.top > spaceBelow) {
+      dropdown.style.top = '';
+      dropdown.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+    } else {
+      dropdown.style.bottom = '';
+      dropdown.style.top = `${rect.bottom + gap}px`;
+    }
+  }
+
   private _selectValue(val: string) {
     this._filter = '';
     this._open = false;
 
-    // Patch display directly
     const input = this.$<HTMLInputElement>('.combo-input');
     const dropdown = this.$<HTMLElement>('.dropdown');
     const label = this._options.find(o => o.value === val)?.label ?? '';
@@ -336,7 +333,7 @@ export class BSelect extends BaseComponent {
     }
     if (dropdown) dropdown.classList.remove('open');
 
-    // Update clear button
+    // Update clear button visibility
     const combo = this.$<HTMLElement>('.combo');
     if (combo) {
       const clearBtn = combo.querySelector('.combo-clear');
@@ -351,7 +348,6 @@ export class BSelect extends BaseComponent {
       }
     }
 
-    // Set attribute without full re-render
     this._skipNextUpdate = true;
     if (val) this.setAttribute('value', val);
     else this.removeAttribute('value');
@@ -360,28 +356,8 @@ export class BSelect extends BaseComponent {
     this.emit('change', { name: this.attr('name'), value: val });
   }
 
-  /** Render native <select> options with optional <optgroup>. */
-  private _renderNativeOptions(value: string | null): string {
-    const hasGroups = this._options.some(o => o.group);
-    if (!hasGroups) {
-      return this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('');
-    }
-    let html = '';
-    let lastGroup = '';
-    for (const o of this._options) {
-      const group = o.group ?? '';
-      if (group !== lastGroup) {
-        if (lastGroup) html += '</optgroup>';
-        if (group) html += `<optgroup label="${group}">`;
-        lastGroup = group;
-      }
-      html += `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`;
-    }
-    if (lastGroup) html += '</optgroup>';
-    return html;
-  }
+  // ── Options rendering ──
 
-  /** Render options HTML with optional group headers. */
   private _renderOptionsHtml(options: Option[], selectedValue: string | null): string {
     if (options.length === 0)
       return `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`;
@@ -406,7 +382,6 @@ export class BSelect extends BaseComponent {
     return html;
   }
 
-  /** Refresh dropdown options in-place without full re-render. */
   private _refreshOptions() {
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (!dropdown) return;
