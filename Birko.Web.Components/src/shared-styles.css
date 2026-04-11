@@ -112,6 +112,15 @@ dialog:not([open]) {
   gap: var(--b-space-sm, 0.5rem);
   flex-shrink: 0;
 }
+/* Normalize slotted <footer>/<div> — reset browser margins, inherit flex layout */
+.overlay-footer ::slotted(footer),
+.overlay-footer ::slotted(div) {
+  margin: 0;
+  display: flex;
+  gap: var(--b-space-sm, 0.5rem);
+  justify-content: flex-end;
+  width: 100%;
+}
 
 
 /* @sheet formField
