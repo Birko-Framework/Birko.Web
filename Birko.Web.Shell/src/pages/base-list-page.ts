@@ -189,6 +189,15 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
    */
   protected onFormReady(_form: BForm, _entity: T | null): void {}
 
+  /**
+   * Called after a successful create or edit, before the table reloads.
+   * Use for post-save side effects (e.g. tag association, file upload, related entity updates).
+   *
+   * @param savedEntity — the entity returned by the POST/PUT response
+   * @param isEdit — true if this was an edit, false if create
+   */
+  protected async afterSave(_savedEntity: T, _isEdit: boolean): Promise<void> {}
+
   // ── Styles ────────────────────────────────────────────────────────────────
 
   static get styles(): string {
@@ -385,6 +394,9 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
       showFormError(form as Parameters<typeof showFormError>[0], resp.data);
       return;
     }
+
+    // afterSave hook — runs before toast/close so subclass can do post-save work
+    await this.afterSave(resp.data, isEdit);
 
     toast.success(this.t('common.saved'));
     if (this._editingId) {

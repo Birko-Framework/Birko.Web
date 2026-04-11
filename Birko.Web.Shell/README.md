@@ -16,7 +16,7 @@ birko-web-shell/notifications  # createNotificationStore
 birko-web-shell/connection     # createConnectionStateManager
 birko-web-shell/commands       # createModuleNavProvider, createEntitySearchProvider
 birko-web-shell/feedback       # Re-exports BStaleBanner from birko-web-components
-birko-web-shell/pages          # BaseListPage, BaseDetailPage, BaseFormModal
+birko-web-shell/pages          # BaseListPage, BaseSplitPage, BaseDetailPage, BaseFormModal
 birko-web-shell/dashboard      # BaseDashboardWidget
 ```
 
@@ -552,6 +552,7 @@ define('devices-page', DevicesPage);
 | `extraRowActions` | `[]` | Additional per-row actions (getter) |
 | `renderModalBody()` | `<b-form>` | Override to add custom content inside the modal |
 | `onFormReady(form, entity)` | noop | Called after modal opens — wire cascading selects here |
+| `afterSave(entity, isEdit)` | noop | Post-save side effects (e.g. tag association, file upload) |
 | `reload()` | re-fetches data | Public — call to refresh from outside |
 
 **Cascading selects example:**
@@ -594,6 +595,98 @@ class TerminalsPage extends BaseListPage<Terminal> {
   }
 }
 ```
+
+---
+
+### BaseSplitPage\<T\>
+
+Provides a master-detail split-panel page: data table on the left, entity detail on the right. Supports optional create/edit modal and delete confirmation — same CRUD model as BaseListPage but with an integrated detail panel.
+
+```typescript
+import { BaseSplitPage } from 'birko-web-shell/pages';
+import { define } from 'birko-web-core';
+
+class DepartmentsPage extends BaseSplitPage<Department> {
+  // ── Required ──
+  endpoint = 'api/departments';
+
+  get api() { return appApi; }
+
+  get columns(): TableColumn[] {
+    return [
+      { key: 'name', label: 'Name', sortable: true },
+      { key: 'employeeCount', label: 'Employees' },
+    ];
+  }
+
+  // Return null to disable CRUD (read-only split page)
+  get formSchema(): FormSchema {
+    return departmentFormSchema();
+  }
+
+  renderDetail(d: Department): string {
+    return `
+      <div class="info-grid">
+        <span class="info-label">Code</span>
+        <span class="info-value">${d.code ?? '—'}</span>
+        <span class="info-label">Manager</span>
+        <span class="info-value">${d.managerName ?? '—'}</span>
+      </div>
+    `;
+  }
+
+  // ── Optional ──
+  entityLabel = 'Department';
+  masterWidth = '2fr';
+  detailWidth = '1fr';
+
+  renderDetailHeader(d: Department) {
+    return { title: d.name, subtitle: `${d.employeeCount} employees` };
+  }
+
+  // Wire custom buttons inside the detail panel
+  protected onDetailUpdated(d: Department) {
+    this.$('#btn-assign')?.addEventListener('click', () => this._openAssign(d));
+  }
+}
+
+define('departments-page', DepartmentsPage);
+```
+
+**Read-only split page** (no CRUD modal — e.g. payment records):
+
+```typescript
+class PaymentsPage extends BaseSplitPage<Payment> {
+  endpoint = 'api/payments';
+  get api() { return appApi; }
+  get columns() { return [...]; }
+  get formSchema() { return null; }  // disables create/edit/delete
+  renderDetail(p: Payment) { return `<div class="info-grid">...</div>`; }
+}
+```
+
+**Extension points (same as BaseListPage plus):**
+
+| Method/Property | Default | Description |
+|----------------|---------|-------------|
+| `renderDetail(entity)` | **required** | Detail panel body HTML |
+| `renderDetailHeader(entity)` | `{ title: entity.name }` | Detail card header |
+| `formSchema` | `null` (read-only) | Return schema to enable CRUD |
+| `masterWidth` | `'2fr'` | Left panel CSS width |
+| `detailWidth` | `'1fr'` | Right panel CSS width |
+| `collapseAt` | `'768'` | Responsive collapse breakpoint (px) |
+| `emptyDetailMessage` | `''` | Message when no entity selected |
+| `detailEndpoint(id)` | `${endpoint}/${id}` | Override for nested resources |
+| `onDetailUpdated(entity)` | noop | Wire event listeners inside detail |
+| `afterSave(entity, isEdit)` | noop | Post-save side effects |
+| `selectedEntity` | getter | Currently selected entity |
+| `deselectEntity()` | — | Clear selection, hide detail |
+| `reloadDetail()` | — | Re-fetch current entity |
+| `renderPageHeader(canCreate)` | title + New button | Override for custom header |
+
+All BaseListPage hooks also available: `onFormReady`, `renderModalBody`, `editEnabled`/`deleteEnabled`, `extraRowActions`/`extraToolbarActions`, `mapToForm`/`mapFromForm`, `modalSize`, permissions.
+
+Built-in CSS classes for detail content: `.info-grid`, `.info-label`, `.info-value`, `.detail-subtitle`, `.detail-actions`.
 
 ---
 

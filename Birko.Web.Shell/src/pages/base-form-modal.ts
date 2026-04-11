@@ -99,6 +99,12 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
   protected onFormReady(_form: BForm, _entity: T | null): void {}
 
   /**
+   * Called after a successful create or edit, before closing the modal.
+   * Use for post-save side effects (e.g. tag association, file upload).
+   */
+  protected async afterSave(_savedEntity: T, _isEdit: boolean): Promise<void> {}
+
+  /**
    * Render the modal body HTML.
    * Default: `<b-form id="form"></b-form>`.
    * Override to add custom components alongside or instead of the form.
@@ -231,6 +237,8 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       showFormError(form as Parameters<typeof showFormError>[0], resp.data);
       return;
     }
+
+    await this.afterSave(resp.data, isEdit);
 
     toast.success(this.t('common.saved'));
     modal.close();
