@@ -1,5 +1,10 @@
 import { BaseComponent, define } from 'birko-web-core';
 
+export interface TableColumnOption {
+  value: string;
+  label: string;
+}
+
 export interface TableColumn {
   key: string;
   label: string;
@@ -7,6 +12,28 @@ export interface TableColumn {
   align?: 'left' | 'center' | 'right';
   render?: (value: unknown, row: Record<string, unknown>) => string;
   sortable?: boolean;
+  /**
+   * Enable inline click-to-edit for this column in `<b-data-table>`.
+   * - `true` / `'text'`   — plain text input
+   * - `'number'`          — numeric input
+   * - `'date'`            — date picker input
+   * - `'select'`          — dropdown (requires `options` or `getOptions`)
+   *
+   * The cell shows its display value at rest; clicking it activates an input.
+   * Blur or Enter commits the edit and fires a `cell-edit` event on the table.
+   * Escape cancels without saving.
+   *
+   * Only consumed by `<b-data-table>` — `<b-table>` only adds the required
+   * markup hooks (`data-editable`, `.cell-val` wrapper).
+   */
+  editable?: boolean | 'text' | 'number' | 'date' | 'select';
+  /** Static option list for `editable: 'select'` columns. */
+  options?: TableColumnOption[];
+  /**
+   * Dynamic options computed per-row at edit time.
+   * Takes precedence over `options` when provided.
+   */
+  getOptions?: (row: Record<string, unknown>) => TableColumnOption[];
 }
 
 export class BTable extends BaseComponent {
@@ -48,6 +75,10 @@ export class BTable extends BaseComponent {
       .empty { text-align: center; padding: var(--b-space-3xl, 3rem); color: var(--b-text-muted); }
       .loading-bar { height: 2px; background: var(--b-color-primary); animation: loading 1.5s ease infinite; }
       @keyframes loading { 0% { width: 0; } 50% { width: 70%; } 100% { width: 100%; opacity: 0; } }
+      /* Editable cell hooks (activated by b-data-table) */
+      td.cell-editable { cursor: text; }
+      td.cell-editable:hover:not(:has(input, select)) { background: color-mix(in srgb, var(--b-color-primary) 6%, transparent); }
+      .cell-val { display: block; min-height: 1em; }
     `;
   }
 
@@ -103,6 +134,9 @@ export class BTable extends BaseComponent {
                   this._columns.map(c => {
                     const val = row[c.key];
                     const rendered = c.render ? c.render(val, row) : this._escape(val);
+                    if (c.editable) {
+                      return `<td class="${c.align ? 'align-' + c.align + ' ' : ''}cell-editable" data-editable="${c.key}"><span class="cell-val">${rendered}</span></td>`;
+                    }
                     return `<td class="${c.align ? 'align-' + c.align : ''}">${rendered}</td>`;
                   }).join('')
                 }</tr>`).join('')}

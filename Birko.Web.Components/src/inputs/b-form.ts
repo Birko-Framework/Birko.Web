@@ -360,11 +360,21 @@ export class BForm extends BaseComponent {
   }
 
   /** Register a callback for when a specific field value changes. */
-  onFieldChange(path: string, callback: (value: unknown, data: Record<string, unknown>) => void) {
+  onFieldChange(
+    path: string,
+    callback: (value: unknown, data: Record<string, unknown>) => void,
+  ): () => void {
     this._fieldCallbacks ??= new Map();
     let list = this._fieldCallbacks.get(path);
     if (!list) { list = []; this._fieldCallbacks.set(path, list); }
     list.push(callback);
+    return () => {
+      const l = this._fieldCallbacks?.get(path);
+      if (l) {
+        const idx = l.indexOf(callback);
+        if (idx !== -1) l.splice(idx, 1);
+      }
+    };
   }
 
   // ── Rendering ──

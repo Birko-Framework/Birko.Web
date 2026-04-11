@@ -643,6 +643,119 @@ export class BDataTable extends BaseComponent {
         setTimeout(() => document.addEventListener('click', cleanup), 0);
       });
     });
+
+    // Inline editable cells
+    const editableCols = this._config?.columns.filter(c => c.editable) ?? [];
+    if (editableCols.length) {
+      table.shadowRoot.querySelectorAll<HTMLElement>('td[data-editable]').forEach((td: HTMLElement) => {
+        td.addEventListener('click', (e: Event) => {
+          // Ignore if already editing (input/select already injected)
+          if (td.querySelector('input, select')) return;
+          e.stopPropagation(); // Don't trigger row-click
+
+          const colKey = td.dataset.editable!;
+          const rowEl = td.closest<HTMLElement>('tr[data-id]');
+          if (!rowEl) return;
+
+          const rowId = rowEl.dataset.id!;
+          const row = this._allData.find(r => this._rowId(r) === rowId);
+          const col = editableCols.find(c => c.key === colKey);
+          if (!row || !col) return;
+
+          this._startCellEdit(td, col, row, rowId);
+        });
+      });
+    }
+  }
+
+  private _startCellEdit(
+    td: HTMLElement,
+    col: TableColumn,
+    row: Record<string, unknown>,
+    rowId: string,
+  ): void {
+    const span = td.querySelector<HTMLElement>('.cell-val');
+    if (!span) return;
+
+    const originalValue = row[col.key];
+    let cancelled = false;
+
+    // Build the edit control
+    let input: HTMLInputElement | HTMLSelectElement;
+
+    const isSelect = col.editable === 'select'
+      || (col.editable === true && !!(col.options?.length || col.getOptions));
+
+    if (isSelect) {
+      const sel = document.createElement('select');
+      const opts = col.getOptions ? col.getOptions(row) : (col.options ?? []);
+      for (const opt of opts) {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.label;
+        if (String(originalValue) === opt.value) o.selected = true;
+        sel.appendChild(o);
+      }
+      input = sel;
+    } else {
+      const inp = document.createElement('input');
+      inp.type = col.editable === 'number' ? 'number'
+        : col.editable === 'date' ? 'date'
+        : 'text';
+      inp.value = originalValue !== null && originalValue !== undefined ? String(originalValue) : '';
+      input = inp;
+    }
+
+    // Style to match design tokens — injected directly since we're in b-table's shadow DOM
+    Object.assign(input.style, {
+      boxSizing: 'border-box',
+      width: '100%',
+      padding: '0.125rem 0.375rem',
+      border: '1px solid var(--b-color-primary)',
+      borderRadius: 'var(--b-radius, 0.375rem)',
+      fontSize: 'var(--b-text-sm, 0.8125rem)',
+      fontFamily: 'inherit',
+      background: 'var(--b-bg)',
+      color: 'var(--b-text)',
+      outline: 'none',
+      boxShadow: '0 0 0 2px color-mix(in srgb, var(--b-color-primary) 20%, transparent)',
+    });
+
+    span.innerHTML = '';
+    span.appendChild(input);
+    input.focus();
+    if (input instanceof HTMLInputElement && input.type === 'text') input.select();
+
+    const _display = (val: unknown): string =>
+      col.render ? col.render(val, { ...row, [col.key]: val }) : _escapeValue(val);
+
+    const commit = () => {
+      if (cancelled) return;
+      const raw = input.value;
+      const coerced: unknown = col.editable === 'number' && raw !== '' ? Number(raw) : raw;
+      span.innerHTML = _display(coerced);
+      // Optimistic update in _allData
+      const idx = this._allData.findIndex(r => this._rowId(r) === rowId);
+      if (idx !== -1) this._allData[idx][col.key] = coerced;
+      this.emit('cell-edit', {
+        id: rowId,
+        key: col.key,
+        oldValue: originalValue,
+        newValue: coerced,
+        row: { ...row, [col.key]: coerced },
+      });
+    };
+
+    const cancel = () => {
+      cancelled = true;
+      span.innerHTML = _display(originalValue);
+    };
+
+    input.addEventListener('blur', commit, { once: true });
+    input.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+      if (e.key === 'Escape') { cancel(); input.blur(); }
+    });
   }
 
   private _emitExport(format: string) {
@@ -709,3 +822,25 @@ export class BDataTable extends BaseComponent {
 }
 
 define('b-data-table', BDataTable);
+
+/** Detail payload carried by the `cell-edit` custom event on `<b-data-table>`. */
+export interface CellEditDetail {
+  /** Row identity value (resolved via `idField` or `id`/`guid`). */
+  id: string;
+  /** Column key that was edited. */
+  key: string;
+  /** Value before the edit. */
+  oldValue: unknown;
+  /** Coerced new value (number for `editable:'number'`, string otherwise). */
+  newValue: unknown;
+  /** Full row with the new value applied. */
+  row: Record<string, unknown>;
+}
+
+/** Escape a raw cell value to safe display HTML. */
+function _escapeValue(val: unknown): string {
+  if (val === null || val === undefined) return '<span style="color:var(--b-text-muted)">—</span>';
+  const el = document.createElement('span');
+  el.textContent = String(val);
+  return el.innerHTML;
+}

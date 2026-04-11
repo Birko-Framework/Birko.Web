@@ -1,10 +1,16 @@
-export { BTable, type TableColumn } from './b-table.js';
+export { BTable, type TableColumn, type TableColumnOption } from './b-table.js';
+export {
+  BEditableTable,
+  type EditableColumn, type EditableColumnOption, type EditableTableConfig,
+  type EditableCellType, type EditableTableValidateResult,
+} from './b-editable-table.js';
 export { BPagination, DEFAULT_PAGE_SIZES } from './b-pagination.js';
 export {
   BDataTable, PAGE_SIZE_STORAGE_KEY,
   type DataTableConfig, type PaginationLabels, type DataTableLabels,
   type ColumnFilter, type ToolbarAction,
   type BulkAction, type RowAction, type ExportOption,
+  type CellEditDetail,
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';
 export { BTag } from './b-tag.js';

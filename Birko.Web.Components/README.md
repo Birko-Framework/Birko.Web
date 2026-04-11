@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-38 Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
 
 ## Install
 
@@ -13,10 +13,17 @@
 ```
 
 ```typescript
-import 'birko-web-components';  // registers all 38 components
+import 'birko-web-components';  // registers all components
 
 // Or import individually:
 import { BModal, BDataTable, toast } from 'birko-web-components';
+```
+
+## Packages
+
+```
+birko-web-components              # main (registers all components)
+birko-web-components/form-utils   # showFormError, loadOptions, wireSearchableSelect
 ```
 
 ---
@@ -162,11 +169,14 @@ form.setFieldDisabled('group.addressId', true);
 
 // React to specific field changes (cascading selects):
 // NOTE: callbacks fire only on user interaction, not on programmatic setValues()
-form.onFieldChange('group.customerId', (value, data) => {
+// Returns an unsubscribe function — call it in onUnmount() or when the form is destroyed.
+const unsub = form.onFieldChange('group.customerId', (value, data) => {
   // value = new field value, data = full form data
   loadAddresses(value);
   form.setValues({ group: { name: '...' } }); // safe — won't re-trigger callbacks
 });
+// Later:
+unsub();
 
 // Focus a field:
 form.focusField('email');
@@ -388,9 +398,33 @@ this.shadowRoot?.addEventListener('action-click', ((e: CustomEvent) => {
 }) as EventListener);
 ```
 
+**TableColumn — editable columns** (`editable` property):
+
+The `editable` property on a `TableColumn` definition enables click-to-edit on that column when used inside `<b-data-table>`. `<b-table>` renders the required markup hooks but does not activate the editing logic itself.
+
+```typescript
+table?.setColumns([
+  { key: 'name', label: 'Name' },
+  // Plain text input on click:
+  { key: 'sku',      label: 'SKU',      editable: 'text' },
+  // Numeric input:
+  { key: 'qty',      label: 'Qty',      editable: 'number' },
+  // Date picker:
+  { key: 'dueDate',  label: 'Due date', editable: 'date' },
+  // Dropdown with static options:
+  { key: 'status', label: 'Status', editable: 'select',
+    options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] },
+  // Dropdown with per-row dynamic options:
+  { key: 'warehouseId', label: 'Warehouse', editable: 'select',
+    getOptions: row => warehousesByZone[row.zoneId as string] ?? [] },
+]);
+```
+
+`TableColumnOption`: `{ value: string; label: string }`
+
 ### b-data-table
 
-Auto-fetching table with toolbar, search, filters, pagination, bulk actions.
+Auto-fetching table with toolbar, search, filters, pagination, bulk actions, and optional inline cell editing.
 
 ```typescript
 (el as BDataTable).setConfig({
@@ -414,7 +448,134 @@ Auto-fetching table with toolbar, search, filters, pagination, bulk actions.
 el.load();
 ```
 
-Emits: `action` → `{ id }`, `row-click` → `{ row }`, `row-action` → `{ actionId, row }`
+**Emits:**
+
+| Event | Detail | When |
+|-------|--------|------|
+| `action` | `{ id }` | Toolbar action button clicked |
+| `row-click` | `{ row }` | Row clicked (non-interactive area) |
+| `row-action` | `{ actionId, row }` | Per-row action clicked |
+| `cell-edit` | `CellEditDetail` | Inline cell committed (Enter/blur) |
+
+**Inline cell editing:**
+
+Add `editable` to any column definition. Clicking a cell activates an input in place; Enter or blur commits, Escape cancels.
+
+```typescript
+columns: [
+  { key: 'price',  label: 'Price',  editable: 'number' },
+  { key: 'status', label: 'Status', editable: 'select',
+    options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] },
+]
+```
+
+```typescript
+el.addEventListener('cell-edit', ((e: CustomEvent<CellEditDetail>) => {
+  const { id, key, oldValue, newValue, row } = e.detail;
+  // patch to server — optimistic update already applied to table data
+  api.patch(`api/products/${id}`, { [key]: newValue });
+}) as EventListener);
+```
+
+```typescript
+interface CellEditDetail {
+  id: string;           // row id
+  key: string;          // column key
+  oldValue: unknown;
+  newValue: unknown;
+  row: Record<string, unknown>;  // full row after edit
+}
+```
+
+The table applies optimistic in-place updates to its local `_allData` immediately on commit — no reload needed for read-back.
+
+### b-editable-table
+
+A fully editable table for CRUD-style data entry where every cell is an input. Unlike the click-to-edit pattern in `b-data-table`, all cells are always in edit mode — ideal for pricing rules, line-item forms, configuration grids, etc.
+
+```typescript
+import { BEditableTable, type EditableColumn, type EditableTableConfig } from 'birko-web-components';
+
+const table = document.querySelector('#rules-table') as BEditableTable;
+
+table.setConfig({
+  columns: [
+    { key: 'name',       label: 'Name',     type: 'text',   required: true },
+    { key: 'minQty',     label: 'Min qty',  type: 'number', min: 0 },
+    { key: 'discount',   label: 'Discount', type: 'number', min: 0, max: 100, step: 0.1 },
+    { key: 'validFrom',  label: 'From',     type: 'date' },
+    { key: 'category',   label: 'Category', type: 'select',
+      options: [{ value: 'A', label: 'Category A' }, { value: 'B', label: 'Category B' }] },
+    { key: 'active',     label: 'Active',   type: 'checkbox' },
+  ],
+  allowAdd: true,
+  allowRemove: true,
+  addLabel: '+ Add rule',
+  defaultRow: { active: true, minQty: 1 },
+});
+
+table.setData(existingRows);
+
+// On save:
+const { valid, errors, data } = table.validate();
+if (valid) {
+  await api.put('api/pricing/rules', data);
+}
+```
+
+**EditableColumn:**
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `key` | `string` | Data property name |
+| `label` | `string` | Column header |
+| `type` | `'text'\|'number'\|'date'\|'select'\|'checkbox'` | Input type |
+| `required?` | `boolean` | Mark as required (validated by `validate()`) |
+| `min?` | `number` | Minimum for number inputs |
+| `max?` | `number` | Maximum for number inputs |
+| `step?` | `number` | Step for number inputs |
+| `placeholder?` | `string` | Input placeholder |
+| `width?` | `string` | Column width (CSS value) |
+| `options?` | `EditableColumnOption[]` | Static option list for select columns |
+| `getOptions?` | `(row) => EditableColumnOption[]` | Per-row dynamic options (takes precedence) |
+
+**EditableTableConfig:**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `columns` | `EditableColumn[]` | — | Column definitions |
+| `allowAdd?` | `boolean` | `false` | Show "Add row" button |
+| `allowRemove?` | `boolean` | `false` | Show remove button per row |
+| `addLabel?` | `string` | `'+ Add row'` | Add button label |
+| `defaultRow?` | `object` | `{}` | Default values for new rows |
+
+**Methods:**
+
+```typescript
+table.setData(rows);                       // Load initial data
+table.getData(): Record<string, unknown>[] // Get current data (including edits)
+table.validate(): EditableTableValidateResult  // Validate all required fields
+```
+
+**EditableTableValidateResult:**
+
+```typescript
+interface EditableTableValidateResult {
+  valid: boolean;
+  errors: Map<string, string>;   // key: `${rowIndex}.${columnKey}` → error message
+  data: Record<string, unknown>[];
+}
+```
+
+**Events:**
+
+| Event | Detail | When |
+|-------|--------|------|
+| `row-add` | `{ row }` | New row added |
+| `row-remove` | `{ index, row }` | Row removed |
+| `cell-change` | `{ index, key, value, row }` | Cell value changed |
+
+Inputs fire `cell-change` on every keystroke (`input` event) and select/checkbox on `change`. No re-render on individual cell changes — only on structural events (add/remove row, validate) — so focus and cursor position are preserved during editing.
 
 ### b-pagination
 
@@ -658,6 +819,86 @@ All `--b-*` properties are defined in `css/tokens.css`. Dark theme activates on 
 | Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font-weight-medium/bold` |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
 | Z-index | `--b-z-dropdown` (100), `--b-z-modal` (400), `--b-z-toast` (500) |
+
+---
+
+## Form utilities
+
+```typescript
+import { showFormError, loadOptions, wireSearchableSelect } from 'birko-web-components/form-utils';
+```
+
+### showFormError
+
+Maps ASP.NET ProblemDetails / ModelState validation errors from an API response back to `b-form` field errors.
+
+```typescript
+const resp = await api.post<User>('users', form.validate().data);
+if (!resp.ok) {
+  showFormError(form, resp.data);          // maps field errors by name
+  showFormError(form, resp.data, '_form'); // fallback field for non-field errors
+  return;
+}
+```
+
+Handles `{ errors: { fieldName: ['msg'] } }` (ModelState), `{ detail: '...' }`, `{ title: '...' }`, and plain error strings. Non-field errors are placed on `fallbackField` (default `'_form'`).
+
+### loadOptions
+
+Fetch `SelectOption[]` from an API endpoint for populating `<b-select>` or form field options.
+
+```typescript
+import { loadOptions, type SelectOption } from 'birko-web-components/form-utils';
+
+const options = await loadOptions(api, 'api/categories');
+// [{ value: 'abc', label: 'Electronics' }, ...]
+
+// Custom key mapping:
+const options = await loadOptions(api, 'api/users', {
+  dataKey:  'items',     // response key holding the array (default: items/data/root array)
+  valueKey: 'guid',      // property to use as value (default: 'id')
+  labelKey: 'fullName',  // property to use as label (default: 'name')
+  params:   { active: true },  // query params
+});
+
+form.setFieldOptions('customerId', options);
+```
+
+### wireSearchableSelect
+
+Sets up a live-search select field that queries an API endpoint as the user types, with debounce.
+
+```typescript
+const unwire = wireSearchableSelect(form, 'customerId', api, 'api/customers/search', {
+  debounce:    300,          // ms between keystrokes (default: 300)
+  searchParam: 'q',          // query param name for the search term (default: 'q')
+  valueKey:    'id',         // response item key for value (default: 'id')
+  labelKey:    'name',       // response item key for label (default: 'name')
+  params:      { active: 1 }, // extra static query params
+});
+
+// Call in onUnmount():
+unwire();
+```
+
+Wires `form.onFieldChange(fieldName, ...)` so each user keystroke triggers a debounced API call and updates the field's option list. Useful for large datasets where a static option list would be impractical.
+
+```typescript
+interface SelectOption { value: string; label: string; }
+interface LoadOptionsConfig {
+  dataKey?: string;
+  valueKey?: string;
+  labelKey?: string;
+  params?: Record<string, unknown>;
+}
+interface WireSearchConfig {
+  debounce?: number;
+  searchParam?: string;
+  valueKey?: string;
+  labelKey?: string;
+  params?: Record<string, unknown>;
+}
+```
 
 ---
 
