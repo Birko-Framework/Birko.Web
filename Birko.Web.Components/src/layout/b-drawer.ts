@@ -36,6 +36,7 @@ export class BDrawer extends BaseComponent {
       :host([size="sm"]) .drawer { width: var(--b-drawer-width-sm, 22.5rem); }
       :host([size="lg"]) .drawer { width: var(--b-drawer-width-lg, 40rem); }
       :host([size="xl"]) .drawer { width: var(--b-drawer-width-xl, 53.75rem); }
+      :host([size="xxl"]) .drawer { width: var(--b-drawer-width-xxl, 72.5rem); }
       @media (max-width: 640px) {
         .drawer { width: 100vw !important; }
       }

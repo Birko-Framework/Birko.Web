@@ -275,7 +275,7 @@ Slots: default (body), `actions` (header right)
 (document.querySelector('#my-modal') as BModal).open();
 ```
 
-Attributes: `title`, `size` (sm|md|lg|xl)
+Attributes: `title`, `size` (sm|md|lg|xl|xxl)
 Slots: default (body), `footer`
 Methods: `open()`, `close()`
 Emits: `close`

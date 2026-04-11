@@ -29,6 +29,7 @@ export class BModal extends BaseComponent {
       :host([size="sm"]) .modal { max-width: var(--b-modal-width-sm, 23.75rem); }
       :host([size="lg"]) .modal { max-width: var(--b-modal-width-lg, 45rem); }
       :host([size="xl"]) .modal { max-width: var(--b-modal-width-xl, 60rem); }
+      :host([size="xxl"]) .modal { max-width: var(--b-modal-width-xxl, 80rem); }
     `;
   }
 
