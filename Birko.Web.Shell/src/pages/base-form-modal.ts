@@ -60,7 +60,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
   protected entityLabel = 'Item';
 
   /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium). */
-  protected modalSize?: 'sm' | 'lg' | 'xl';
+  protected modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
 
   /**
    * Map a loaded API entity to form field values for the edit flow.
@@ -84,6 +84,28 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
    */
   protected onSuccess(item: T, isEdit: boolean): void {
     this.emit('form-success', { item, isEdit });
+  }
+
+  /**
+   * Called after the form/modal is ready — on both create (entity = null)
+   * and edit (entity = loaded data, form values already set).
+   *
+   * Use this to wire cascading selects, load dynamic options, set up
+   * field change listeners, or configure custom modal components.
+   *
+   * @param form — the `<b-form>` inside the modal
+   * @param entity — null for create, loaded entity for edit
+   */
+  protected onFormReady(_form: BForm, _entity: T | null): void {}
+
+  /**
+   * Render the modal body HTML.
+   * Default: `<b-form id="form"></b-form>`.
+   * Override to add custom components alongside or instead of the form.
+   * **Must** include a `<b-form id="form">` if the default save flow is used.
+   */
+  protected renderModalBody(): string {
+    return '<b-form id="form"></b-form>';
   }
 
   /** Translation function — override for localised labels. */
@@ -112,7 +134,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
     const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
     return `
       <b-modal id="modal" title=""${sizeAttr}>
-        <b-form id="form"></b-form>
+        ${this.renderModalBody()}
         <div slot="footer">
           <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
           <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
@@ -168,12 +190,14 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       form.reset();
       form.clearErrors();
       form.setValues(this.mapToForm(resp.data));
+      this.onFormReady(form, resp.data);
     } else {
       this._editingId = null;
       modal.setAttribute('title', this.t('common.new'));
       form.reset();
       form.clearErrors();
       modal.open();
+      this.onFormReady(form, null);
     }
   }
 

@@ -530,20 +530,70 @@ define('devices-page', DevicesPage);
 
 | Method | Default | Description |
 |--------|---------|-------------|
-| `entityLabel` | `'Item'` | Used in "Item created" / "Item deleted" toasts |
+| `entityLabel` | `'Item'` | Used in toast messages |
 | `idField` | `'id'` | Primary key field for row identification |
 | `searchable` | `true` | Show search bar |
 | `pageSize` | `20` | Rows per page |
-| `createPermission` | `''` (always shown) | Permission key controlling Create button visibility |
-| `editPermission` | `''` | Permission key controlling Edit row action |
-| `deletePermission` | `''` | Permission key controlling Delete row action |
+| `editEnabled` | `true` | Set `false` to hide Edit row action entirely |
+| `deleteEnabled` | `true` | Set `false` to hide Delete row action entirely |
+| `modalSize` | `undefined` (md) | Modal size: `'sm'`, `'lg'`, `'xl'`, `'xxl'` |
+| `createPermission` | `undefined` (always shown) | Permission key controlling Create button visibility |
+| `editPermission` | `undefined` | Permission key controlling Edit row action |
+| `deletePermission` | `undefined` | Permission key controlling Delete row action |
 | `hasPermission(perm)` | `() => true` | Resolve a permission key → boolean |
 | `mapToForm(row)` | identity | Transform API row to form initial values |
+| `mapFromForm(data, isEdit)` | identity | Transform form values to request body |
+| `editFormSchema` | `formSchema` | Separate form schema for edit mode |
 | `t(key, params?)` | `() => key` | i18n translation function |
-| `onRowClick(row)` | opens edit modal | Handle row click |
+| `onRowClick(row)` | noop | Handle row click |
 | `onToolbarAction(id)` | noop | Handle extra toolbar action buttons |
 | `onRowAction(actionId, row)` | noop | Handle extra per-row action buttons |
+| `extraToolbarActions` | `[]` | Additional toolbar buttons (getter) |
+| `extraRowActions` | `[]` | Additional per-row actions (getter) |
+| `renderModalBody()` | `<b-form>` | Override to add custom content inside the modal |
+| `onFormReady(form, entity)` | noop | Called after modal opens — wire cascading selects here |
 | `reload()` | re-fetches data | Public — call to refresh from outside |
+
+**Cascading selects example:**
+
+```typescript
+class PricesPage extends BaseListPage<Price> {
+  endpoint = 'api/prices';
+  get api() { return appApi; }
+  get columns() { return [...]; }
+  get formSchema() { return { name: 'root', children: [...] }; }
+
+  protected async onFormReady(form: BForm, entity: Price | null) {
+    // Load initial options
+    const products = await loadOptions(this.api, 'api/products');
+    form.setFieldOptions('productId', products);
+
+    // When product changes, load variants
+    const unsub = wireSearchableSelect(form, 'variantId', this.api, 'api/variants', {
+      params: { productId: entity?.productId ?? '' },
+    });
+
+    // Re-wire when product changes
+    form.onFieldChange('productId', async (value) => {
+      const variants = await loadOptions(this.api, 'api/variants', { params: { productId: value } });
+      form.setFieldOptions('variantId', variants);
+    });
+  }
+}
+```
+
+**Custom modal body example:**
+
+```typescript
+class TerminalsPage extends BaseListPage<Terminal> {
+  protected renderModalBody(): string {
+    return `
+      <b-form id="form"></b-form>
+      <s-connection-builder id="conn-builder"></s-connection-builder>
+    `;
+  }
+}
+```
 
 ---
 
@@ -658,6 +708,8 @@ modal.open(device.id);
 ```
 
 `onSuccess` receives the created/updated item and `isEdit` flag. The default implementation emits `form-success` with the item as detail.
+
+**Additional overrides:** `modalSize`, `renderModalBody()`, `onFormReady(form, entity)`, `mapToForm(item)`, `mapFromForm(data)` — same API as BaseListPage.
 
 ---
 

@@ -59,10 +59,13 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
   /** Column definitions for `<b-data-table>`. */
   protected abstract get columns(): TableColumn[];
 
-  /** Form schema for the create / edit modal. */
+  /** Form schema for the create modal (and edit, unless editFormSchema is overridden). */
   protected abstract get formSchema(): FormSchema;
 
   // ── Optional — override to customise ─────────────────────────────────────
+
+  /** Form schema for the edit modal. Defaults to `formSchema` if not overridden. */
+  protected get editFormSchema(): FormSchema { return this.formSchema; }
 
   /** Human-readable entity name used in modal titles and toast messages. Default: `'Item'`. */
   protected entityLabel = 'Item';
@@ -75,6 +78,18 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
 
   /** Default page size for the data table. */
   protected pageSize?: number;
+
+  /** Whether the API returns a flat array (true) or a paged envelope (false). Default: `true`. */
+  protected flatArray = true;
+
+  /** Show the Edit row action. Set to `false` for create-only pages. Default: `true`. */
+  protected editEnabled = true;
+
+  /** Show the Delete row action. Set to `false` to hide deletion. Default: `true`. */
+  protected deleteEnabled = true;
+
+  /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium). */
+  protected modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
 
   /** Permission key required to see the "New" button. `undefined` = always visible. */
   protected createPermission?: string;
@@ -98,6 +113,15 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
    */
   protected mapToForm(item: T): Record<string, unknown> {
     return item as Record<string, unknown>;
+  }
+
+  /**
+   * Map form values to the request body before POST/PUT.
+   * Override to transform, add defaults, or strip fields.
+   * Default: identity (pass form data through as-is).
+   */
+  protected mapFromForm(data: Record<string, unknown>, isEdit: boolean): Record<string, unknown> {
+    return data;
   }
 
   /** Called after a successful create. Override for side effects (e.g. navigate, reload store). */
@@ -130,6 +154,41 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     return defaults[key] ?? key;
   }
 
+  /**
+   * Extra toolbar actions added after the built-in "New" button.
+   * Override to add custom buttons (e.g. import, export, bulk operations).
+   */
+  protected get extraToolbarActions(): ToolbarAction[] { return []; }
+
+  /**
+   * Extra row actions added after the built-in Edit/Delete.
+   * Override to add custom per-row actions (e.g. status change, duplicate).
+   */
+  protected get extraRowActions(): RowAction[] { return []; }
+
+  /**
+   * Render the modal body HTML.
+   * Default: `<b-form id="form"></b-form>`.
+   * Override to add custom components alongside or instead of the form —
+   * e.g. a connection builder, sub-table, or editable grid.
+   * **Must** include a `<b-form id="form">` if the default _save() flow is used.
+   */
+  protected renderModalBody(): string {
+    return '<b-form id="form"></b-form>';
+  }
+
+  /**
+   * Called after the form/modal is ready — on both create (entity = null)
+   * and edit (entity = loaded data, form values already set).
+   *
+   * Use this to wire cascading selects, load dynamic options, set up
+   * field change listeners, or configure custom modal components.
+   *
+   * @param form — the `<b-form>` inside the modal
+   * @param entity — null for create, loaded entity for edit
+   */
+  protected onFormReady(_form: BForm, _entity: T | null): void {}
+
   // ── Styles ────────────────────────────────────────────────────────────────
 
   static get styles(): string {
@@ -148,11 +207,12 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
   // ── Template ──────────────────────────────────────────────────────────────
 
   render(): string {
+    const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
     return `
       <div class="list-page">
         <b-data-table id="table"></b-data-table>
-        <b-modal id="modal" title="">
-          <b-form id="form"></b-form>
+        <b-modal id="modal" title=""${sizeAttr}>
+          ${this.renderModalBody()}
           <div slot="footer">
             <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
             <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
@@ -167,7 +227,6 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
 
   protected onMount(): void {
     this._setupTable();
-    this._setupForm();
   }
 
   protected onUpdated(): void {
@@ -181,15 +240,17 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     this._tableReady = true;
 
     const canCreate = !this.createPermission || this.hasPermission(this.createPermission);
-    const canEdit   = !this.editPermission   || this.hasPermission(this.editPermission);
-    const canDelete = !this.deletePermission || this.hasPermission(this.deletePermission);
+    const canEdit   = this.editEnabled   && (!this.editPermission   || this.hasPermission(this.editPermission));
+    const canDelete = this.deleteEnabled && (!this.deletePermission || this.hasPermission(this.deletePermission));
 
     const rowActions: RowAction[] = [];
     if (canEdit)   rowActions.push({ id: 'edit',   label: this.t('common.edit') });
     if (canDelete) rowActions.push({ id: 'delete', label: this.t('common.delete'), variant: 'danger' });
+    rowActions.push(...this.extraRowActions);
 
     const toolbarActions: ToolbarAction[] = [];
     if (canCreate) toolbarActions.push({ id: 'new', label: this.t('common.new'), variant: 'primary' });
+    toolbarActions.push(...this.extraToolbarActions);
 
     const table = this.$<BDataTable>('#table');
     if (!table) return;
@@ -200,17 +261,12 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
       columns: this.columns,
       searchable: this.searchable,
       pageSize: this.pageSize,
+      flatArray: this.flatArray,
       rowActions: rowActions.length ? rowActions : undefined,
       actions: toolbarActions.length ? toolbarActions : undefined,
       idField: this.idField,
     });
     table.load();
-  }
-
-  private _setupForm(): void {
-    const form = this.$<BForm>('#form');
-    if (!form) return;
-    form.setSchema(this.formSchema);
   }
 
   private _wireEvents(): void {
@@ -252,10 +308,12 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     if (!modal || !form) return;
 
     this._editingId = null;
+    form.setSchema(this.formSchema);
     form.reset();
     form.clearErrors();
     modal.setAttribute('title', this.t('common.new'));
     modal.open();
+    this.onFormReady(form, null);
   }
 
   private async _openEdit(id: string): Promise<void> {
@@ -265,6 +323,7 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     if (!modal || !form || !saveBtn) return;
 
     this._editingId = id;
+    form.setSchema(this.editFormSchema);
     modal.setAttribute('title', this.t('common.edit'));
     saveBtn.setAttribute('loading', '');
     modal.open();
@@ -280,7 +339,10 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
 
     form.reset();
     form.clearErrors();
-    form.setValues(this.mapToForm(resp.data));
+    requestAnimationFrame(() => {
+      form.setValues(this.mapToForm(resp.data));
+      this.onFormReady(form, resp.data);
+    });
   }
 
   private async _confirmDelete(id: string): Promise<void> {
@@ -311,9 +373,11 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
 
     saveBtn.setAttribute('loading', '');
 
-    const resp = this._editingId
-      ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, data)
-      : await this.api.post<T>(this.endpoint, data);
+    const isEdit = this._editingId !== null;
+    const body = this.mapFromForm(data, isEdit);
+    const resp = isEdit
+      ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
+      : await this.api.post<T>(this.endpoint, body);
 
     saveBtn.removeAttribute('loading');
 
