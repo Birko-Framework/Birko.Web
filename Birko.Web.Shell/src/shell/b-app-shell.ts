@@ -1,6 +1,6 @@
 import { BaseComponent } from 'birko-web-core';
 import type { RibbonTab, BRibbon, BDropdownMenu } from 'birko-web-components';
-import type { MenuItem, TenantItem, ShellRoutes, ConnectionState } from './shell-types.js';
+import type { MenuItem, TenantItem, ShellRoutes, ConnectionState, BreadcrumbItem } from './shell-types.js';
 import { openCommandPalette } from 'birko-web-components/command';
 
 /**
@@ -87,6 +87,20 @@ export abstract class BAppShell extends BaseComponent {
 
   /** Called when a ribbon item is clicked (default: noop). */
   protected onItemClick(_tabId: string, _groupId: string, _itemId: string): void {}
+
+  /**
+   * Called when a page emits a `'set-breadcrumbs'` event via `setBreadcrumbs()`.
+   *
+   * Override to update your app's `<b-breadcrumb>` element or any other UI.
+   * Default: no-op — breadcrumb display is intentionally left to the subclass
+   * so the shell layout stays flexible.
+   *
+   * @example
+   * protected onBreadcrumbsChange(items: BreadcrumbItem[]): void {
+   *   this.$<BBreadcrumb>('#breadcrumb')?.setItems(items);
+   * }
+   */
+  protected onBreadcrumbsChange(_items: BreadcrumbItem[]): void {}
 
   // ── Notifications (return null/0 to hide) ──────────────────────────────────
 
@@ -511,6 +525,11 @@ export abstract class BAppShell extends BaseComponent {
     // Context actions from pages
     this.addEventListener('ribbon-actions', ((e: CustomEvent<{ items: unknown[] }>) => {
       this.$<BRibbon>('#ribbon')?.setContextActions(e.detail.items as any[]);
+    }) as EventListener);
+
+    // Breadcrumb updates from pages (emitted via setBreadcrumbs())
+    this.addEventListener('set-breadcrumbs', ((e: CustomEvent<{ items: BreadcrumbItem[] }>) => {
+      this.onBreadcrumbsChange(e.detail.items);
     }) as EventListener);
   }
 

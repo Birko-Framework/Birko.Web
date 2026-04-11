@@ -11,6 +11,8 @@
     "./notifications": "./src/notifications/index.ts",
     "./connection": "./src/connection/index.ts",
     "./commands": "./src/commands/index.ts",
-    "./feedback": "./src/feedback/index.ts"
+    "./feedback": "./src/feedback/index.ts",
+    "./pages": "./src/pages/index.ts",
+    "./dashboard": "./src/dashboard/index.ts"
   }
 }

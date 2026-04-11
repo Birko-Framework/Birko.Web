@@ -6,3 +6,5 @@ export * from './notifications/index.js';
 export * from './connection/index.js';
 export * from './commands/index.js';
 export * from './feedback/index.js';
+export * from './pages/index.js';
+export * from './dashboard/index.js';

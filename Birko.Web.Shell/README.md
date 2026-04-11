@@ -8,7 +8,7 @@ Your app extends `BAppShell`, implements 7 abstract methods, and gets a fully fu
 
 ```
 birko-web-shell                # main (re-exports everything)
-birko-web-shell/shell          # BAppShell, createShellWrapper, types
+birko-web-shell/shell          # BAppShell, createShellWrapper, setBreadcrumbs, types
 birko-web-shell/auth           # createAuthStore, createAuthGuard, createModuleGuard
 birko-web-shell/modules        # createModuleStore, buildRibbon, permissions
 birko-web-shell/tenants        # TenantInfo, TenantState, applyBranding
@@ -16,6 +16,8 @@ birko-web-shell/notifications  # createNotificationStore
 birko-web-shell/connection     # createConnectionStateManager
 birko-web-shell/commands       # createModuleNavProvider, createEntitySearchProvider
 birko-web-shell/feedback       # Re-exports BStaleBanner from birko-web-components
+birko-web-shell/pages          # BaseListPage, BaseDetailPage, BaseFormModal
+birko-web-shell/dashboard      # BaseDashboardWidget
 ```
 
 ## Dependencies
@@ -53,6 +55,8 @@ const aliases = {
   'birko-web-shell/connection':     'C:/Source/Birko.Web.Shell/src/connection/index.ts',
   'birko-web-shell/commands':       'C:/Source/Birko.Web.Shell/src/commands/index.ts',
   'birko-web-shell/feedback':       'C:/Source/Birko.Web.Shell/src/feedback/index.ts',
+  'birko-web-shell/pages':          'C:/Source/Birko.Web.Shell/src/pages/index.ts',
+  'birko-web-shell/dashboard':      'C:/Source/Birko.Web.Shell/src/dashboard/index.ts',
 };
 ```
 
@@ -194,6 +198,7 @@ That's it. You now have a fully functional app shell with ribbon, user menu, sta
 | `getUserMenuItems()` | Profile, Settings, Sign out | User dropdown items |
 | `onUserMenuSelect(id)` | Navigate to routes | User menu handler |
 | `onItemClick(tab, group, item)` | noop | Ribbon item click |
+| `onBreadcrumbsChange(items)` | noop | Called when a page fires `setBreadcrumbs()` |
 
 ### Notifications (return `null`/`0` to hide bell)
 
@@ -457,6 +462,317 @@ Optional features are controlled by what your abstract methods return — no exp
 | Connection indicator | Return `null` from `getConnectionState()` |
 | Command palette | Set `showCommandPalette` to `false` |
 | Version badge | Return `''` from `version` |
+
+---
+
+## Page base classes
+
+Abstract base classes that eliminate boilerplate across list, detail, and modal pages. Import from `birko-web-shell/pages`.
+
+### BaseListPage\<T\>
+
+Provides a full CRUD list page: auto-fetching data table, search, toolbar actions, create/edit modal, delete confirmation, permission checks.
+
+```typescript
+import { BaseListPage } from 'birko-web-shell/pages';
+import { define } from 'birko-web-core';
+
+class DevicesPage extends BaseListPage<Device> {
+  // ── Required ──
+  endpoint = 'api/devices';
+
+  get api() { return appApi; }
+
+  get columns(): TableColumn[] {
+    return [
+      { key: 'name',   label: 'Name',   sortable: true },
+      { key: 'status', label: 'Status', render: v => `<b-badge>${v}</b-badge>` },
+    ];
+  }
+
+  get formSchema(): FormSchema {
+    return {
+      name: 'root',
+      children: [
+        { name: 'name',   type: 'text',  label: 'Name',   required: true },
+        { name: 'status', type: 'select', label: 'Status' },
+      ],
+    };
+  }
+
+  // ── Optional ──
+  entityLabel = 'Device';               // used in toast messages
+  idField     = 'id';                   // default: 'id'
+  searchable  = true;
+  pageSize    = 25;
+
+  createPermission = 'device:create';   // hides Create button if not held
+  editPermission   = 'device:edit';
+  deletePermission = 'device:delete';
+
+  hasPermission(perm: string) { return hasModulePerm(perm); }
+
+  // Map API row → form values (runs before opening create/edit modal)
+  mapToForm(row: Device) {
+    return { name: row.name, status: row.status };
+  }
+
+  // Row click → navigate instead of opening modal (optional)
+  onRowClick(row: Device) {
+    window.location.hash = `#/devices/${row.id}`;
+  }
+}
+
+define('devices-page', DevicesPage);
+```
+
+**Extension points:**
+
+| Method | Default | Description |
+|--------|---------|-------------|
+| `entityLabel` | `'Item'` | Used in "Item created" / "Item deleted" toasts |
+| `idField` | `'id'` | Primary key field for row identification |
+| `searchable` | `true` | Show search bar |
+| `pageSize` | `20` | Rows per page |
+| `createPermission` | `''` (always shown) | Permission key controlling Create button visibility |
+| `editPermission` | `''` | Permission key controlling Edit row action |
+| `deletePermission` | `''` | Permission key controlling Delete row action |
+| `hasPermission(perm)` | `() => true` | Resolve a permission key → boolean |
+| `mapToForm(row)` | identity | Transform API row to form initial values |
+| `t(key, params?)` | `() => key` | i18n translation function |
+| `onRowClick(row)` | opens edit modal | Handle row click |
+| `onToolbarAction(id)` | noop | Handle extra toolbar action buttons |
+| `onRowAction(actionId, row)` | noop | Handle extra per-row action buttons |
+| `reload()` | re-fetches data | Public — call to refresh from outside |
+
+---
+
+### BaseDetailPage\<T\>
+
+Provides a detail/edit page: loads entity by ID from URL, populates a form, handles save and cancel navigation.
+
+```typescript
+import { BaseDetailPage } from 'birko-web-shell/pages';
+import { define } from 'birko-web-core';
+
+class DeviceDetailPage extends BaseDetailPage<Device> {
+  // ── Required ──
+  endpoint = 'api/devices';   // entity is loaded from: {endpoint}/{id}
+
+  get api() { return appApi; }
+
+  get formSchema(): FormSchema {
+    return {
+      name: 'root',
+      children: [
+        { name: 'name',   type: 'text',   label: 'Name',   required: true },
+        { name: 'status', type: 'select', label: 'Status' },
+      ],
+    };
+  }
+
+  // ── Optional ──
+  entityLabel = 'Device';
+  backHash    = '#/devices';  // null = history.back()
+  readonly    = false;        // true = hides Save button, adds readonly attr to form
+
+  // Runs after entity is loaded — use to populate cascading selects, etc.
+  protected async onEntityLoaded(entity: Device) {
+    const warehouseOptions = await loadOptions(appApi, `api/warehouses?zoneId=${entity.zoneId}`);
+    this.child<BForm>('#form')?.setFieldOptions('warehouseId', warehouseOptions);
+  }
+
+  // Custom save handler (default: PUT {endpoint}/{id})
+  protected async onSave(data: Record<string, unknown>) {
+    await appApi.put(`api/devices/${this._id}`, data);
+    toast.success('Device saved');
+    window.location.hash = this.backHash ?? '#/devices';
+  }
+}
+
+define('device-detail-page', DeviceDetailPage);
+```
+
+**Extension points:**
+
+| Property/Method | Default | Description |
+|----------------|---------|-------------|
+| `entityLabel` | `'Item'` | Toast messages |
+| `backHash` | `null` | Cancel destination (`null` = `history.back()`) |
+| `readonly` | `false` | Disables form + hides Save |
+| `onEntityLoaded(entity)` | noop | Hook after entity is fetched |
+| `onSave(data)` | PUT to endpoint | Override to customize save |
+| `t(key, params?)` | `() => key` | i18n |
+
+ID is extracted from the URL automatically: tries named router param `/:id` first, then the last segment of the hash path (`#/devices/abc123` → `abc123`).
+
+---
+
+### BaseFormModal\<T\>
+
+A modal containing a form that handles both create and edit modes.
+
+```typescript
+import { BaseFormModal } from 'birko-web-shell/pages';
+import { define } from 'birko-web-core';
+
+class DeviceFormModal extends BaseFormModal<Device> {
+  // ── Required ──
+  endpoint = 'api/devices';
+
+  get api() { return appApi; }
+
+  get formSchema(): FormSchema {
+    return {
+      name: 'root',
+      children: [
+        { name: 'name', type: 'text', label: 'Name', required: true },
+      ],
+    };
+  }
+
+  // ── Optional ──
+  entityLabel = 'Device';
+
+  // Called after successful create or edit
+  protected onSuccess(item: Device, isEdit: boolean) {
+    toast.success(isEdit ? 'Device updated' : 'Device created');
+    this.emit('form-success', item);  // default behavior
+    devicesPage.reload();             // refresh the list
+  }
+}
+
+define('device-form-modal', DeviceFormModal);
+```
+
+```html
+<device-form-modal id="modal"></device-form-modal>
+```
+
+```typescript
+// Open in create mode:
+modal.open();
+
+// Open in edit mode (fetches entity by id):
+modal.open(device.id);
+```
+
+`onSuccess` receives the created/updated item and `isEdit` flag. The default implementation emits `form-success` with the item as detail.
+
+---
+
+## Dashboard widgets
+
+### BaseDashboardWidget\<TConfig\>
+
+Abstract base for dashboard widgets with auto-refresh and API access.
+
+```typescript
+import { BaseDashboardWidget, type WidgetConfig } from 'birko-web-shell/dashboard';
+import { define } from 'birko-web-core';
+
+interface DeviceCountConfig extends WidgetConfig {
+  zoneId?: string;
+}
+
+class DeviceCountWidget extends BaseDashboardWidget<DeviceCountConfig> {
+  private _count = 0;
+
+  static get styles() {
+    return `
+      :host { display: block; }
+      .count { font-size: 2rem; font-weight: bold; }
+    `;
+  }
+
+  render() {
+    return `
+      ${this.renderHeader('Online Devices')}
+      <div class="count">${this._count}</div>
+    `;
+  }
+
+  protected async refresh() {
+    const resp = await this.api.get<{ count: number }>('api/devices/count', {
+      zone: this._config?.zoneId,
+    });
+    if (resp.ok && resp.data) {
+      this._count = resp.data.count;
+      this.update();
+    }
+  }
+}
+
+define('device-count-widget', DeviceCountWidget);
+```
+
+```typescript
+// Mount the widget:
+const widget = document.createElement('device-count-widget') as DeviceCountWidget;
+widget.setConfig({
+  apiClient: appApi,
+  refreshInterval: 30000,  // auto-refresh every 30 s (0 = manual only)
+  zoneId: 'zone-1',
+});
+container.appendChild(widget);
+```
+
+**API:**
+
+| Member | Description |
+|--------|-------------|
+| `setConfig(config)` | Initialize widget, start auto-refresh timer |
+| `protected get api()` | Returns `ApiClient`; throws if not yet configured |
+| `protected abstract refresh()` | Override to fetch data and call `this.update()` |
+| `protected renderHeader(title)` | Renders a header row with title + manual refresh button |
+| `onUnmount()` | Stops auto-refresh timer automatically |
+
+**WidgetConfig:**
+
+```typescript
+interface WidgetConfig {
+  apiClient: ApiClient;
+  refreshInterval?: number;  // ms, 0 or omit = no auto-refresh
+  [key: string]: unknown;    // extend with your own config properties
+}
+```
+
+---
+
+## Breadcrumbs
+
+Pages can update the shell's breadcrumb trail by dispatching a `set-breadcrumbs` event that bubbles up to `BAppShell`. The shell calls `onBreadcrumbsChange()` which you override to update your `<b-breadcrumb>` component.
+
+### From a page
+
+```typescript
+import { setBreadcrumbs } from 'birko-web-shell/shell';
+
+// Call from onMount() or after loading the entity:
+setBreadcrumbs(this, [
+  { label: 'Devices', href: '#/devices' },
+  { label: device.name },
+]);
+```
+
+`setBreadcrumbs(source, items)` dispatches a `set-breadcrumbs` CustomEvent with `bubbles: true, composed: true` — it will reach the shell even from inside a shadow DOM.
+
+### In your shell
+
+```typescript
+class AppShell extends BAppShell {
+  protected onBreadcrumbsChange(items: BreadcrumbItem[]) {
+    this.child<BBreadcrumb>('#breadcrumb')?.setItems(items);
+  }
+}
+```
+
+```typescript
+interface BreadcrumbItem {
+  label: string;
+  href?: string;  // omit for the current (last) item
+}
+```
 
 ---
 

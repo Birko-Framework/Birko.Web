@@ -1,3 +1,10 @@
+/** A single item in a breadcrumb trail emitted by pages via `setBreadcrumbs()`. */
+export interface BreadcrumbItem {
+  label: string;
+  /** Navigation hash — `undefined` for the last (current) item which is not clickable. */
+  href?: string;
+}
+
 export interface MenuItem {
   id: string;
   label: string;
