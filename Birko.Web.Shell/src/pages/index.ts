@@ -1,3 +1,5 @@
+export { BasePage } from './base-page.js';
+export { BaseCrudPage } from './base-crud-page.js';
 export { BaseListPage } from './base-list-page.js';
 export { BaseSplitPage } from './base-split-page.js';
 export { BaseDetailPage } from './base-detail-page.js';
