@@ -2,19 +2,12 @@ import { BaseComponent, define } from 'birko-web-core';
 import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import type { TableColumn } from './b-table.js';
 import type { DropdownItem } from '../layout/b-dropdown-menu.js';
-import { DEFAULT_PAGE_SIZES } from './b-pagination.js';
 import './b-table.js';
 import './b-pagination.js';
-import '../inputs/b-search-input.js';
 import '../layout/b-dropdown-menu.js';
+import '../inputs/b-button.js';
 
 // ── Config types ──
-
-export interface ColumnFilter {
-  key: string;
-  label: string;
-  options: { value: string; label: string }[];
-}
 
 export interface ToolbarAction {
   id: string;
@@ -42,12 +35,6 @@ export interface RowAction {
   visible?: (row: Record<string, unknown>) => boolean;
 }
 
-export interface ExportOption {
-  id: string;
-  label: string;
-  icon?: string;
-}
-
 export interface DataTableConfig {
   endpoint: string;
   columns: TableColumn[];
@@ -59,13 +46,6 @@ export interface DataTableConfig {
   params?: Record<string, string>;
   flatArray?: boolean;
 
-  // Toolbar
-  searchable?: boolean;
-  searchPlaceholder?: string;
-  searchDebounce?: number;
-  filters?: ColumnFilter[];
-  actions?: ToolbarAction[];
-
   // Selection + bulk
   selectable?: boolean;
   bulkActions?: BulkAction[];
@@ -75,10 +55,6 @@ export interface DataTableConfig {
 
   // Row actions
   rowActions?: RowAction[];
-
-  // Export
-  exportable?: boolean;
-  exportFormats?: ExportOption[];
 
   // Labels (i18n)
   paginationLabels?: PaginationLabels;
@@ -97,7 +73,6 @@ export interface PaginationLabels {
 
 export interface DataTableLabels {
   selected?: string;
-  export?: string;
   confirmDefault?: string;
   noData?: string;
 }
@@ -106,7 +81,9 @@ export interface DataTableLabels {
 export const PAGE_SIZE_STORAGE_KEY = 'symbio-page-size';
 
 /**
- * Auto-fetching data table with toolbar, selection, bulk actions, row actions, export, and pagination.
+ * Auto-fetching data grid with pagination, selection, bulk actions, row actions, and inline editing.
+ * Filtering is handled externally via `setFilters()` — the page-level filter row
+ * collects filter values and passes them as query params.
  */
 export class BDataTable extends BaseComponent {
   static get observedAttributes() { return ['loading']; }
@@ -119,49 +96,24 @@ export class BDataTable extends BaseComponent {
   private _totalCount = 0;
   private _loading = false;
   private _selected = new Set<string>();
-  private _searchQuery = '';
-  private _activeFilters = new Map<string, string>();
+  private _filters: Record<string, string> = {};
 
   static get styles() {
     return `
       :host { display: block; }
       .data-table { display: flex; flex-direction: column; gap: var(--b-space-sm, 0.5rem); }
 
-      /* Toolbar */
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--b-space-sm, 0.5rem);
-        flex-wrap: wrap;
-      }
-      .toolbar-left { display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); flex: 1; min-width: 0; }
-      .toolbar-right { display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); }
-      .toolbar b-search-input { max-width: 16rem; }
-      .filter-select {
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        font-size: var(--b-text-sm, 0.8125rem);
-        background: var(--b-bg);
-        color: var(--b-text);
-        cursor: pointer;
-      }
-
       /* Selection */
       .select-col { width: 2.5rem; text-align: center; }
       .select-col input { cursor: pointer; }
 
       /* Row actions */
-      .row-actions-col { width: 2.5rem; text-align: center; }
-      .row-action-trigger {
-        background: none; border: none; cursor: pointer;
-        color: var(--b-text-muted);
-        font-size: var(--b-text-lg, 1rem);
-        padding: var(--b-space-xs, 0.25rem);
-        border-radius: var(--b-radius, 0.375rem);
-        line-height: 1;
+      .row-actions-col { width: var(--b-space-xl, 3rem); text-align: center; }
+      .row-action-trigger-icon {
+        font-size: var(--b-text-lg, 1.125rem);
+        font-weight: 600;
+        user-select: none;
       }
-      .row-action-trigger:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
 
       /* Footer with bulk actions */
       .footer {
@@ -172,7 +124,7 @@ export class BDataTable extends BaseComponent {
         gap: var(--b-space-sm, 0.5rem);
         position: sticky; bottom: 0; z-index: 1;
         background: var(--b-bg);
-        padding-top: var(--b-space-xs, 0.25rem);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem) 0 0;
       }
       .bulk-bar {
         display: flex;
@@ -199,11 +151,20 @@ export class BDataTable extends BaseComponent {
   setConfig(config: DataTableConfig) {
     this._config = config;
     this._selected.clear();
-    this._activeFilters.clear();
-    this._searchQuery = '';
+    this._filters = {};
     this._pageSize = this._resolvePageSize();
     this.update();
     this._applyData();
+  }
+
+  /**
+   * Set external filter parameters.
+   * Merges into query params on next load, resets to page 1, and triggers a reload.
+   */
+  setFilters(params: Record<string, string>): void {
+    this._filters = { ...params };
+    this._page = 1;
+    this.load();
   }
 
   async load(page?: number): Promise<void> {
@@ -222,9 +183,8 @@ export class BDataTable extends BaseComponent {
         params['pageSize'] = String(pageSize);
       }
 
-      // Pass search and filters as query params
-      if (this._searchQuery) params['search'] = this._searchQuery;
-      for (const [k, v] of this._activeFilters) {
+      // Merge external filters as query params
+      for (const [k, v] of Object.entries(this._filters)) {
         if (v) params[k] = v;
       }
 
@@ -313,7 +273,6 @@ export class BDataTable extends BaseComponent {
   render() {
     if (!this._config) return '<div class="data-table"></div>';
 
-    const hasToolbar = this._config.searchable || this._config.filters?.length || this._config.actions?.length || this._config.exportable;
     const hasBulk = this._selected.size > 0 && this._config.bulkActions?.length;
 
     const pageSizeAttr = this._showPageSizePicker() ? ` page-size="${this._pageSize}"` : '';
@@ -323,7 +282,6 @@ export class BDataTable extends BaseComponent {
 
     return `
       <div class="data-table">
-        ${hasToolbar ? this._renderToolbar() : ''}
         <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${this._config.labels.noData}"` : ''}></b-table>
         <div class="footer">
           ${hasBulk ? this._renderBulkBar() : '<span></span>'}
@@ -331,42 +289,6 @@ export class BDataTable extends BaseComponent {
         </div>
       </div>
     `;
-  }
-
-  private _renderToolbar(): string {
-    const c = this._config!;
-    let left = '';
-    let right = '';
-
-    if (c.searchable) {
-      left += `<b-search-input placeholder="${c.searchPlaceholder ?? 'Search...'}" debounce="${c.searchDebounce ?? 300}" value="${this._searchQuery}"></b-search-input>`;
-    }
-
-    if (c.filters) {
-      for (const f of c.filters) {
-        const active = this._activeFilters.get(f.key) ?? '';
-        left += `<select class="filter-select" data-filter="${f.key}">
-          <option value="">${f.label}</option>
-          ${f.options.map(o => `<option value="${o.value}" ${o.value === active ? 'selected' : ''}>${o.label}</option>`).join('')}
-        </select>`;
-      }
-    }
-
-    if (c.exportable && c.exportFormats?.length) {
-      if (c.exportFormats.length === 1) {
-        right += `<b-button variant="secondary" size="sm" class="export-btn" data-format="${c.exportFormats[0].id}">${c.exportFormats[0].icon ?? ''}${c.exportFormats[0].label}</b-button>`;
-      } else {
-        right += `<b-dropdown-menu id="export-menu" align="right"></b-dropdown-menu>`;
-      }
-    }
-
-    if (c.actions) {
-      for (const a of c.actions) {
-        right += `<b-button variant="${a.variant ?? 'primary'}" size="sm" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
-      }
-    }
-
-    return `<div class="toolbar"><div class="toolbar-left">${left}</div><div class="toolbar-right">${right}</div></div>`;
   }
 
   private _renderBulkBar(): string {
@@ -381,63 +303,6 @@ export class BDataTable extends BaseComponent {
 
   protected onUpdated() {
     if (!this._config) return;
-
-    // Search
-    const searchInput = this.$<HTMLElement>('b-search-input');
-    if (searchInput) {
-      this.listen(searchInput, 'search', ((e: CustomEvent) => {
-        this._searchQuery = e.detail.value;
-        this._page = 1;
-        this.load();
-      }) as EventListener);
-    }
-
-    // Filters
-    this.$$<HTMLSelectElement>('.filter-select').forEach(sel => {
-      this.listen(sel, 'change', () => {
-        const key = sel.dataset.filter!;
-        if (sel.value) {
-          this._activeFilters.set(key, sel.value);
-        } else {
-          this._activeFilters.delete(key);
-        }
-        this._page = 1;
-        this.load();
-      });
-    });
-
-    // Export dropdown
-    if (this._config.exportFormats && this._config.exportFormats.length > 1) {
-      const menu = this.$('#export-menu') as any;
-      if (menu?.setItems) {
-        menu.setItems(this._config.exportFormats.map((f): DropdownItem => ({ id: f.id, label: f.label, icon: f.icon })));
-        // Add trigger button
-        const trigger = document.createElement('b-button');
-        trigger.setAttribute('variant', 'secondary');
-        trigger.setAttribute('size', 'sm');
-        trigger.setAttribute('slot', 'trigger');
-        trigger.textContent = this._config!.labels?.export ?? 'Export';
-        menu.appendChild(trigger);
-        this.listen(menu, 'select', ((e: CustomEvent) => {
-          this._emitExport(e.detail.id);
-        }) as EventListener);
-      }
-    }
-
-    // Export single button
-    const exportBtn = this.$<HTMLElement>('.export-btn');
-    if (exportBtn) {
-      this.listen(exportBtn, 'click', () => {
-        this._emitExport(exportBtn.dataset.format ?? '');
-      });
-    }
-
-    // Toolbar actions
-    this.$$<HTMLElement>('.toolbar-action').forEach(btn => {
-      this.listen(btn, 'click', () => {
-        this.emit('toolbar-action', { action: btn.dataset.action });
-      });
-    });
 
     // Pagination
     const pagination = this.$<HTMLElement>('b-pagination');
@@ -543,7 +408,7 @@ export class BDataTable extends BaseComponent {
         align: 'center',
         render: (_v, row) => {
           const id = this._rowId(row);
-          return `<button class="row-action-trigger" data-id="${id}" type="button">&#8943;</button>`;
+          return `<b-button variant="secondary" size="sm" class="row-action-trigger" data-id="${id}" aria-label="${this._config?.labels?.actions ?? 'Actions'}"><span class="row-action-trigger-icon">⋮</span></b-button>`;
         },
       });
     }
@@ -621,13 +486,15 @@ export class BDataTable extends BaseComponent {
         // Create a temporary dropdown
         const menu = document.createElement('b-dropdown-menu') as any;
         menu.setAttribute('align', 'right');
-        menu.style.position = 'absolute';
-        menu.style.zIndex = '1000';
 
-        // Position near the button
+        // Position the menu element at the button location
+        // The internal _positionMenu uses this.getBoundingClientRect() to position the popover
         const rect = btn.getBoundingClientRect();
+        menu.style.position = 'fixed';
         menu.style.left = `${rect.left}px`;
         menu.style.top = `${rect.bottom}px`;
+        menu.style.width = `${rect.width}px`;
+        menu.style.height = '0';
 
         document.body.appendChild(menu);
         menu.setItems(actions);
@@ -755,18 +622,6 @@ export class BDataTable extends BaseComponent {
     input.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
       if (e.key === 'Escape') { cancel(); input.blur(); }
-    });
-  }
-
-  private _emitExport(format: string) {
-    const filters: Record<string, unknown> = {};
-    for (const [k, v] of this._activeFilters) filters[k] = v;
-    if (this._searchQuery) filters['search'] = this._searchQuery;
-
-    this.emit('export', {
-      format,
-      selected: this.getSelected(),
-      filters,
     });
   }
 

@@ -22,7 +22,8 @@ export class BTabs extends BaseComponent {
       .tab:hover { color: var(--b-text); }
       .tab:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .tab.active { color: var(--b-color-primary); border-bottom-color: var(--b-color-primary); }
-      .tab-content { padding: var(--b-space-lg, 1rem) 0; }
+      .tab-panel { visibility: hidden; height: 0; overflow: hidden; padding: 0; }
+      .tab-panel.active { visibility: visible; height: auto; overflow: visible; padding: var(--b-space-lg, 1rem) 0; }
     `;
   }
 
@@ -51,9 +52,12 @@ export class BTabs extends BaseComponent {
             data-tab="${t.id}">${t.label}</button>`;
         }).join('')}
       </div>
-      <div class="tab-content" role="tabpanel" id="tabpanel-${active}" aria-labelledby="${active}">
-        <slot name="${active}"></slot>
-      </div>
+      ${this._tabs.map(t => {
+        const isActive = t.id === active;
+        return `<div class="tab-panel ${isActive ? 'active' : ''}" role="tabpanel" id="tabpanel-${t.id}" aria-labelledby="${t.id}">
+          <slot name="${t.id}"></slot>
+        </div>`;
+      }).join('')}
     `;
   }
 

@@ -1,4 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
+import '../inputs/b-button.js';
+import '../inputs/b-select.js';
 
 export const DEFAULT_PAGE_SIZES = [10, 20, 50, 100];
 
@@ -14,27 +16,10 @@ export class BPagination extends BaseComponent {
       }
       .pagination-left { display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); }
       .pages { display: flex; gap: var(--b-space-xs, 0.25rem); }
-      .page-btn {
-        min-width: var(--b-page-btn-size, 2rem); height: var(--b-page-btn-size, 2rem);
-        display: flex; align-items: center; justify-content: center;
-        border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius);
-        background: var(--b-bg); cursor: pointer; font-size: var(--b-text-sm);
-        transition: all var(--b-transition, 150ms ease);
-      }
-      .page-btn:hover:not(:disabled):not(.active) { background: var(--b-bg-tertiary); border-color: var(--b-border-hover); }
-      .page-btn.active { background: var(--b-color-primary); color: var(--b-text-inverse); border-color: var(--b-color-primary); }
-      .page-btn:disabled { opacity: var(--b-disabled-opacity, 0.5); cursor: not-allowed; }
+      .page-btn-active { background: var(--b-color-primary); color: var(--b-text-inverse); border-color: var(--b-color-primary); }
       .info { color: var(--b-text-muted); }
       .ellipsis { padding: 0 var(--b-space-xs, 0.25rem); color: var(--b-text-muted); align-self: flex-end; }
-      .page-size-select {
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius);
-        font-size: var(--b-text-sm, 0.8125rem);
-        background: var(--b-bg);
-        color: var(--b-text);
-        cursor: pointer;
-      }
+      .page-size-wrapper { display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); }
     `;
   }
 
@@ -61,42 +46,56 @@ export class BPagination extends BaseComponent {
       <nav class="pagination" role="navigation" aria-label="${this.attr('label-pagination', 'Pagination')}">
         <div class="pagination-left">
           <span class="info">${totalCount ? `${totalCount} ${lItems}` : `${lPage} ${page} ${lOf} ${totalPages}`}</span>
-          ${showSizePicker ? `
-            <select class="page-size-select" aria-label="${lPageSize}">
-              ${pageSizes.map(s => `<option value="${s}" ${s === pageSize ? 'selected' : ''}>${s} ${lPerPage}</option>`).join('')}
-            </select>
-          ` : ''}
+          ${showSizePicker ? `<b-select class="page-size-select" aria-label="${lPageSize}"></b-select>` : ''}
         </div>
         <div class="pages">
-          <button class="page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} aria-label="${lPrev}">&lsaquo;</button>
+          <b-button variant="ghost" size="sm" class="page-btn-prev" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} aria-label="${lPrev}">&lsaquo;</b-button>
           ${pages.map(p =>
             p === '...'
               ? '<span class="ellipsis">...</span>'
-              : `<button class="page-btn ${p === page ? 'active' : ''}" data-page="${p}" ${p === page ? 'aria-current="page"' : ''} aria-label="${lPage} ${p}">${p}</button>`
+              : `<b-button variant="${p === page ? 'primary' : 'ghost'}" size="sm" class="page-btn" data-page="${p}" ${p === page ? 'aria-current="page"' : ''} aria-label="${lPage} ${p}">${p}</b-button>`
           ).join('')}
-          <button class="page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} aria-label="${lNext}">&rsaquo;</button>
+          <b-button variant="ghost" size="sm" class="page-btn-next" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} aria-label="${lNext}">&rsaquo;</b-button>
         </div>
       </nav>
     `;
   }
 
   protected onUpdated() {
-    this.$$<HTMLButtonElement>('.page-btn:not(:disabled)').forEach(btn => {
-      this.listen(btn, 'click', () => {
-        const page = Number(btn.dataset.page);
-        if (page > 0) {
-          this.setAttribute('page', String(page));
-          this.emit('page-change', { page });
-        }
-      });
+    // Page buttons (b-button)
+    this.$$<HTMLElement>('.page-btn, .page-btn-prev, .page-btn-next').forEach(btn => {
+      const page = Number(btn.dataset.page);
+      // Listen on the internal button element
+      const internalBtn = btn.querySelector('button');
+      if (internalBtn && !internalBtn.disabled) {
+        this.listen(internalBtn, 'click', () => {
+          if (page > 0) {
+            this.setAttribute('page', String(page));
+            this.emit('page-change', { page });
+          }
+        });
+      }
     });
 
-    const sizeSelect = this.$<HTMLSelectElement>('.page-size-select');
-    if (sizeSelect) this.listen(sizeSelect, 'change', (e: Event) => {
-      const size = Number((e.target as HTMLSelectElement).value);
-      this.setAttribute('page-size', String(size));
-      this.emit('page-size-change', { pageSize: size });
-    });
+    // Page size select (b-select)
+    const sizeSelect = this.$<HTMLElement>('.page-size-select') as any;
+    if (sizeSelect) {
+      const pageSize = this.numAttr('page-size', 0);
+      const pageSizes = this._getPageSizes();
+      const lPerPage = this.attr('label-per-page', '/ page');
+
+      // Set options using the component's API
+      const options = pageSizes.map(s => ({ value: String(s), label: `${s} ${lPerPage}` }));
+      sizeSelect.setOptions(options);
+      sizeSelect.inputValue = String(pageSize);
+
+      // Listen for changes
+      this.listen(sizeSelect, 'change', (e: CustomEvent) => {
+        const size = Number(e.detail.value);
+        this.setAttribute('page-size', String(size));
+        this.emit('page-size-change', { pageSize: size });
+      });
+    }
   }
 
   private _getPageSizes(): number[] {

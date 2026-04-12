@@ -12,6 +12,7 @@ export { BMultiSelect, type MultiSelectOption } from './b-multi-select.js';
 export { BFileUpload, type UploadFile, type UploadResult } from './b-file-upload.js';
 export { BRange } from './b-range.js';
 export { BDatePicker } from './b-date-picker.js';
+export { type FilterDef, type FilterOption } from './filter-types.js';
 export { BDatetimePicker } from './b-datetime-picker.js';
 export { BTime } from './b-time.js';
 export {
