@@ -227,8 +227,31 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       'common.confirmDelete': `Delete this ${this.entityLabel}? This cannot be undone.`,
       'common.saved':         `${this.entityLabel} saved`,
       'common.deleted':       `${this.entityLabel} deleted`,
+      'comp.pagination.items': 'items',
+      'comp.pagination.page': 'Page',
+      'comp.pagination.of': 'of',
+      'comp.pagination.perPage': '/ page',
+      'comp.pagination.prev': 'Previous page',
+      'comp.pagination.next': 'Next page',
+      'comp.pagination.pageSize': 'Page size',
     };
     return defaults[key] ?? key;
+  }
+
+  /**
+   * Get translated pagination labels.
+   * Uses the translation function; returns English defaults if not overridden.
+   */
+  protected _getPaginationLabels() {
+    return {
+      items: this.t('comp.pagination.items'),
+      page: this.t('comp.pagination.page'),
+      of: this.t('comp.pagination.of'),
+      perPage: this.t('comp.pagination.perPage'),
+      prev: this.t('comp.pagination.prev'),
+      next: this.t('comp.pagination.next'),
+      pageSize: this.t('comp.pagination.pageSize'),
+    };
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
@@ -433,6 +456,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       flatArray: this.flatArray,
       rowActions: rowActions.length ? rowActions : undefined,
       idField: this.idField,
+      paginationLabels: this._getPaginationLabels(),
     });
   }
 

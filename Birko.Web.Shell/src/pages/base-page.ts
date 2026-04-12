@@ -35,8 +35,8 @@ import { BaseComponent } from 'birko-web-core';
  */
 export abstract class BasePage extends BaseComponent {
 
-  /** Page title shown in the header. */
-  protected pageTitle = '';
+  /** Page title shown in the header. Subclasses set via field or getter. */
+  protected declare pageTitle: string;
 
   // ── Content ───────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export abstract class BasePage extends BaseComponent {
     const actions = this.renderHeaderActions();
     return `
       <header class="page-header">
-        <h1 class="page-title">${this.pageTitle}</h1>
+        <h1 class="page-title">${this.pageTitle ?? ''}</h1>
         ${actions ? `<div class="header-actions">${actions}</div>` : ''}
       </header>
     `;

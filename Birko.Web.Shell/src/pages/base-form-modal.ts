@@ -60,7 +60,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
   protected entityLabel = 'Item';
 
   /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium). */
-  protected modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
+  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
 
   /**
    * Map a loaded API entity to form field values for the edit flow.

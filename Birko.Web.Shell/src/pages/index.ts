@@ -1,5 +1,6 @@
 export { BasePage } from './base-page.js';
 export { BaseCrudPage } from './base-crud-page.js';
+export { type FilterDef, type FilterOption } from 'birko-web-components/inputs';
 export { BaseListPage } from './base-list-page.js';
 export { BaseSplitPage } from './base-split-page.js';
 export { BaseDetailPage } from './base-detail-page.js';

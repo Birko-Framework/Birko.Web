@@ -1,13 +1,14 @@
 import type { TableColumn } from 'birko-web-components/data';
-import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
+import type { RowAction } from 'birko-web-components/data';
 import type { FormSchema } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
+import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
 
 /**
  * Abstract base class for standard CRUD list pages.
  *
- * Renders a page header with create button, optional filter row,
+ * Renders a page header with create button, declarative filter row,
  * a data table (wrapped in `<b-card>`) with per-row Edit/Delete actions,
  * a modal + form for create/edit, and a confirm dialog for delete.
  *
@@ -25,7 +26,7 @@ import { BaseCrudPage } from './base-crud-page.js';
  * define('s-products-page', ProductsPage);
  * ```
  *
- * ## With permissions + filters
+ * ## With permissions + declarative filters
  * ```ts
  * class ProductsPage extends BaseListPage<Product> {
  *   protected endpoint = 'api/products';
@@ -37,7 +38,12 @@ import { BaseCrudPage } from './base-crud-page.js';
  *   protected get columns(): TableColumn[] { return [...]; }
  *   protected get formSchema(): FormSchema { return { name: 'root', children: [...] }; }
  *   protected hasPermission(p: string) { return moduleStore.hasPermission('products', p); }
- *   protected renderFilters() { return `<b-select id="category-filter" ...></b-select>`; }
+ *   protected get filterDefs() {
+ *     return [
+ *       { name: 'status', type: 'select' as const, placeholder: 'All statuses',
+ *         options: [{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }] },
+ *     ];
+ *   }
  * }
  * ```
  */
@@ -93,12 +99,11 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
   render(): string {
     const hasCrud = this.formSchema !== null;
     const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
-    const filters = this.renderFilters();
 
     return `
       <div class="list-page">
         ${this.renderPageHeader()}
-        ${filters ? `<div class="filter-row">${filters}</div>` : ''}
+        ${this.renderFilterRow()}
         ${this.requiredFilterSet
           ? this.renderContent()
           : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
@@ -117,37 +122,17 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     `;
   }
 
-  // ── Table setup ───────────────────────────────────────────────────────────
+  // ── Row actions ────────────────────────────────────────────────────────────
 
-  protected override _setupTable(): void {
-    if (this._tableReady || !this.endpoint) return;
-    this._tableReady = true;
-
+  protected override _getRowActions(): RowAction[] {
     const canEdit   = this.editEnabled   && (!this.editPermission   || this.hasPermission(this.editPermission));
     const canDelete = this.deleteEnabled && (!this.deletePermission || this.hasPermission(this.deletePermission));
 
-    const rowActions: RowAction[] = [];
-    if (canEdit)   rowActions.push({ id: 'edit',   label: this.t('common.edit') });
-    if (canDelete) rowActions.push({ id: 'delete', label: this.t('common.delete'), variant: 'danger' });
-    rowActions.push(...this.extraRowActions);
-
-    const toolbarActions: ToolbarAction[] = [...this.extraToolbarActions];
-
-    const table = this.$<BDataTable>('#table');
-    if (!table) return;
-
-    table.setConfig({
-      endpoint: this.endpoint,
-      apiClient: this.api,
-      columns: this.columns,
-      searchable: this.searchable,
-      pageSize: this.pageSize,
-      flatArray: this.flatArray,
-      rowActions: rowActions.length ? rowActions : undefined,
-      actions: toolbarActions.length ? toolbarActions : undefined,
-      idField: this.idField,
-    });
-    table.load();
+    const actions: RowAction[] = [];
+    if (canEdit)   actions.push({ id: 'edit',   label: this.t('common.edit') });
+    if (canDelete) actions.push({ id: 'delete', label: this.t('common.delete'), variant: 'danger' });
+    actions.push(...this.extraRowActions);
+    return actions;
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -162,10 +147,6 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
   private _wireListEvents(): void {
     const table = this.$<BDataTable>('#table');
     if (!table) return;
-
-    this.listen(table as unknown as EventTarget, 'toolbar-action', ((e: CustomEvent) => {
-      this.onToolbarAction(e.detail.action as string);
-    }) as EventListener);
 
     this.listen(table as unknown as EventTarget, 'row-click', ((e: CustomEvent) => {
       const id = (e.detail.id ?? e.detail.row?.[this.idField]) as string | undefined;
@@ -187,12 +168,6 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
    * Default: no-op. Override to navigate to detail page, open drawer, etc.
    */
   protected onRowClick(_id: string, _row: T): void {}
-
-  /**
-   * Called for toolbar actions (including extra ones from `extraToolbarActions`).
-   * Default: no-op.
-   */
-  protected onToolbarAction(_action: string): void {}
 
   /**
    * Called for extra row actions beyond the built-in 'edit' and 'delete'.

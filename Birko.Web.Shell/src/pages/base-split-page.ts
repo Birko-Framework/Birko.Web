@@ -1,10 +1,11 @@
 import type { TableColumn } from 'birko-web-components/data';
-import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
+import type { RowAction } from 'birko-web-components/data';
 import type { FormSchema } from 'birko-web-components/inputs';
 import type { BForm } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import { toast } from 'birko-web-components/feedback';
+import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
 
 /**
@@ -32,7 +33,7 @@ import { BaseCrudPage } from './base-crud-page.js';
  * }
  * ```
  *
- * ## With CRUD modal + filters
+ * ## With CRUD modal + declarative filters
  * ```ts
  * class DepartmentsPage extends BaseSplitPage<DepartmentDto> {
  *   protected endpoint = 'api/departments';
@@ -41,8 +42,12 @@ import { BaseCrudPage } from './base-crud-page.js';
  *   protected get columns() { return [...]; }
  *   protected get formSchema() { return departmentFormSchema(); }
  *   protected renderDetail(d: DepartmentDto) { return `...`; }
- *   protected renderFilters() {
- *     return `<b-select id="config-select" ...></b-select>`;
+ *   protected get filterDefs() {
+ *     return [
+ *       { name: 'configId', type: 'select' as const, placeholder: 'Select config',
+ *         options: this._configs.map(c => ({ value: c.id, label: c.name })),
+ *         searchable: true },
+ *     ];
  *   }
  * }
  * ```
@@ -125,6 +130,11 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     if (this._selectedId) await this._selectEntity(this._selectedId);
   }
 
+  /** Select and fetch detail for a specific entity by ID. */
+  protected async selectEntity(id: string): Promise<void> {
+    await this._selectEntity(id);
+  }
+
   // ── Styles ────────────────────────────────────────────────────────────────
 
   static override get styles(): string {
@@ -164,12 +174,11 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   render(): string {
     const hasCrud = this.formSchema !== null;
     const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
-    const filters = this.renderFilters();
 
     return `
       <div class="split-page">
         ${this.renderPageHeader()}
-        ${filters ? `<div class="filter-row">${filters}</div>` : ''}
+        ${this.renderFilterRow()}
         ${this.requiredFilterSet
           ? this.renderContent()
           : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
@@ -188,30 +197,10 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     `;
   }
 
-  // ── Table setup ───────────────────────────────────────────────────────────
+  // ── Row actions ────────────────────────────────────────────────────────────
 
-  protected override _setupTable(): void {
-    if (this._tableReady || !this.endpoint) return;
-    this._tableReady = true;
-
-    const rowActions: RowAction[] = [...this.extraRowActions];
-    const toolbarActions: ToolbarAction[] = [...this.extraToolbarActions];
-
-    const table = this.$<BDataTable>('#table');
-    if (!table) return;
-
-    table.setConfig({
-      endpoint: this.endpoint,
-      apiClient: this.api,
-      columns: this.columns,
-      searchable: this.searchable,
-      pageSize: this.pageSize,
-      flatArray: this.flatArray,
-      rowActions: rowActions.length ? rowActions : undefined,
-      actions: toolbarActions.length ? toolbarActions : undefined,
-      idField: this.idField,
-    });
-    table.load();
+  protected override _getRowActions(): RowAction[] {
+    return [...this.extraRowActions];
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -231,10 +220,6 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
       this.listen(table as unknown as EventTarget, 'row-click', ((e: CustomEvent) => {
         const id = (e.detail?.id ?? e.detail?.row?.[this.idField]) as string | undefined;
         if (id) this._selectEntity(id);
-      }) as EventListener);
-
-      this.listen(table as unknown as EventTarget, 'toolbar-action', ((e: CustomEvent) => {
-        this.onToolbarAction(e.detail.action as string);
       }) as EventListener);
 
       this.listen(table as unknown as EventTarget, 'row-action', ((e: CustomEvent) => {
@@ -324,9 +309,6 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   }
 
   // ── Extension points ──────────────────────────────────────────────────────
-
-  /** Handle extra toolbar actions. */
-  protected onToolbarAction(_action: string): void {}
 
   /** Handle extra row actions. */
   protected onRowAction(_action: string, _id: string, _row: T): void {}
