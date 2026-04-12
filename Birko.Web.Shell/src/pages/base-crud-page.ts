@@ -1,20 +1,24 @@
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import type { TableColumn } from 'birko-web-components/data';
-import type { ToolbarAction, BDataTable } from 'birko-web-components/data';
+import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
 import type { BModal } from 'birko-web-components/layout';
 import type { BConfirmDialog } from 'birko-web-components/layout';
 import type { BForm, FormSchema } from 'birko-web-components/inputs';
 import type { BButton } from 'birko-web-components/inputs';
+import type { FilterDef } from 'birko-web-components/inputs';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
 import { BasePage } from './base-page.js';
 
+// ── BaseCrudPage ────────────────────────────────────────────────────────────
+
 /**
  * Abstract base class for data-driven CRUD pages.
  *
- * Extends `BasePage` with: filter row, data table setup, modal create/edit,
- * delete confirmation, permission checks, and a required-filter empty state.
+ * Extends `BasePage` with: declarative filter row, data table setup, modal
+ * create/edit, delete confirmation, permission checks, and a required-filter
+ * empty state.
  *
  * Subclasses choose their content layout:
  * - **`BaseListPage`** — data table with row-level edit/delete actions
@@ -36,6 +40,7 @@ import { BasePage } from './base-page.js';
 export abstract class BaseCrudPage<T extends Record<string, unknown>> extends BasePage {
   protected _editingId: string | null = null;
   protected _tableReady = false;
+  private _needsInitialLoad = false;
 
   // ── Required ──────────────────────────────────────────────────────────────
 
@@ -45,7 +50,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   // ── Optional — override to customise ─────────────────────────────────────
 
   /** REST resource base path, e.g. `'api/products'`. Required for table + CRUD pages. */
-  protected endpoint?: string;
+  protected declare endpoint?: string;
 
   /** Column definitions for `<b-data-table>`. Required for pages with a table. */
   protected get columns(): TableColumn[] { return []; }
@@ -62,11 +67,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Field used as the row identifier. Default: `'id'`. */
   protected idField = 'id';
 
-  /** Enable search box in the table toolbar. Default: `true`. */
-  protected searchable = true;
-
   /** Default page size for the data table. */
-  protected pageSize?: number;
+  protected declare pageSize?: number;
 
   /** Whether the API returns a flat array (true) or a paged envelope (false). Default: `true`. */
   protected flatArray = true;
@@ -78,16 +80,16 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected deleteEnabled = true;
 
   /** Modal size — passed to `<b-modal size="...">`. */
-  protected modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
+  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
 
   /** Permission key required to see the create button. `undefined` = always visible. */
-  protected createPermission?: string;
+  protected declare createPermission?: string;
 
   /** Permission key for edit actions. */
-  protected editPermission?: string;
+  protected declare editPermission?: string;
 
   /** Permission key for delete actions. */
-  protected deletePermission?: string;
+  protected declare deletePermission?: string;
 
   /**
    * Permission checker — override to integrate with your auth store.
@@ -95,12 +97,33 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    */
   protected hasPermission(_permission: string): boolean { return true; }
 
-  // ── Filter area ───────────────────────────────────────────────────────────
+  // ── Filter area (config-based) ────────────────────────────────────────────
 
   /**
-   * Render filter controls (selects, date pickers, etc.) for the filter row.
-   * Return empty string to hide the filter row.
-   * The base class wraps the result in `<div class="filter-row">`.
+   * Declarative filter definitions.
+   *
+   * Return an array of `FilterDef` objects. The base class renders the controls,
+   * populates select options, wires change events, and auto-collects values
+   * into `table.setFilters()` as query params.
+   *
+   * Override this getter to define page-specific filters.
+   * Use `local: true` for cascade-only or path-parameter filters.
+   *
+   * ```ts
+   * protected get filterDefs(): FilterDef[] {
+   *   return [
+   *     { name: 'status', type: 'select', placeholder: 'All statuses',
+   *       options: [{ value: 'active', label: 'Active' }, { value: 'draft', label: 'Draft' }] },
+   *   ];
+   * }
+   * ```
+   */
+  protected get filterDefs(): FilterDef[] { return []; }
+
+  /**
+   * Custom filter HTML appended after config-based filters.
+   * Prefer `filterDefs` for standard controls. Use this only for truly custom widgets.
+   * Named elements (`[name]`) are auto-collected into `table.setFilters()`.
    */
   protected renderFilters(): string { return ''; }
 
@@ -116,6 +139,21 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    * Default: `'Select a filter to continue'`.
    */
   protected get emptyFilterMessage(): string { return 'Select a filter to continue'; }
+
+  /**
+   * Called when any filter value changes.
+   *
+   * Override for cascading logic (update dependent filter options, change endpoint, etc.).
+   * The default implementation calls `_collectAndApplyFilters()` which sends non-local
+   * filter values to `table.setFilters()` and triggers a reload.
+   *
+   * For cascade-only filters, handle the cascade and call `this.update()` — do **not**
+   * call `super.onFilterChange()` (this avoids a premature table reload).
+   * The table will reload when the downstream filter triggers its own change.
+   */
+  protected onFilterChange(_name: string, _value: string | null): void {
+    this._collectAndApplyFilters();
+  }
 
   // ── CRUD helpers ──────────────────────────────────────────────────────────
 
@@ -167,9 +205,12 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected onDeleteSuccess?(_id: string): void;
 
   /**
-   * Extra toolbar actions added after the built-in "New" button.
+   * Extra toolbar actions rendered in the page header after the "New" button.
    */
   protected get extraToolbarActions(): ToolbarAction[] { return []; }
+
+  /** Handle toolbar action button clicks. */
+  protected onToolbarAction(_action: string): void {}
 
   /**
    * Translation function.
@@ -201,7 +242,9 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       }
       .filter-row b-select { flex: 1; max-width: 24rem; }
       .filter-row b-input { flex: 1; max-width: 24rem; }
+      .filter-row b-search-input { flex: 0 1 16rem; margin-left: auto; }
       .filter-row b-button { flex: 0 0 auto; }
+      .filter-row b-date-picker { flex: 0 1 12rem; }
       .detail-actions {
         display: flex; gap: var(--b-space-sm); flex-wrap: wrap;
         margin-top: var(--b-space-md);
@@ -214,6 +257,42 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       }
       .info-label { color: var(--b-text-muted); white-space: nowrap; }
       .info-value { color: var(--b-text); }
+      /* Sub-entity list styles */
+      .section-header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: var(--b-space-md) 0; border-bottom: 1px solid var(--b-border);
+        margin-bottom: var(--b-space-md);
+      }
+      .section-title {
+        font-size: var(--b-text-base); font-weight: var(--b-font-weight-semibold);
+        color: var(--b-text);
+      }
+      .sub-row {
+        display: flex; align-items: center; gap: var(--b-space-md);
+        padding: var(--b-space-sm) var(--b-space-md);
+        background: var(--b-surface); border: 1px solid var(--b-border);
+        border-radius: var(--b-radius-md); font-size: var(--b-text-sm);
+        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .sub-row:hover { border-color: var(--b-border-hover); }
+      .sub-info { flex: 1; min-width: 0; }
+      .sub-info > strong { font-weight: var(--b-font-weight-medium); color: var(--b-text); }
+      .sub-meta {
+        color: var(--b-text-muted); font-size: var(--b-text-xs);
+        margin-top: 2px; display: flex; gap: var(--b-space-sm);
+        align-items: center; flex-wrap: wrap;
+      }
+      .sub-actions { display: flex; gap: var(--b-space-xs); align-items: center; flex-shrink: 0; }
+      .sub-row.reply-row {
+        margin-left: var(--b-space-lg); background: var(--b-surface-alt);
+        border-left: 2px solid var(--b-border);
+      }
+      .add-row {
+        display: flex; justify-content: flex-end; padding: var(--b-space-md) 0;
+        margin-top: var(--b-space-sm); border-top: 1px solid var(--b-border);
+      }
+      .comment-body { white-space: pre-wrap; color: var(--b-text); }
+      .comment-system { font-style: italic; color: var(--b-text-muted); }
     `;
   }
 
@@ -228,9 +307,49 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     const canCreate = hasCrud && (!this.createPermission || this.hasPermission(this.createPermission));
     const disabled = !this.requiredFilterSet ? ' disabled' : '';
 
-    return canCreate
-      ? `<b-button variant="primary" id="btn-create"${disabled}>${this.t('common.new')}</b-button>`
-      : '';
+    let html = '';
+    for (const a of this.extraToolbarActions) {
+      html += `<b-button variant="${a.variant ?? 'secondary'}" size="sm" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
+    }
+    if (canCreate) {
+      html += `<b-button variant="primary" id="btn-create"${disabled}>${this.t('common.new')}</b-button>`;
+    }
+    return html;
+  }
+
+  // ── Filter row rendering ─────────────────────────────────────────────────
+
+  /**
+   * Render the complete filter row from `filterDefs`, search, and `renderFilters()`.
+   * Called by `render()`. Override for completely custom filter layout.
+   */
+  protected renderFilterRow(): string {
+    const defs = this.filterDefs;
+
+    let html = '';
+
+    for (const f of defs) {
+      const id = `filter-${f.name}`;
+      switch (f.type) {
+        case 'select':
+          html += `<b-select id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${f.searchable ? ' searchable' : ''}${f.clearable ? ' clearable' : ''}${f.disabled ? ' disabled' : ''}></b-select>`;
+          break;
+        case 'search':
+          html += `<b-search-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? 'Search...'}" debounce="300"></b-search-input>`;
+          break;
+        case 'text':
+          html += `<b-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"></b-input>`;
+          break;
+        case 'date':
+          html += `<b-date-picker id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"></b-date-picker>`;
+          break;
+      }
+    }
+
+    // Append legacy/custom HTML filters
+    html += this.renderFilters();
+
+    return html ? `<div class="filter-row">${html}</div>` : '';
   }
 
   // ── Template ──────────────────────────────────────────────────────────────
@@ -238,12 +357,11 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   override render(): string {
     const hasCrud = this.formSchema !== null;
     const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
-    const filters = this.renderFilters();
 
     return `
       <div class="base-page">
         ${this.renderPageHeader()}
-        ${filters ? `<div class="filter-row">${filters}</div>` : ''}
+        ${this.renderFilterRow()}
         ${this.requiredFilterSet
           ? this.renderContent()
           : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
@@ -269,35 +387,151 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   }
 
   protected onUpdated(): void {
+    // Retry table setup if it wasn't ready on mount (e.g. requiredFilterSet was false)
+    if (!this._tableReady) this._setupTable();
+    this._applyFilterDefs();
     this._wireCrudEvents();
+    this._wireFilterRow();
+
+    // Initial load: runs once after setup + filter defs are applied
+    if (this._needsInitialLoad) {
+      this._needsInitialLoad = false;
+      this._collectAndApplyFilters();
+    }
   }
 
-  // ── Table setup (shared) ──────────────────────────────────────────────────
+  // ── Table setup ────────────────────────────────────────────────────────────
 
   /**
-   * Configure and load the data table.
-   * Subclasses can override to add row actions or custom config.
+   * Build row actions for the data table.
+   * Override in subclasses to add edit/delete or custom actions.
+   * Default: empty (subclasses like BaseListPage add edit/delete).
+   */
+  protected _getRowActions(): RowAction[] {
+    return [];
+  }
+
+  /**
+   * Configure the data table. Single implementation — subclasses customise via `_getRowActions()`.
+   * The initial data load is deferred until `onUpdated()` applies filter defs.
    */
   protected _setupTable(): void {
     if (this._tableReady || !this.endpoint) return;
-    this._tableReady = true;
 
     const table = this.$<BDataTable>('#table');
     if (!table) return;
 
-    const toolbarActions: ToolbarAction[] = [...this.extraToolbarActions];
+    this._tableReady = true;
+    this._needsInitialLoad = true;
+    const rowActions = this._getRowActions();
 
     table.setConfig({
       endpoint: this.endpoint,
       apiClient: this.api,
       columns: this.columns,
-      searchable: this.searchable,
       pageSize: this.pageSize,
       flatArray: this.flatArray,
-      actions: toolbarActions.length ? toolbarActions : undefined,
+      rowActions: rowActions.length ? rowActions : undefined,
       idField: this.idField,
     });
-    table.load();
+  }
+
+  // ── Filter wiring ─────────────────────────────────────────────────────────
+
+  /**
+   * Apply filter definitions to the DOM: set select options, values, and disabled state.
+   * Called on every `onUpdated()` so changes in `filterDefs` (e.g. updated options
+   * after a cascade) are reflected immediately.
+   */
+  protected _applyFilterDefs(): void {
+    for (const f of this.filterDefs) {
+      const el = this.$(`#filter-${f.name}`) as any;
+      if (!el) continue;
+
+      if (f.type === 'select') {
+        if (f.options && el.setOptions) el.setOptions(f.options);
+        if (f.disabled) el.setAttribute('disabled', '');
+        else el.removeAttribute('disabled');
+      }
+
+      // Apply value from config (the getter reads page state)
+      if (f.value != null) {
+        el.setAttribute('value', f.value);
+      }
+    }
+  }
+
+  /**
+   * Wire change events on all filter controls in the filter row.
+   * Each change calls `onFilterChange()`, which by default triggers
+   * `_collectAndApplyFilters()` → `table.setFilters()` → reload.
+   */
+  protected _wireFilterRow(): void {
+    const filterRow = this.$<HTMLElement>('.filter-row');
+    if (!filterRow) return;
+
+    // b-search-input: 'search' event (already debounced internally)
+    filterRow.querySelectorAll<HTMLElement>('b-search-input[name]').forEach(el => {
+      this.listen(el, 'search', ((e: CustomEvent) => {
+        this.onFilterChange(el.getAttribute('name')!, e.detail?.value || null);
+      }) as EventListener);
+    });
+
+    // b-select: 'change' event (immediate)
+    filterRow.querySelectorAll<HTMLElement>('b-select[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        this.onFilterChange(el.getAttribute('name')!, e.detail?.value || null);
+      }) as EventListener);
+    });
+
+    // b-input: debounced 'input' event
+    let inputTimer: ReturnType<typeof setTimeout> | undefined;
+    filterRow.querySelectorAll<HTMLElement>('b-input[name]').forEach(el => {
+      this.listen(el, 'input', () => {
+        clearTimeout(inputTimer);
+        inputTimer = setTimeout(() => {
+          this.onFilterChange(el.getAttribute('name')!, (el as any).value || null);
+        }, 300);
+      });
+    });
+
+    // b-date-picker: 'change' event (immediate)
+    filterRow.querySelectorAll<HTMLElement>('b-date-picker[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        this.onFilterChange(el.getAttribute('name')!, e.detail?.value || null);
+      }) as EventListener);
+    });
+
+    // Native select (legacy renderFilters): 'change' event
+    filterRow.querySelectorAll<HTMLSelectElement>('select[name]').forEach(el => {
+      this.listen(el, 'change', () => {
+        this.onFilterChange(el.name, el.value || null);
+      });
+    });
+  }
+
+  /**
+   * Collect non-local filter values from the filter row and pass to `table.setFilters()`.
+   * Called by the default `onFilterChange()` and during initial table setup.
+   */
+  protected _collectAndApplyFilters(): void {
+    const table = this.$<BDataTable>('#table');
+    if (!table) return;
+
+    const filterRow = this.$<HTMLElement>('.filter-row');
+    const params: Record<string, string> = {};
+    const localNames = new Set(this.filterDefs.filter(f => f.local).map(f => f.name));
+
+    if (filterRow) {
+      filterRow.querySelectorAll<HTMLElement>('[name]').forEach(el => {
+        const name = el.getAttribute('name')!;
+        if (localNames.has(name)) return; // Skip local-only filters
+        const value = (el as any).value ?? '';
+        if (value) params[name] = value;
+      });
+    }
+
+    table.setFilters(params);
   }
 
   // ── Event wiring ──────────────────────────────────────────────────────────
@@ -316,6 +550,13 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       this.listen(saveBtn as unknown as EventTarget, 'click', () => this._save());
       this.listen(cancelBtn as unknown as EventTarget, 'click', () => modal.close());
     }
+
+    // Toolbar actions in header
+    this.$$<HTMLElement>('.toolbar-action').forEach(btn => {
+      this.listen(btn, 'click', () => {
+        this.onToolbarAction(btn.dataset.action ?? '');
+      });
+    });
   }
 
   // ── CRUD operations ───────────────────────────────────────────────────────
