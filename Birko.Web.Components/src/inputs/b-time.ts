@@ -145,6 +145,9 @@ export class BTime extends BaseComponent {
     return parseInt(this.attr('step') ?? '1', 10) || 1;
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     return this.attr('value') ?? '';
   }

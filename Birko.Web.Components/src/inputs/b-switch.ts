@@ -99,6 +99,9 @@ export class BSwitch extends BaseComponent {
     }
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   /** Unified interface — returns 'true'/'false' string */
   get inputValue(): string { return String(this.checked); }
   set inputValue(v: string) { this.checked = v === 'true' || v === '1'; }

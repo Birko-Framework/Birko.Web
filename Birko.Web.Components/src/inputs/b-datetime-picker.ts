@@ -253,6 +253,9 @@ export class BDatetimePicker extends BaseComponent {
     return _globalLocale.now ?? 'Now';
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     return this.attr('value') ?? '';
   }

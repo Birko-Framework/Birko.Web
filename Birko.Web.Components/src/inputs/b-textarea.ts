@@ -45,6 +45,9 @@ export class BTextarea extends BaseComponent {
     });
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     return this.$<HTMLTextAreaElement>('textarea')?.value ?? '';
   }

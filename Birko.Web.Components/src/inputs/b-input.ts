@@ -52,6 +52,9 @@ export class BInput extends BaseComponent {
     });
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     return this.$<HTMLInputElement>('input')?.value ?? this._value;
   }

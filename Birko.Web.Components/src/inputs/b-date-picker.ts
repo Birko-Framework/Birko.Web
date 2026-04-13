@@ -210,6 +210,9 @@ export class BDatePicker extends BaseComponent {
     return this.attr('label-clear') ?? _globalLocale.clear ?? 'Clear';
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     if (this.boolAttr('native')) {
       return this.$<HTMLInputElement>('input')?.value ?? this.attr('value') ?? '';

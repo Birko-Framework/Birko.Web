@@ -100,6 +100,9 @@ export class BSelect extends BaseComponent {
     }
   }
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     if (this.boolAttr('searchable')) {
       return this.attr('value') ?? '';

@@ -223,6 +223,9 @@ export class BRange extends BaseComponent {
 
   // ── Public API ──
 
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
   get inputValue(): string {
     if (this._isRange) {
       return JSON.stringify({ from: this._from, to: this._to });
