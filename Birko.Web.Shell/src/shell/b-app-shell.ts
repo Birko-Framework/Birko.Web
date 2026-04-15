@@ -1,25 +1,29 @@
 import type { RibbonTab, BRibbon, BDropdownMenu } from 'birko-web-components';
 import type { TenantItem, ConnectionState } from './shell-types.js';
 import { openCommandPalette } from 'birko-web-components/command';
-import { BCoreAppShell } from './b-core-app-shell.js';
+import { BSidebarAppShell } from './b-sidebar-app-shell.js';
 
 /**
  * Ribbon-based app shell component for Birko.Web applications.
  *
- * Extends `BCoreAppShell` with a full Office-style layout:
+ * Extends `BSidebarAppShell` (which extends `BCoreAppShell`) with a full
+ * Office-style layout:
  * - Ribbon navigation (tabs, context actions, pin/unpin)
  * - Notifications (bell icon with badge, preview popup, drawer)
  * - Tenant switcher (in status bar)
  * - Connection state indicator, pending sync count, conflicts
  * - Command palette trigger (Ctrl+K)
  *
- * Core infrastructure (theme persistence, online/offline, user dropdown, brand link,
- * breadcrumb listener) comes from `BCoreAppShell`. See that class for shared docs.
+ * Inherits from base classes:
+ * - `BCoreAppShell` — theme persistence, online/offline tracking, user dropdown,
+ *   brand link, breadcrumb listener, base CSS
+ * - `BSidebarAppShell` — opt-in left/right sidebars (default hidden; override
+ *   `showLeftSidebar`/`showRightSidebar` to enable)
  *
- * Optional features (notifications, tenants, offline sync) are hidden when their
- * methods return default values (0, null, empty arrays).
+ * Optional features (sidebars, notifications, tenants, offline sync) are hidden
+ * when their methods return default values (false, 0, null, empty arrays).
  */
-export abstract class BAppShell extends BCoreAppShell {
+export abstract class BAppShell extends BSidebarAppShell {
   private _ribbonEventsBound = false;
   private _previewTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -226,7 +230,7 @@ export abstract class BAppShell extends BCoreAppShell {
         </div>
       </b-ribbon>
 
-      <main class="app-content"><div class="app-content-inner"><slot></slot></div></main>
+      ${this.renderContent()}
 
       ${previewTag ? `<${previewTag} id="notif-preview" hidden></${previewTag}>` : ''}
       ${drawerTag ? `<${drawerTag} id="notif-drawer"></${drawerTag}>` : ''}

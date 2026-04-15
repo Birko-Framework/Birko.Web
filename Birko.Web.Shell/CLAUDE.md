@@ -2,11 +2,13 @@
 
 ## What this project is
 
-Reusable application shell framework for Birko.Web apps. Provides:
-- `BCoreAppShell` — abstract core (theme/layout persistence, online/offline tracking, user dropdown, brand link, breadcrumb listener, base CSS). Usable directly for minimal shells (login pages, error pages, kiosks).
-- `BAppShell extends BCoreAppShell` — full Office-style ribbon shell adding navigation tabs, notifications, tenant switcher, status bar, command palette.
+Reusable application shell framework for Birko.Web apps. Three-level shell hierarchy:
 
-Plus factory functions for auth, modules, tenants, notifications, routing, and command palette providers. Apps extend `BAppShell` (or directly `BCoreAppShell` for custom layouts) and implement abstract methods — everything else is built in.
+- `BCoreAppShell` — abstract core (theme/layout persistence, online/offline tracking, user dropdown, brand link, breadcrumb listener, base CSS, default minimal layout). Usable directly for minimal shells (login pages, error pages, kiosks).
+- `BSidebarAppShell extends BCoreAppShell` — adds opt-in left and/or right sidebars using `<b-sidebar>` (default hidden; both can be enabled simultaneously). Wraps base `renderContent()` with sidebar layout.
+- `BAppShell extends BSidebarAppShell` — full Office-style ribbon shell adding navigation tabs, notifications, tenant switcher, status bar, command palette. Inherits sidebar capability so a ribbon shell can also have left/right panels (Outlook-style).
+
+Plus factory functions for auth, modules, tenants, notifications, routing, and command palette providers. Apps extend `BAppShell` (most common), `BSidebarAppShell` (sidebar + custom layout), or `BCoreAppShell` (minimal layouts) and implement abstract methods — everything else is built in.
 
 **Depends on:** `birko-web-core` (BaseComponent, Store, Router, ApiClient), `birko-web-components` (BRibbon, BDropdownMenu, BCommandPalette types + tags)
 
@@ -15,13 +17,14 @@ Plus factory functions for auth, modules, tenants, notifications, routing, and c
 ```
 src/
 ├── shell/
-│   ├── b-core-app-shell.ts  # Abstract core shell (~280 LOC) — shared infra (theme, online/offline,
-│   │                        #   user dropdown, brand, breadcrumbs, base CSS, default minimal layout)
-│   ├── b-app-shell.ts       # Ribbon shell extends BCoreAppShell (~370 LOC) — adds ribbon nav,
-│   │                        #   notifications, tenants, status bar, command palette
-│   ├── shell-types.ts        # MenuItem, TenantItem, ShellRoutes, ConnectionState
-│   ├── breadcrumbs.ts        # setBreadcrumbs() helper
-│   └── shell-wrapper.ts      # createShellWrapper() for persistent shell in router
+│   ├── b-core-app-shell.ts     # Abstract core shell — shared infra (theme, online/offline,
+│   │                           #   user dropdown, brand, breadcrumbs, base CSS, default minimal layout)
+│   ├── b-sidebar-app-shell.ts  # Adds opt-in left + right sidebars via <b-sidebar> (extends BCoreAppShell)
+│   ├── b-app-shell.ts          # Ribbon shell extends BSidebarAppShell — adds ribbon nav,
+│   │                           #   notifications, tenants, status bar, command palette
+│   ├── shell-types.ts          # MenuItem, TenantItem, ShellRoutes, ConnectionState
+│   ├── breadcrumbs.ts          # setBreadcrumbs() helper
+│   └── shell-wrapper.ts        # createShellWrapper() for persistent shell in router
 ├── auth/
 │   ├── auth-store.ts         # createAuthStore() — JWT parsing, localStorage persistence
 │   ├── auth-types.ts         # AuthState, AuthStoreConfig
@@ -52,10 +55,12 @@ src/
 ### Factory pattern, not singletons
 All stores and managers are created via factory functions (`createAuthStore()`, `createModuleStore()`, etc.). This project exports **no singletons** — the consuming app creates instances and wires them together. This keeps the shell reusable across apps with different configurations.
 
-### Abstract base class pattern with two-level hierarchy
-`BCoreAppShell` is the abstract core: 4 required methods (`brandName`, `getUserName`, `t`, `onSignOut`), shared infrastructure, default minimal `render()`. Subclass it directly for non-ribbon layouts (sidebar shells, minimal login shells, kiosks).
+### Three-level shell hierarchy
+`BCoreAppShell` is the abstract core: 4 required methods (`brandName`, `getUserName`, `t`, `onSignOut`), shared infrastructure, default minimal `render()`. Use directly for ultra-minimal shells (login, error pages).
 
-`BAppShell extends BCoreAppShell` adds 3 more required methods (`getRibbonTabs`, `getActiveTabId`, `onTabChange`) plus ~20 optional overrides for ribbon, notifications, tenants, status bar, command palette. Optional features are controlled by what the methods return — no explicit feature flags. Return `null`/`0`/`[]` and the feature hides itself.
+`BSidebarAppShell extends BCoreAppShell` adds opt-in left and/or right sidebars via `<b-sidebar>`. Both can be enabled simultaneously (Outlook-pattern: navigation left + properties right). It overrides only `renderContent()` to wrap base content with sidebar containers, leaving header/footer hooks intact. No new abstract methods — sidebars are entirely opt-in via getter overrides (`showLeftSidebar`, `showRightSidebar`).
+
+`BAppShell extends BSidebarAppShell` adds 3 more required methods (`getRibbonTabs`, `getActiveTabId`, `onTabChange`) plus ~20 optional overrides for ribbon, notifications, tenants, status bar, command palette. Inherits sidebar opt-in from `BSidebarAppShell`, so a ribbon shell can also have left/right sidebars. Optional features are controlled by what the methods return — no explicit feature flags. Return `null`/`0`/`[]`/`false` and the feature hides itself.
 
 ### Pure functions for data transformation
 `buildRibbon()`, `getVisibleOptions()`, `resolveModuleFromHash()`, `applyBranding()` are all pure functions. They take data and return results without side effects. This makes them easy to test and compose.
@@ -86,12 +91,31 @@ protected abstract t(key: string, params?: Record<string, string>): string;
 protected abstract onSignOut(): void;
 ```
 
+**BSidebarAppShell adds (0):** No new abstracts — sidebar is fully opt-in via getter overrides.
+
 **BAppShell adds (3 more):**
 ```typescript
 protected abstract getRibbonTabs(): RibbonTab[];
 protected abstract getActiveTabId(): string;
 protected abstract onTabChange(tabId: string): void;
 ```
+
+### Sidebar opt-in (BSidebarAppShell — also available in BAppShell)
+
+```typescript
+// Left sidebar
+protected get showLeftSidebar(): boolean              // default false
+protected get leftSidebarCollapsible(): boolean       // default true (collapse/expand toggle visible)
+protected getLeftSidebarItems(): SidebarItem[]        // default []
+protected getActiveLeftSidebarItem(): string          // default '' (no highlight)
+protected onLeftSidebarToggle(collapsed: boolean): void
+
+// Right sidebar — same shape with "Right" prefix
+protected get showRightSidebar(): boolean             // default false
+// ... etc.
+```
+
+Both sidebars can be enabled simultaneously. Collapsed state of each persists independently in `localStorage` under `${storagePrefix}-left-sidebar-collapsed` / `${storagePrefix}-right-sidebar-collapsed`. Refresh API: `refreshLeftSidebar()`, `refreshRightSidebar()` — call from store subscriptions.
 
 ### Render helpers (provided by BCoreAppShell)
 

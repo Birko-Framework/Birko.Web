@@ -1,19 +1,20 @@
 # Birko.Web.Shell
 
-Reusable application shell framework for Birko.Web apps. Provides two abstract shell base classes:
+Reusable application shell framework for Birko.Web apps. Three-level shell hierarchy:
 
 - **`BCoreAppShell`** — shared infrastructure (theme/layout persistence, online/offline tracking, user dropdown, brand link, breadcrumbs, base CSS, default minimal layout). 4 abstract methods. Use directly for minimal shells (login pages, error pages, kiosks, custom layouts).
-- **`BAppShell extends BCoreAppShell`** — full Office-style ribbon shell adding navigation tabs, notification bell, status bar, tenant switcher, command palette. 7 abstract methods (4 from base + 3 ribbon-specific).
+- **`BSidebarAppShell extends BCoreAppShell`** — adds opt-in left and/or right sidebars via `<b-sidebar>` (both can be enabled simultaneously, e.g. navigation left + properties right). No new abstract methods — sidebar is fully opt-in.
+- **`BAppShell extends BSidebarAppShell`** — full Office-style ribbon shell adding navigation tabs, notification bell, status bar, tenant switcher, command palette. Inherits sidebar capability — a ribbon shell can also have left/right panels (Outlook-style). 7 abstract methods (4 from `BCoreAppShell` + 3 ribbon-specific).
 
 Plus factory functions for auth, modules, tenants, notifications, routing, and command palette providers.
 
-Your app extends `BAppShell` (most common) or `BCoreAppShell` (custom layouts), implements the abstract methods, and gets a fully functional shell with all layout, CSS, and behavior built in.
+Your app extends `BAppShell` (most common), `BSidebarAppShell` (sidebar + custom top), or `BCoreAppShell` (minimal layouts), implements the abstract methods, and gets a fully functional shell with all layout, CSS, and behavior built in.
 
 ## Packages
 
 ```
 birko-web-shell                # main (re-exports everything)
-birko-web-shell/shell          # BCoreAppShell, BAppShell, createShellWrapper, setBreadcrumbs, types
+birko-web-shell/shell          # BCoreAppShell, BSidebarAppShell, BAppShell, createShellWrapper, setBreadcrumbs, types
 birko-web-shell/auth           # createAuthStore, createAuthGuard, createModuleGuard
 birko-web-shell/modules        # createModuleStore, buildRibbon, permissions
 birko-web-shell/tenants        # TenantInfo, TenantState, applyBranding
@@ -174,6 +175,66 @@ define('my-app-shell', AppShell);
 ```
 
 That's it. You now have a fully functional app shell with ribbon, user menu, status bar, and command palette.
+
+---
+
+## Sidebars (BSidebarAppShell, also in BAppShell)
+
+Both `BSidebarAppShell` and `BAppShell` support opt-in **left and/or right sidebars** via the `<b-sidebar>` component. Both can be enabled simultaneously — useful for Outlook-style layouts (folder list left + reading pane right) or VS Code-style (Explorer left + Outline right).
+
+```typescript
+class MyShell extends BAppShell {
+  // existing 7 abstract methods...
+
+  // ── Enable LEFT sidebar (e.g. secondary navigation) ──
+  protected get showLeftSidebar() { return true; }
+
+  protected getLeftSidebarItems(): SidebarItem[] {
+    return moduleStore.get('options').map(o => ({
+      id: o.id,
+      label: o.label,
+      icon: o.icon,
+      href: '#' + o.route,
+    }));
+  }
+
+  protected getActiveLeftSidebarItem() {
+    return moduleStore.get('activeOptionId') ?? '';
+  }
+
+  // ── Also enable RIGHT sidebar (e.g. properties/inspector) ──
+  protected get showRightSidebar() { return inspectorStore.get('open'); }
+
+  protected getRightSidebarItems(): SidebarItem[] {
+    return inspectorStore.get('properties').map(p => ({ id: p.key, label: p.label }));
+  }
+
+  protected onMount() {
+    super.onMount();
+    this._unsubs.push(
+      moduleStore.onChange('options',        () => this.refreshLeftSidebar()),
+      moduleStore.onChange('activeOptionId', () => this.refreshLeftSidebar()),
+      inspectorStore.onChange('properties',  () => this.refreshRightSidebar()),
+      inspectorStore.onChange('open',        () => this.softUpdate()),
+    );
+  }
+}
+```
+
+**Sidebar API (available on `BSidebarAppShell` and `BAppShell`):**
+
+| Method/Getter | Default | Purpose |
+|---------------|---------|---------|
+| `showLeftSidebar` / `showRightSidebar` | `false` | Show/hide each sidebar |
+| `leftSidebarCollapsible` / `rightSidebarCollapsible` | `true` | Show collapse toggle |
+| `getLeftSidebarItems()` / `getRightSidebarItems()` | `[]` | `SidebarItem[]` from `birko-web-components` |
+| `getActiveLeftSidebarItem()` / `getActiveRightSidebarItem()` | `''` | ID of active item (highlighted) |
+| `onLeftSidebarToggle(collapsed)` / `onRightSidebarToggle(collapsed)` | noop | Called on user toggle |
+| `refreshLeftSidebar()` / `refreshRightSidebar()` | — | Re-populate items + active state |
+
+Collapsed state persists in `localStorage` under `${storagePrefix}-left-sidebar-collapsed` and `${storagePrefix}-right-sidebar-collapsed`.
+
+The sidebar's internal "brand" area is hidden via Shadow DOM `::part(brand)` — your shell already has a brand in the ribbon/header. Sidebar items navigate via `<a href>` links, so existing hash routing works automatically.
 
 ---
 
