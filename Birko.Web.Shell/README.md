@@ -1,14 +1,19 @@
 # Birko.Web.Shell
 
-Reusable application shell framework for Birko.Web apps. Provides an abstract `BAppShell` base class with ribbon navigation, status bar, notification bell, user dropdown, tenant switcher, and command palette — plus factory functions for auth, modules, tenants, notifications, and routing.
+Reusable application shell framework for Birko.Web apps. Provides two abstract shell base classes:
 
-Your app extends `BAppShell`, implements 7 abstract methods, and gets a fully functional shell with ~600 lines of layout, CSS, and behavior built in.
+- **`BCoreAppShell`** — shared infrastructure (theme/layout persistence, online/offline tracking, user dropdown, brand link, breadcrumbs, base CSS, default minimal layout). 4 abstract methods. Use directly for minimal shells (login pages, error pages, kiosks, custom layouts).
+- **`BAppShell extends BCoreAppShell`** — full Office-style ribbon shell adding navigation tabs, notification bell, status bar, tenant switcher, command palette. 7 abstract methods (4 from base + 3 ribbon-specific).
+
+Plus factory functions for auth, modules, tenants, notifications, routing, and command palette providers.
+
+Your app extends `BAppShell` (most common) or `BCoreAppShell` (custom layouts), implements the abstract methods, and gets a fully functional shell with all layout, CSS, and behavior built in.
 
 ## Packages
 
 ```
 birko-web-shell                # main (re-exports everything)
-birko-web-shell/shell          # BAppShell, createShellWrapper, setBreadcrumbs, types
+birko-web-shell/shell          # BCoreAppShell, BAppShell, createShellWrapper, setBreadcrumbs, types
 birko-web-shell/auth           # createAuthStore, createAuthGuard, createModuleGuard
 birko-web-shell/modules        # createModuleStore, buildRibbon, permissions
 birko-web-shell/tenants        # TenantInfo, TenantState, applyBranding
@@ -172,19 +177,76 @@ That's it. You now have a fully functional app shell with ribbon, user menu, sta
 
 ---
 
+## BCoreAppShell — for custom layouts
+
+If you don't want a ribbon-based shell, extend `BCoreAppShell` directly. Common scenarios:
+
+- **Sidebar navigation** instead of ribbon
+- **Login / error pages** that need brand + user dropdown but no navigation
+- **Kiosk / mobile** apps with minimal chrome
+- **Embedded** shells inside other UIs
+
+```typescript
+import { BCoreAppShell } from 'birko-web-shell';
+import { define } from 'birko-web-core';
+
+class MySidebarShell extends BCoreAppShell {
+  // Required (4 methods inherited from BCoreAppShell)
+  protected get brandName() { return 'My App'; }
+  protected getUserName()   { return authStore.get('userName') ?? 'User'; }
+  protected t(key: string)  { return i18n.t(key); }
+  protected onSignOut()     { clearAuth(); window.location.hash = '#/login'; }
+
+  // Override render() entirely with your layout
+  render() {
+    return `
+      <aside class="shell-sidebar">
+        <div class="brand">${this.renderBrand()}</div>          <!-- helper from base -->
+        <b-sidebar id="sidebar"></b-sidebar>
+        <div class="user">${this.renderUserDropdown()}</div>    <!-- helper from base -->
+      </aside>
+      <main class="shell-content"><slot></slot></main>
+    `;
+  }
+
+  static get styles() {
+    return super.styles + `
+      :host { display: grid; grid-template-columns: 16rem 1fr; }
+      .shell-sidebar { /* ... */ }
+      .shell-content { /* ... */ }
+    `;
+  }
+
+  protected onMount() {
+    super.onMount();   // theme, online/offline, breadcrumbs — always call super
+    // your sidebar-specific setup
+  }
+}
+
+define('my-sidebar-shell', MySidebarShell);
+```
+
+**Render helpers provided by `BCoreAppShell`:** `renderBrand()`, `renderUserDropdown()`. You can also override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout instead of replacing `render()` entirely.
+
+**State exposed:** `protected get isOnline(): boolean` (auto-tracked from window online/offline events).
+
+**Refresh API:** `refreshUserMenu()` — re-populates the user dropdown items.
+
+---
+
 ## BAppShell API
 
 ### Required abstract methods
 
-| Method | Returns | Purpose |
-|--------|---------|---------|
-| `brandName` | `string` | Brand displayed in ribbon header |
-| `getUserName()` | `string` | Current user's display name |
-| `getRibbonTabs()` | `RibbonTab[]` | Ribbon tabs from module state |
-| `getActiveTabId()` | `string` | Active tab ID for highlighting |
-| `t(key, params?)` | `string` | Translation function |
-| `onTabChange(tabId)` | `void` | Navigate when user clicks a tab |
-| `onSignOut()` | `void` | Handle sign-out action |
+| Method | Source | Returns | Purpose |
+|--------|--------|---------|---------|
+| `brandName` | base | `string` | Brand displayed in ribbon header |
+| `getUserName()` | base | `string` | Current user's display name |
+| `t(key, params?)` | base | `string` | Translation function |
+| `onSignOut()` | base | `void` | Handle sign-out action |
+| `getRibbonTabs()` | BAppShell | `RibbonTab[]` | Ribbon tabs from module state |
+| `getActiveTabId()` | BAppShell | `string` | Active tab ID for highlighting |
+| `onTabChange(tabId)` | BAppShell | `void` | Navigate when user clicks a tab |
 
 ### Optional overrides (with defaults)
 

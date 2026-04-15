@@ -2,7 +2,11 @@
 
 ## What this project is
 
-Reusable application shell framework for Birko.Web apps. Provides an abstract `BAppShell` base class (layout, CSS, behavior) and factory functions for auth, modules, tenants, notifications, routing, and command palette providers. Apps extend `BAppShell` and implement 7 abstract methods — everything else is built in.
+Reusable application shell framework for Birko.Web apps. Provides:
+- `BCoreAppShell` — abstract core (theme/layout persistence, online/offline tracking, user dropdown, brand link, breadcrumb listener, base CSS). Usable directly for minimal shells (login pages, error pages, kiosks).
+- `BAppShell extends BCoreAppShell` — full Office-style ribbon shell adding navigation tabs, notifications, tenant switcher, status bar, command palette.
+
+Plus factory functions for auth, modules, tenants, notifications, routing, and command palette providers. Apps extend `BAppShell` (or directly `BCoreAppShell` for custom layouts) and implement abstract methods — everything else is built in.
 
 **Depends on:** `birko-web-core` (BaseComponent, Store, Router, ApiClient), `birko-web-components` (BRibbon, BDropdownMenu, BCommandPalette types + tags)
 
@@ -11,8 +15,12 @@ Reusable application shell framework for Birko.Web apps. Provides an abstract `B
 ```
 src/
 ├── shell/
-│   ├── b-app-shell.ts       # Abstract base shell (~610 LOC) — THE core of this project
+│   ├── b-core-app-shell.ts  # Abstract core shell (~280 LOC) — shared infra (theme, online/offline,
+│   │                        #   user dropdown, brand, breadcrumbs, base CSS, default minimal layout)
+│   ├── b-app-shell.ts       # Ribbon shell extends BCoreAppShell (~370 LOC) — adds ribbon nav,
+│   │                        #   notifications, tenants, status bar, command palette
 │   ├── shell-types.ts        # MenuItem, TenantItem, ShellRoutes, ConnectionState
+│   ├── breadcrumbs.ts        # setBreadcrumbs() helper
 │   └── shell-wrapper.ts      # createShellWrapper() for persistent shell in router
 ├── auth/
 │   ├── auth-store.ts         # createAuthStore() — JWT parsing, localStorage persistence
@@ -44,15 +52,17 @@ src/
 ### Factory pattern, not singletons
 All stores and managers are created via factory functions (`createAuthStore()`, `createModuleStore()`, etc.). This project exports **no singletons** — the consuming app creates instances and wires them together. This keeps the shell reusable across apps with different configurations.
 
-### Abstract base class pattern
-`BAppShell` is an abstract class with 7 required methods and ~20 optional overrides. Optional features (notifications, tenants, offline sync) are controlled by what the methods return — no explicit feature flags. Return `null`/`0`/`[]` and the feature hides itself.
+### Abstract base class pattern with two-level hierarchy
+`BCoreAppShell` is the abstract core: 4 required methods (`brandName`, `getUserName`, `t`, `onSignOut`), shared infrastructure, default minimal `render()`. Subclass it directly for non-ribbon layouts (sidebar shells, minimal login shells, kiosks).
+
+`BAppShell extends BCoreAppShell` adds 3 more required methods (`getRibbonTabs`, `getActiveTabId`, `onTabChange`) plus ~20 optional overrides for ribbon, notifications, tenants, status bar, command palette. Optional features are controlled by what the methods return — no explicit feature flags. Return `null`/`0`/`[]` and the feature hides itself.
 
 ### Pure functions for data transformation
 `buildRibbon()`, `getVisibleOptions()`, `resolveModuleFromHash()`, `applyBranding()` are all pure functions. They take data and return results without side effects. This makes them easy to test and compose.
 
 ## Key rules
 
-### BAppShell lifecycle
+### Lifecycle (both BCoreAppShell and BAppShell)
 
 ```
 connectedCallback → super applies styles → render() → onMount()
@@ -60,22 +70,38 @@ update()          →                      → render() → onUpdated()
 disconnectedCallback                     →            onUnmount()
 ```
 
-- **Always call `super.onMount()`** — it sets up online/offline listeners, ribbon pin restore, theme/layout restore, and ribbon-actions event listener
-- **`_unsubs` array** — push store subscriptions here; `onUnmount()` auto-cleans them
-- **`onUpdated()` is idempotent** — it calls all refresh methods + binds event listeners (once, via `_eventsBound` guard)
-- **Never override `onUnmount()` without calling `super.onUnmount()`** — it cleans `_unsubs` and removes window listeners
+- **`BCoreAppShell.onMount()`** sets up theme/layout restore, online/offline listeners, breadcrumb event listener
+- **`BAppShell.onMount()`** calls `super.onMount()` first, then adds ribbon pin restore + ribbon-actions event listener
+- **Always call `super.onMount()` / `super.onUpdated()` / `super.onUnmount()`** when overriding in your concrete shell
+- **`_unsubs` array** (defined in `BCoreAppShell`) — push store subscriptions here; `onUnmount()` auto-cleans them
+- **`onUpdated()` is idempotent** — it calls all refresh methods + binds event listeners (once, via `_baseEventsBound` and `_ribbonEventsBound` guards)
 
-### Required abstract methods (app MUST implement)
+### Required abstract methods
 
+**BCoreAppShell (4):**
 ```typescript
 protected abstract get brandName(): string;
 protected abstract getUserName(): string;
-protected abstract getRibbonTabs(): RibbonTab[];
-protected abstract getActiveTabId(): string;
 protected abstract t(key: string, params?: Record<string, string>): string;
-protected abstract onTabChange(tabId: string): void;
 protected abstract onSignOut(): void;
 ```
+
+**BAppShell adds (3 more):**
+```typescript
+protected abstract getRibbonTabs(): RibbonTab[];
+protected abstract getActiveTabId(): string;
+protected abstract onTabChange(tabId: string): void;
+```
+
+### Render helpers (provided by BCoreAppShell)
+
+Subclasses use these in their `render()`:
+```typescript
+protected renderBrand(): string         // <a id="brand-link" href="...">brandName</a>
+protected renderUserDropdown(): string  // <b-dropdown-menu> with avatar
+```
+
+Subclasses can override `render()` entirely (BAppShell does this) or override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout.
 
 ### Targeted refresh methods (call from store subscriptions)
 
@@ -167,8 +193,9 @@ sse.on('_error', () => conn.setState('reconnecting'));
 ## Styles rules
 
 - All values via `--b-*` CSS custom properties — never hardcode `#hex`, `px`, or `rem`
-- `BAppShell.styles` contains the full shell CSS (~160 lines of CSS)
-- Subclasses should NOT override `styles` unless adding app-specific CSS
+- `BCoreAppShell.styles` contains base CSS (~100 lines): `:host` layout, `.app-brand`, `.brand-name`, `.user-trigger`, `.user-avatar`, `.user-name`, `.app-content`, `.app-content-inner`, `.app-status-bar` skeleton, `.status-dot` variants
+- `BAppShell.styles` extends via `super.styles + ...` adding ribbon-specific CSS (~80 lines): `.ribbon-empty`, `.tenant-switcher-wrap`, `.tenant-trigger`, `.search-btn`, `.bell-btn`, `.bell-badge`, `.status-sync`
+- Custom subclasses of `BCoreAppShell` (e.g. sidebar shells) follow the same `super.styles + ...` pattern
 - The shell uses design tokens from the Birko.Web.Components token system
 
 ## What NOT to do
