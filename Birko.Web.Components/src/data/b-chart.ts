@@ -75,11 +75,16 @@ export class BChart extends BaseComponent {
   private _resizeObserver: ResizeObserver | null = null;
   private _resolvedColors: string[] = [];
 
+  // SVG responsive sizing — measured from container on first render
+  private _svgWidth = 500;
+  private _svgHeight = 300;
+  private _svgSized = false;
+
   static get styles() {
     return `
       :host { display: block; }
       .chart-container { position: relative; width: 100%; }
-      svg { width: 100%; overflow: visible; }
+      svg { width: 100%; height: 100%; overflow: visible; }
       .legend {
         display: flex; flex-wrap: wrap; gap: var(--b-space-sm, 0.5rem);
         padding-top: var(--b-space-sm, 0.5rem);
@@ -238,6 +243,23 @@ export class BChart extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Measure container and adapt SVG viewBox to actual dimensions
+    if (!this._svgSized) {
+      const container = this.$<HTMLElement>('.chart-container');
+      if (container && container.clientWidth > 0) {
+        const newW = container.clientWidth;
+        const newH = container.clientHeight || parseInt(this.attr('height', '300px')) || 300;
+        if (newW !== this._svgWidth || newH !== this._svgHeight) {
+          this._svgWidth = newW;
+          this._svgHeight = newH;
+          this._svgSized = true;
+          this.update(); // re-render with correct viewBox
+          return;
+        }
+        this._svgSized = true;
+      }
+    }
+
     // Wire click events on SVG elements
     this.$$<HTMLElement>('[data-series][data-index]').forEach(el => {
       el.addEventListener('click', () => {
@@ -250,6 +272,23 @@ export class BChart extends BaseComponent {
       });
     });
 
+    // Resize observer — re-measure and re-render on container size change
+    const container = this.$<HTMLElement>('.chart-container');
+    if (container && !this._resizeObserver) {
+      this._resizeObserver = new ResizeObserver(() => {
+        const w = container.clientWidth;
+        const h = container.clientHeight || parseInt(this.attr('height', '300px')) || 300;
+        if (w > 0 && (w !== this._svgWidth || h !== this._svgHeight)) {
+          this._svgWidth = w;
+          this._svgHeight = h;
+          this._svgSized = true;
+          // Soft-update to avoid aborting listeners during resize
+          this.softUpdate();
+        }
+      });
+      this._resizeObserver.observe(container);
+    }
+
     // Canvas mode
     if (this.attr('renderer') === 'canvas') {
       this._canvas = this.$<HTMLCanvasElement>('canvas');
@@ -257,13 +296,6 @@ export class BChart extends BaseComponent {
         this._sizeCanvas();
         this._resolveColors();
         this._renderCanvas();
-
-        // Resize observer for responsive canvas
-        this._resizeObserver = new ResizeObserver(() => {
-          this._sizeCanvas();
-          this._renderCanvas();
-        });
-        this._resizeObserver.observe(this._canvas.parentElement!);
       }
     }
   }
@@ -339,7 +371,7 @@ export class BChart extends BaseComponent {
     const minVal = this._options.yAxis?.min ?? 0;
     const range = maxVal - minVal || 1;
 
-    const vw = 500, vh = 300;
+    const vw = this._svgWidth, vh = this._svgHeight;
     const ml = 45, mr = 10, mt = 10, mb = 30;
     const cw = vw - ml - mr;
     const ch = vh - mt - mb;
@@ -446,7 +478,7 @@ export class BChart extends BaseComponent {
     }
     const xRange = xMax - xMin || 1;
 
-    const vw = 500, vh = 300;
+    const vw = this._svgWidth, vh = this._svgHeight;
     const ml = 45, mr = 10, mt = 10, mb = 30;
     const cw = vw - ml - mr;
     const ch = vh - mt - mb;
