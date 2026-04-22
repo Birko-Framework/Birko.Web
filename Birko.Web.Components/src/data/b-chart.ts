@@ -104,16 +104,16 @@ export class BChart extends BaseComponent {
       svg:hover .data-point { opacity: 1; }
       .data-point:hover { r: 5; cursor: pointer; }
       .axis-label {
-        font-size: 0.625rem;
+        font-size: var(--b-text-2xs, 0.625rem);
         fill: var(--b-text-muted);
       }
       .grid-line { stroke: var(--b-border); stroke-width: 1; stroke-dasharray: 4 4; }
       .threshold-line { stroke-width: 1.5; }
       .threshold-label { font-size: 0.5625rem; }
       .latest-dot { transition: none; }
-      .latest-value { font-size: 0.625rem; font-weight: 700; }
+      .latest-value { font-size: var(--b-text-2xs, 0.625rem); font-weight: 700; }
       .gauge-bg { fill: none; stroke: var(--b-bg-tertiary); }
-      .gauge-fill { fill: none; transition: stroke-dashoffset 0.6s ease; }
+      .gauge-fill { fill: none; transition: stroke-dashoffset var(--b-animation-speed, 0.6s) ease; }
       .gauge-value {
         font-size: var(--b-text-2xl, 1.5rem);
         font-weight: var(--b-font-weight-bold, 700);

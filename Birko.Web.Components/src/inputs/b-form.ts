@@ -4,7 +4,7 @@ import { BaseComponent, define } from 'birko-web-core';
 
 export type FieldType =
   | 'text' | 'password' | 'email' | 'number' | 'percent'
-  | 'textarea' | 'select' | 'multi-select'
+  | 'textarea' | 'markdown' | 'select' | 'multi-select' | 'tags'
   | 'checkbox' | 'switch' | 'radio' | 'search'
   | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'time' | 'custom';
 
@@ -43,8 +43,8 @@ export interface FormField {
   default?: unknown;
   required?: boolean;
   rules?: ValidationRule[];
-  // Range-specific
-  mode?: 'single' | 'range';
+  // Range- or markdown-specific
+  mode?: 'single' | 'range' | 'split' | 'source' | 'preview';
   display?: 'both' | 'slider' | 'input';
   valueType?: 'number' | 'int' | 'percent';
   min?: number | string;
@@ -52,6 +52,10 @@ export interface FormField {
   step?: number;
   // Date-specific
   native?: boolean;
+  // Tags-specific
+  separators?: string;
+  maxCount?: number;
+  allowDuplicates?: boolean;
 }
 
 export interface FormGroupDef {
@@ -451,6 +455,10 @@ export class BForm extends BaseComponent {
     switch (field.type) {
       case 'textarea':
         return (a) => `<b-textarea ${a}></b-textarea>`;
+      case 'markdown':
+        return (a) => `<b-markdown-editor ${a}></b-markdown-editor>`;
+      case 'tags':
+        return (a) => `<b-tag-input ${a}></b-tag-input>`;
       case 'select':
         return (a) => `<b-select ${a}></b-select>`;
       case 'multi-select':
@@ -509,6 +517,15 @@ export class BForm extends BaseComponent {
         break;
       case 'textarea':
         if (field.rows) parts.push(`rows="${field.rows}"`);
+        break;
+      case 'markdown':
+        if (field.rows) parts.push(`rows="${field.rows}"`);
+        if (field.mode) parts.push(`mode="${field.mode}"`);
+        break;
+      case 'tags':
+        if (field.separators) parts.push(`separators="${field.separators}"`);
+        if (field.maxCount !== undefined) parts.push(`max-count="${field.maxCount}"`);
+        if (field.allowDuplicates) parts.push('allow-duplicates');
         break;
       case 'select':
       case 'multi-select':
@@ -825,6 +842,8 @@ export class BForm extends BaseComponent {
         return (el as any).checked ?? el.hasAttribute('checked');
       case 'multi-select':
         return 'getSelected' in el ? (el as any).getSelected() : [];
+      case 'tags':
+        return 'getTags' in el ? (el as any).getTags() : [];
       case 'file':
         return 'getFiles' in el ? (el as any).getFiles() : [];
       case 'range': {
@@ -849,6 +868,9 @@ export class BForm extends BaseComponent {
         break;
       case 'multi-select':
         if ('setSelected' in el) (el as any).setSelected(value as string[]);
+        break;
+      case 'tags':
+        if ('setTags' in el) (el as any).setTags(Array.isArray(value) ? value as string[] : []);
         break;
       case 'range':
         if ('inputValue' in el) {

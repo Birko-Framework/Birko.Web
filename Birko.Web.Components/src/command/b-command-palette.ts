@@ -39,8 +39,8 @@ export class BCommandPalette extends BaseComponent {
       /* Backdrop */
       .palette-backdrop {
         position: fixed; inset: 0;
-        background: rgba(0, 0, 0, 0.45);
-        z-index: 900;
+        background: var(--b-backdrop-bg, rgba(0, 0, 0, 0.4));
+        z-index: var(--b-z-modal, 400);
         display: flex;
         align-items: flex-start;
         justify-content: center;
@@ -81,7 +81,7 @@ export class BCommandPalette extends BaseComponent {
       }
       .search-icon {
         color: var(--b-text-muted);
-        font-size: 1rem;
+        font-size: var(--b-text-lg, 1rem);
         flex-shrink: 0;
       }
       .search-input {
@@ -104,7 +104,7 @@ export class BCommandPalette extends BaseComponent {
         background: var(--b-bg-tertiary);
         border: 1px solid var(--b-border);
         border-radius: var(--b-radius-sm, 0.25rem);
-        font-size: 0.625rem;
+        font-size: var(--b-text-2xs, 0.625rem);
         font-family: inherit;
         color: var(--b-text-muted);
       }
@@ -146,7 +146,7 @@ export class BCommandPalette extends BaseComponent {
         display: flex; align-items: center; justify-content: center;
         background: var(--b-bg-tertiary);
         border-radius: var(--b-radius, 0.375rem);
-        font-size: 0.875rem;
+        font-size: var(--b-text-base, 0.875rem);
         flex-shrink: 0;
         color: var(--b-text-muted);
       }

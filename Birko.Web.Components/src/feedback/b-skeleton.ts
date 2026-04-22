@@ -15,7 +15,7 @@ export class BSkeleton extends BaseComponent {
       .bone {
         background: var(--b-bg-tertiary);
         border-radius: var(--b-radius, 0.375rem);
-        animation: skeleton-pulse 1.5s ease-in-out infinite;
+        animation: skeleton-pulse var(--b-animation-slow, 1.5s) ease-in-out infinite;
       }
       .bone.circle { border-radius: var(--b-radius-full, 9999px); }
 

@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import '../feedback/b-skeleton.js';
 
 export interface TableColumnOption {
   value: string;
@@ -67,13 +68,15 @@ export class BTable extends BaseComponent {
         border-bottom: var(--b-border-width, 1px) solid var(--b-border); color: var(--b-text);
         vertical-align: middle;
       }
-      :host([striped]) tr:nth-child(even) td { background: var(--b-bg-secondary); }
-      :host([hoverable]) tr:hover td { background: var(--b-bg-tertiary); }
+      :host([striped]) tr:nth-child(even):not(.skeleton-row) td { background: var(--b-bg-secondary); }
+      :host([hoverable]) tr:not(.skeleton-row):hover td { background: var(--b-bg-tertiary); }
+      tr.skeleton-row { cursor: default; }
+      tr.skeleton-row td { background: var(--b-bg); }
       tr { cursor: default; transition: background var(--b-transition, 150ms ease); }
       .align-center { text-align: center; }
       .align-right { text-align: right; }
       .empty { text-align: center; padding: var(--b-space-3xl, 3rem); color: var(--b-text-muted); }
-      .loading-bar { height: var(--b-space-2xs, 0.125rem); background: var(--b-color-primary); animation: loading 1.5s ease infinite; }
+      .loading-bar { height: var(--b-space-2xs, 0.125rem); background: var(--b-color-primary); animation: loading var(--b-animation-slow, 1.5s) ease infinite; }
       @keyframes loading { 0% { width: 0; } 50% { width: 70%; } 100% { width: 100%; opacity: 0; } }
       /* Editable cell hooks (activated by b-data-table) */
       td.cell-editable { cursor: text; }
@@ -107,8 +110,10 @@ export class BTable extends BaseComponent {
       return this._sortDesc ? -cmp : cmp;
     }) : this._data;
 
+    const showSkeleton = loading && sorted.length === 0;
+
     return `
-      ${loading ? '<div class="loading-bar"></div>' : ''}
+      ${loading && !showSkeleton ? '<div class="loading-bar"></div>' : ''}
       <div class="table-wrap">
         <table>
           <thead>
@@ -128,18 +133,24 @@ export class BTable extends BaseComponent {
             </tr>
           </thead>
           <tbody>
-            ${sorted.length === 0
-              ? `<tr><td colspan="${this._columns.length}" class="empty">${emptyText}</td></tr>`
-              : sorted.map(row => `<tr data-id="${this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? '')}">${
-                  this._columns.map(c => {
-                    const val = row[c.key];
-                    const rendered = c.render ? c.render(val, row) : this._escape(val);
-                    if (c.editable) {
-                      return `<td class="${c.align ? 'align-' + c.align + ' ' : ''}cell-editable" data-editable="${c.key}"><span class="cell-val">${rendered}</span></td>`;
-                    }
-                    return `<td class="${c.align ? 'align-' + c.align : ''}">${rendered}</td>`;
-                  }).join('')
-                }</tr>`).join('')}
+            ${showSkeleton
+              ? Array.from({ length: 5 }, () =>
+                  `<tr class="skeleton-row">${this._columns.map(c =>
+                    `<td class="${c.align ? 'align-' + c.align : ''}"><b-skeleton></b-skeleton></td>`
+                  ).join('')}</tr>`
+                ).join('')
+              : sorted.length === 0
+                ? `<tr><td colspan="${this._columns.length}" class="empty">${emptyText}</td></tr>`
+                : sorted.map(row => `<tr data-id="${this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? '')}">${
+                    this._columns.map(c => {
+                      const val = row[c.key];
+                      const rendered = c.render ? c.render(val, row) : this._escape(val);
+                      if (c.editable) {
+                        return `<td class="${c.align ? 'align-' + c.align + ' ' : ''}cell-editable" data-editable="${c.key}"><span class="cell-val">${rendered}</span></td>`;
+                      }
+                      return `<td class="${c.align ? 'align-' + c.align : ''}">${rendered}</td>`;
+                    }).join('')
+                  }</tr>`).join('')}
           </tbody>
         </table>
       </div>

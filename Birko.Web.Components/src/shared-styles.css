@@ -336,6 +336,39 @@ input.has-error:focus, select.has-error:focus {
 }
 
 
+/* @sheet focusVisible
+   Shared focus-visible pattern: outline none + focus ring.
+   Apply to interactive elements (buttons, links, custom controls). */
+
+:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+
+
+/* @sheet iconButton
+   Bare icon-only button: no background, no border, cursor pointer.
+   Parent positions and sizes it. */
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--b-space-xs, 0.25rem);
+  color: var(--b-text-muted);
+  font-size: var(--b-icon-base, 1rem);
+  line-height: 1;
+}
+.icon-btn:hover {
+  background: var(--b-bg-tertiary);
+  color: var(--b-text);
+}
+.icon-btn:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+
+
 /* @sheet dataViewerCard
    Compact data-viewer card shell: bg-tertiary, border, radius, overflow hidden.
    Used by b-json-viewer, b-xml-viewer, b-code-block, and b-object-tree (when

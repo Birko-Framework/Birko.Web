@@ -84,3 +84,9 @@ export const dataViewerHeaderSheet = getSheet('dataViewerHeader');
 
 /** Small bordered action button used in data-viewer headers (Copy / Expand / Collapse). */
 export const toolbarBtnSheet = getSheet('toolbarBtn');
+
+/** Shared focus-visible pattern: outline none + focus ring. */
+export const focusVisibleSheet = getSheet('focusVisible');
+
+/** Bare icon-only button: no background, no border, cursor pointer. */
+export const iconButtonSheet = getSheet('iconButton');

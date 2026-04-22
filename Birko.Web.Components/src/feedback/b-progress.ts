@@ -65,7 +65,7 @@ export class BProgress extends BaseComponent {
         );
         background-size: 1rem 1rem;
       }
-      .fill.animated { animation: b-progress-stripes 1s linear infinite; }
+      .fill.animated { animation: b-progress-stripes var(--b-spinner-speed, 0.7s) linear infinite; }
       @keyframes b-progress-stripes {
         from { background-position: 0 0; }
         to { background-position: 1rem 0; }
@@ -78,7 +78,7 @@ export class BProgress extends BaseComponent {
         width: 40%;
         background: var(--b-color-primary);
         border-radius: inherit;
-        animation: b-progress-indeterminate 1.4s ease-in-out infinite;
+        animation: b-progress-indeterminate var(--b-animation-progress, 1.4s) ease-in-out infinite;
       }
       @keyframes b-progress-indeterminate {
         0%   { left: -40%; }

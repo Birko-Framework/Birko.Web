@@ -59,7 +59,7 @@ export class BOptionGroup extends BaseComponent {
       }
       .opt-btn.active {
         background: var(--b-color-primary);
-        color: var(--b-color-on-primary, #fff);
+        color: var(--b-text-inverse);
         border-color: var(--b-color-primary);
       }
       .opt-btn:disabled {

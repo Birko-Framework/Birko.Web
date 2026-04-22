@@ -98,7 +98,7 @@ export class BRibbon extends BaseComponent {
         min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem;
         border-radius: var(--b-radius-full, 9999px);
         background: var(--b-color-danger); color: var(--b-text-inverse);
-        font-size: 0.625rem; font-weight: var(--b-font-weight-bold, 700);
+        font-size: var(--b-text-2xs, 0.625rem); font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
 
@@ -112,7 +112,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-ctrl {
         background: none; border: none; cursor: pointer;
         color: var(--b-text-muted); padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        border-radius: var(--b-radius, 0.375rem); font-size: 0.875rem;
+        border-radius: var(--b-radius, 0.375rem); font-size: var(--b-text-base, 0.875rem);
         display: flex; align-items: center;
       }
       .ribbon-ctrl:hover { color: var(--b-text); background: var(--b-bg-tertiary); }
@@ -201,7 +201,7 @@ export class BRibbon extends BaseComponent {
       /* ── Mobile ── */
       .mobile-hamburger {
         display: none; background: none; border: none; cursor: pointer;
-        color: var(--b-text-secondary); font-size: 1.25rem;
+        color: var(--b-text-secondary); font-size: var(--b-text-xl, 1.25rem);
         padding: var(--b-space-xs, 0.25rem); border-radius: var(--b-radius, 0.375rem);
         align-items: center; justify-content: center;
       }
@@ -227,7 +227,7 @@ export class BRibbon extends BaseComponent {
       }
       .mobile-dialog-close {
         background: none; border: none; cursor: pointer;
-        font-size: 1.25rem; color: var(--b-text-muted); padding: var(--b-space-xs, 0.25rem);
+        font-size: var(--b-text-xl, 1.25rem); color: var(--b-text-muted); padding: var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius, 0.375rem);
       }
       .mobile-dialog-close:hover { background: var(--b-bg-tertiary); color: var(--b-text); }

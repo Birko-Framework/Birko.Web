@@ -41,7 +41,7 @@ export class BMarkdownEditor extends BaseComponent {
       .toolbar-group {
         display: flex;
         align-items: center;
-        gap: 0.125rem;
+        gap: var(--b-space-2xs, 0.125rem);
       }
       .toolbar-sep {
         width: 1px;
@@ -69,6 +69,40 @@ export class BMarkdownEditor extends BaseComponent {
       .toolbar-btn:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
       .toolbar-btn.active { background: var(--b-bg-tertiary); color: var(--b-color-primary); }
 
+      /* Heading dropdown */
+      .heading-wrap { position: relative; }
+      .heading-dropdown {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        z-index: var(--b-z-dropdown, 100);
+        background: var(--b-bg);
+        border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius-sm, 0.25rem);
+        box-shadow: var(--b-shadow-md);
+        padding: var(--b-space-2xs, 0.125rem);
+        margin-top: var(--b-space-2xs, 0.125rem);
+        flex-direction: column;
+        min-width: 4rem;
+      }
+      .heading-dropdown.open { display: flex; }
+      .heading-opt {
+        display: block;
+        width: 100%;
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border: none;
+        background: transparent;
+        color: var(--b-text);
+        font-size: var(--b-text-sm, 0.8125rem);
+        cursor: pointer;
+        text-align: left;
+        border-radius: var(--b-radius-sm, 0.25rem);
+        white-space: nowrap;
+      }
+      .heading-opt:hover { background: var(--b-bg-tertiary); }
+      .heading-opt:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
+
       /* Mode toggle */
       .mode-toggle { display: flex; margin-left: auto; }
       .mode-btn {
@@ -83,7 +117,7 @@ export class BMarkdownEditor extends BaseComponent {
       .mode-btn:first-child { border-radius: var(--b-radius-sm, 0.25rem) 0 0 var(--b-radius-sm, 0.25rem); }
       .mode-btn:last-child { border-radius: 0 var(--b-radius-sm, 0.25rem) var(--b-radius-sm, 0.25rem) 0; border-left: none; }
       .mode-btn:not(:first-child):not(:last-child) { border-left: none; }
-      .mode-btn.active { background: var(--b-color-primary); color: #fff; border-color: var(--b-color-primary); }
+      .mode-btn.active { background: var(--b-color-primary); color: var(--b-text-inverse); border-color: var(--b-color-primary); }
       .mode-btn:focus-visible { box-shadow: var(--b-focus-ring); outline: none; position: relative; z-index: 1; }
 
       /* Split pane */
@@ -141,14 +175,20 @@ export class BMarkdownEditor extends BaseComponent {
       .preview-content strong { font-weight: var(--b-font-weight-bold, 700); }
       .preview-content em { font-style: italic; }
       .preview-content del { text-decoration: line-through; color: var(--b-text-muted); }
+      .preview-content mark { background: var(--b-color-warning-light, #fef3c7); padding: 0.0625rem 0.125rem; border-radius: var(--b-radius-sm, 0.25rem); }
+      .preview-content sup { font-size: 0.75em; vertical-align: super; line-height: 0; }
+      .preview-content sub { font-size: 0.75em; vertical-align: sub; line-height: 0; }
       .preview-content table { border-collapse: collapse; width: 100%; margin: 0 0 var(--b-space-sm, 0.5rem); }
       .preview-content th, .preview-content td { border: var(--b-border-width, 1px) solid var(--b-border); padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem); text-align: left; }
       .preview-content th { background: var(--b-bg-secondary); font-weight: var(--b-font-weight-semibold, 600); }
+      .preview-content .task-list-item { list-style: none; margin-left: -1.25rem; }
+      .preview-content .task-list-item input[type="checkbox"] { margin-right: var(--b-space-xs, 0.25rem); vertical-align: middle; accent-color: var(--b-color-primary); }
     `;
   }
 
   private _source = '';
   private _renderer: MarkdownRenderer | null = null;
+  private _headingDropdownOpen = false;
 
   render() {
     const label = this.attr('label');
@@ -174,13 +214,26 @@ export class BMarkdownEditor extends BaseComponent {
         <div class="editor-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <div class="toolbar" ${readonly ? 'style="display:none"' : ''}>
             <div class="toolbar-group">
-              <button class="toolbar-btn" data-action="bold" title="Bold" aria-label="Bold" type="button"><b>B</b></button>
-              <button class="toolbar-btn" data-action="italic" title="Italic" aria-label="Italic" type="button"><i>I</i></button>
+              <button class="toolbar-btn" data-action="bold" title="Bold (Ctrl+B)" aria-label="Bold" type="button"><b>B</b></button>
+              <button class="toolbar-btn" data-action="italic" title="Italic (Ctrl+I)" aria-label="Italic" type="button"><i>I</i></button>
               <button class="toolbar-btn" data-action="strikethrough" title="Strikethrough" aria-label="Strikethrough" type="button"><s>S</s></button>
+              <button class="toolbar-btn" data-action="highlight" title="Highlight" aria-label="Highlight" type="button" style="text-decoration:overline">H</button>
+              <button class="toolbar-btn" data-action="sup" title="Superscript" aria-label="Superscript" type="button" style="font-size:0.65rem;vertical-align:super">X</button>
+              <button class="toolbar-btn" data-action="sub" title="Subscript" aria-label="Subscript" type="button" style="font-size:0.65rem;vertical-align:sub">X</button>
             </div>
             <span class="toolbar-sep"></span>
             <div class="toolbar-group">
-              <button class="toolbar-btn" data-action="h2" title="Heading" aria-label="Heading" type="button">H</button>
+              <div class="heading-wrap">
+                <button class="toolbar-btn" data-action="heading-menu" title="Heading" aria-label="Heading" type="button">H</button>
+                <div class="heading-dropdown ${this._headingDropdownOpen ? 'open' : ''}">
+                  <button class="heading-opt" data-action="h1" type="button">H1 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">#</span></button>
+                  <button class="heading-opt" data-action="h2" type="button">H2 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">##</span></button>
+                  <button class="heading-opt" data-action="h3" type="button">H3 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">###</span></button>
+                  <button class="heading-opt" data-action="h4" type="button">H4 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">####</span></button>
+                  <button class="heading-opt" data-action="h5" type="button">H5 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">#####</span></button>
+                  <button class="heading-opt" data-action="h6" type="button">H6 <span style="font-size:0.7em;color:var(--b-text-muted);font-weight:400">######</span></button>
+                </div>
+              </div>
               <button class="toolbar-btn" data-action="quote" title="Blockquote" aria-label="Blockquote" type="button">&ldquo;</button>
               <button class="toolbar-btn" data-action="code" title="Code" aria-label="Code" type="button">&lt;/&gt;</button>
             </div>
@@ -188,11 +241,13 @@ export class BMarkdownEditor extends BaseComponent {
             <div class="toolbar-group">
               <button class="toolbar-btn" data-action="ul" title="Bullet list" aria-label="Bullet list" type="button">&bull;</button>
               <button class="toolbar-btn" data-action="ol" title="Numbered list" aria-label="Numbered list" type="button">1.</button>
+              <button class="toolbar-btn" data-action="tasklist" title="Task list" aria-label="Task list" type="button">&#9744;</button>
             </div>
             <span class="toolbar-sep"></span>
             <div class="toolbar-group">
               <button class="toolbar-btn" data-action="link" title="Link" aria-label="Insert link" type="button">&#128279;</button>
               <button class="toolbar-btn" data-action="image" title="Image" aria-label="Insert image" type="button">&#128247;</button>
+              <button class="toolbar-btn" data-action="table" title="Table" aria-label="Insert table" type="button">&#9638;</button>
               <button class="toolbar-btn" data-action="hr" title="Horizontal rule" aria-label="Horizontal rule" type="button">&mdash;</button>
             </div>
             <div class="mode-toggle">
@@ -255,9 +310,39 @@ export class BMarkdownEditor extends BaseComponent {
       });
     });
 
-    // Toolbar action buttons
+    // Heading dropdown toggle
+    const headingMenuBtn = this.$<HTMLButtonElement>('[data-action="heading-menu"]');
+    const headingDropdown = this.$<HTMLElement>('.heading-dropdown');
+    if (headingMenuBtn && headingDropdown) {
+      this.listen(headingMenuBtn, 'click', (e: Event) => {
+        e.stopPropagation();
+        this._headingDropdownOpen = !this._headingDropdownOpen;
+        headingDropdown.classList.toggle('open', this._headingDropdownOpen);
+      });
+
+      // Close dropdown when clicking outside
+      this.listen(document.body, 'click', () => {
+        if (this._headingDropdownOpen) {
+          this._headingDropdownOpen = false;
+          headingDropdown.classList.remove('open');
+        }
+      });
+    }
+
+    // Heading options
+    this.$$<HTMLButtonElement>('.heading-opt').forEach(btn => {
+      this.listen(btn, 'click', (e: Event) => {
+        e.stopPropagation();
+        this._headingDropdownOpen = false;
+        if (headingDropdown) headingDropdown.classList.remove('open');
+        this._handleToolbarAction(btn.dataset.action!, textarea);
+      });
+    });
+
+    // Toolbar action buttons (skip heading-menu which is handled above)
     if (!disabled && !readonly) {
       this.$$<HTMLButtonElement>('.toolbar-btn').forEach(btn => {
+        if (btn.dataset.action === 'heading-menu') return;
         this.listen(btn, 'click', (e: Event) => {
           e.preventDefault();
           this._handleToolbarAction(btn.dataset.action!, textarea);
@@ -271,6 +356,12 @@ export class BMarkdownEditor extends BaseComponent {
   get value(): string { return this._source; }
   set value(v: string) {
     this._source = v;
+    this.update();
+  }
+
+  get inputValue(): string { return this._source; }
+  set inputValue(v: string) {
+    this._source = v ?? '';
     this.update();
   }
 
@@ -324,11 +415,19 @@ export class BMarkdownEditor extends BaseComponent {
     let placeholder = '';
 
     switch (action) {
-      case 'bold':         before = '**'; after = '**'; placeholder = 'bold text'; break;
-      case 'italic':       before = '*'; after = '*'; placeholder = 'italic text'; break;
+      case 'bold':          before = '**'; after = '**'; placeholder = 'bold text'; break;
+      case 'italic':        before = '*'; after = '*'; placeholder = 'italic text'; break;
       case 'strikethrough': before = '~~'; after = '~~'; placeholder = 'strikethrough'; break;
-      case 'h2':           before = '\n## '; after = '\n'; placeholder = 'Heading'; break;
-      case 'quote':        before = '\n> '; after = '\n'; placeholder = 'quote'; break;
+      case 'highlight':     before = '=='; after = '=='; placeholder = 'highlighted'; break;
+      case 'sup':           before = '^'; after = '^'; placeholder = 'superscript'; break;
+      case 'sub':           before = '~'; after = '~'; placeholder = 'subscript'; break;
+      case 'h1':            before = '\n# '; after = '\n'; placeholder = 'Heading 1'; break;
+      case 'h2':            before = '\n## '; after = '\n'; placeholder = 'Heading 2'; break;
+      case 'h3':            before = '\n### '; after = '\n'; placeholder = 'Heading 3'; break;
+      case 'h4':            before = '\n#### '; after = '\n'; placeholder = 'Heading 4'; break;
+      case 'h5':            before = '\n##### '; after = '\n'; placeholder = 'Heading 5'; break;
+      case 'h6':            before = '\n###### '; after = '\n'; placeholder = 'Heading 6'; break;
+      case 'quote':         before = '\n> '; after = '\n'; placeholder = 'quote'; break;
       case 'code': {
         if (selected.includes('\n')) {
           before = '\n```\n'; after = '\n```\n'; placeholder = 'code';
@@ -337,11 +436,13 @@ export class BMarkdownEditor extends BaseComponent {
         }
         break;
       }
-      case 'ul':           before = '\n- '; after = '\n'; placeholder = 'list item'; break;
-      case 'ol':           before = '\n1. '; after = '\n'; placeholder = 'list item'; break;
-      case 'link':         before = '['; after = '](url)'; placeholder = 'link text'; break;
-      case 'image':        before = '!['; after = '](url)'; placeholder = 'alt text'; break;
-      case 'hr':           before = '\n---\n'; after = ''; placeholder = ''; break;
+      case 'ul':            before = '\n- '; after = '\n'; placeholder = 'list item'; break;
+      case 'ol':            before = '\n1. '; after = '\n'; placeholder = 'list item'; break;
+      case 'tasklist':      before = '\n- [ ] '; after = '\n'; placeholder = 'task'; break;
+      case 'link':          before = '['; after = '](url)'; placeholder = 'link text'; break;
+      case 'image':         before = '!['; after = '](url)'; placeholder = 'alt text'; break;
+      case 'table':         before = '\n| Header | Header |\n| ------ | ------ |\n| Cell'; after = ' | Cell |\n'; placeholder = ''; break;
+      case 'hr':            before = '\n---\n'; after = ''; placeholder = ''; break;
       default: return;
     }
 
@@ -445,27 +546,39 @@ export class BMarkdownEditor extends BaseComponent {
       return `<table><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
     });
 
-    // 8. Unordered lists
+    // 8. Task lists (before general unordered lists)
+    work = work.replace(/^[-*+]\s+\[([ xX])\]\s+(.+)$/gm, (_m, checked, text) => {
+      const isChecked = checked !== ' ';
+      return `<li class="task-list-item"><input type="checkbox" ${isChecked ? 'checked' : ''} disabled>${text}</li>`;
+    });
+
+    // 9. Unordered lists
     work = work.replace(/^(\s*)[-*+]\s+(.+)$/gm, '$1<li>$2</li>');
     work = work.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
 
-    // 9. Ordered lists
+    // 10. Ordered lists
     work = work.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
 
-    // 10. Inline formatting
+    // 11. Inline formatting
     work = work.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     work = work.replace(/__(.+?)__/g, '<strong>$1</strong>');
     work = work.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    work = work.replace(/_(.+?)_/g, '<em>$1</em>');
+    work = work.replace(/(?<!\w)_(.+?)_(?!\w)/g, '<em>$1</em>');
     work = work.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    work = work.replace(/==(.+?)==/g, '<mark>$1</mark>');
 
-    // 11. Images (before links)
+    // Superscript: ^text^ — single char or parenthesized
+    work = work.replace(/\^([^\s^]+?)\^/g, '<sup>$1</sup>');
+    // Subscript: ~text~ (single tilde, not double ~~ which is strikethrough)
+    work = work.replace(/(?<!~)~([^~\s]+?)~(?!~)/g, '<sub>$1</sub>');
+
+    // 12. Images (before links)
     work = work.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">');
 
-    // 12. Links
+    // 13. Links
     work = work.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
 
-    // 13. Paragraphs — wrap double-newline-separated blocks
+    // 14. Paragraphs — wrap double-newline-separated blocks
     const blocks = work.split(/\n\n+/);
     work = blocks.map(block => {
       const trimmed = block.trim();
@@ -475,7 +588,7 @@ export class BMarkdownEditor extends BaseComponent {
       return `<p>${trimmed.replace(/\n/g, '<br>')}</p>`;
     }).join('\n');
 
-    // 14. Restore masked tokens
+    // 15. Restore masked tokens
     work = work.replace(/\x00(\d+)\x00/g, (_m, i) => tokens[Number(i)]);
 
     return work;
@@ -512,6 +625,9 @@ export class BMarkdownEditor extends BaseComponent {
     text = text.replace(/<(em|i)>([\s\S]*?)<\/\1>/gi, '*$2*');
     text = text.replace(/<(u)>([\s\S]*?)<\/\1>/gi, '__$2__');
     text = text.replace(/<(del|s|strike)>([\s\S]*?)<\/\1>/gi, '~~$2~~');
+    text = text.replace(/<(mark)>([\s\S]*?)<\/\1>/gi, '==$2==');
+    text = text.replace(/<sup>([\s\S]*?)<\/sup>/gi, '^$1^');
+    text = text.replace(/<sub>([\s\S]*?)<\/sub>/gi, '~$1~');
 
     // Convert headings
     text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, '\n# $1\n');

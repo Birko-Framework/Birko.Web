@@ -326,10 +326,19 @@ export class BKanban extends BaseComponent {
       });
     });
 
-    // Mouse drag-and-drop
+    // Mouse drag-and-drop + click
     this.$$<HTMLElement>('.card').forEach(card => {
       this.listen(card, 'dragstart', (e: Event) => this._onDragStart(e as DragEvent, card));
       this.listen(card, 'dragend', () => this._onDragEnd());
+      this.listen(card, 'click', (e: Event) => {
+        if (this._dragCardId || this._keyboardDragging) return;
+        const tgt = e.target as HTMLElement;
+        if (tgt.closest('.card-toggle')) return;
+        const cardId = card.dataset.cardId!;
+        const columnId = card.dataset.columnId!;
+        const cardData = this._cards.find(c => c.id === cardId);
+        this.emit('card-click', { cardId, columnId, card: cardData });
+      });
     });
 
     this.$$<HTMLElement>('.column-body').forEach(colBody => {

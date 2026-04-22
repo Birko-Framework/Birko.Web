@@ -52,17 +52,18 @@ export class BDefinitionList extends BaseComponent {
         gap: var(--b-space-sm, 0.5rem);
         align-items: baseline;
       }
-      dt {
+      dt, ::slotted(dt) {
         font-weight: var(--b-font-weight-medium, 500);
         color: var(--b-text-secondary);
         margin: 0;
       }
-      dd {
+      dd, ::slotted(dd) {
         margin: 0;
         color: var(--b-text);
         overflow-wrap: anywhere;
       }
-      :host([align="right"]) dd { text-align: right; }
+      :host([align="right"]) dd,
+      :host([align="right"]) ::slotted(dd) { text-align: right; }
       :host([size="sm"]) dl { font-size: var(--b-text-xs, 0.6875rem); gap: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem); }
       :host([size="lg"]) dl { font-size: var(--b-text-base, 0.875rem); gap: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem); }
     `;

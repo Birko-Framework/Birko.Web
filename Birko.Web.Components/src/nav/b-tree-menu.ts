@@ -179,7 +179,7 @@ export class BTreeMenu extends BaseComponent {
         width: 1.25rem; height: 1.25rem;
         border: 1px solid var(--b-border); border-radius: var(--b-radius-sm, 0.25rem);
         background: var(--b-bg); color: var(--b-text-muted);
-        cursor: pointer; font-size: 0.625rem; padding: 0;
+        cursor: pointer; font-size: var(--b-text-2xs, 0.625rem); padding: 0;
         line-height: 1;
       }
       .sort-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); border-color: var(--b-text-muted); }
@@ -204,7 +204,7 @@ export class BTreeMenu extends BaseComponent {
         border: 2px solid var(--b-border);
         border-top-color: var(--b-color-primary);
         border-radius: 50%;
-        animation: tree-spin 0.6s linear infinite;
+        animation: tree-spin var(--b-animation-speed, 0.6s) linear infinite;
         flex-shrink: 0;
       }
       @keyframes tree-spin { to { transform: rotate(360deg); } }

@@ -72,7 +72,7 @@ export class BChat extends BaseComponent {
         font-family: var(--b-font-family, system-ui, -apple-system, sans-serif);
         font-size: var(--b-text-base, 0.875rem);
         color: var(--b-text, #0f172a);
-        background: var(--b-bg, #fff);
+        background: var(--b-bg);
       }
 
       /* ── Header slot ── */
@@ -98,7 +98,7 @@ export class BChat extends BaseComponent {
         display: flex;
         flex-direction: column;
         max-width: 80%;
-        animation: msg-in 150ms ease;
+        animation: msg-in var(--b-transition, 150ms ease);
       }
       .message.user {
         align-self: flex-end;
@@ -118,7 +118,7 @@ export class BChat extends BaseComponent {
       }
       .message.user .bubble {
         background: var(--b-color-primary, #2563eb);
-        color: var(--b-text-inverse, #ffffff);
+        color: var(--b-text-inverse);
         border-bottom-right-radius: var(--b-radius-sm, 0.25rem);
       }
       .message.assistant .bubble {
@@ -136,7 +136,7 @@ export class BChat extends BaseComponent {
       .bubble.html-content p { margin: 0 0 0.5em; }
       .bubble.html-content p:last-child { margin: 0; }
       .bubble.html-content code {
-        background: rgba(0,0,0,0.06);
+        background: var(--b-backdrop-overlay, rgba(0, 0, 0, 0.06));
         padding: 0.1em 0.3em;
         border-radius: var(--b-radius-sm, 0.25rem);
         font-size: 0.9em;
@@ -191,7 +191,7 @@ export class BChat extends BaseComponent {
         height: 0.375rem;
         background: var(--b-text-muted, #94a3b8);
         border-radius: var(--b-radius-full, 9999px);
-        animation: typing-bounce 1.4s infinite;
+        animation: typing-bounce var(--b-animation-progress, 1.4s) infinite;
       }
       .typing-dot:nth-child(2) { animation-delay: 0.2s; }
       .typing-dot:nth-child(3) { animation-delay: 0.4s; }
@@ -203,7 +203,7 @@ export class BChat extends BaseComponent {
         gap: var(--b-space-sm, 0.5rem);
         padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
         border-top: var(--b-border-width, 1px) solid var(--b-border, #e2e8f0);
-        background: var(--b-bg, #fff);
+        background: var(--b-bg);
       }
       .chat-input textarea {
         flex: 1;
@@ -213,7 +213,7 @@ export class BChat extends BaseComponent {
         font-family: inherit;
         font-size: inherit;
         color: inherit;
-        background: var(--b-bg, #fff);
+        background: var(--b-bg);
         resize: none;
         min-height: 2.5rem;
         max-height: 8rem;
@@ -236,7 +236,7 @@ export class BChat extends BaseComponent {
         align-self: flex-end;
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         background: var(--b-color-primary, #2563eb);
-        color: var(--b-text-inverse, #ffffff);
+        color: var(--b-text-inverse);
         border: none;
         border-radius: var(--b-radius-lg, 0.625rem);
         font-family: inherit;

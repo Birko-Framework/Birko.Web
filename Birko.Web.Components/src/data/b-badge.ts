@@ -17,7 +17,7 @@ export class BBadge extends BaseComponent {
       .danger { background: var(--b-color-danger-light); color: var(--b-color-danger); }
       .info { background: var(--b-color-info-light); color: var(--b-color-info); }
       .neutral { background: var(--b-bg-tertiary); color: var(--b-text-secondary); }
-      :host([size="sm"]) .badge { padding: 0 var(--b-space-xs); font-size: 0.625rem; }
+      :host([size="sm"]) .badge { padding: 0 var(--b-space-xs); font-size: var(--b-text-2xs, 0.625rem); }
       :host([size="lg"]) .badge { padding: var(--b-space-xs) var(--b-space-md); font-size: var(--b-text-sm); }
     `;
   }
