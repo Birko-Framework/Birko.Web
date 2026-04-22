@@ -13,6 +13,12 @@ export {
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';
 export { BTag } from './b-tag.js';
+export { BPre } from './b-pre.js';
+export { BCodeBlock } from './b-code-block.js';
+export { BDefinitionList, type DefinitionItem } from './b-definition-list.js';
+export { BObjectTree } from './b-object-tree.js';
+export { BJsonViewer } from './b-json-viewer.js';
+export { BXmlViewer } from './b-xml-viewer.js';
 export { createCellRenderers, type CellRenderers } from './cell-renderers.js';
 export {
   BChart,

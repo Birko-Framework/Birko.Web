@@ -9,6 +9,7 @@ export { BSearchInput } from './b-search-input.js';
 export { BRadio } from './b-radio.js';
 export { BOptionGroup } from './b-option-group.js';
 export { BMultiSelect, type MultiSelectOption } from './b-multi-select.js';
+export { BTagInput } from './b-tag-input.js';
 export { BFileUpload, type UploadFile, type UploadResult } from './b-file-upload.js';
 export { BRange } from './b-range.js';
 export { BDatePicker } from './b-date-picker.js';

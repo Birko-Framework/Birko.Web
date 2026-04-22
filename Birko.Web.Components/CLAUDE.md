@@ -2,18 +2,21 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 38 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 50 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
 ```
 src/
 ├── inputs/          # b-input, b-select, b-button, b-checkbox, b-switch, b-radio,
-│                    # b-textarea, b-multi-select, b-search-input, b-file-upload,
-│                    # b-inline-edit, b-range, b-form, b-date-picker, b-option-group
+│                    # b-textarea, b-multi-select, b-tag-input, b-search-input,
+│                    # b-file-upload, b-inline-edit, b-range, b-form,
+│                    # b-date-picker, b-option-group
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
 │                    # b-dropdown-menu, b-tooltip, b-split-panel
-├── data/            # b-table, b-data-table, b-pagination, b-badge, b-chart
+├── data/            # b-table, b-data-table, b-pagination, b-badge, b-tag,
+│                    # b-chart, b-pre, b-code-block, b-definition-list,
+│                    # b-object-tree, b-json-viewer, b-xml-viewer
 ├── feedback/        # b-toast (+ toast manager), b-spinner, b-empty, b-skeleton, b-stale-banner
 ├── nav/             # b-sidebar, b-breadcrumb, b-ribbon, b-tree-menu
 ├── command/         # b-command-palette, command-provider
@@ -109,7 +112,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 
 ## Component inventory
 
-### Inputs (15)
+### Inputs (16)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
@@ -120,6 +123,7 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-radio>` | BRadio | — | `checked`, `disabled`, `name`, `value`, `label` |
 | `<b-textarea>` | BTextarea | — | `label`, `name`, `value`, `rows`, `error`, `disabled` |
 | `<b-multi-select>` | BMultiSelect | `setOptions([])` | `label`, `name`, `placeholder`, `error`, `disabled` |
+| `<b-tag-input>` | BTagInput | `setTags([])`, `getTags()`, `clear()` | `label`, `name`, `value`, `placeholder`, `separators`, `max-count`, `allow-duplicates`, `error`, `disabled` |
 | `<b-search-input>` | BSearchInput | — | `placeholder`, `value`, `debounce` |
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
@@ -140,14 +144,21 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
 | `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap` |
 
-### Data (5)
+### Data (12)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-table>` | BTable | `setColumns()`, `setData()` | `loading`, `striped`, `hoverable` |
 | `<b-data-table>` | BDataTable | `setConfig(DataTableConfig)`, `load()`, `reload()` | — |
 | `<b-pagination>` | BPagination | — | `page`, `total-pages`, `total-count` |
 | `<b-badge>` | BBadge | — | `variant` (success\|warning\|danger\|info\|secondary) |
+| `<b-tag>` | BTag | — | `color`, `removable`, `size` |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
+| `<b-pre>` | BPre | — | `wrap`, `max-height`, `size` |
+| `<b-code-block>` | BCodeBlock | `setCode(code, language?)` | `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size` |
+| `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
+| `<b-object-tree>` | BObjectTree | `setData(obj)`, `getData()`, `expandAll()`, `collapseAll()` | `expanded-depth`, `max-depth`, `size`, `show-types` |
+| `<b-json-viewer>` | BJsonViewer | `setData(obj\|string)`, `getData()` | `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy` |
+| `<b-xml-viewer>` | BXmlViewer | `setSource(xml)`, `setDocument(doc)`, `getSource()`, `expandAll()`, `collapseAll()` | `src`, `expanded-depth`, `max-depth`, `size`, `no-copy` |
 
 ### Feedback (5)
 | Tag / Export | Key API |

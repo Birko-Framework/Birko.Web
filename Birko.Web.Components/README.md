@@ -90,6 +90,38 @@ Attributes: `variant`, `size` (sm|md|lg), `disabled`, `loading`
 (el as BMultiSelect).setOptions([{ value: 'iot', label: 'IoT' }, ...]);
 ```
 
+### b-tag-input
+
+Freeform multi-value input — fills the gap between `b-input` (plain comma-separated string) and `b-multi-select` (dropdown-driven creatable). Pressing **Enter** or **Tab** commits the typed text as a tag; **Backspace** on an empty input removes the last tag; **paste** splits on delimiters (default `,`, newline, tab).
+
+```html
+<b-tag-input label="Invoice numbers" name="invoices"
+             placeholder="Enter or paste invoice numbers"></b-tag-input>
+
+<!-- With limits -->
+<b-tag-input label="Keywords" name="keywords"
+             max-count="10"
+             separators=", ;|"
+             value="alpha,beta"></b-tag-input>
+```
+
+```typescript
+import { BTagInput } from 'birko-web-components';
+
+const el = document.querySelector('b-tag-input') as BTagInput;
+el.setTags(['alpha', 'beta']);
+el.getTags();                       // ['alpha', 'beta']
+el.clear();
+
+el.addEventListener('change', e => {
+  const detail = (e as CustomEvent).detail as { name: string; tags: string[]; value: string };
+  console.log(detail.tags);
+});
+```
+
+Attributes: `label`, `name`, `value` (comma-separated), `placeholder`, `separators` (default `,`/`\n`/`\t`), `max-count`, `allow-duplicates`, `error`, `disabled`, `required`, `hint`
+Emits: `change`, `add`, `remove`, `reject` (duplicate or max-count hit)
+
 ### b-search-input
 
 ```html
@@ -613,6 +645,137 @@ Emits: `page-change` → `{ page }`
 ```
 
 Attributes: `type` (bar|line|area|pie|donut|gauge), `height`, `legend`, `animate`
+
+### b-pre
+
+Preformatted text block. Monospace, tokenized background/border, scrollable when bounded by `max-height`.
+
+```html
+<b-pre>Line 1
+Line 2
+Line 3</b-pre>
+
+<b-pre wrap max-height="12rem">very-long-content…</b-pre>
+```
+
+Attributes: `wrap`, `max-height`, `size` (sm|md|lg)
+
+### b-code-block
+
+Syntax-highlighted code display with copy button and optional line numbers. Built-in lightweight highlighter for `json`, `js`, `ts`, `html`, `xml`, `css`, `sql`, `csharp`, `bash`.
+
+```html
+<b-code-block language="json" show-line-numbers>
+{
+  "ok": true,
+  "count": 42
+}
+</b-code-block>
+
+<b-code-block language="ts" code="const x = 42;"></b-code-block>
+```
+
+```typescript
+import { BCodeBlock } from 'birko-web-components';
+(el as BCodeBlock).setCode('SELECT * FROM users;', 'sql');
+```
+
+Attributes: `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size`, `label-copy`, `label-copied`
+Emits: `copy` → `{ code }`, `copy-error`
+
+### b-definition-list
+
+Semantic `<dl>` with term/description pairs. Four `layout` variants: `stacked` (default), `inline`, `horizontal`, `grid`.
+
+```html
+<!-- Slot-based -->
+<b-definition-list layout="horizontal">
+  <dt>Name</dt><dd>Widget Alpha</dd>
+  <dt>Status</dt><dd>Active</dd>
+</b-definition-list>
+```
+
+```typescript
+import { BDefinitionList } from 'birko-web-components';
+
+(el as BDefinitionList).setItems([
+  { term: 'Name',   description: 'Widget Alpha' },
+  { term: 'Status', description: 'Active' },
+]);
+```
+
+Attributes: `layout` (stacked|inline|horizontal|grid), `size` (sm|md|lg), `align`
+
+### b-object-tree
+
+Generic recursive property tree for any JS value. Lazy expansion, type coloring, optional type tags.
+
+```typescript
+import { BObjectTree } from 'birko-web-components';
+
+(el as BObjectTree).setData({
+  id: 42,
+  name: 'Alpha',
+  nested: { active: true, tags: ['a', 'b'] },
+  date: new Date(),
+});
+
+(el as BObjectTree).expandAll();
+```
+
+Attributes: `expanded-depth` (initial open depth, default `1`), `max-depth`, `size`, `show-types`
+Emits: `toggle` → `{ path, expanded }`
+
+### b-json-viewer
+
+Wraps `b-object-tree` with JSON-specific UX — accepts JSON strings or objects, parse-error panel, Expand/Collapse/Copy header.
+
+```html
+<b-json-viewer src='{"ok":true,"count":42}'></b-json-viewer>
+
+<!-- Slot text is also parsed -->
+<b-json-viewer>
+{ "items": [{ "id": 1 }, { "id": 2 }] }
+</b-json-viewer>
+```
+
+```typescript
+import { BJsonViewer } from 'birko-web-components';
+
+(el as BJsonViewer).setData({ id: 1, name: 'Alpha' });
+(el as BJsonViewer).setData('{"id":1}');  // strings are parsed
+```
+
+Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `label-expand`, `label-collapse`, `label-copy`
+Emits: `copy` → `{ text }`, `copy-error`
+
+### b-xml-viewer
+
+Collapsible XML tree using `DOMParser`. Renders elements, attributes, text, CDATA, comments, and processing instructions with distinct coloring. Expand/Collapse/Copy header.
+
+```html
+<b-xml-viewer>
+<?xml version="1.0"?>
+<Order id="A-42">
+  <Customer>Alpha Corp</Customer>
+  <Lines>
+    <Line sku="X1" qty="2"/>
+    <Line sku="X2" qty="1"/>
+  </Lines>
+</Order>
+</b-xml-viewer>
+```
+
+```typescript
+import { BXmlViewer } from 'birko-web-components';
+
+(el as BXmlViewer).setSource('<root><child/></root>');
+(el as BXmlViewer).setDocument(document.implementation.createDocument(null, 'root', null));
+(el as BXmlViewer).expandAll();
+```
+
+Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`
+Emits: `toggle` → `{ path, expanded }`, `copy` → `{ text }`, `copy-error`
 
 ---
 

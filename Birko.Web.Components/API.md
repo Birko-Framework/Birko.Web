@@ -87,6 +87,36 @@ Slot: default (button label/content).
 |-------|--------|
 | `change` | `{ name, values: string[] }` |
 
+### `<b-tag-input>`
+Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste splits on separators.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | comma-separated initial tags |
+| `placeholder` | string |
+| `separators` | string of delimiter chars (default `,\n\t`) |
+| `max-count` | number (reject further tags beyond N) |
+| `allow-duplicates` | boolean |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string |
+
+| Method | Signature |
+|--------|-----------|
+| `setTags` | `(tags: string[]) => void` |
+| `getTags` | `() => string[]` |
+| `clear` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, tags: string[], value: string }` |
+| `add` | `{ tag, tags }` |
+| `remove` | `{ tag, tags }` |
+| `reject` | `{ tag, reason: 'duplicate' \| 'max-count' }` |
+
 ### `<b-checkbox>`
 | Attribute | Values |
 |-----------|--------|
@@ -378,6 +408,121 @@ Slot: default (badge text).
 | Event | Detail |
 |-------|--------|
 | `point-click` | `{ seriesId, index, point }` |
+
+### `<b-pre>`
+Preformatted text block. Slot-based content.
+
+| Attribute | Values |
+|-----------|--------|
+| `wrap` | boolean (soft-wrap long lines) |
+| `max-height` | string (CSS height — enables scroll) |
+| `size` | `sm` \| (default) \| `lg` |
+
+### `<b-code-block>`
+Syntax-highlighted code with copy button.
+
+| Attribute | Values |
+|-----------|--------|
+| `language` | `json`/`js`/`ts`/`html`/`xml`/`css`/`sql`/`csharp`/`bash`/`plain` (aliases: `javascript`, `typescript`, `cs`, `c#`, `shell`, `sh`) |
+| `code` | source (overrides text content) |
+| `wrap` | boolean |
+| `show-line-numbers` | boolean |
+| `no-copy` | boolean (hide copy button) |
+| `max-height` | string |
+| `size` | `sm` \| (default) \| `lg` |
+| `label-copy` / `label-copied` | button text overrides |
+
+| Method | Signature |
+|--------|-----------|
+| `setCode` | `(code: string, language?: string) => void` |
+
+| Event | Detail |
+|-------|--------|
+| `copy` | `{ code }` |
+| `copy-error` | `{}` |
+
+### `<b-definition-list>`
+Semantic `<dl>` term/description pairs.
+
+| Attribute | Values |
+|-----------|--------|
+| `layout` | `stacked` (default) \| `inline` \| `horizontal` \| `grid` |
+| `size` | `sm` \| (default) \| `lg` |
+| `align` | `right` (dd text-align) |
+
+| Method | Signature |
+|--------|-----------|
+| `setItems` | `(items: { term: string; description: string }[]) => void` |
+| `getItems` | `() => DefinitionItem[]` |
+
+Slot: default (raw `<dt>`/`<dd>` markup, used when `setItems` is not called).
+
+### `<b-object-tree>`
+Recursive property tree for any JS value.
+
+| Attribute | Values |
+|-----------|--------|
+| `expanded-depth` | number (initial open depth; default 1) |
+| `max-depth` | number (cap tree expansion) |
+| `size` | `sm` \| (default) \| `lg` |
+| `show-types` | boolean |
+
+| Method | Signature |
+|--------|-----------|
+| `setData` | `(data: unknown) => void` |
+| `getData` | `() => unknown` |
+| `expandAll` | `() => void` |
+| `collapseAll` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `toggle` | `{ path, expanded }` |
+
+### `<b-json-viewer>`
+Composes `<b-object-tree>` with JSON-specific UX.
+
+| Attribute | Values |
+|-----------|--------|
+| `src` | JSON string (parsed on mount) |
+| `expanded-depth`, `max-depth`, `size`, `show-types` | forwarded to inner `<b-object-tree>` |
+| `no-copy` | boolean |
+| `label-expand` / `label-collapse` / `label-copy` / `label-copied` | button text overrides |
+
+| Method | Signature |
+|--------|-----------|
+| `setData` | `(data: unknown \| string) => void` (strings are parsed) |
+| `getData` | `() => unknown` |
+
+| Event | Detail |
+|-------|--------|
+| `copy` | `{ text }` |
+| `copy-error` | `{}` |
+
+### `<b-xml-viewer>`
+Collapsible XML tree via DOMParser.
+
+| Attribute | Values |
+|-----------|--------|
+| `src` | XML string |
+| `expanded-depth` | number (initial open depth; default 1) |
+| `max-depth` | number |
+| `size` | `sm` \| (default) \| `lg` |
+| `no-copy` | boolean |
+| `label-expand` / `label-collapse` / `label-copy` / `label-copied` | button text overrides |
+
+| Method | Signature |
+|--------|-----------|
+| `setSource` | `(xml: string) => void` |
+| `setDocument` | `(doc: Document) => void` |
+| `getSource` | `() => string` |
+| `expandAll` | `() => void` |
+| `collapseAll` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `toggle` | `{ path, expanded }` |
+| `copy` | `{ text }` |
+| `copy-error` | `{}` |
 
 ---
 
