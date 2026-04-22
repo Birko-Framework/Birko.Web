@@ -638,8 +638,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     form.reset();
     form.clearErrors();
     requestAnimationFrame(() => {
-      form.setValues(this.mapToForm(resp.data));
-      this.onFormReady(form, resp.data);
+      form.setValues(this.mapToForm(resp.data as T));
+      this.onFormReady(form, resp.data as T);
     });
   }
 

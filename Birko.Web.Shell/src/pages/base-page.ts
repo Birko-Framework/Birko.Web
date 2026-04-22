@@ -36,7 +36,8 @@ import { BaseComponent } from 'birko-web-core';
 export abstract class BasePage extends BaseComponent {
 
   /** Page title shown in the header. Subclasses set via field or getter. */
-  protected declare pageTitle: string;
+  protected get pageTitle(): string { return ''; }
+  protected set pageTitle(_v: string) {}
 
   // ── Content ───────────────────────────────────────────────────────────────
 

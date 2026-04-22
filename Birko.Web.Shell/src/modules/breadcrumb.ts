@@ -1,10 +1,8 @@
 import type { Store } from 'birko-web-core/state';
 import type { ModuleManifest, ModuleState } from './module-types.js';
+import type { BreadcrumbItem } from '../shell/shell-types.js';
 
-export interface BreadcrumbItem {
-  label: string;
-  href?: string;
-}
+export type { BreadcrumbItem };
 
 /**
  * Build breadcrumb items from module/option context.

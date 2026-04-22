@@ -84,7 +84,7 @@ export abstract class BaseDashboardWidget<
   // ── Optional — override to customise ─────────────────────────────────────
 
   /** Widget title shown in the header (empty = no header). */
-  protected get title(): string { return ''; }
+  get title(): string { return ''; }
 
   /** Text shown while data loads (empty = spinner only). */
   protected get loadingText(): string { return ''; }
