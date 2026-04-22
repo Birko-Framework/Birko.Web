@@ -255,7 +255,7 @@ export class BRibbon extends BaseComponent {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
         color: var(--b-text-secondary); text-decoration: none; border-radius: var(--b-radius, 0.375rem);
         font-size: var(--b-text-sm, 0.8125rem); border: none; background: none; cursor: pointer;
-        width: 100%; text-align: left; min-height: 2.75rem;
+        width: 100%; text-align: left; min-height: var(--b-ribbon-tab-height, 2.75rem);
       }
       .mobile-item:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
 

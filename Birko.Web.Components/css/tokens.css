@@ -135,10 +135,15 @@
   /* ── Pagination (rem — scales with font size) ── */
   --b-page-btn-size: 2rem;       /* 32px */
 
+  /* ── Shell layout (rem — scales with font size) ── */
+  --b-header-height: 3rem;            /* 48px */
+  --b-status-bar-height: 1.75rem;     /* 28px */
+  --b-ribbon-tab-height: 2.75rem;     /* 44px */
+  --b-ribbon-panel-height: 8rem;      /* 128px */
+
   /* ── Sidebar (rem — scales with font size) ── */
   --b-sidebar-width: 15rem;      /* 240px */
   --b-sidebar-collapsed-width: 3.5rem; /* 56px */
-  --b-header-height: 3rem;       /* 48px */
 }
 
 /* ── Dark theme ── */
