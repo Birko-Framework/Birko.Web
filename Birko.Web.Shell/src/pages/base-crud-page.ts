@@ -167,9 +167,10 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
   /**
    * Map form values to the request body before POST/PUT.
+   * Return `null` to abort the save (e.g. custom validation failed).
    * Default: identity pass-through.
    */
-  protected mapFromForm(data: Record<string, unknown>, _isEdit: boolean): Record<string, unknown> {
+  protected mapFromForm(data: Record<string, unknown>, _isEdit: boolean): Record<string, unknown> | null {
     return data;
   }
 
@@ -682,6 +683,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     try {
       const isEdit = this._editingId !== null;
       const body = this.mapFromForm(data, isEdit);
+      if (!body) return;
+
       const resp = isEdit
         ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
         : await this.api.post<T>(this.endpoint, body);
