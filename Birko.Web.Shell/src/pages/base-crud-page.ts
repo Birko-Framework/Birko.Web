@@ -264,11 +264,11 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
         margin-bottom: var(--b-space-lg, 1.25rem);
         flex-wrap: wrap;
       }
-      .filter-row b-select { flex: 1; max-width: 24rem; }
-      .filter-row b-input { flex: 1; max-width: 24rem; }
-      .filter-row b-search-input { flex: 0 1 16rem; margin-left: auto; }
+      .filter-row b-select { flex: 1; max-width: var(--b-filter-chip-width-xl, 24rem); }
+      .filter-row b-input { flex: 1; max-width: var(--b-filter-chip-width-xl, 24rem); }
+      .filter-row b-search-input { flex: 0 1 var(--b-filter-chip-width-lg, 16rem); margin-left: auto; }
       .filter-row b-button { flex: 0 0 auto; }
-      .filter-row b-date-picker { flex: 0 1 12rem; }
+      .filter-row b-date-picker { flex: 0 1 var(--b-filter-chip-width, 12rem); }
       .detail-actions {
         display: flex; gap: var(--b-space-sm); flex-wrap: wrap;
         margin-top: var(--b-space-md);
@@ -296,14 +296,14 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
         padding: var(--b-space-sm) var(--b-space-md);
         background: var(--b-surface); border: 1px solid var(--b-border);
         border-radius: var(--b-radius-md); font-size: var(--b-text-sm);
-        transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
       }
       .sub-row:hover { border-color: var(--b-border-hover); }
       .sub-info { flex: 1; min-width: 0; }
       .sub-info > strong { font-weight: var(--b-font-weight-medium); color: var(--b-text); }
       .sub-meta {
         color: var(--b-text-muted); font-size: var(--b-text-xs);
-        margin-top: 2px; display: flex; gap: var(--b-space-sm);
+        margin-top: var(--b-space-2xs, 0.125rem); display: flex; gap: var(--b-space-sm);
         align-items: center; flex-wrap: wrap;
       }
       .sub-actions { display: flex; gap: var(--b-space-xs); align-items: center; flex-shrink: 0; }

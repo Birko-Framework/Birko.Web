@@ -271,7 +271,7 @@ export abstract class BCoreAppShell extends BaseComponent {
         font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-bold, 700);
         flex-shrink: 0;
       }
-      .user-name { overflow: hidden; text-overflow: ellipsis; max-width: 8rem; }
+      .user-name { overflow: hidden; text-overflow: ellipsis; max-width: var(--b-app-brand-max-width, 8rem); }
 
       .app-content {
         flex: 1; overflow-y: auto;

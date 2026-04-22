@@ -400,7 +400,7 @@ export abstract class BAppShell extends BSidebarAppShell {
         font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-medium, 500);
         color: var(--b-text-muted); padding: 0.125rem var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-sm, 0.25rem); white-space: nowrap;
-        max-width: 12rem; overflow: hidden; text-overflow: ellipsis;
+        max-width: var(--b-app-user-max-width, 12rem); overflow: hidden; text-overflow: ellipsis;
       }
       .tenant-trigger:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .tenant-icon { font-size: 0.75rem; flex-shrink: 0; }
