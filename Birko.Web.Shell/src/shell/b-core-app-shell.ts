@@ -230,7 +230,7 @@ export abstract class BCoreAppShell extends BaseComponent {
 
       .app-header {
         display: flex; align-items: center;
-        height: 3rem; flex-shrink: 0;
+        height: var(--b-header-height, 3rem); flex-shrink: 0;
         background: var(--b-bg-elevated);
         border-bottom: 1px solid var(--b-border);
       }
@@ -284,7 +284,7 @@ export abstract class BCoreAppShell extends BaseComponent {
       }
 
       .app-status-bar {
-        height: 1.75rem; flex-shrink: 0;
+        height: var(--b-status-bar-height, 1.75rem); flex-shrink: 0;
         display: flex; align-items: center;
         padding: 0 var(--b-space-xl, 1.5rem);
         background: var(--b-bg-elevated);
