@@ -15,13 +15,17 @@ export interface KanbanCard {
   order?: number;
   color?: string;
   metadata?: Record<string, unknown>;
+  parentId?: string;
+  collapsed?: boolean;
+  children?: KanbanCard[];
 }
 
 export interface KanbanConfig {
   columns: KanbanColumn[];
   cards: KanbanCard[];
-  renderCard?: (card: KanbanCard) => string;
+  renderCard?: (card: KanbanCard, depth: number) => string;
   emptyText?: string;
+  maxNestingDepth?: number;
 }
 
 export class BKanban extends BaseComponent {
@@ -112,9 +116,69 @@ export class BKanban extends BaseComponent {
       }
       .card.drop-before { border-top: 2px solid var(--b-color-primary); margin-top: -2px; }
       .card.drop-after { border-bottom: 2px solid var(--b-color-primary); margin-bottom: -2px; }
+      .card.drop-inside {
+        outline: 2px solid var(--b-color-primary);
+        outline-offset: -2px;
+        background: var(--b-color-primary-light);
+      }
       .column-body.drag-over { background: var(--b-bg-tertiary); }
 
-      .card-title { font-weight: var(--b-font-weight-medium, 500); }
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+      }
+
+      .card-title { font-weight: var(--b-font-weight-medium, 500); flex: 1; }
+
+      .card-toggle {
+        width: var(--b-icon-base, 1rem);
+        height: var(--b-icon-base, 1rem);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: none;
+        padding: 0;
+        cursor: pointer;
+        font-size: 0.5rem;
+        color: var(--b-text-muted);
+        transition: transform var(--b-transition, 150ms ease);
+        border-radius: var(--b-radius-sm, 0.25rem);
+        flex-shrink: 0;
+      }
+      .card-toggle:hover { color: var(--b-text); background: var(--b-bg-secondary); }
+      .card-toggle.expanded { transform: rotate(90deg); }
+
+      .card-toggle-spacer {
+        width: var(--b-icon-base, 1rem);
+        flex-shrink: 0;
+      }
+
+      .card-child-count {
+        font-size: var(--b-text-xs, 0.6875rem);
+        font-weight: var(--b-font-weight-medium, 500);
+        color: var(--b-text-muted);
+        background: var(--b-bg-tertiary);
+        padding: 0 var(--b-space-xs, 0.25rem);
+        border-radius: var(--b-radius-full, 9999px);
+        min-width: 1.125rem;
+        text-align: center;
+        line-height: 1.25;
+        margin-left: var(--b-space-xs, 0.25rem);
+      }
+
+      .card-children {
+        margin: 0;
+        padding: var(--b-space-xs, 0.25rem) 0 0 var(--b-space-md, 0.75rem);
+        display: flex;
+        flex-direction: column;
+        gap: var(--b-space-xs, 0.25rem);
+        border-left: var(--b-border-width, 1px) dashed var(--b-border);
+        margin-left: var(--b-space-sm, 0.5rem);
+        padding-left: var(--b-space-sm, 0.5rem);
+      }
+      .card-children.collapsed { display: none; }
 
       .empty-placeholder {
         padding: var(--b-space-lg, 1rem);
@@ -142,7 +206,8 @@ export class BKanban extends BaseComponent {
   private _columns: KanbanColumn[] = [];
   private _cards: KanbanCard[] = [];
   private _config: KanbanConfig | null = null;
-  private _renderCardFn: ((card: KanbanCard) => string) | null = null;
+  private _renderCardFn: ((card: KanbanCard, depth: number) => string) | null = null;
+  private _expanded = new Set<string>();
 
   // Drag state
   private _dragCardId: string | null = null;
@@ -167,20 +232,10 @@ export class BKanban extends BaseComponent {
 
     const columnsHtml = this._columns.map(col => {
       const cards = this._getOrderedCards(col.id);
-      const cardsHtml = cards.length
-        ? cards.map((card, idx) => `
-            <div class="card"
-                 draggable="true"
-                 tabindex="-1"
-                 data-card-id="${this._escapeAttr(card.id)}"
-                 data-column-id="${this._escapeAttr(col.id)}"
-                 data-index="${idx}"
-                 role="listitem"
-                 aria-label="${this._escapeAttr(card.title)}"
-                 ${card.color ? `style="border-left: 3px solid ${card.color}"` : ''}>
-              ${this._renderCardContent(card)}
-            </div>
-          `).join('')
+      const topLevelCards = cards.filter(c => !c.parentId);
+      const totalCount = this._countAllCards(cards);
+      const cardsHtml = topLevelCards.length
+        ? topLevelCards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
         : `<div class="empty-placeholder">${this._escapeHtml(emptyText)}</div>`;
 
       const accent = col.color ? `border-left: 3px solid ${col.color};` : '';
@@ -188,12 +243,12 @@ export class BKanban extends BaseComponent {
         <div class="column" data-column-id="${this._escapeAttr(col.id)}">
           <div class="column-header" style="${accent}">
             <span class="column-title">${this._escapeHtml(col.label)}</span>
-            <span class="column-count">${cards.length}</span>
+            <span class="column-count">${totalCount}</span>
           </div>
           <div class="column-body" data-column-id="${this._escapeAttr(col.id)}" role="list" aria-label="${this._escapeAttr(col.label)}">
             ${cardsHtml}
           </div>
-          <div class="column-footer">${cards.length} card${cards.length !== 1 ? 's' : ''}</div>
+          <div class="column-footer">${totalCount} card${totalCount !== 1 ? 's' : ''}</div>
         </div>
       `;
     }).join('');
@@ -206,9 +261,70 @@ export class BKanban extends BaseComponent {
     `;
   }
 
+  private _renderCard(card: KanbanCard, columnId: string, index: number, depth: number): string {
+    const hasChildren = !!(card.children?.length);
+    const isExpanded = this._expanded.has(card.id);
+    const maxDepth = this._config?.maxNestingDepth;
+    const canNest = !maxDepth || depth < maxDepth;
+    const showToggle = hasChildren || canNest;
+
+    const toggleHtml = showToggle
+      ? (hasChildren
+        ? `<button class="card-toggle ${isExpanded ? 'expanded' : ''}"
+                  data-toggle="${this._escapeAttr(card.id)}"
+                  type="button" tabindex="-1"
+                  aria-label="${isExpanded ? 'Collapse' : 'Expand'}">&#9654;</button>`
+        : `<span class="card-toggle-spacer"></span>`)
+      : '';
+
+    const countBadge = hasChildren
+      ? `<span class="card-child-count">${card.children!.length}</span>`
+      : '';
+
+    const contentHtml = this._renderCardContent(card, depth);
+
+    const childrenHtml = hasChildren
+      ? `<div class="card-children ${isExpanded ? '' : 'collapsed'}" data-parent-card-id="${this._escapeAttr(card.id)}">
+           ${card.children!.map((child, idx) => this._renderCard(child, columnId, idx, depth + 1)).join('')}
+         </div>`
+      : '';
+
+    const colorStyle = card.color ? `border-left: 3px solid ${card.color};` : '';
+
+    return `
+      <div class="card"
+           draggable="true"
+           tabindex="-1"
+           data-card-id="${this._escapeAttr(card.id)}"
+           data-column-id="${this._escapeAttr(columnId)}"
+           data-parent-id="${card.parentId ? this._escapeAttr(card.parentId) : ''}"
+           data-depth="${depth}"
+           data-index="${index}"
+           role="listitem"
+           aria-label="${this._escapeAttr(card.title)}"
+           ${colorStyle ? `style="${colorStyle}"` : ''}>
+        <div class="card-header">
+          ${toggleHtml}
+          ${contentHtml}
+          ${countBadge}
+        </div>
+      </div>
+      ${childrenHtml}
+    `;
+  }
+
   protected onUpdated() {
     const disabled = this.boolAttr('disabled');
     if (disabled) return;
+
+    // Toggle expand/collapse
+    this.$$<HTMLElement>('[data-toggle]').forEach(btn => {
+      this.listen(btn, 'click', (e: Event) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this._toggleCard(btn.dataset.toggle!);
+      });
+    });
 
     // Mouse drag-and-drop
     this.$$<HTMLElement>('.card').forEach(card => {
@@ -234,13 +350,15 @@ export class BKanban extends BaseComponent {
   setConfig(config: KanbanConfig): void {
     this._config = config;
     this._columns = [...config.columns];
-    this._cards = [...config.cards];
+    this._cards = this._flattenCards(config.cards);
     this._liveText = '';
+    this._collectExpanded(config.cards);
     this.update();
   }
 
   setCards(cards: KanbanCard[]): void {
-    this._cards = [...cards];
+    this._cards = this._flattenCards(cards);
+    this._collectExpanded(cards);
     this.update();
   }
 
@@ -250,29 +368,66 @@ export class BKanban extends BaseComponent {
   }
 
   removeCard(cardId: string): void {
-    this._cards = this._cards.filter(c => c.id !== cardId);
+    const card = this._cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    // Remove the card and all its descendants
+    const descendantIds = this._getDescendantIds(cardId);
+    const removeIds = new Set([cardId, ...descendantIds]);
+    this._cards = this._cards.filter(c => !removeIds.has(c.id));
+
+    // Remove from parent's children
+    if (card.parentId) {
+      const parent = this._cards.find(c => c.id === card.parentId);
+      if (parent?.children) {
+        parent.children = parent.children.filter(c => c.id !== cardId);
+      }
+    }
+
+    this._expanded.delete(cardId);
     this.update();
   }
 
-  moveCard(cardId: string, targetColumnId: string, targetIndex?: number): void {
+  moveCard(cardId: string, targetColumnId: string, targetIndex?: number, targetParentId?: string): void {
     const cardIndex = this._cards.findIndex(c => c.id === cardId);
     if (cardIndex === -1) return;
 
     const card = this._cards[cardIndex];
     const fromColumnId = card.columnId;
-    const orderedSource = this._getOrderedCards(fromColumnId);
+    const fromParentId = card.parentId ?? '';
+    const orderedSource = this._getOrderedCards(fromColumnId, fromParentId);
     const fromIndex = orderedSource.findIndex(c => c.id === cardId);
 
     // Remove from current position
     this._cards.splice(cardIndex, 1);
 
-    // Update column
-    card.columnId = targetColumnId;
+    // Remove from old parent's children
+    if (card.parentId) {
+      const oldParent = this._cards.find(c => c.id === card.parentId);
+      if (oldParent?.children) {
+        oldParent.children = oldParent.children.filter(c => c.id !== cardId);
+      }
+    }
 
-    // Re-insert at target position
-    const targetCards = this._getOrderedCards(targetColumnId);
-    if (targetIndex !== undefined && targetIndex < targetCards.length) {
-      const insertBeforeId = targetCards[targetIndex].id;
+    // Update card
+    card.columnId = targetColumnId;
+    card.parentId = targetParentId || undefined;
+
+    // Add to new parent's children
+    if (targetParentId) {
+      const newParent = this._cards.find(c => c.id === targetParentId);
+      if (newParent) {
+        if (!newParent.children) newParent.children = [];
+        newParent.children.push(card);
+        // Ensure parent is expanded
+        this._expanded.add(targetParentId);
+      }
+    }
+
+    // Re-insert at target position among siblings
+    const siblings = this._getOrderedCards(targetColumnId, targetParentId ?? '');
+    if (targetIndex !== undefined && targetIndex < siblings.length) {
+      const insertBeforeId = siblings[targetIndex].id;
       const insertBeforeGlobal = this._cards.findIndex(c => c.id === insertBeforeId);
       this._cards.splice(insertBeforeGlobal, 0, card);
     } else {
@@ -280,17 +435,29 @@ export class BKanban extends BaseComponent {
     }
 
     // Re-order
-    this._reorderColumn(targetColumnId);
-    if (fromColumnId !== targetColumnId) this._reorderColumn(fromColumnId);
+    this._reorderGroup(targetColumnId, targetParentId ?? '');
+    if (fromColumnId !== targetColumnId || fromParentId !== (targetParentId ?? '')) {
+      this._reorderGroup(fromColumnId, fromParentId);
+    }
 
     this.update();
 
-    const toIndex = targetIndex ?? this._getOrderedCards(targetColumnId).findIndex(c => c.id === cardId);
+    const toIndex = targetIndex ?? this._getOrderedCards(targetColumnId, targetParentId ?? '').findIndex(c => c.id === cardId) - 1;
 
-    if (fromColumnId !== targetColumnId) {
-      this.emit('card-move', { card, fromColumn: fromColumnId, toColumn: targetColumnId, fromIndex, toIndex });
+    const detail: Record<string, unknown> = {
+      card,
+      fromColumn: fromColumnId,
+      toColumn: targetColumnId,
+      fromIndex,
+      toIndex: Math.max(0, toIndex),
+    };
+    if (targetParentId) detail.toParent = targetParentId;
+    if (fromParentId) detail.fromParent = fromParentId;
+
+    if (fromColumnId !== targetColumnId || fromParentId !== (targetParentId ?? '')) {
+      this.emit('card-move', detail);
     } else {
-      this.emit('card-reorder', { card, columnId: fromColumnId, fromIndex, toIndex });
+      this.emit('card-reorder', detail);
     }
   }
 
@@ -303,18 +470,84 @@ export class BKanban extends BaseComponent {
     return [...this._columns];
   }
 
-  get renderCard(): ((card: KanbanCard) => string) | null { return this._renderCardFn; }
-  set renderCard(fn: ((card: KanbanCard) => string) | null) {
+  getChildren(cardId: string): KanbanCard[] {
+    return this._cards.filter(c => c.parentId === cardId);
+  }
+
+  addSubCard(parentId: string, card: KanbanCard): void {
+    const parent = this._cards.find(c => c.id === parentId);
+    if (!parent) return;
+
+    const newCard: KanbanCard = { ...card, parentId, columnId: parent.columnId };
+    if (!parent.children) parent.children = [];
+    parent.children.push(newCard);
+    this._cards.push(newCard);
+    this._expanded.add(parentId);
+    this.update();
+  }
+
+  get renderCard(): ((card: KanbanCard, depth: number) => string) | null { return this._renderCardFn; }
+  set renderCard(fn: ((card: KanbanCard, depth: number) => string) | null) {
     this._renderCardFn = fn;
+    this.update();
+  }
+
+  toggleCard(cardId: string): void {
+    this._toggleCard(cardId);
+  }
+
+  expandCard(cardId: string): void {
+    this._expanded.add(cardId);
+    this.update();
+  }
+
+  collapseCard(cardId: string): void {
+    this._expanded.delete(cardId);
+    this.update();
+  }
+
+  expandAll(): void {
+    this._walkCards(this._cards, card => {
+      if (card.children?.length) this._expanded.add(card.id);
+    });
+    this.update();
+  }
+
+  collapseAll(): void {
+    this._expanded.clear();
+    this.update();
+  }
+
+  // ── Toggle ──
+
+  private _toggleCard(cardId: string): void {
+    const card = this._cards.find(c => c.id === cardId);
+    if (!card) return;
+
+    if (this._expanded.has(cardId)) {
+      this._expanded.delete(cardId);
+      this.emit('card-toggle', { cardId, expanded: false, card });
+    } else {
+      this._expanded.add(cardId);
+      this.emit('card-toggle', { cardId, expanded: true, card });
+    }
     this.update();
   }
 
   // ── Drag Handlers ──
 
   private _onDragStart(e: DragEvent, card: HTMLElement): void {
+    // Don't start drag from toggle button
+    const target = e.target as HTMLElement;
+    if (target.closest('.card-toggle')) {
+      e.preventDefault();
+      return;
+    }
+
     const cardId = card.dataset.cardId!;
     const columnId = card.dataset.columnId!;
-    const cards = this._getOrderedCards(columnId);
+    const parentId = card.dataset.parentId ?? '';
+    const cards = this._getOrderedCards(columnId, parentId);
     const idx = cards.findIndex(c => c.id === cardId);
 
     this._dragCardId = cardId;
@@ -347,22 +580,34 @@ export class BKanban extends BaseComponent {
     const y = e.clientY;
 
     let targetCard: HTMLElement | null = null;
-    let position: 'before' | 'after' = 'after';
+    let position: 'before' | 'after' | 'inside' = 'after';
 
     for (const cardEl of cards) {
       const rect = cardEl.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (y < midY) {
+      const relY = (y - rect.top) / rect.height;
+
+      if (relY < 0.25) {
         targetCard = cardEl;
         position = 'before';
         break;
       }
+      if (relY > 0.75) {
+        targetCard = cardEl;
+        position = 'after';
+        break;
+      }
+      // Middle zone — drop inside
       targetCard = cardEl;
-      position = 'after';
+      position = 'inside';
+      break;
     }
 
     if (targetCard) {
-      targetCard.classList.add(position === 'before' ? 'drop-before' : 'drop-after');
+      // Prevent dropping into self or descendants
+      if (position === 'inside' && this._isDescendant(this._dragCardId, targetCard.dataset.cardId!)) {
+        return;
+      }
+      targetCard.classList.add(`drop-${position}`);
     }
   }
 
@@ -384,17 +629,47 @@ export class BKanban extends BaseComponent {
     const cards = colBody.querySelectorAll<HTMLElement>('.card:not(.dragging)');
     const y = e.clientY;
 
-    let targetIndex = this._getOrderedCards(targetColumnId).length;
+    let targetIndex: number | undefined;
+    let targetParentId: string | undefined;
+    let found = false;
 
     for (let i = 0; i < cards.length; i++) {
       const rect = cards[i].getBoundingClientRect();
-      if (y < rect.top + rect.height / 2) {
+      const relY = (y - rect.top) / rect.height;
+
+      if (relY < 0.25) {
+        // Drop before this card — same parent, same level
         targetIndex = i;
+        targetParentId = cards[i].dataset.parentId || undefined;
+        found = true;
         break;
       }
+      if (relY > 0.75) {
+        // Drop after this card — same parent, same level
+        targetIndex = i + 1;
+        targetParentId = cards[i].dataset.parentId || undefined;
+        found = true;
+        break;
+      }
+      // Middle zone — drop inside this card (nest)
+      targetParentId = cards[i].dataset.cardId!;
+      targetIndex = undefined;
+      found = true;
+
+      // Prevent dropping into self or descendants
+      if (this._isDescendant(this._dragCardId, targetParentId)) {
+        return;
+      }
+      break;
     }
 
-    this.moveCard(this._dragCardId, targetColumnId, targetIndex);
+    if (!found) {
+      // Drop at end of column
+      targetIndex = undefined;
+      targetParentId = undefined;
+    }
+
+    this.moveCard(this._dragCardId, targetColumnId, targetIndex, targetParentId);
   }
 
   // ── Keyboard Navigation ──
@@ -408,6 +683,18 @@ export class BKanban extends BaseComponent {
     const focused = this.shadowRoot?.activeElement as HTMLElement | null;
     if (!focused) return;
 
+    // Handle toggle button focus
+    if (focused.classList.contains('card-toggle')) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        const cardId = focused.dataset.toggle!;
+        this._toggleCard(cardId);
+      }
+      return;
+    }
+
+    if (!focused.classList.contains('card')) return;
+
     switch (e.key) {
       case 'ArrowUp':
         e.preventDefault();
@@ -419,11 +706,11 @@ export class BKanban extends BaseComponent {
         break;
       case 'ArrowLeft':
         e.preventDefault();
-        this._moveFocusColumn(focused, -1);
+        this._handleArrowLeft(focused);
         break;
       case 'ArrowRight':
         e.preventDefault();
-        this._moveFocusColumn(focused, 1);
+        this._handleArrowRight(focused);
         break;
       case 'Home':
         e.preventDefault();
@@ -435,11 +722,49 @@ export class BKanban extends BaseComponent {
         break;
       case 'Enter':
       case ' ':
-        if (focused.classList.contains('card')) {
-          e.preventDefault();
-          this._startKeyboardDrag(focused);
-        }
+        e.preventDefault();
+        this._startKeyboardDrag(focused);
         break;
+    }
+  }
+
+  private _handleArrowRight(card: HTMLElement): void {
+    const cardId = card.dataset.cardId!;
+    const cardData = this._cards.find(c => c.id === cardId);
+    if (!cardData) return;
+
+    const hasChildren = !!(cardData.children?.length);
+
+    if (hasChildren) {
+      if (!this._expanded.has(cardId)) {
+        this._toggleCard(cardId);
+      } else {
+        // Focus first child
+        const childrenContainer = card.nextElementSibling;
+        if (childrenContainer?.classList.contains('card-children')) {
+          const firstChild = childrenContainer.querySelector<HTMLElement>('.card');
+          firstChild?.focus();
+        }
+      }
+    }
+  }
+
+  private _handleArrowLeft(card: HTMLElement): void {
+    const cardId = card.dataset.cardId!;
+    const cardData = this._cards.find(c => c.id === cardId);
+    if (!cardData) return;
+
+    const hasChildren = !!(cardData.children?.length);
+
+    if (hasChildren && this._expanded.has(cardId)) {
+      this._toggleCard(cardId);
+    } else if (cardData.parentId) {
+      // Focus parent
+      const parentEl = this.$<HTMLElement>(`[data-card-id="${cardData.parentId}"]`);
+      parentEl?.focus();
+    } else {
+      // Move to previous column
+      this._moveFocusColumn(card, -1);
     }
   }
 
@@ -476,7 +801,8 @@ export class BKanban extends BaseComponent {
   private _startKeyboardDrag(cardEl: HTMLElement): void {
     const cardId = cardEl.dataset.cardId!;
     const columnId = cardEl.dataset.columnId!;
-    const cards = this._getOrderedCards(columnId);
+    const parentId = cardEl.dataset.parentId ?? '';
+    const cards = this._getOrderedCards(columnId, parentId);
     const idx = cards.findIndex(c => c.id === cardId);
 
     this._keyboardDragging = true;
@@ -491,7 +817,7 @@ export class BKanban extends BaseComponent {
   }
 
   private _keyboardMoveCard(direction: 1 | -1): void {
-    const cards = this._getOrderedCards(this._keyboardDragColumnId!);
+    const cards = this._getOrderedCards(this._keyboardDragColumnId!, '');
     const newIdx = Math.max(0, Math.min(cards.length - 1, this._keyboardDragIndex + direction));
     if (newIdx !== this._keyboardDragIndex) {
       this._keyboardDragIndex = newIdx;
@@ -522,7 +848,6 @@ export class BKanban extends BaseComponent {
     this.moveCard(cardId, targetColumnId, targetIndex);
     this._liveText = 'Card dropped.';
 
-    // Focus the moved card
     requestAnimationFrame(() => {
       const cardEl = this.$<HTMLElement>(`[data-card-id="${cardId}"]`);
       cardEl?.focus();
@@ -539,7 +864,6 @@ export class BKanban extends BaseComponent {
 
     this.update();
 
-    // Restore focus to the card
     requestAnimationFrame(() => {
       if (cardId) {
         const cardEl = this.$<HTMLElement>(`[data-card-id="${cardId}"]`);
@@ -571,8 +895,7 @@ export class BKanban extends BaseComponent {
     if (!newColBody) return;
     const cards = newColBody.querySelectorAll<HTMLElement>('.card');
     if (cards.length) {
-      const focusIdx = Math.min(cards.length - 1, 0);
-      cards[focusIdx]?.focus();
+      cards[0]?.focus();
     } else {
       newColBody.focus();
     }
@@ -594,26 +917,85 @@ export class BKanban extends BaseComponent {
 
   // ── Helpers ──
 
-  private _getOrderedCards(columnId: string): KanbanCard[] {
+  private _getOrderedCards(columnId: string, parentId: string = ''): KanbanCard[] {
     return this._cards
-      .filter(c => c.columnId === columnId)
+      .filter(c => c.columnId === columnId && (c.parentId ?? '') === parentId)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
-  private _reorderColumn(columnId: string): void {
-    const ordered = this._getOrderedCards(columnId);
+  private _reorderGroup(columnId: string, parentId: string): void {
+    const ordered = this._getOrderedCards(columnId, parentId);
     ordered.forEach((card, i) => { card.order = i; });
   }
 
-  private _renderCardContent(card: KanbanCard): string {
-    if (this._renderCardFn) return this._renderCardFn(card);
-    if (this._config?.renderCard) return this._config.renderCard(card);
+  private _reorderColumn(columnId: string): void {
+    this._reorderGroup(columnId, '');
+  }
+
+  private _countAllCards(cards: KanbanCard[]): number {
+    let count = 0;
+    for (const card of cards) {
+      count++;
+      if (card.children?.length) count += this._countAllCards(card.children);
+    }
+    return count;
+  }
+
+  private _flattenCards(cards: KanbanCard[], parentId?: string): KanbanCard[] {
+    const result: KanbanCard[] = [];
+    for (const card of cards) {
+      const flat: KanbanCard = { ...card, parentId: parentId || card.parentId };
+      result.push(flat);
+      if (card.children?.length) {
+        result.push(...this._flattenCards(card.children, card.id));
+        flat.children = card.children.map(c => ({ ...c, parentId: card.id }));
+      }
+    }
+    return result;
+  }
+
+  private _collectExpanded(cards: KanbanCard[]): void {
+    for (const card of cards) {
+      if (card.collapsed === false && card.children?.length) this._expanded.add(card.id);
+      if (card.children) this._collectExpanded(card.children);
+    }
+  }
+
+  private _walkCards(cards: KanbanCard[], fn: (card: KanbanCard) => void): void {
+    for (const card of cards) {
+      fn(card);
+      if (card.children) this._walkCards(card.children, fn);
+    }
+  }
+
+  private _getDescendantIds(cardId: string): string[] {
+    const ids: string[] = [];
+    const children = this._cards.filter(c => c.parentId === cardId);
+    for (const child of children) {
+      ids.push(child.id);
+      ids.push(...this._getDescendantIds(child.id));
+    }
+    return ids;
+  }
+
+  private _isDescendant(ancestorId: string, potentialDescendantId: string): boolean {
+    if (ancestorId === potentialDescendantId) return true;
+    const children = this._cards.filter(c => c.parentId === ancestorId);
+    for (const child of children) {
+      if (this._isDescendant(child.id, potentialDescendantId)) return true;
+    }
+    return false;
+  }
+
+  private _renderCardContent(card: KanbanCard, depth: number): string {
+    if (this._renderCardFn) return this._renderCardFn(card, depth);
+    if (this._config?.renderCard) return this._config.renderCard(card, depth);
     return `<span class="card-title">${this._escapeHtml(card.title)}</span>`;
   }
 
   private _clearDropIndicators(): void {
     this.$$<HTMLElement>('.card').forEach(el => {
-      el.classList.remove('drop-before', 'drop-after');
+      el.classList.remove('drop-before', 'drop-after', 'drop-inside');
     });
     this.$$<HTMLElement>('.column-body').forEach(el => {
       el.classList.remove('drag-over');
