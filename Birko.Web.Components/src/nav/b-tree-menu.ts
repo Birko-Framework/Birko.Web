@@ -490,12 +490,11 @@ export class BTreeMenu extends BaseComponent {
     // Drag and drop reordering
     if (this._config.sortable) {
       this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
-        this.listen(row, 'dragstart', (e: Event) => {
-          const de = e as DragEvent;
+        this.listen(row, 'dragstart', (e: DragEvent) => {
           this._dragSourceId = row.dataset.item!;
           row.classList.add('dragging');
-          de.dataTransfer!.effectAllowed = 'move';
-          de.dataTransfer!.setData('text/plain', this._dragSourceId);
+          e.dataTransfer!.effectAllowed = 'move';
+          e.dataTransfer!.setData('text/plain', this._dragSourceId);
         });
 
         this.listen(row, 'dragend', () => {
@@ -507,15 +506,14 @@ export class BTreeMenu extends BaseComponent {
         const node = row.closest('.node') as HTMLElement;
         if (!node) return;
 
-        this.listen(node, 'dragover', (e: Event) => {
-          const de = e as DragEvent;
+        this.listen(node, 'dragover', (e: DragEvent) => {
           if (!this._dragSourceId || this._dragSourceId === row.dataset.item) return;
-          de.preventDefault();
-          de.dataTransfer!.dropEffect = 'move';
+          e.preventDefault();
+          e.dataTransfer!.dropEffect = 'move';
 
           this._clearDropIndicators();
           const rect = row.getBoundingClientRect();
-          const y = de.clientY - rect.top;
+          const y = e.clientY - rect.top;
           const zone = y / rect.height;
 
           if (zone < 0.25) {
@@ -527,23 +525,21 @@ export class BTreeMenu extends BaseComponent {
           }
         });
 
-        this.listen(node, 'dragleave', (e: Event) => {
-          const de = e as DragEvent;
+        this.listen(node, 'dragleave', (e: DragEvent) => {
           // Only clear if leaving the node entirely (not entering a child)
-          if (!node.contains(de.relatedTarget as Node)) {
+          if (!node.contains(e.relatedTarget as Node)) {
             node.classList.remove('drop-before', 'drop-after', 'drop-inside');
           }
         });
 
-        this.listen(node, 'drop', (e: Event) => {
-          const de = e as DragEvent;
-          de.preventDefault();
+        this.listen(node, 'drop', (e: DragEvent) => {
+          e.preventDefault();
           const sourceId = this._dragSourceId;
           const targetId = row.dataset.item!;
           if (!sourceId || sourceId === targetId) return;
 
           const rect = row.getBoundingClientRect();
-          const y = de.clientY - rect.top;
+          const y = e.clientY - rect.top;
           const zone = y / rect.height;
           let position: 'before' | 'after' | 'inside';
           if (zone < 0.25) position = 'before';

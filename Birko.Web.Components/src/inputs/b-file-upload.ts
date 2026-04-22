@@ -233,7 +233,7 @@ export class BFileUpload extends BaseComponent {
     });
 
     // Drag and drop
-    this.listen(dropzone, 'dragover', (e: Event) => {
+    this.listen(dropzone, 'dragover', (e: DragEvent) => {
       e.preventDefault();
       this._dragging = true;
       this.update();
@@ -242,11 +242,11 @@ export class BFileUpload extends BaseComponent {
       this._dragging = false;
       this.update();
     });
-    this.listen(dropzone, 'drop', (e: Event) => {
+    this.listen(dropzone, 'drop', (e: DragEvent) => {
       e.preventDefault();
       this._dragging = false;
-      if ((e as DragEvent).dataTransfer?.files.length) {
-        this._addFiles(Array.from((e as DragEvent).dataTransfer!.files));
+      if (e.dataTransfer?.files.length) {
+        this._addFiles(Array.from(e.dataTransfer!.files));
       }
     });
 
