@@ -398,7 +398,7 @@ export abstract class BAppShell extends BSidebarAppShell {
         display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
         background: none; border: none; cursor: pointer;
         font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-medium, 500);
-        color: var(--b-text-muted); padding: 0.125rem var(--b-space-xs, 0.25rem);
+        color: var(--b-text-muted); padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-sm, 0.25rem); white-space: nowrap;
         max-width: var(--b-app-user-max-width, 12rem); overflow: hidden; text-overflow: ellipsis;
       }
@@ -418,13 +418,13 @@ export abstract class BAppShell extends BSidebarAppShell {
         margin-right: var(--b-space-sm, 0.5rem);
       }
       .search-btn:hover { background: var(--b-bg-secondary); color: var(--b-text); border-color: var(--b-color-primary); }
-      .search-btn-icon { font-size: 0.875rem; }
+      .search-btn-icon { font-size: var(--b-text-base, 0.875rem); }
       .search-btn-hint {
         font-size: var(--b-text-xs, 0.6875rem);
         background: var(--b-bg-elevated);
         border: 1px solid var(--b-border);
         border-radius: var(--b-radius-sm, 0.25rem);
-        padding: 0 0.25rem;
+        padding: 0 var(--b-space-xs, 0.25rem);
         line-height: 1.4;
       }
       @media (max-width: 768px) { .search-btn-hint { display: none; } }
@@ -438,9 +438,9 @@ export abstract class BAppShell extends BSidebarAppShell {
       .bell-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .bell-badge {
         position: absolute; top: -0.25rem; right: -0.375rem;
-        min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem;
+        min-width: 1.125rem; height: 1.125rem; padding: 0 var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger, #ef4444); color: #fff;
+        background: var(--b-color-danger); color: var(--b-text-inverse);
         font-size: 0.625rem; font-weight: var(--b-font-weight-bold, 700);
         display: flex; align-items: center; justify-content: center; line-height: 1;
         animation: bell-pulse 2s ease infinite;
@@ -451,7 +451,7 @@ export abstract class BAppShell extends BSidebarAppShell {
       }
 
       .status-sync {
-        cursor: pointer; display: flex; align-items: center; gap: 0.25rem;
+        cursor: pointer; display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
       }
       .status-sync:hover { color: var(--b-text); }
     `;

@@ -260,7 +260,7 @@ export abstract class BCoreAppShell extends BaseComponent {
       .user-trigger {
         display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);
         font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-secondary);
-        padding: 0.25rem var(--b-space-sm, 0.5rem);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
         border-radius: var(--b-radius, 0.375rem); cursor: pointer; white-space: nowrap;
       }
       .user-trigger:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
@@ -298,19 +298,19 @@ export abstract class BCoreAppShell extends BaseComponent {
       .status-dot {
         display: inline-block;
         width: 0.5rem; height: 0.5rem; border-radius: 50%;
-        background: var(--b-color-success, #22c55e);
-        margin-right: 0.25rem; flex-shrink: 0;
+        background: var(--b-color-success);
+        margin-right: var(--b-space-xs, 0.25rem); flex-shrink: 0;
       }
-      .status-dot.offline  { background: var(--b-color-danger,  #ef4444); }
+      .status-dot.offline  { background: var(--b-color-danger); }
       .status-dot.reconnecting {
-        background: var(--b-color-warning, #f59e0b);
+        background: var(--b-color-warning);
         animation: status-pulse 1.5s ease-in-out infinite;
       }
       @keyframes status-pulse {
         0%, 100% { opacity: 1; }
         50%      { opacity: 0.4; }
       }
-      .status-dot.conflict { background: var(--b-color-warning, #f59e0b); }
+      .status-dot.conflict { background: var(--b-color-warning); }
 
       @media (max-width: 768px) {
         .user-name { display: none; }
