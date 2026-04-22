@@ -617,8 +617,16 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     saveBtn.setAttribute('loading', '');
     modal.open();
 
-    const resp = await this.api.get<T>(`${this.endpoint}/${id}`);
-    saveBtn.removeAttribute('loading');
+    let resp: Awaited<ReturnType<ApiClient['get']>>;
+    try {
+      resp = await this.api.get<T>(`${this.endpoint}/${id}`);
+    } catch {
+      toast.error(this.t('common.edit') + ' failed');
+      modal.close();
+      return;
+    } finally {
+      saveBtn.removeAttribute('loading');
+    }
 
     if (!resp.ok) {
       toast.error(apiErrorMessage(resp.data));
@@ -671,29 +679,31 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     saveBtn.setAttribute('loading', '');
 
-    const isEdit = this._editingId !== null;
-    const body = this.mapFromForm(data, isEdit);
-    const resp = isEdit
-      ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
-      : await this.api.post<T>(this.endpoint, body);
+    try {
+      const isEdit = this._editingId !== null;
+      const body = this.mapFromForm(data, isEdit);
+      const resp = isEdit
+        ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
+        : await this.api.post<T>(this.endpoint, body);
 
-    saveBtn.removeAttribute('loading');
+      if (!resp.ok) {
+        showFormError(form as Parameters<typeof showFormError>[0], resp.data);
+        return;
+      }
 
-    if (!resp.ok) {
-      showFormError(form as Parameters<typeof showFormError>[0], resp.data);
-      return;
+      await this.afterSave(resp.data, isEdit);
+
+      toast.success(this.t('common.saved'));
+      if (isEdit) {
+        this.onEditSuccess?.(resp.data);
+      } else {
+        this.onCreateSuccess?.(resp.data);
+      }
+      modal.close();
+      this._afterSaveComplete(resp.data, isEdit);
+    } finally {
+      saveBtn.removeAttribute('loading');
     }
-
-    await this.afterSave(resp.data, isEdit);
-
-    toast.success(this.t('common.saved'));
-    if (isEdit) {
-      this.onEditSuccess?.(resp.data);
-    } else {
-      this.onCreateSuccess?.(resp.data);
-    }
-    modal.close();
-    this._afterSaveComplete(resp.data, isEdit);
   }
 
   /** Hook called after save + toast + modal close. Override for subclass-specific reload. */
