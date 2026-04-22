@@ -428,7 +428,8 @@ Syntax-highlighted code with copy button.
 | `wrap` | boolean |
 | `show-line-numbers` | boolean |
 | `no-copy` | boolean (hide copy button) |
-| `max-height` | string |
+| `max-height` | string (CSS length; `<pre>` becomes the scroll container) |
+| `sticky-header` | `page` — card overflow flips to `visible` so the header pins to the page viewport (mutually exclusive with `max-height`; page mode wins) |
 | `size` | `sm` \| (default) \| `lg` |
 | `label-copy` / `label-copied` | button text overrides |
 
@@ -458,7 +459,7 @@ Semantic `<dl>` term/description pairs.
 Slot: default (raw `<dt>`/`<dd>` markup, used when `setItems` is not called).
 
 ### `<b-object-tree>`
-Recursive property tree for any JS value.
+Recursive property tree for any JS value. Primitive by default; opt in to the shared data-viewer card + toolbar via `show-header`.
 
 | Attribute | Values |
 |-----------|--------|
@@ -466,6 +467,13 @@ Recursive property tree for any JS value.
 | `max-depth` | number (cap tree expansion) |
 | `size` | `sm` \| (default) \| `lg` |
 | `show-types` | boolean |
+| `show-header` | boolean — when set, wraps the tree in a `data-viewer-card` with a sticky toolbar header (Expand / Collapse / Copy) matching `b-json-viewer` / `b-xml-viewer` |
+| `header-title` | string (default `Tree`; only applies when `show-header` is on) |
+| `no-copy` | boolean — hide Copy button from the toolbar |
+| `no-expand-actions` | boolean — hide Expand/Collapse buttons from the toolbar |
+| `max-height` | string (CSS length; body becomes the scroll container) |
+| `sticky-header` | `page` — card overflow flips to `visible` so the header pins to the page viewport (mutually exclusive with `max-height`; page mode wins) |
+| `label-expand` / `label-collapse` / `label-copy` / `label-copied` | button text overrides |
 
 | Method | Signature |
 |--------|-----------|
@@ -477,6 +485,8 @@ Recursive property tree for any JS value.
 | Event | Detail |
 |-------|--------|
 | `toggle` | `{ path, expanded }` |
+| `copy` | `{ text }` (serialized JSON; emitted when `show-header` is on and Copy is clicked) |
+| `copy-error` | `{}` |
 
 ### `<b-json-viewer>`
 Composes `<b-object-tree>` with JSON-specific UX.
@@ -486,6 +496,8 @@ Composes `<b-object-tree>` with JSON-specific UX.
 | `src` | JSON string (parsed on mount) |
 | `expanded-depth`, `max-depth`, `size`, `show-types` | forwarded to inner `<b-object-tree>` |
 | `no-copy` | boolean |
+| `max-height` | string (CSS length; body becomes the scroll container) |
+| `sticky-header` | `page` — card overflow flips to `visible` so the header pins to the page viewport (mutually exclusive with `max-height`; page mode wins) |
 | `label-expand` / `label-collapse` / `label-copy` / `label-copied` | button text overrides |
 
 | Method | Signature |
@@ -508,6 +520,8 @@ Collapsible XML tree via DOMParser.
 | `max-depth` | number |
 | `size` | `sm` \| (default) \| `lg` |
 | `no-copy` | boolean |
+| `max-height` | string (CSS length; body becomes the scroll container) |
+| `sticky-header` | `page` — card overflow flips to `visible` so the header pins to the page viewport (mutually exclusive with `max-height`; page mode wins) |
 | `label-expand` / `label-collapse` / `label-copy` / `label-copied` | button text overrides |
 
 | Method | Signature |

@@ -127,7 +127,7 @@ export class BTreeMenu extends BaseComponent {
       .node-actions {
         display: none;
         align-items: center;
-        gap: 2px;
+        gap: var(--b-space-2xs, 0.125rem);
         flex-shrink: 0;
       }
       .node-row:hover .node-actions,
@@ -135,7 +135,7 @@ export class BTreeMenu extends BaseComponent {
 
       .node-action-btn {
         border: none; background: none;
-        padding: 2px 4px;
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-sm, 0.25rem);
         cursor: pointer;
         font-size: var(--b-text-xs, 0.6875rem);
@@ -150,7 +150,7 @@ export class BTreeMenu extends BaseComponent {
       .node-sort {
         display: none;
         align-items: center;
-        gap: 2px;
+        gap: var(--b-space-2xs, 0.125rem);
         flex-shrink: 0;
         margin-left: auto;
       }
@@ -160,7 +160,7 @@ export class BTreeMenu extends BaseComponent {
 
       .sort-order {
         width: 2.5rem; text-align: right;
-        padding: 1px 2px;
+        padding: 1px var(--b-space-2xs, 0.125rem);
         border: 1px solid var(--b-border);
         border-radius: var(--b-radius-sm, 0.25rem);
         font-size: var(--b-text-xs, 0.6875rem);
@@ -490,11 +490,12 @@ export class BTreeMenu extends BaseComponent {
     // Drag and drop reordering
     if (this._config.sortable) {
       this.shadowRoot?.querySelectorAll<HTMLElement>('[data-item]').forEach(row => {
-        this.listen(row, 'dragstart', (e: DragEvent) => {
+        this.listen(row, 'dragstart', (e: Event) => {
+          const de = e as DragEvent;
           this._dragSourceId = row.dataset.item!;
           row.classList.add('dragging');
-          e.dataTransfer!.effectAllowed = 'move';
-          e.dataTransfer!.setData('text/plain', this._dragSourceId);
+          de.dataTransfer!.effectAllowed = 'move';
+          de.dataTransfer!.setData('text/plain', this._dragSourceId);
         });
 
         this.listen(row, 'dragend', () => {
@@ -506,14 +507,15 @@ export class BTreeMenu extends BaseComponent {
         const node = row.closest('.node') as HTMLElement;
         if (!node) return;
 
-        this.listen(node, 'dragover', (e: DragEvent) => {
+        this.listen(node, 'dragover', (e: Event) => {
+          const de = e as DragEvent;
           if (!this._dragSourceId || this._dragSourceId === row.dataset.item) return;
-          e.preventDefault();
-          e.dataTransfer!.dropEffect = 'move';
+          de.preventDefault();
+          de.dataTransfer!.dropEffect = 'move';
 
           this._clearDropIndicators();
           const rect = row.getBoundingClientRect();
-          const y = e.clientY - rect.top;
+          const y = de.clientY - rect.top;
           const zone = y / rect.height;
 
           if (zone < 0.25) {
@@ -525,21 +527,22 @@ export class BTreeMenu extends BaseComponent {
           }
         });
 
-        this.listen(node, 'dragleave', (e: DragEvent) => {
-          // Only clear if leaving the node entirely (not entering a child)
-          if (!node.contains(e.relatedTarget as Node)) {
+        this.listen(node, 'dragleave', (e: Event) => {
+          const de = e as DragEvent;
+          if (!node.contains(de.relatedTarget as Node)) {
             node.classList.remove('drop-before', 'drop-after', 'drop-inside');
           }
         });
 
-        this.listen(node, 'drop', (e: DragEvent) => {
-          e.preventDefault();
+        this.listen(node, 'drop', (e: Event) => {
+          const de = e as DragEvent;
+          de.preventDefault();
           const sourceId = this._dragSourceId;
           const targetId = row.dataset.item!;
           if (!sourceId || sourceId === targetId) return;
 
           const rect = row.getBoundingClientRect();
-          const y = e.clientY - rect.top;
+          const y = de.clientY - rect.top;
           const zone = y / rect.height;
           let position: 'before' | 'after' | 'inside';
           if (zone < 0.25) position = 'before';

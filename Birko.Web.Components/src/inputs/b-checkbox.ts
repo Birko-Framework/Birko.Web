@@ -46,7 +46,7 @@ export class BCheckbox extends BaseComponent {
         top: 0.125rem;     /* 2px */
         width: 0.3125rem;  /* 5px */
         height: 0.5625rem; /* 9px */
-        border: solid #fff;
+        border: solid var(--b-text-inverse);
         border-width: 0 2px 2px 0;
         transform: rotate(45deg);
       }
@@ -57,8 +57,8 @@ export class BCheckbox extends BaseComponent {
         left: 0.1875rem;   /* 3px */
         top: 50%;
         width: 0.6875rem;  /* 11px */
-        height: 2px;
-        background: #fff;
+        height: var(--b-space-2xs, 0.125rem);
+        background: var(--b-text-inverse);
         transform: translateY(-50%);
       }
     `;

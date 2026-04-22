@@ -75,3 +75,12 @@ export const comboControlSheet = getSheet('comboControl');
 
 /** Spinner keyframes animation. */
 export const spinSheet = getSheet('spin');
+
+/** Compact data-viewer card shell (bg-tertiary, border, radius). Add `.sticky-page` for page-sticky mode. */
+export const dataViewerCardSheet = getSheet('dataViewerCard');
+
+/** Compact sticky toolbar header for data-viewer cards (title + actions). */
+export const dataViewerHeaderSheet = getSheet('dataViewerHeader');
+
+/** Small bordered action button used in data-viewer headers (Copy / Expand / Collapse). */
+export const toolbarBtnSheet = getSheet('toolbarBtn');

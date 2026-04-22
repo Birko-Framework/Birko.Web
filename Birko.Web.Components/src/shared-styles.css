@@ -175,6 +175,7 @@ dialog:not([open]) {
 input, select, textarea {
   box-sizing: border-box;
   padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+  min-height: var(--b-control-min-height, 2.375rem);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
   font-size: var(--b-text-base, 0.875rem);
@@ -199,6 +200,24 @@ input.has-error:focus, select.has-error:focus {
   box-shadow: var(--b-focus-ring-danger);
 }
 
+/* Compact / comfortable size variants. Driven by the host component's
+   `size` attribute so `<b-input size="sm">`, `<b-select size="lg">`, etc.
+   all opt in without extra CSS per component. */
+:host([size="sm"]) input,
+:host([size="sm"]) select,
+:host([size="sm"]) textarea {
+  min-height: var(--b-control-min-height-sm, 1.75rem);
+  padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem);
+  font-size: var(--b-text-sm, 0.8125rem);
+}
+:host([size="lg"]) input,
+:host([size="lg"]) select,
+:host([size="lg"]) textarea {
+  min-height: var(--b-control-min-height-lg, 2.75rem);
+  padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
+  font-size: var(--b-text-lg, 1rem);
+}
+
 
 /* @sheet dropdownPanel
    Popover dropdown panel — shared by b-dropdown-menu, b-multi-select,
@@ -209,7 +228,7 @@ input.has-error:focus, select.has-error:focus {
   inset: auto;
   margin: 0;
   padding: var(--b-space-xs, 0.25rem) 0;
-  min-width: 10rem;
+  min-width: var(--b-dropdown-min-width, 10rem);
   background: var(--b-bg-elevated);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
@@ -274,12 +293,13 @@ input.has-error:focus, select.has-error:focus {
    Mirrors formControl patterns: border, focus ring, error, disabled. */
 
 .combo-container {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
   background: var(--b-bg);
-  min-height: 2.25rem;
+  min-height: var(--b-control-min-height, 2.375rem);
   cursor: pointer;
   transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
 }
@@ -298,6 +318,14 @@ input.has-error:focus, select.has-error:focus {
   cursor: not-allowed;
   pointer-events: none;
 }
+:host([size="sm"]) .combo-container {
+  min-height: var(--b-control-min-height-sm, 1.75rem);
+  font-size: var(--b-text-sm, 0.8125rem);
+}
+:host([size="lg"]) .combo-container {
+  min-height: var(--b-control-min-height-lg, 2.75rem);
+  font-size: var(--b-text-lg, 1rem);
+}
 
 
 /* @sheet spin
@@ -305,4 +333,85 @@ input.has-error:focus, select.has-error:focus {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+
+/* @sheet dataViewerCard
+   Compact data-viewer card shell: bg-tertiary, border, radius, overflow hidden.
+   Used by b-json-viewer, b-xml-viewer, b-code-block, and b-object-tree (when
+   header is shown). Add class .sticky-page to swap overflow to visible so a
+   nested position:sticky header can pin to the page viewport. */
+
+.data-viewer-card {
+  background: var(--b-bg-tertiary);
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  overflow: hidden;
+}
+.data-viewer-card.sticky-page {
+  overflow: visible;
+}
+
+
+/* @sheet dataViewerHeader
+   Compact sticky toolbar header for data-viewer cards:
+     <header class="data-viewer-header">
+       <span class="title">JSON</span>
+       <div class="actions"><button class="toolbar-btn">…</button></div>
+     </header>
+   Header uses position:sticky top:0 so it pins whether scrolling is internal
+   (body with max-height) or page-level (card has .sticky-page). */
+
+.data-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--b-space-sm, 0.5rem);
+  padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
+  border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+  background: var(--b-bg);
+  font-size: var(--b-text-xs, 0.6875rem);
+  color: var(--b-text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.data-viewer-header .title {
+  font-family: var(--b-font-mono, ui-monospace, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.data-viewer-header .actions {
+  display: flex;
+  gap: var(--b-space-xs, 0.25rem);
+}
+
+
+/* @sheet toolbarBtn
+   Small bordered action button used in data-viewer headers (Copy / Expand /
+   Collapse). Includes :hover, :focus-visible and .copied success state. */
+
+.toolbar-btn {
+  background: transparent;
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius-sm, 0.25rem);
+  color: var(--b-text-secondary);
+  font: inherit;
+  font-size: var(--b-text-xs, 0.6875rem);
+  padding: 0.125rem var(--b-space-sm, 0.5rem);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.toolbar-btn:hover {
+  background: var(--b-bg-tertiary);
+  color: var(--b-text);
+}
+.toolbar-btn:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+.toolbar-btn.copied {
+  color: var(--b-color-success);
+  border-color: var(--b-color-success);
 }

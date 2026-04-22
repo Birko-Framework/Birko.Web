@@ -39,11 +39,11 @@ export class BInlineEdit extends BaseComponent {
         border-radius: var(--b-radius); font-size: var(--b-text-base);
         background: var(--b-bg); color: var(--b-text);
         outline: none; box-shadow: var(--b-focus-ring);
-        min-width: 120px;
+        min-width: 7.5rem;
       }
       .action-btn {
         background: none; border: none; cursor: pointer;
-        padding: 2px var(--b-space-xs);
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs);
         border-radius: var(--b-radius-sm); font-size: var(--b-text-base);
         line-height: 1; color: var(--b-text-muted);
       }

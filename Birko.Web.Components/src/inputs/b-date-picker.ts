@@ -86,7 +86,7 @@ export class BDatePicker extends BaseComponent {
         border-radius: var(--b-radius, 0.375rem);
         box-shadow: var(--b-shadow-md);
         padding: var(--b-space-md, 0.75rem);
-        width: 17rem;
+        width: var(--b-date-picker-width, 17rem);
         user-select: none;
       }
       .dp-panel.open { display: block; }

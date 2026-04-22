@@ -97,7 +97,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-tab-badge {
         min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger); color: #fff;
+        background: var(--b-color-danger); color: var(--b-text-inverse);
         font-size: 0.625rem; font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
@@ -187,7 +187,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-item-badge {
         min-width: 1rem; height: 1rem; padding: 0 0.2rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger); color: #fff;
+        background: var(--b-color-danger); color: var(--b-text-inverse);
         font-size: 0.5625rem; font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }

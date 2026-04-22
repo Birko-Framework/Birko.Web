@@ -20,7 +20,7 @@ export class BTooltip extends BaseComponent {
         box-shadow: var(--b-shadow-md);
         font-size: var(--b-text-xs, 0.6875rem);
         white-space: normal;
-        max-width: 16rem;
+        max-width: var(--b-tooltip-max-width, 16rem);
         width: max-content;
         z-index: 9999;
         pointer-events: none;

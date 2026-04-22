@@ -16,6 +16,7 @@ export class BTagInput extends BaseComponent {
     return `
       :host { display: block; }
       .container {
+        box-sizing: border-box;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -24,18 +25,20 @@ export class BTagInput extends BaseComponent {
         background: var(--b-bg);
         border: var(--b-border-width, 1px) solid var(--b-border);
         border-radius: var(--b-radius, 0.375rem);
-        min-height: 2rem;
+        min-height: var(--b-control-min-height, 2.375rem);
         cursor: text;
+        transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
       }
       .container:focus-within {
-        border-color: var(--b-color-primary);
+        border-color: var(--b-border-focus);
         box-shadow: var(--b-focus-ring);
       }
       .container.has-error { border-color: var(--b-color-danger); }
+      .container.has-error:focus-within { box-shadow: var(--b-focus-ring-danger); }
       .container.disabled {
-        background: var(--b-bg-tertiary);
         cursor: not-allowed;
-        opacity: 0.7;
+        opacity: var(--b-disabled-opacity, 0.5);
+        pointer-events: none;
       }
       .chip {
         display: inline-flex;
@@ -76,6 +79,20 @@ export class BTagInput extends BaseComponent {
       }
       input::placeholder { color: var(--b-text-muted); }
       input:disabled { cursor: not-allowed; }
+
+      /* Size variants — match formControlSheet / comboControlSheet pattern */
+      :host([size="sm"]) .container {
+        min-height: var(--b-control-min-height-sm, 1.75rem);
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs, 0.25rem);
+      }
+      :host([size="sm"]) input { font-size: var(--b-text-sm, 0.8125rem); }
+      :host([size="sm"]) .chip { font-size: var(--b-text-xs, 0.6875rem); padding: 0 var(--b-space-xs, 0.25rem); }
+      :host([size="lg"]) .container {
+        min-height: var(--b-control-min-height-lg, 2.75rem);
+        padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+      }
+      :host([size="lg"]) input { font-size: var(--b-text-lg, 1rem); }
+      :host([size="lg"]) .chip { font-size: var(--b-text-base, 0.875rem); padding: var(--b-space-2xs, 0.125rem) var(--b-space-md, 0.75rem); }
     `;
   }
 

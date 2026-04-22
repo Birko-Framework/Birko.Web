@@ -73,7 +73,7 @@ export class BTable extends BaseComponent {
       .align-center { text-align: center; }
       .align-right { text-align: right; }
       .empty { text-align: center; padding: var(--b-space-3xl, 3rem); color: var(--b-text-muted); }
-      .loading-bar { height: 2px; background: var(--b-color-primary); animation: loading 1.5s ease infinite; }
+      .loading-bar { height: var(--b-space-2xs, 0.125rem); background: var(--b-color-primary); animation: loading 1.5s ease infinite; }
       @keyframes loading { 0% { width: 0; } 50% { width: 70%; } 100% { width: 100%; opacity: 0; } }
       /* Editable cell hooks (activated by b-data-table) */
       td.cell-editable { cursor: text; }

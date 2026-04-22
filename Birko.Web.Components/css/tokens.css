@@ -47,6 +47,7 @@
   --b-radius-full: 9999px;
 
   /* ── Spacing (rem — scales with font size) ── */
+  --b-space-2xs: 0.125rem;  /* 2px */
   --b-space-xs: 0.25rem;    /* 4px */
   --b-space-sm: 0.5rem;     /* 8px */
   --b-space-md: 0.75rem;    /* 12px */
@@ -144,6 +145,39 @@
   /* ── Sidebar (rem — scales with font size) ── */
   --b-sidebar-width: 15rem;      /* 240px */
   --b-sidebar-collapsed-width: 3.5rem; /* 56px */
+
+  /* ── Form controls — interactive knobs / glyphs that always need white on a
+        colored active state (checkbox check, switch/range thumb). Not theme-
+        flipped because the surface they sit on is already a colored brand
+        token. Override per-component if a dark thumb is desired. ── */
+  --b-input-thumb-bg: #ffffff;
+
+  /* ── Unified form-control minimum height (rem — scales with font size).
+        Applied to <input>/<select>/<textarea> via formControlSheet, to
+        `.combo-container` via comboControlSheet, and to b-tag-input's
+        container, so every form chrome (plain, searchable, multi-select,
+        tag-input) has the same vertical footprint. Default ≈ 38px matches
+        the natural height of an input padded with --b-space-sm × --b-space-md
+        at --b-text-base font size. Use `size="sm"` / `size="lg"` on the host
+        component to switch to the compact / comfortable variant. ── */
+  --b-control-min-height-sm: 1.75rem;  /* 28px — dense grids, toolbars */
+  --b-control-min-height: 2.375rem;    /* 38px — default */
+  --b-control-min-height-lg: 2.75rem;  /* 44px — touch targets */
+
+  /* ── Popover / picker / dropdown widths (rem — tunable in one place) ── */
+  --b-date-picker-width: 17rem;       /* 272px */
+  --b-time-picker-width: 11rem;       /* 176px */
+  --b-tooltip-max-width: 16rem;       /* 256px */
+  --b-dropdown-min-width: 10rem;      /* 160px */
+  --b-kanban-col-min-width: 16rem;    /* 256px */
+  --b-kanban-col-max-width: 22rem;    /* 352px */
+  --b-dropzone-icon-size: 3rem;       /* 48px */
+  --b-file-thumb-size: 5rem;          /* 80px */
+  --b-filter-chip-width: 12rem;       /* 192px */
+  --b-filter-chip-width-lg: 16rem;    /* 256px */
+  --b-filter-chip-width-xl: 24rem;    /* 384px */
+  --b-app-brand-max-width: 8rem;      /* 128px */
+  --b-app-user-max-width: 12rem;      /* 192px */
 }
 
 /* ── Dark theme ── */

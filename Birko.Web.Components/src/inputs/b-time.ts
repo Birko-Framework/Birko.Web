@@ -62,7 +62,7 @@ export class BTime extends BaseComponent {
         border-radius: var(--b-radius, 0.375rem);
         box-shadow: var(--b-shadow-md);
         padding: var(--b-space-md, 0.75rem);
-        width: 11rem;
+        width: var(--b-time-picker-width, 11rem);
         user-select: none;
       }
       .tp-panel.open { display: block; }

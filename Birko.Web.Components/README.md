@@ -680,8 +680,10 @@ import { BCodeBlock } from 'birko-web-components';
 (el as BCodeBlock).setCode('SELECT * FROM users;', 'sql');
 ```
 
-Attributes: `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size`, `label-copy`, `label-copied`
+Attributes: `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `sticky-header` (`page`), `size`, `label-copy`, `label-copied`
 Emits: `copy` → `{ code }`, `copy-error`
+
+> **Scroll modes (shared with the three viewers below):** `max-height` turns the code `<pre>` into the scroll container; `sticky-header="page"` flips the card's `overflow` to `visible` so the `Copy` button stays pinned to the page viewport while the page scrolls. The two modes are mutually exclusive — `sticky-header="page"` takes precedence.
 
 ### b-definition-list
 
@@ -723,8 +725,16 @@ import { BObjectTree } from 'birko-web-components';
 (el as BObjectTree).expandAll();
 ```
 
-Attributes: `expanded-depth` (initial open depth, default `1`), `max-depth`, `size`, `show-types`
-Emits: `toggle` → `{ path, expanded }`
+```html
+<!-- Opt-in card chrome with Expand/Collapse/Copy toolbar -->
+<b-object-tree show-header header-title="Payload" max-height="320px"></b-object-tree>
+
+<!-- Page-viewport sticky header instead of internal scroll -->
+<b-object-tree show-header sticky-header="page"></b-object-tree>
+```
+
+Attributes: `expanded-depth` (initial open depth, default `1`), `max-depth`, `size`, `show-types`, `show-header`, `header-title` (default `Tree`), `no-copy`, `no-expand-actions`, `max-height`, `sticky-header` (`page`), `label-expand`, `label-collapse`, `label-copy`, `label-copied`
+Emits: `toggle` → `{ path, expanded }`, `copy` → `{ text }` (when `show-header` is on), `copy-error`
 
 ### b-json-viewer
 
@@ -746,7 +756,7 @@ import { BJsonViewer } from 'birko-web-components';
 (el as BJsonViewer).setData('{"id":1}');  // strings are parsed
 ```
 
-Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `label-expand`, `label-collapse`, `label-copy`
+Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `max-height`, `sticky-header` (`page`), `label-expand`, `label-collapse`, `label-copy`, `label-copied`
 Emits: `copy` → `{ text }`, `copy-error`
 
 ### b-xml-viewer
@@ -774,7 +784,7 @@ import { BXmlViewer } from 'birko-web-components';
 (el as BXmlViewer).expandAll();
 ```
 
-Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`
+Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`, `max-height`, `sticky-header` (`page`), `label-expand`, `label-collapse`, `label-copy`, `label-copied`
 Emits: `toggle` → `{ path, expanded }`, `copy` → `{ text }`, `copy-error`
 
 ---

@@ -83,15 +83,15 @@ export class BFileUpload extends BaseComponent {
         font-size: var(--b-text-sm, 0.8125rem);
       }
       .file-thumb {
-        width: 3rem;
-        height: 3rem;
+        width: var(--b-dropzone-icon-size, 3rem);
+        height: var(--b-dropzone-icon-size, 3rem);
         border-radius: var(--b-radius, 0.375rem);
         object-fit: cover;
         flex-shrink: 0;
       }
       .file-icon {
-        width: 3rem;
-        height: 3rem;
+        width: var(--b-dropzone-icon-size, 3rem);
+        height: var(--b-dropzone-icon-size, 3rem);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -103,7 +103,7 @@ export class BFileUpload extends BaseComponent {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.125rem;
+        gap: var(--b-space-2xs, 0.125rem);
       }
       .file-name {
         overflow: hidden;
@@ -120,7 +120,7 @@ export class BFileUpload extends BaseComponent {
       .status-complete { color: var(--b-color-success); }
       .status-error { color: var(--b-color-danger); }
       .progress-bar {
-        width: 5rem;
+        width: var(--b-file-thumb-size, 5rem);
         height: 0.375rem;
         background: var(--b-bg-tertiary);
         border-radius: var(--b-radius-full, 9999px);
@@ -233,7 +233,7 @@ export class BFileUpload extends BaseComponent {
     });
 
     // Drag and drop
-    this.listen(dropzone, 'dragover', (e: DragEvent) => {
+    this.listen(dropzone, 'dragover', (e: Event) => {
       e.preventDefault();
       this._dragging = true;
       this.update();
@@ -242,11 +242,12 @@ export class BFileUpload extends BaseComponent {
       this._dragging = false;
       this.update();
     });
-    this.listen(dropzone, 'drop', (e: DragEvent) => {
-      e.preventDefault();
+    this.listen(dropzone, 'drop', (e: Event) => {
+      const de = e as DragEvent;
+      de.preventDefault();
       this._dragging = false;
-      if (e.dataTransfer?.files.length) {
-        this._addFiles(Array.from(e.dataTransfer!.files));
+      if (de.dataTransfer?.files.length) {
+        this._addFiles(Array.from(de.dataTransfer!.files));
       }
     });
 

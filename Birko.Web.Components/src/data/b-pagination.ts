@@ -90,8 +90,8 @@ export class BPagination extends BaseComponent {
       sizeSelect.inputValue = String(pageSize);
 
       // Listen for changes
-      this.listen(sizeSelect, 'change', (e: CustomEvent) => {
-        const size = Number(e.detail.value);
+      this.listen(sizeSelect, 'change', (e: Event) => {
+        const size = Number((e as CustomEvent).detail.value);
         this.setAttribute('page-size', String(size));
         this.emit('page-size-change', { pageSize: size });
       });

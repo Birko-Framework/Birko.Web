@@ -118,7 +118,7 @@ export class BChat extends BaseComponent {
       }
       .message.user .bubble {
         background: var(--b-color-primary, #2563eb);
-        color: #fff;
+        color: var(--b-text-inverse, #ffffff);
         border-bottom-right-radius: var(--b-radius-sm, 0.25rem);
       }
       .message.assistant .bubble {
@@ -182,13 +182,13 @@ export class BChat extends BaseComponent {
         align-self: flex-start;
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
         display: flex;
-        gap: 4px;
+        gap: var(--b-space-xs, 0.25rem);
         align-items: center;
       }
       .typing.hidden { display: none; }
       .typing-dot {
-        width: 6px;
-        height: 6px;
+        width: 0.375rem;
+        height: 0.375rem;
         background: var(--b-text-muted, #94a3b8);
         border-radius: var(--b-radius-full, 9999px);
         animation: typing-bounce 1.4s infinite;
@@ -236,7 +236,7 @@ export class BChat extends BaseComponent {
         align-self: flex-end;
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         background: var(--b-color-primary, #2563eb);
-        color: #fff;
+        color: var(--b-text-inverse, #ffffff);
         border: none;
         border-radius: var(--b-radius-lg, 0.625rem);
         font-family: inherit;
@@ -354,9 +354,10 @@ export class BChat extends BaseComponent {
     const sendBtn = this.$<HTMLButtonElement>('#send-btn');
 
     if (input) {
-      this.listen(input, 'keydown', (e: KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
+      this.listen(input, 'keydown', (e: Event) => {
+        const ke = e as KeyboardEvent;
+        if (ke.key === 'Enter' && !ke.shiftKey) {
+          ke.preventDefault();
           this._send();
         }
       });

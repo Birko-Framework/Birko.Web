@@ -122,34 +122,34 @@ export class BDropdownMenu extends BaseComponent {
     });
 
     // Keyboard navigation
-    this.listen(menu, 'keydown', (e: KeyboardEvent) => {
+    this.listen(menu, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
       const items = this.$$<HTMLElement>('.item');
       const current = items.indexOf(this.$('.item:focus') as HTMLElement);
 
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
+      if (ke.key === 'ArrowDown') {
+        ke.preventDefault();
         const next = current < items.length - 1 ? current + 1 : 0;
         items[next]?.focus();
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
+      } else if (ke.key === 'ArrowUp') {
+        ke.preventDefault();
         const prev = current > 0 ? current - 1 : items.length - 1;
         items[prev]?.focus();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
+      } else if (ke.key === 'Escape') {
+        ke.preventDefault();
         menu.hidePopover();
         triggerEl?.focus();
-      } else if (e.key === 'Enter' || e.key === ' ') {
-        // Enter/Space on focused item triggers click
+      } else if (ke.key === 'Enter' || ke.key === ' ') {
         const focused = this.$<HTMLElement>('.item:focus');
         if (focused) {
-          e.preventDefault();
+          ke.preventDefault();
           focused.click();
         }
-      } else if (e.key === 'Home') {
-        e.preventDefault();
+      } else if (ke.key === 'Home') {
+        ke.preventDefault();
         items[0]?.focus();
-      } else if (e.key === 'End') {
-        e.preventDefault();
+      } else if (ke.key === 'End') {
+        ke.preventDefault();
         items[items.length - 1]?.focus();
       }
     });

@@ -1,8 +1,17 @@
 import { BaseComponent, define } from 'birko-web-core';
+import {
+  dataViewerCardSheet,
+  dataViewerHeaderSheet,
+  toolbarBtnSheet,
+} from '../shared-styles';
 
 export class BXmlViewer extends BaseComponent {
   static get observedAttributes() {
-    return ['src', 'expanded-depth', 'max-depth', 'size', 'no-copy'];
+    return ['src', 'expanded-depth', 'max-depth', 'size', 'no-copy', 'max-height', 'sticky-header'];
+  }
+
+  static get sharedStyles() {
+    return [dataViewerCardSheet, dataViewerHeaderSheet, toolbarBtnSheet];
   }
 
   private _doc: Document | null = null;
@@ -13,43 +22,7 @@ export class BXmlViewer extends BaseComponent {
 
   static get styles() {
     return `
-      :host {
-        display: block;
-        background: var(--b-bg-tertiary);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        overflow: hidden;
-      }
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: var(--b-space-sm, 0.5rem);
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
-        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
-        background: var(--b-bg);
-        font-size: var(--b-text-xs, 0.6875rem);
-        color: var(--b-text-muted);
-      }
-      header .title {
-        font-family: var(--b-font-mono, ui-monospace, monospace);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      .actions { display: flex; gap: var(--b-space-xs, 0.25rem); }
-      .btn {
-        background: transparent;
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius-sm, 0.25rem);
-        color: var(--b-text-secondary);
-        font: inherit;
-        font-size: var(--b-text-xs, 0.6875rem);
-        padding: 0.125rem var(--b-space-sm, 0.5rem);
-        cursor: pointer;
-      }
-      .btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
-      .btn:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
-      .btn.copied { color: var(--b-color-success); border-color: var(--b-color-success); }
+      :host { display: block; }
       .body {
         padding: var(--b-space-md, 0.75rem);
         overflow: auto;
@@ -141,19 +114,32 @@ export class BXmlViewer extends BaseComponent {
 
   render() {
     const showCopy = !this.boolAttr('no-copy');
+    const bodyStyle = this._computeBodyStyle();
+    const cardClass = this.attr('sticky-header') === 'page'
+      ? 'data-viewer-card sticky-page'
+      : 'data-viewer-card';
     return `
-      <header>
-        <span class="title">XML</span>
-        <div class="actions">
-          <button class="btn expand-all" type="button">${this._escapeHtml(this.attr('label-expand', 'Expand'))}</button>
-          <button class="btn collapse-all" type="button">${this._escapeHtml(this.attr('label-collapse', 'Collapse'))}</button>
-          ${showCopy ? `<button class="btn copy-btn" type="button">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
-        </div>
-      </header>
-      ${this._parseError
-        ? `<div class="error">XML parse error: ${this._escapeHtml(this._parseError)}</div>`
-        : `<div class="body">${this._renderBody()}</div>`}
+      <div class="${cardClass}">
+        <header class="data-viewer-header">
+          <span class="title">XML</span>
+          <div class="actions">
+            <button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.attr('label-expand', 'Expand'))}</button>
+            <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.attr('label-collapse', 'Collapse'))}</button>
+            ${showCopy ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
+          </div>
+        </header>
+        ${this._parseError
+          ? `<div class="error">XML parse error: ${this._escapeHtml(this._parseError)}</div>`
+          : `<div class="body"${bodyStyle}>${this._renderBody()}</div>`}
+      </div>
     `;
+  }
+
+  private _computeBodyStyle(): string {
+    const maxHeight = this.attr('max-height');
+    const sticky = this.attr('sticky-header');
+    if (!maxHeight || sticky === 'page') return '';
+    return ` style="max-height:${this._escapeAttr(maxHeight)}"`;
   }
 
   protected onMount() {

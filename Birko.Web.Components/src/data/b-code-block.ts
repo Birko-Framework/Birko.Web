@@ -1,4 +1,9 @@
 import { BaseComponent, define } from 'birko-web-core';
+import {
+  dataViewerCardSheet,
+  dataViewerHeaderSheet,
+  toolbarBtnSheet,
+} from '../shared-styles';
 
 type Lang = 'json' | 'js' | 'ts' | 'html' | 'xml' | 'css' | 'sql' | 'csharp' | 'bash' | 'plain';
 
@@ -13,7 +18,11 @@ const KEYWORDS: Record<string, string[]> = {
 
 export class BCodeBlock extends BaseComponent {
   static get observedAttributes() {
-    return ['language', 'code', 'wrap', 'show-line-numbers', 'no-copy', 'max-height', 'size'];
+    return ['language', 'code', 'wrap', 'show-line-numbers', 'no-copy', 'max-height', 'size', 'sticky-header'];
+  }
+
+  static get sharedStyles() {
+    return [dataViewerCardSheet, dataViewerHeaderSheet, toolbarBtnSheet];
   }
 
   static get styles() {
@@ -21,42 +30,11 @@ export class BCodeBlock extends BaseComponent {
       :host { display: block; position: relative; }
       .wrapper {
         position: relative;
-        background: var(--b-bg-tertiary);
         color: var(--b-text);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        overflow: hidden;
         font-family: var(--b-font-mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
         font-size: var(--b-text-sm, 0.8125rem);
       }
-      header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
-        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
-        background: var(--b-bg);
-        font-size: var(--b-text-xs, 0.6875rem);
-        color: var(--b-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-      header .lang { font-weight: var(--b-font-weight-medium, 500); }
-      .copy-btn {
-        background: transparent;
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius-sm, 0.25rem);
-        color: var(--b-text-secondary);
-        font: inherit;
-        font-size: var(--b-text-xs, 0.6875rem);
-        padding: 0.125rem var(--b-space-sm, 0.5rem);
-        cursor: pointer;
-        text-transform: none;
-        letter-spacing: 0;
-      }
-      .copy-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
-      .copy-btn:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
-      .copy-btn.copied { color: var(--b-color-success); border-color: var(--b-color-success); }
+      .data-viewer-header .title { font-weight: var(--b-font-weight-medium, 500); }
       pre {
         margin: 0;
         padding: var(--b-space-md, 0.75rem);
@@ -92,19 +70,25 @@ export class BCodeBlock extends BaseComponent {
     const showLang = lang !== 'plain';
     const showCopy = !this.boolAttr('no-copy');
     const maxHeight = this.attr('max-height');
-    const preStyle = maxHeight ? ` style="max-height:${this._escapeAttr(maxHeight)}"` : '';
+    const sticky = this.attr('sticky-header');
+    const preStyle = maxHeight && sticky !== 'page' ? ` style="max-height:${this._escapeAttr(maxHeight)}"` : '';
     const code = this._getCode();
     this._code = code;
     const highlighted = this._highlight(code, lang);
     const numbered = this.boolAttr('show-line-numbers')
       ? this._withLineNumbers(highlighted)
       : highlighted;
+    const cardClass = sticky === 'page'
+      ? 'wrapper data-viewer-card sticky-page'
+      : 'wrapper data-viewer-card';
     return `
-      <div class="wrapper">
+      <div class="${cardClass}">
         ${(showLang || showCopy) ? `
-          <header>
-            <span class="lang">${showLang ? this._escapeHtml(lang) : ''}</span>
-            ${showCopy ? `<button class="copy-btn" type="button" aria-label="Copy">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
+          <header class="data-viewer-header">
+            <span class="title">${showLang ? this._escapeHtml(lang) : ''}</span>
+            <div class="actions">
+              ${showCopy ? `<button class="toolbar-btn copy-btn" type="button" aria-label="Copy">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
+            </div>
           </header>
         ` : ''}
         <pre${preStyle}><code>${numbered}</code></pre>
@@ -167,9 +151,14 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _highlightJson(src: string): string {
+    // HTML-escape first so `<`, `>`, `&` in raw JSON render safely. The string
+    // alternative below matches the POST-escape form (`&quot;…&quot;`) so that
+    // digits inside string values (e.g. hex-like API keys) are not mistaken for
+    // numeric literals. `&(?!quot;)` lets other entities (`&amp;`, `&lt;`) sit
+    // inside a string without prematurely closing it.
     const escaped = this._escapeHtml(src);
     return escaped.replace(
-      /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false)\b|\bnull\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+      /(&quot;(?:\\.|&(?!quot;)|[^&\\])*&quot;)(\s*:)?|\b(true|false)\b|\bnull\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
       (_m, str, colon, bool, num) => {
         if (str) return colon ? `<span class="tok-attr">${str}</span>${colon}` : `<span class="tok-str">${str}</span>`;
         if (bool) return `<span class="tok-bool">${bool}</span>`;
@@ -180,13 +169,23 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _highlightMarkup(src: string): string {
+    // Escape first so the markup is safe to inject. All regexes below operate on
+    // the escaped form: tag brackets are `&lt;` / `&gt;`, double-quoted attribute
+    // values are `&quot;…&quot;`. Single quotes and `<`/`>` inside attribute
+    // values (rare, but allowed post-escape of `<`) can't appear — `_escapeHtml`
+    // only produces `&amp; &lt; &gt; &quot;`, so `'` stays literal and any raw
+    // angle bracket is already an entity. The attrs slot accepts a whole
+    // `&quot;…&quot;` string atomically so its inner entities don't abort the
+    // outer tag match (the bug with the previous `[^&]*?` slot).
     const escaped = this._escapeHtml(src);
-    // Comments first
+    // Comments
     let out = escaped.replace(/&lt;!--[\s\S]*?--&gt;/g, m => `<span class="tok-com">${m}</span>`);
-    // Tags with attributes
-    out = out.replace(/(&lt;\/?)([a-zA-Z][\w-]*)((?:\s+[^&]*?)?)(\/?&gt;)/g,
+    // Tags + attrs
+    out = out.replace(
+      /(&lt;\/?)([a-zA-Z][\w-]*)((?:\s+(?:&quot;(?:&(?!quot;)|[^&])*&quot;|&(?!gt;)|[^&])*)?)(\/?&gt;)/g,
       (_m, open, tag, attrs, close) => {
-        const attrHtml = attrs.replace(/([a-zA-Z_:][\w:.-]*)(=)("(?:[^"]*)"|'(?:[^']*)')?/g,
+        const attrHtml = attrs.replace(
+          /([a-zA-Z_:][\w:.-]*)(=)(&quot;(?:&(?!quot;)|[^&])*&quot;|'[^']*')?/g,
           (_a: string, name: string, eq: string, val: string) => {
             const valHtml = val ? `<span class="tok-str">${val}</span>` : '';
             return `<span class="tok-attr">${name}</span>${eq ? eq : ''}${valHtml}`;
@@ -210,7 +209,7 @@ export class BCodeBlock extends BaseComponent {
     const tokens: string[] = [];
     const mask = (s: string) => {
       tokens.push(s);
-      return ` ${tokens.length - 1} `;
+      return ` T${tokens.length - 1} `;
     };
     let work = src;
     // Line comments //
@@ -234,7 +233,7 @@ export class BCodeBlock extends BaseComponent {
       work = work.replace(pattern, '<span class="tok-kw">$1</span>');
     }
     // Restore masked tokens
-    work = work.replace(/ (\d+) /g, (_m, i) => tokens[Number(i)]);
+    work = work.replace(/ T(\d+) /g, (_m, i) => tokens[Number(i)]);
     return work;
   }
 

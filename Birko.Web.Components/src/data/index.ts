@@ -19,6 +19,7 @@ export { BDefinitionList, type DefinitionItem } from './b-definition-list.js';
 export { BObjectTree } from './b-object-tree.js';
 export { BJsonViewer } from './b-json-viewer.js';
 export { BXmlViewer } from './b-xml-viewer.js';
+export { BKanban, type KanbanColumn, type KanbanCard, type KanbanConfig } from './b-kanban.js';
 export { createCellRenderers, type CellRenderers } from './cell-renderers.js';
 export {
   BChart,

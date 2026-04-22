@@ -62,22 +62,23 @@ export class BModal extends BaseComponent {
     this.listen(dlg, 'close', () => this.emit('close'));
 
     // Focus trap: Tab cycles within modal
-    this.listen(dlg, 'keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Tab') {
+    this.listen(dlg, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Tab') {
         const focusable = dlg.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
         );
         if (focusable.length === 0) return;
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
-        if (e.shiftKey) {
+        if (ke.shiftKey) {
           if (document.activeElement === first || this.shadowRoot?.activeElement === first) {
-            e.preventDefault();
+            ke.preventDefault();
             last.focus();
           }
         } else {
           if (document.activeElement === last || this.shadowRoot?.activeElement === last) {
-            e.preventDefault();
+            ke.preventDefault();
             first.focus();
           }
         }

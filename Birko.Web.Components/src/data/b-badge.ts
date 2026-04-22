@@ -7,7 +7,7 @@ export class BBadge extends BaseComponent {
     return `
       :host { display: inline-block; }
       .badge {
-        display: inline-flex; align-items: center; padding: 2px var(--b-space-sm);
+        display: inline-flex; align-items: center; padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm);
         border-radius: var(--b-radius-full, 9999px); font-size: var(--b-text-xs, 0.6875rem);
         font-weight: var(--b-font-weight-medium, 500); line-height: 1.6; white-space: nowrap;
       }
@@ -17,6 +17,7 @@ export class BBadge extends BaseComponent {
       .danger { background: var(--b-color-danger-light); color: var(--b-color-danger); }
       .info { background: var(--b-color-info-light); color: var(--b-color-info); }
       .neutral { background: var(--b-bg-tertiary); color: var(--b-text-secondary); }
+      :host([size="sm"]) .badge { padding: 0 var(--b-space-xs); font-size: 0.625rem; }
       :host([size="lg"]) .badge { padding: var(--b-space-xs) var(--b-space-md); font-size: var(--b-text-sm); }
     `;
   }

@@ -1,10 +1,23 @@
 import { BaseComponent, define } from 'birko-web-core';
+import {
+  dataViewerCardSheet,
+  dataViewerHeaderSheet,
+  toolbarBtnSheet,
+} from '../shared-styles';
 
 type Primitive = string | number | boolean | null | undefined | bigint;
 
 export class BObjectTree extends BaseComponent {
   static get observedAttributes() {
-    return ['expanded-depth', 'max-depth', 'size', 'show-types'];
+    return [
+      'expanded-depth', 'max-depth', 'size', 'show-types',
+      'show-header', 'header-title', 'no-copy', 'no-expand-actions',
+      'max-height', 'sticky-header',
+    ];
+  }
+
+  static get sharedStyles() {
+    return [dataViewerCardSheet, dataViewerHeaderSheet, toolbarBtnSheet];
   }
 
   private _data: unknown = undefined;
@@ -22,6 +35,8 @@ export class BObjectTree extends BaseComponent {
       }
       :host([size="sm"]) { font-size: var(--b-text-xs, 0.6875rem); }
       :host([size="lg"]) { font-size: var(--b-text-base, 0.875rem); }
+      .body { overflow: auto; }
+      :host([show-header]) .body { padding: var(--b-space-md, 0.75rem); }
       .node { display: block; }
       .row {
         display: flex;
@@ -99,10 +114,49 @@ export class BObjectTree extends BaseComponent {
   }
 
   render() {
-    if (!this._hasData) {
-      return `<div class="empty"><slot></slot></div>`;
+    const showHeader = this.boolAttr('show-header');
+    const bodyStyle = this._computeBodyStyle();
+    const body = !this._hasData
+      ? `<div class="empty"><slot></slot></div>`
+      : this._renderNode(this._data, '', undefined, 0);
+    if (!showHeader) {
+      return `<div class="body"${bodyStyle}>${body}</div>`;
     }
-    return this._renderNode(this._data, '', undefined, 0);
+    const cardClass = this.attr('sticky-header') === 'page'
+      ? 'data-viewer-card sticky-page'
+      : 'data-viewer-card';
+    return `
+      <div class="${cardClass}">
+        ${this._renderHeader()}
+        <div class="body"${bodyStyle}>${body}</div>
+      </div>
+    `;
+  }
+
+  private _computeBodyStyle(): string {
+    const maxHeight = this.attr('max-height');
+    const sticky = this.attr('sticky-header');
+    if (!maxHeight || sticky === 'page') return '';
+    return ` style="max-height:${this._escapeAttr(maxHeight)}"`;
+  }
+
+  private _renderHeader(): string {
+    const title = this.attr('header-title', 'Tree');
+    const showCopy = !this.boolAttr('no-copy');
+    const showExpandActions = !this.boolAttr('no-expand-actions');
+    const expandActions = showExpandActions
+      ? `<button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.attr('label-expand', 'Expand'))}</button>
+         <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.attr('label-collapse', 'Collapse'))}</button>`
+      : '';
+    const copyBtn = showCopy
+      ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>`
+      : '';
+    return `
+      <header class="data-viewer-header">
+        <span class="title">${this._escapeHtml(title)}</span>
+        <div class="actions">${expandActions}${copyBtn}</div>
+      </header>
+    `;
   }
 
   protected onUpdated() {
@@ -116,6 +170,39 @@ export class BObjectTree extends BaseComponent {
         this.emit('toggle', { path, expanded: this._expanded.has(path) });
       });
     });
+
+    const expandBtn = this.$<HTMLButtonElement>('.expand-all');
+    if (expandBtn) this.listen(expandBtn, 'click', () => this.expandAll());
+    const collapseBtn = this.$<HTMLButtonElement>('.collapse-all');
+    if (collapseBtn) this.listen(collapseBtn, 'click', () => this.collapseAll());
+
+    const copyBtn = this.$<HTMLButtonElement>('.copy-btn');
+    if (copyBtn) {
+      this.listen(copyBtn, 'click', async () => {
+        const text = this._serialize();
+        try {
+          await navigator.clipboard.writeText(text);
+          const original = copyBtn.textContent;
+          copyBtn.textContent = this.attr('label-copied', 'Copied!');
+          copyBtn.classList.add('copied');
+          this.emit('copy', { text });
+          setTimeout(() => {
+            copyBtn.textContent = original;
+            copyBtn.classList.remove('copied');
+          }, 1500);
+        } catch {
+          this.emit('copy-error', {});
+        }
+      });
+    }
+  }
+
+  private _serialize(): string {
+    try {
+      return JSON.stringify(this._data, null, 2);
+    } catch {
+      return String(this._data);
+    }
   }
 
   private _seedExpansion(node: unknown, path: string, depth: number) {

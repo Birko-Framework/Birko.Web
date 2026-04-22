@@ -46,7 +46,7 @@ export class BSwitch extends BaseComponent {
         width: 1rem;        /* 16px */
         height: 1rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: #fff;
+        background: var(--b-input-thumb-bg);
         transition: transform var(--b-transition, 150ms ease);
       }
       input:checked::after {

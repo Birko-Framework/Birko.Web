@@ -34,9 +34,9 @@ export class BButton extends BaseComponent {
       .danger:hover { background: var(--b-color-danger-hover); }
       .ghost { background: transparent; color: var(--b-text-secondary); }
       .ghost:hover { background: var(--b-bg-tertiary); }
-      /* Sizes */
-      .sm { padding: var(--b-space-xs) var(--b-space-sm); font-size: var(--b-text-xs); }
-      .lg { padding: var(--b-space-sm) var(--b-space-xl); font-size: var(--b-text-base); }
+      /* Sizes — match :host([size]) pattern used by other components */
+      :host([size="sm"]) button { padding: var(--b-space-xs) var(--b-space-sm); font-size: var(--b-text-xs); }
+      :host([size="lg"]) button { padding: var(--b-space-sm) var(--b-space-xl); font-size: var(--b-text-base); }
       .spinner {
         width: var(--b-icon-sm, 0.875rem); height: var(--b-icon-sm, 0.875rem);
         border: 2px solid currentColor; border-top-color: transparent;
@@ -47,10 +47,10 @@ export class BButton extends BaseComponent {
 
   render() {
     const variant = this.attr('variant', 'primary');
-    const size = this.attr('size', '');
     const loading = this.boolAttr('loading');
+    const disabled = this.boolAttr('disabled') || loading;
     return `
-      <button class="${variant} ${size}" ${this.boolAttr('disabled') || loading ? 'disabled' : ''} ${loading ? 'class="loading"' : ''}>
+      <button class="${variant}${loading ? ' loading' : ''}" ${disabled ? 'disabled' : ''}>
         ${loading ? '<span class="spinner"></span>' : ''}
         <slot></slot>
       </button>

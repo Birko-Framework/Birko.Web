@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 50 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 51 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -17,7 +17,7 @@ src/
 ├── data/            # b-table, b-data-table, b-pagination, b-badge, b-tag,
 │                    # b-chart, b-pre, b-code-block, b-definition-list,
 │                    # b-object-tree, b-json-viewer, b-xml-viewer
-├── feedback/        # b-toast (+ toast manager), b-spinner, b-empty, b-skeleton, b-stale-banner
+├── feedback/        # b-toast (+ toast manager), b-spinner, b-progress, b-empty, b-skeleton, b-stale-banner
 ├── nav/             # b-sidebar, b-breadcrumb, b-ribbon, b-tree-menu
 ├── command/         # b-command-palette, command-provider
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
@@ -51,6 +51,9 @@ Before writing CSS, check if a shared sheet covers the pattern:
 | `dropdownPanelSheet` | `.dropdown-panel` | menus, popover panels |
 | `formToggleSheet` | checkbox/switch/radio wrapper | toggle inputs |
 | `spinSheet` | `@keyframes spin` | b-button loading, b-spinner |
+| `dataViewerCardSheet` | `.data-viewer-card` shell (bg-tertiary, border, radius) + `.sticky-page` modifier | b-object-tree (header on), b-json-viewer, b-xml-viewer, b-code-block |
+| `dataViewerHeaderSheet` | `.data-viewer-header` compact sticky toolbar header with `.title` + `.actions` | same set as above |
+| `toolbarBtnSheet` | `.toolbar-btn` small bordered header button with `.copied` state | same set as above |
 
 ```typescript
 import { overlayHeaderSheet, overlayFooterSheet, closeButtonSheet } from '../shared-styles';
@@ -97,6 +100,21 @@ Never expose internal state as properties — keep Shadow DOM encapsulation.
 
 ### Event naming
 All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `item-click`
+
+### `size` attribute convention
+When a component exposes a `size` attribute, it falls into one of five distinct categories. Pick the category that matches the component's primary visual concern:
+
+| Category | What `sm` / `md` / `lg` control | Tokens | Components |
+|---|---|---|---|
+| **Vertical footprint** | `min-height` of the chrome | `--b-control-min-height-sm/-md/-lg` | form inputs (via `formControlSheet` + `comboControlSheet`), `b-tag-input` |
+| **Text scale** | inner `font-size` only | `--b-text-xs / -sm / -base` | `b-pre`, `b-code-block`, `b-object-tree`, `b-json-viewer`, `b-xml-viewer`, `b-definition-list` |
+| **Width** | `max-width` / `width` of the panel | `--b-{modal,drawer}-width-{sm,md,lg,xl,xxl}` | `b-modal`, `b-drawer` (extend to `xl`/`xxl`) |
+| **Shape weight** | diameter / track thickness | component-specific | `b-spinner` (diameter), `b-progress` (track height) |
+| **Inline chip / button** | `padding` + `font-size` | `--b-space-*` + `--b-text-*` | `b-button`, `b-badge`, `b-tag` |
+
+**Always style via `:host([size="sm"])` / `:host([size="lg"])` selectors** — never via class interpolation (`class="${size}"`). The host-attribute pattern keeps `size` as a pure CSS switch (no `observedAttributes` entry needed, no re-render on change) and stays consistent across the library.
+
+`b-chart` is an exception: it uses `height` (SVG pixel layout) not `size` — different concept, documented.
 
 ### New component checklist
 1. File: `src/{category}/b-{name}.ts`
@@ -154,17 +172,18 @@ All custom events: kebab-case — `row-click`, `page-change`, `tab-change`, `ite
 | `<b-tag>` | BTag | — | `color`, `removable`, `size` |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
 | `<b-pre>` | BPre | — | `wrap`, `max-height`, `size` |
-| `<b-code-block>` | BCodeBlock | `setCode(code, language?)` | `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size` |
+| `<b-code-block>` | BCodeBlock | `setCode(code, language?)` | `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size`, `sticky-header` (page) |
 | `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
-| `<b-object-tree>` | BObjectTree | `setData(obj)`, `getData()`, `expandAll()`, `collapseAll()` | `expanded-depth`, `max-depth`, `size`, `show-types` |
-| `<b-json-viewer>` | BJsonViewer | `setData(obj\|string)`, `getData()` | `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy` |
-| `<b-xml-viewer>` | BXmlViewer | `setSource(xml)`, `setDocument(doc)`, `getSource()`, `expandAll()`, `collapseAll()` | `src`, `expanded-depth`, `max-depth`, `size`, `no-copy` |
+| `<b-object-tree>` | BObjectTree | `setData(obj)`, `getData()`, `expandAll()`, `collapseAll()` | `expanded-depth`, `max-depth`, `size`, `show-types`, `show-header`, `header-title`, `no-copy`, `no-expand-actions`, `max-height`, `sticky-header` (page) |
+| `<b-json-viewer>` | BJsonViewer | `setData(obj\|string)`, `getData()` | `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `max-height`, `sticky-header` (page) |
+| `<b-xml-viewer>` | BXmlViewer | `setSource(xml)`, `setDocument(doc)`, `getSource()`, `expandAll()`, `collapseAll()` | `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`, `max-height`, `sticky-header` (page) |
 
-### Feedback (5)
+### Feedback (6)
 | Tag / Export | Key API |
 |---|---|
 | `toast` (manager) | `toast.success(msg)`, `toast.error(msg)`, `toast.warning(msg)`, `toast.info(msg)`, `toast.notify(msg, opts)` |
 | `<b-spinner>` | `size` attribute (sm\|md\|lg) |
+| `<b-progress>` | `setValue(value, max?)`; attributes `value`, `max`, `indeterminate`, `label`, `show-value`, `value-format` (percent\|fraction\|value), `size` (sm\|md\|lg\|xl), `variant` (primary\|success\|warning\|danger\|info\|secondary), `striped`, `animated`; events `change`, `complete` |
 | `<b-empty>` | `icon`, `message` attributes |
 | `<b-skeleton>` | `type` (text\|circle\|table\|form), `rows`, `columns` attributes |
 | `<b-stale-banner>` | `show(cachedAt)` method, `message` attribute — stale/cached data warning |

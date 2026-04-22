@@ -75,6 +75,7 @@ export interface DataTableLabels {
   selected?: string;
   confirmDefault?: string;
   noData?: string;
+  actions?: string;
 }
 
 /** localStorage key for default page size (set via Settings page). */
@@ -196,7 +197,7 @@ export class BDataTable extends BaseComponent {
         this._totalPages = 1;
       } else if (Array.isArray(resp.data)) {
         const all = (this._config.dataKey
-          ? (resp.data as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[]
+          ? ((resp.data as Record<string, unknown>)[this._config.dataKey] as unknown as Record<string, unknown>[])
           : resp.data) as Record<string, unknown>[];
         this._allData = all;
         this._totalCount = all.length;
@@ -514,7 +515,7 @@ export class BDataTable extends BaseComponent {
     // Inline editable cells
     const editableCols = this._config?.columns.filter(c => c.editable) ?? [];
     if (editableCols.length) {
-      table.shadowRoot.querySelectorAll<HTMLElement>('td[data-editable]').forEach((td: HTMLElement) => {
+      (table.shadowRoot as ShadowRoot).querySelectorAll('td[data-editable]').forEach((td: HTMLElement) => {
         td.addEventListener('click', (e: Event) => {
           // Ignore if already editing (input/select already injected)
           if (td.querySelector('input, select')) return;
@@ -619,9 +620,10 @@ export class BDataTable extends BaseComponent {
     };
 
     input.addEventListener('blur', commit, { once: true });
-    input.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
-      if (e.key === 'Escape') { cancel(); input.blur(); }
+    input.addEventListener('keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
+      if (ke.key === 'Escape') { cancel(); input.blur(); }
     });
   }
 
