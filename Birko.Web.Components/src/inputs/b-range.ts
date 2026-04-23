@@ -86,7 +86,7 @@ export class BRange extends BaseComponent {
         width: 1rem;
         height: 1rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-input-thumb-bg);
+        background: var(--b-input-thumb-bg, #ffffff);
         border: 2px solid var(--b-color-primary);
         margin-top: -0.375rem;
         cursor: pointer;
@@ -96,7 +96,7 @@ export class BRange extends BaseComponent {
         width: 1rem;
         height: 1rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-input-thumb-bg);
+        background: var(--b-input-thumb-bg, #ffffff);
         border: 2px solid var(--b-color-primary);
         cursor: pointer;
         transition: box-shadow var(--b-transition, 150ms ease);

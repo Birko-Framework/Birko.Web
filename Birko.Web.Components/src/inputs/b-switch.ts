@@ -13,45 +13,47 @@ export class BSwitch extends BaseComponent {
   static get styles() {
     return `
       :host { display: inline-block; }
+      /* Visually hide the native checkbox but keep it accessible and clickable via label */
       input {
-        appearance: none;
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .track {
         position: relative;
+        display: inline-block;
         width: 2.25rem;    /* 36px */
         height: 1.25rem;   /* 20px */
         border-radius: var(--b-radius-full, 9999px);
         background: var(--b-bg-tertiary);
-        border: none;
         cursor: pointer;
         flex-shrink: 0;
         transition: background var(--b-transition, 150ms ease);
-        margin: 0;
       }
-      input:checked {
-        background: var(--b-color-primary);
-      }
-      input:focus-visible {
-        outline: none;
-        box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
-      }
-      input:disabled {
-        opacity: var(--b-disabled-opacity, 0.5);
-        cursor: not-allowed;
-      }
-      /* Thumb via ::after pseudo-element */
-      input::after {
-        content: '';
+      .thumb {
         position: absolute;
         top: 0.125rem;     /* 2px inset */
         left: 0.125rem;
         width: 1rem;        /* 16px */
         height: 1rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-input-thumb-bg);
+        background: var(--b-input-thumb-bg, #ffffff);
+        box-shadow: var(--b-shadow-sm, 0 1px 2px rgba(0,0,0,0.1));
         transition: transform var(--b-transition, 150ms ease);
+        pointer-events: none;
       }
-      input:checked::after {
-        transform: translateX(1rem);
+      input:checked ~ .track { background: var(--b-color-primary); }
+      input:checked ~ .track .thumb { transform: translateX(1rem); }
+      input:focus-visible ~ .track {
+        box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
       }
+      .toggle-wrapper.disabled .track { opacity: var(--b-disabled-opacity, 0.5); cursor: not-allowed; }
     `;
   }
 
@@ -68,6 +70,7 @@ export class BSwitch extends BaseComponent {
                ${disabled ? 'disabled' : ''}
                name="${this.attr('name')}"
                ${label ? `aria-label="${label}"` : ''} />
+        <span class="track"><span class="thumb"></span></span>
         ${label ? `<span class="toggle-label">${label}</span>` : ''}
         ${hint ? `<b-tooltip text="${hint}"><span class="hint-icon">?</span></b-tooltip>` : ''}
       </label>
