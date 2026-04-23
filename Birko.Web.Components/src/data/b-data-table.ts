@@ -376,6 +376,13 @@ export class BDataTable extends BaseComponent {
   }
 
   private _applyData() {
+    // Elements cloned from <template> content are uncustomized until they're
+    // adopted into a connected tree AND a CEReactions checkpoint runs. When
+    // _applyData is called synchronously right after update() (e.g. from
+    // setConfig), the <b-table> inserted by morphing can still be a plain
+    // HTMLElement. Force the upgrade here so setColumns/setData are callable.
+    if (this.shadowRoot) customElements.upgrade(this.shadowRoot);
+
     const table = this.$('b-table') as any;
     if (!table || !this._config) return;
 
