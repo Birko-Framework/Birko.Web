@@ -64,7 +64,9 @@ export class BMultiSelect extends BaseComponent {
       .dropdown {
         display: none;
         position: fixed;
-        z-index: 10;
+        inset: auto;
+        margin: 0;
+        z-index: 9999;
         padding: var(--b-space-xs, 0.25rem) 0;
         background: var(--b-bg-elevated);
         border: var(--b-border-width, 1px) solid var(--b-border);
@@ -74,6 +76,7 @@ export class BMultiSelect extends BaseComponent {
         overflow-y: auto;
       }
       .dropdown.open { display: block; }
+      .dropdown:popover-open { display: block; }
       .option {
         display: flex; align-items: center;
         gap: var(--b-space-sm, 0.5rem);
@@ -189,7 +192,7 @@ export class BMultiSelect extends BaseComponent {
              aria-expanded="${this._open}">
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
-        <div class="dropdown ${this._open ? 'open' : ''}" role="listbox">
+        <div class="dropdown" popover="manual" role="listbox">
           ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${this._filter}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
@@ -265,7 +268,6 @@ export class BMultiSelect extends BaseComponent {
 
   private _openDropdown(container: HTMLElement, dropdown: HTMLElement) {
     this._open = true;
-    dropdown.classList.add('open');
     container.setAttribute('aria-expanded', 'true');
 
     // Position fixed dropdown below the container
@@ -282,6 +284,13 @@ export class BMultiSelect extends BaseComponent {
       dropdown.style.top = `${rect.bottom + gap}px`;
     }
 
+    // Promote to top-layer so it renders above <dialog> modals.
+    try { (dropdown as any).showPopover?.(); }
+    catch { /* already open */ }
+    dropdown.classList.add('open');
+    // Belt-and-suspenders: force visibility even if popover API silently failed.
+    dropdown.style.setProperty('display', 'block', 'important');
+
     // Focus search input if searchable
     const searchInput = this.$<HTMLInputElement>('.dd-search');
     if (searchInput) searchInput.focus();
@@ -292,7 +301,10 @@ export class BMultiSelect extends BaseComponent {
     this._open = false;
     const dropdown = this.$<HTMLElement>('.dropdown');
     const container = this.$<HTMLElement>('.container');
+    try { (dropdown as any)?.hidePopover?.(); }
+    catch { /* already closed */ }
     dropdown?.classList.remove('open');
+    dropdown?.style.removeProperty('display');
     container?.setAttribute('aria-expanded', 'false');
     if (this._filter) {
       this._filter = '';

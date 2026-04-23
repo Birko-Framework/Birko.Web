@@ -52,7 +52,9 @@ export class BSelect extends BaseComponent {
       .dropdown {
         display: none;
         position: fixed;
-        z-index: 10;
+        inset: auto;
+        margin: 0;
+        z-index: 9999;
         padding: var(--b-space-xs, 0.25rem) 0;
         background: var(--b-bg-elevated);
         border: var(--b-border-width, 1px) solid var(--b-border);
@@ -62,6 +64,7 @@ export class BSelect extends BaseComponent {
         overflow-y: auto;
       }
       .dropdown.open { display: block; }
+      .dropdown:popover-open { display: block; }
 
       .option {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
@@ -224,7 +227,7 @@ export class BSelect extends BaseComponent {
           ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
-        <div class="dropdown ${this._open ? 'open' : ''}">
+        <div class="dropdown" popover="manual">
           ${this._renderOptionsHtml(filtered, value)}
         </div>
         ${error ? `<span class="error">${error}</span>` : ''}
@@ -264,8 +267,11 @@ export class BSelect extends BaseComponent {
       this._filter = input.value;
       if (!this._open) {
         this._open = true;
-        dropdown.classList.add('open');
         this._positionDropdown(dropdown);
+        try { (dropdown as any).showPopover?.(); }
+        catch { /* already open */ }
+        dropdown.classList.add('open');
+        dropdown.style.setProperty('display', 'block', 'important');
       }
       this._refreshOptions();
       this.emit('search', { query: this._filter, name: this.attr('name') });
@@ -285,17 +291,23 @@ export class BSelect extends BaseComponent {
     input.value = '';
     input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
       || this.attr('placeholder', 'Select...');
-    dropdown.classList.add('open');
     this._refreshOptions();
     input.focus();
     this._positionDropdown(dropdown);
+    try { (dropdown as any).showPopover?.(); }
+    catch { /* already open */ }
+    dropdown.classList.add('open');
+    dropdown.style.setProperty('display', 'block', 'important');
   }
 
   private _closeDropdown() {
     if (!this._open) return;
     this._open = false;
     const dropdown = this.$<HTMLElement>('.dropdown');
+    try { (dropdown as any)?.hidePopover?.(); }
+    catch { /* already closed */ }
     dropdown?.classList.remove('open');
+    dropdown?.style.removeProperty('display');
     const input = this.$<HTMLInputElement>('.combo-input');
     if (input) {
       const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
@@ -334,7 +346,12 @@ export class BSelect extends BaseComponent {
       input.value = label;
       input.placeholder = label || this.attr('placeholder', 'Select...');
     }
-    if (dropdown) dropdown.classList.remove('open');
+    if (dropdown) {
+      try { (dropdown as any).hidePopover?.(); }
+      catch { /* already closed */ }
+      dropdown.classList.remove('open');
+      dropdown.style.removeProperty('display');
+    }
 
     // Update clear button visibility
     const combo = this.$<HTMLElement>('.combo');
