@@ -14,6 +14,10 @@ export class BButton extends BaseComponent {
     return `
       :host { display: inline-block; }
       :host([hidden]) { display: none; }
+      /* Block pointer events on the host too — otherwise clicks on host bounds
+         or listeners attached to the host fire even though the inner <button>
+         is disabled. */
+      :host([disabled]), :host([loading]) { pointer-events: none; }
       button {
         display: inline-flex; align-items: center; justify-content: center; gap: var(--b-space-sm);
         width: 100%; box-sizing: border-box;

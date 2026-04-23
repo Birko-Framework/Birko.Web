@@ -337,12 +337,17 @@ export class BDataTable extends BaseComponent {
 
     if (innerTable) {
       this.listen(innerTable, 'row-click', ((e: CustomEvent) => {
+        // Stop the raw bubble from b-table (which only carries {id}) so page-level
+        // listeners don't see the pre-enrichment event AND then our re-emit below.
+        e.stopPropagation();
         const id = e.detail?.id;
         const row = this._allData.find(r => this._rowId(r) === id);
-        this.emit('row-click', row ?? e.detail);
+        // Emit { id, row } to match row-action's shape — consumers read e.detail.row.
+        this.emit('row-click', { id, row: row ?? {} });
       }) as EventListener);
 
       this.listen(innerTable, 'action-click', ((e: CustomEvent) => {
+        e.stopPropagation();
         const id = e.detail?.id;
         const row = this._allData.find(r => this._rowId(r) === id);
         this.emit('action-click', { action: e.detail.action, id, row: row ?? {} });

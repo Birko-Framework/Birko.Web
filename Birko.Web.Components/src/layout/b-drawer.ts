@@ -14,11 +14,17 @@ export class BDrawer extends BaseComponent {
   static get styles() {
     return `
       :host { display: contents; }
+      /* Pin to the right edge of the viewport regardless of modal/non-modal mode.
+         Without position:fixed, dialog.show() (non-modal) flows inline and pushes
+         surrounding content; showModal() is fine because the top layer promotes it,
+         but we want both modes to look the same visually. */
       dialog {
+        position: fixed;
+        inset: 0 0 0 auto;
         margin: 0;
-        margin-left: auto;
         height: 100%;
         max-height: 100vh;
+        z-index: var(--b-z-drawer, 260);
       }
       dialog::backdrop {
         background: var(--b-backdrop-bg-light, rgba(0, 0, 0, 0.15));
