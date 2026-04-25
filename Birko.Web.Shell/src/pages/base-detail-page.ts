@@ -1,4 +1,4 @@
-import { BaseComponent } from 'birko-web-core';
+import { BaseComponent, t as globalT } from 'birko-web-core';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import type { BForm, FormSchema } from 'birko-web-components/inputs';
@@ -96,16 +96,17 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
   /** Called after a successful save. Override to navigate away, refresh stores, etc. */
   protected onSaveSuccess?(_entity: T): void;
 
-  /** Translation function — override for localised labels. */
-  protected t(key: string): string {
+  /** Translation function — delegates to the global i18n singleton; `{entity}` auto-interpolated. */
+  protected t(key: string, params?: Record<string, string | number>): string {
     const defaults: Record<string, string> = {
-      'common.save':        'Save',
-      'common.cancel':      'Cancel',
-      'common.saved':       `${this.entityLabel} saved`,
-      'common.loading':     'Loading…',
-      'common.loadError':   `Failed to load ${this.entityLabel}`,
+      'bws.common.save':      'Save',
+      'bws.common.cancel':    'Cancel',
+      'bws.common.saved':     '{entity} saved',
+      'bws.common.loading':   'Loading…',
+      'bws.common.loadError': 'Failed to load {entity}',
     };
-    return defaults[key] ?? key;
+    const mergedParams = { entity: this.entityLabel, ...params };
+    return globalT(key, mergedParams, defaults[key] ?? key);
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
@@ -155,8 +156,8 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
       <div class="detail-page">
         <b-form id="form" ${this.readonly ? 'readonly' : ''}></b-form>
         <div class="detail-footer">
-          <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
-          ${this.readonly ? '' : `<b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>`}
+          <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
+          ${this.readonly ? '' : `<b-button id="btn-save" variant="primary">${this.t('bws.common.save')}</b-button>`}
         </div>
       </div>
     `;
@@ -199,7 +200,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
 
     const resp = await this.api.get<T>(`${this.endpoint}/${id}`);
     if (!resp.ok) {
-      this._loadError = apiErrorMessage(resp.data, this.t('common.loadError'));
+      this._loadError = apiErrorMessage(resp.data, this.t('bws.common.loadError'));
       this.update();
       return;
     }
@@ -258,7 +259,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
     }
 
     this.entity = resp.data;
-    toast.success(this.t('common.saved'));
+    toast.success(this.t('bws.common.saved'));
     this.onSaveSuccess?.(resp.data);
   }
 

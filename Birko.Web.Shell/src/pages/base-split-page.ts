@@ -162,7 +162,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
             <span id="detail-title"></span>
             <div class="detail-subtitle" id="detail-subtitle"></div>
           </div>
-          <b-button slot="actions" variant="ghost" size="sm" id="btn-close-detail" title="${this.t('common.close')}">&times;</b-button>
+          <b-button slot="actions" variant="ghost" size="sm" id="btn-close-detail" title="${this.t('bws.common.close')}">&times;</b-button>
           <div id="detail-body"></div>
         </b-card>
       </b-split-panel>
@@ -187,11 +187,11 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
-              <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
-              <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
+              <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
+              <b-button id="btn-save" variant="primary">${this.t('bws.common.save')}</b-button>
             </div>
           </b-modal>
-          <b-confirm-dialog id="confirm" message="${this.t('common.confirmDelete')}"></b-confirm-dialog>
+          <b-confirm-dialog id="confirm" message="${this.t('bws.common.confirmDelete')}"></b-confirm-dialog>
         ` : ''}
       </div>
     `;
@@ -266,8 +266,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     const detailHtml = this.renderDetail(resp.data);
     const actionButtons = (canEdit || canDelete) ? `
       <div class="detail-actions">
-        ${canEdit ? `<b-button variant="secondary" size="sm" id="btn-detail-edit">${this.t('common.edit')}</b-button>` : ''}
-        ${canDelete ? `<b-button variant="danger" size="sm" id="btn-detail-delete">${this.t('common.delete')}</b-button>` : ''}
+        ${canEdit ? `<b-button variant="secondary" size="sm" id="btn-detail-edit">${this.t('bws.common.edit')}</b-button>` : ''}
+        ${canDelete ? `<b-button variant="danger" size="sm" id="btn-detail-delete">${this.t('bws.common.delete')}</b-button>` : ''}
       </div>
     ` : '';
 

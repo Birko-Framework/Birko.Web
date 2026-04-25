@@ -196,22 +196,13 @@ export abstract class BAppShell extends BSidebarAppShell {
     const showBell = previewTag !== null || drawerTag !== null;
 
     return `
-      <b-ribbon id="ribbon"
-        label-ribbon="${this.t('comp.ribbon.ribbon')}"
-        label-open-nav="${this.t('comp.ribbon.openNav')}"
-        label-expand="${this.t('comp.ribbon.expand')}"
-        label-collapse="${this.t('comp.ribbon.collapse')}"
-        label-pin="${this.t('comp.ribbon.pin')}"
-        label-unpin="${this.t('comp.ribbon.unpin')}"
-        label-navigation="${this.t('comp.ribbon.navigation')}"
-        label-actions="${this.t('comp.ribbon.actions')}"
-        label-close="${this.t('comp.ribbon.close')}">
+      <b-ribbon id="ribbon">
         <div slot="before-tabs" class="app-brand">
           ${this.renderBrand()}
         </div>
 
         <div slot="empty" class="ribbon-empty">
-          <span class="ribbon-empty-text">${this.t('comp.ribbon.selectModule')}</span>
+          <span class="ribbon-empty-text">${this.t('bws.ribbon.selectModule')}</span>
         </div>
 
         <div slot="after-tabs" class="app-actions">
@@ -235,18 +226,7 @@ export abstract class BAppShell extends BSidebarAppShell {
       ${previewTag ? `<${previewTag} id="notif-preview" hidden></${previewTag}>` : ''}
       ${drawerTag ? `<${drawerTag} id="notif-drawer"></${drawerTag}>` : ''}
 
-      ${this.showCommandPalette ? `
-        <b-command-palette
-          placeholder="${this.t('comp.commandPalette.placeholder')}"
-          label-esc-close="${this.t('comp.commandPalette.escClose')}"
-          label-searching="${this.t('comp.commandPalette.searching')}"
-          label-no-results="${this.t('comp.commandPalette.noResults')}"
-          label-type-to-search="${this.t('comp.commandPalette.typeToSearch')}"
-          label-navigate="${this.t('comp.commandPalette.navigate')}"
-          label-select="${this.t('comp.commandPalette.select')}"
-          label-close="${this.t('comp.commandPalette.close')}"
-          label-palette="${this.t('comp.commandPalette.placeholder')}"></b-command-palette>
-      ` : ''}
+      ${this.showCommandPalette ? `<b-command-palette></b-command-palette>` : ''}
 
       ${this.showStatusBar ? `
         <footer class="app-status-bar">

@@ -1,5 +1,6 @@
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
+import { t as globalT } from 'birko-web-core';
 import type { TableColumn } from 'birko-web-components/data';
 import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
 import type { BModal } from 'birko-web-components/layout';
@@ -214,29 +215,39 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected onToolbarAction(_action: string): void {}
 
   /**
-   * Translation function.
-   * Override to return localised labels instead of English defaults.
+   * Translation function — delegates to the global i18n singleton.
+   *
+   * Resolution order:
+   *   1. `birko-web-core` global `t(key)` (reads the current I18n instance)
+   *   2. English defaults below (matches pre-global-i18n behaviour)
+   *
+   * `{entity}` is auto-interpolated with `this.entityLabel` so bundle entries
+   * like `"bws.common.new": "Nový {entity}"` produce `"Nový Account"`.
+   *
+   * Subclasses may still override to inject custom per-page translations.
    */
-  protected t(key: string): string {
+  protected t(key: string, params?: Record<string, string | number>): string {
     const defaults: Record<string, string> = {
-      'common.new':           `New ${this.entityLabel}`,
-      'common.edit':          `Edit ${this.entityLabel}`,
-      'common.delete':        'Delete',
-      'common.save':          'Save',
-      'common.cancel':        'Cancel',
-      'common.close':         'Close',
-      'common.confirmDelete': `Delete this ${this.entityLabel}? This cannot be undone.`,
-      'common.saved':         `${this.entityLabel} saved`,
-      'common.deleted':       `${this.entityLabel} deleted`,
-      'comp.pagination.items': 'items',
-      'comp.pagination.page': 'Page',
-      'comp.pagination.of': 'of',
-      'comp.pagination.perPage': '/ page',
-      'comp.pagination.prev': 'Previous page',
-      'comp.pagination.next': 'Next page',
-      'comp.pagination.pageSize': 'Page size',
+      'bws.common.new':           'New {entity}',
+      'bws.common.edit':          'Edit {entity}',
+      'bws.common.delete':        'Delete',
+      'bws.common.save':          'Save',
+      'bws.common.cancel':        'Cancel',
+      'bws.common.close':         'Close',
+      'bws.common.confirmDelete': 'Delete this {entity}? This cannot be undone.',
+      'bws.common.saved':         '{entity} saved',
+      'bws.common.deleted':       '{entity} deleted',
+      'bws.common.loadError':     'Failed to load data',
+      'bws.pagination.items':     'items',
+      'bws.pagination.page':      'Page',
+      'bws.pagination.of':        'of',
+      'bws.pagination.perPage':   '/ page',
+      'bws.pagination.prev':      'Previous page',
+      'bws.pagination.next':      'Next page',
+      'bws.pagination.pageSize':  'Page size',
     };
-    return defaults[key] ?? key;
+    const mergedParams = { entity: this.entityLabel, ...params };
+    return globalT(key, mergedParams, defaults[key] ?? key);
   }
 
   /**
@@ -245,13 +256,13 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    */
   protected _getPaginationLabels() {
     return {
-      items: this.t('comp.pagination.items'),
-      page: this.t('comp.pagination.page'),
-      of: this.t('comp.pagination.of'),
-      perPage: this.t('comp.pagination.perPage'),
-      prev: this.t('comp.pagination.prev'),
-      next: this.t('comp.pagination.next'),
-      pageSize: this.t('comp.pagination.pageSize'),
+      items: this.t('bws.pagination.items'),
+      page: this.t('bws.pagination.page'),
+      of: this.t('bws.pagination.of'),
+      perPage: this.t('bws.pagination.perPage'),
+      prev: this.t('bws.pagination.prev'),
+      next: this.t('bws.pagination.next'),
+      pageSize: this.t('bws.pagination.pageSize'),
     };
   }
 
@@ -336,7 +347,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       html += `<b-button variant="${a.variant ?? 'secondary'}" size="sm" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
     }
     if (canCreate) {
-      html += `<b-button variant="primary" id="btn-create"${disabled}>${this.t('common.new')}</b-button>`;
+      html += `<b-button variant="primary" id="btn-create"${disabled}>${this.t('bws.common.new')}</b-button>`;
     }
     return html;
   }
@@ -394,11 +405,11 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
-              <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
-              <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
+              <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
+              <b-button id="btn-save" variant="primary">${this.t('bws.common.save')}</b-button>
             </div>
           </b-modal>
-          <b-confirm-dialog id="confirm" message="${this.t('common.confirmDelete')}"></b-confirm-dialog>
+          <b-confirm-dialog id="confirm" message="${this.t('bws.common.confirmDelete')}"></b-confirm-dialog>
         ` : ''}
       </div>
     `;
@@ -598,7 +609,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     form.setSchema(schema);
     form.reset();
     form.clearErrors();
-    modal.setAttribute('title', this.t('common.new'));
+    modal.setAttribute('title', this.t('bws.common.new'));
     modal.open();
     this.onFormReady(form, null);
   }
@@ -614,7 +625,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     this._editingId = id;
     form.setSchema(schema);
-    modal.setAttribute('title', this.t('common.edit'));
+    modal.setAttribute('title', this.t('bws.common.edit'));
     saveBtn.setAttribute('loading', '');
     modal.open();
 
@@ -622,7 +633,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     try {
       resp = await this.api.get<T>(`${this.endpoint}/${id}`);
     } catch {
-      toast.error(this.t('common.edit') + ' failed');
+      toast.error(this.t('bws.common.edit') + ' failed');
       modal.close();
       return;
     } finally {
@@ -654,7 +665,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     const resp = await this.api.delete(`${this.endpoint}/${id}`);
     if (resp.ok) {
-      toast.success(this.t('common.deleted'));
+      toast.success(this.t('bws.common.deleted'));
       this.onDeleteSuccess?.(id);
       this._afterDelete(id);
     } else {
@@ -696,7 +707,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
       await this.afterSave(resp.data, isEdit);
 
-      toast.success(this.t('common.saved'));
+      toast.success(this.t('bws.common.saved'));
       if (isEdit) {
         this.onEditSuccess?.(resp.data);
       } else {

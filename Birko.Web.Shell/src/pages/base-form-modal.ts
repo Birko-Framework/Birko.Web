@@ -1,4 +1,4 @@
-import { BaseComponent } from 'birko-web-core';
+import { BaseComponent, t as globalT } from 'birko-web-core';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import type { BForm, FormSchema } from 'birko-web-components/inputs';
@@ -114,16 +114,17 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
     return '<b-form id="form"></b-form>';
   }
 
-  /** Translation function — override for localised labels. */
-  protected t(key: string): string {
+  /** Translation function — delegates to the global i18n singleton; `{entity}` auto-interpolated. */
+  protected t(key: string, params?: Record<string, string | number>): string {
     const defaults: Record<string, string> = {
-      'common.new':    `New ${this.entityLabel}`,
-      'common.edit':   `Edit ${this.entityLabel}`,
-      'common.save':   'Save',
-      'common.cancel': 'Cancel',
-      'common.saved':  `${this.entityLabel} saved`,
+      'bws.common.new':    'New {entity}',
+      'bws.common.edit':   'Edit {entity}',
+      'bws.common.save':   'Save',
+      'bws.common.cancel': 'Cancel',
+      'bws.common.saved':  '{entity} saved',
     };
-    return defaults[key] ?? key;
+    const mergedParams = { entity: this.entityLabel, ...params };
+    return globalT(key, mergedParams, defaults[key] ?? key);
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
@@ -142,8 +143,8 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       <b-modal id="modal" title=""${sizeAttr}>
         ${this.renderModalBody()}
         <div slot="footer">
-          <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
-          <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
+          <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
+          <b-button id="btn-save" variant="primary">${this.t('bws.common.save')}</b-button>
         </div>
       </b-modal>
     `;
@@ -180,7 +181,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
 
     if (id) {
       this._editingId = id;
-      modal.setAttribute('title', this.t('common.edit'));
+      modal.setAttribute('title', this.t('bws.common.edit'));
       saveBtn?.setAttribute('loading', '');
       modal.open();
 
@@ -199,7 +200,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       this.onFormReady(form, resp.data);
     } else {
       this._editingId = null;
-      modal.setAttribute('title', this.t('common.new'));
+      modal.setAttribute('title', this.t('bws.common.new'));
       form.reset();
       form.clearErrors();
       modal.open();
@@ -240,7 +241,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
 
     await this.afterSave(resp.data, isEdit);
 
-    toast.success(this.t('common.saved'));
+    toast.success(this.t('bws.common.saved'));
     modal.close();
     this.onSuccess(resp.data, isEdit);
   }

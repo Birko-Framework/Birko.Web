@@ -182,6 +182,18 @@ type LabelResolver = (key: string | undefined, fallback: string) => string;
 
 Without a resolver, labels are used as-is. With a resolver, it tries to translate `labelKey`/`groupLabelKey` and falls back to the string `label` if the key returns itself (no translation found).
 
+### i18n — Shell-owned strings use `bws.*`
+
+Shell base pages (`BaseCrudPage`, `BaseListPage`, `BaseSplitPage`, `BaseDetailPage`, `BaseFormModal`) resolve user-facing text via `this.t(key, params?)`, which delegates to the global `birko-web-core` singleton. Keys live under the `bws.*` namespace (distinct from `bwc.*` used by Components):
+
+- `bws.common.new|edit|delete|save|cancel|close|saved|deleted|loading|loadError|confirmDelete`
+- `bws.pagination.items|page|of|perPage|prev|next|pageSize`
+- `bws.ribbon.selectModule`
+
+`this.t()` auto-interpolates `{entity}` with `this.entityLabel`, so a bundle entry like `"bws.common.new": "Nový {entity}"` with `entityLabel = 'Account'` resolves to `"Nový Account"`. If a key is missing in the app's bundle, English defaults from the base class kick in.
+
+`b-app-shell.ts` does **not** pass `label-*` attributes to `<b-ribbon>` / `<b-command-palette>` — those components read from the global `bwc.*` namespace directly.
+
 ### Shell wrapper — persistent shell pattern
 
 `createShellWrapper('my-shell-tag')` returns a function `(pageTag) => HTMLElement` that:

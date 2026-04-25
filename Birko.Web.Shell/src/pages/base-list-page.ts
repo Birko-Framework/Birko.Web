@@ -112,11 +112,11 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
-              <b-button id="btn-cancel" variant="ghost">${this.t('common.cancel')}</b-button>
-              <b-button id="btn-save" variant="primary">${this.t('common.save')}</b-button>
+              <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
+              <b-button id="btn-save" variant="primary">${this.t('bws.common.save')}</b-button>
             </div>
           </b-modal>
-          <b-confirm-dialog id="confirm" message="${this.t('common.confirmDelete')}"></b-confirm-dialog>
+          <b-confirm-dialog id="confirm" message="${this.t('bws.common.confirmDelete')}"></b-confirm-dialog>
         ` : ''}
       </div>
     `;
@@ -129,8 +129,8 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     const canDelete = this.deleteEnabled && (!this.deletePermission || this.hasPermission(this.deletePermission));
 
     const actions: RowAction[] = [];
-    if (canEdit)   actions.push({ id: 'edit',   label: this.t('common.edit') });
-    if (canDelete) actions.push({ id: 'delete', label: this.t('common.delete'), variant: 'danger' });
+    if (canEdit)   actions.push({ id: 'edit',   label: this.t('bws.common.edit') });
+    if (canDelete) actions.push({ id: 'delete', label: this.t('bws.common.delete'), variant: 'danger' });
     actions.push(...this.extraRowActions);
     return actions;
   }
