@@ -62,7 +62,7 @@ export class BSearchInput extends BaseComponent {
 
   render() {
     const value = this.attr('value');
-    const placeholder = this.attr('placeholder', 'Search...');
+    const placeholder = this.label('placeholder', 'bwc.search.placeholder', 'Search...');
 
     return `
       <div class="search-wrap">
@@ -76,7 +76,7 @@ export class BSearchInput extends BaseComponent {
                value="${value}"
                placeholder="${placeholder}"
                aria-label="${placeholder}" />
-        <button class="clear" aria-label="${this.attr('label-clear', 'Clear search')}">&times;</button>
+        <button class="clear" aria-label="${this.label('label-clear', 'bwc.search.clear', 'Clear search')}">&times;</button>
       </div>
     `;
   }

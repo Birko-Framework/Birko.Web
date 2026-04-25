@@ -9,6 +9,7 @@
     "./data": "./src/data/index.ts",
     "./feedback": "./src/feedback/index.ts",
     "./nav": "./src/nav/index.ts",
-    "./form-utils": "./src/form-utils/index.ts"
+    "./form-utils": "./src/form-utils/index.ts",
+    "./locales/en.json": "./locales/en.json"
   }
 }

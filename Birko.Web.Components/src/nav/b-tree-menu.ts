@@ -358,7 +358,7 @@ export class BTreeMenu extends BaseComponent {
         : hasChildren
           ? `<button class="toggle ${isExpanded ? 'expanded' : ''}"
                     data-toggle="${item.id}" type="button" tabindex="-1"
-                    aria-label="${isExpanded ? this.attr('label-collapse', 'Collapse') : this.attr('label-expand', 'Expand')}">&#9654;</button>`
+                    aria-label="${isExpanded ? this.label('label-collapse', 'bwc.common.collapse', 'Collapse') : this.label('label-expand', 'bwc.common.expand', 'Expand')}">&#9654;</button>`
           : `<span class="toggle-placeholder"></span>`;
 
       const iconHtml = item.icon

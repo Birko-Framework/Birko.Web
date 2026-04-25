@@ -1,0 +1,102 @@
+{
+  "bwc": {
+    "common": {
+      "close": "Close",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "remove": "Remove",
+      "dismiss": "Dismiss",
+      "clear": "Clear",
+      "loading": "Loading",
+      "search": "Search",
+      "actions": "Actions",
+      "empty": "Nothing here yet",
+      "noData": "No data",
+      "error": "Error",
+      "pending": "Pending"
+    },
+    "palette": {
+      "title": "Command palette",
+      "placeholder": "Search commands, pages, actions…",
+      "escClose": "to close",
+      "searching": "Searching…",
+      "noResults": "No results found",
+      "typeToSearch": "Type to search…",
+      "navigate": "Navigate",
+      "select": "Select"
+    },
+    "confirm": {
+      "title": "Confirm",
+      "confirmText": "Confirm",
+      "cancelText": "Cancel"
+    },
+    "pagination": {
+      "title": "Pagination",
+      "items": "items",
+      "page": "Page",
+      "of": "of",
+      "perPage": "/ page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "pageSize": "Page size"
+    },
+    "ribbon": {
+      "title": "Module ribbon",
+      "openNav": "Open navigation menu",
+      "expand": "Expand ribbon",
+      "collapse": "Collapse ribbon",
+      "pin": "Pin ribbon open",
+      "unpin": "Unpin ribbon",
+      "navigation": "Navigation"
+    },
+    "sidebar": {
+      "title": "Main navigation",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar"
+    },
+    "fileUpload": {
+      "max": "Max",
+      "drop": "Drop to upload",
+      "dropMore": "Drop more files or click to browse",
+      "dropEmpty": "Drop files here or click to browse",
+      "tooLarge": "File too large",
+      "uploadFailed": "Upload failed",
+      "networkError": "Network error"
+    },
+    "markdown": {
+      "split": "Split",
+      "source": "Source",
+      "preview": "Preview"
+    },
+    "search": {
+      "placeholder": "Search...",
+      "clear": "Clear search"
+    },
+    "date": {
+      "placeholder": "YYYY-MM-DD"
+    },
+    "datetime": {
+      "placeholder": "YYYY-MM-DD HH:mm",
+      "today": "Today",
+      "now": "Now"
+    },
+    "time": {
+      "placeholder": "HH:mm"
+    }
+  },
+  "common": {
+    "required": "{label} is required",
+    "minLength": "{label} must be at least {value} characters",
+    "maxLength": "{label} must be at most {value} characters",
+    "min": "{label} must be at least {value}",
+    "max": "{label} must be at most {value}",
+    "range": "{label} must be between {min} and {max}",
+    "invalidFormat": "{label} format is invalid",
+    "invalidEmail": "Invalid email address",
+    "mustMatch": "{label} must match {value}"
+  }
+}

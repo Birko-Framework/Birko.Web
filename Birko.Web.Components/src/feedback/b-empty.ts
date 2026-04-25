@@ -19,7 +19,7 @@ export class BEmpty extends BaseComponent {
     return `
       <div class="empty">
         <span class="icon">${this.attr('icon', '📭')}</span>
-        <span class="message">${this.attr('message', this.attr('label-empty', 'Nothing here yet'))}</span>
+        <span class="message">${this.attr('message') || this.label('label-empty', 'bwc.common.empty', 'Nothing here yet')}</span>
         <slot></slot>
       </div>
     `;

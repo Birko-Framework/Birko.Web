@@ -312,11 +312,11 @@ export class BRibbon extends BaseComponent {
     const activeLabel = activeTab?.label ?? '';
 
     return `
-      <div class="ribbon" role="toolbar" aria-label="${this.attr('label-ribbon', 'Module ribbon')}">
+      <div class="ribbon" role="toolbar" aria-label="${this.label('label-ribbon', 'bwc.ribbon.title', 'Module ribbon')}">
         <div class="ribbon-tab-row">
           <div class="ribbon-before"><slot name="before-tabs"></slot></div>
 
-          <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.attr('label-open-nav', 'Open navigation menu')}">&#9776;</button>
+          <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.label('label-open-nav', 'bwc.ribbon.openNav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
 
           <button class="ribbon-scroll-btn" id="scroll-left" aria-label="Scroll left">&#9666;</button>
@@ -342,15 +342,15 @@ export class BRibbon extends BaseComponent {
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
           <button class="ribbon-ctrl" id="ribbon-toggle"
-            aria-label="${expanded ? this.attr('label-collapse', 'Collapse ribbon') : this.attr('label-expand', 'Expand ribbon')}"
+            aria-label="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}"
             aria-expanded="${expanded}"
-            title="${expanded ? this.attr('label-collapse', 'Collapse ribbon') : this.attr('label-expand', 'Expand ribbon')}">
+            title="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}">
             ${expanded ? '&#9650;' : '&#9660;'}
           </button>
           <button class="ribbon-ctrl" id="ribbon-pin"
-            aria-label="${pinned ? this.attr('label-unpin', 'Unpin ribbon') : this.attr('label-pin', 'Pin ribbon open')}"
+            aria-label="${pinned ? this.label('label-unpin', 'bwc.ribbon.unpin', 'Unpin ribbon') : this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}"
             aria-pressed="${pinned}"
-            title="${pinned ? this.attr('label-unpin', 'Unpin ribbon') : this.attr('label-pin', 'Pin ribbon open')}">
+            title="${pinned ? this.label('label-unpin', 'bwc.ribbon.unpin', 'Unpin ribbon') : this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}">
             ${pinned ? '&#128204;' : '&#128205;'}
           </button>
         </div>
@@ -359,8 +359,8 @@ export class BRibbon extends BaseComponent {
 
         <dialog class="mobile-dialog" id="mobile-dialog">
           <div class="mobile-dialog-header">
-            <span>${this.attr('label-navigation', 'Navigation')}</span>
-            <button class="mobile-dialog-close" id="mobile-dialog-close" aria-label="${this.attr('label-close', 'Close')}">&#10005;</button>
+            <span>${this.label('label-navigation', 'bwc.ribbon.navigation', 'Navigation')}</span>
+            <button class="mobile-dialog-close" id="mobile-dialog-close" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&#10005;</button>
           </div>
           <div class="mobile-dialog-body">
             ${this._tabs.map(tab => `
@@ -415,8 +415,8 @@ export class BRibbon extends BaseComponent {
         </div>
       `).join('')}
       ${hasContext ? `
-        <div class="ribbon-group" role="group" aria-label="${this.attr('label-actions', 'Actions')}">
-          <span class="ribbon-group-label">${this.attr('label-actions', 'Actions')}</span>
+        <div class="ribbon-group" role="group" aria-label="${this.label('label-actions', 'bwc.common.actions', 'Actions')}">
+          <span class="ribbon-group-label">${this.label('label-actions', 'bwc.common.actions', 'Actions')}</span>
           <div class="ribbon-group-items">
             ${this._contextActions.map(item => this._renderItem(tab.id, '_context', item)).join('')}
           </div>

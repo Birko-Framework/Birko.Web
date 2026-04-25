@@ -10,8 +10,10 @@ export interface TableColumn {
   key: string;
   label: string;
   width?: string;
-  align?: 'left' | 'center' | 'right';
-  render?: (value: unknown, row: Record<string, unknown>) => string;
+  align?: 'left' | 'center' | 'right' | (string & {});
+  // `any` intentional: allows consumers to declare narrow render signatures
+  // like `(v: number) => string` without widening to `unknown` everywhere.
+  render?: (value: any, row: any) => string;
   sortable?: boolean;
   /**
    * Enable inline click-to-edit for this column in `<b-data-table>`.
@@ -101,7 +103,7 @@ export class BTable extends BaseComponent {
 
   render() {
     const loading = this.boolAttr('loading');
-    const emptyText = this.attr('empty-text') ?? this.attr('label-no-data', 'No data');
+    const emptyText = this.attr('empty-text') || this.label('label-no-data', 'bwc.common.noData', 'No data');
 
     const sorted = this._sortKey ? [...this._data].sort((a, b) => {
       const aVal = a[this._sortKey!];

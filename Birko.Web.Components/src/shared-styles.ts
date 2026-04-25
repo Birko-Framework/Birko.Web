@@ -13,6 +13,7 @@
  *   }
  */
 
+/// <reference path="./css.d.ts" />
 import css from './shared-styles.css';
 
 /** Parse CSS file into named sections delimited by `/* @sheet name` comments. */

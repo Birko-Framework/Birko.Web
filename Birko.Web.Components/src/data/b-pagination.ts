@@ -33,17 +33,17 @@ export class BPagination extends BaseComponent {
 
     const showSizePicker = pageSize > 0 && pageSizes.length > 0;
 
-    // Translatable labels with English defaults
-    const lItems = this.attr('label-items', 'items');
-    const lPage = this.attr('label-page', 'Page');
-    const lOf = this.attr('label-of', 'of');
-    const lPerPage = this.attr('label-per-page', '/ page');
-    const lPrev = this.attr('label-prev', 'Previous page');
-    const lNext = this.attr('label-next', 'Next page');
-    const lPageSize = this.attr('label-page-size', 'Page size');
+    // Translatable labels — attribute override > global i18n > English fallback
+    const lItems = this.label('label-items', 'bwc.pagination.items', 'items');
+    const lPage = this.label('label-page', 'bwc.pagination.page', 'Page');
+    const lOf = this.label('label-of', 'bwc.pagination.of', 'of');
+    const lPerPage = this.label('label-per-page', 'bwc.pagination.perPage', '/ page');
+    const lPrev = this.label('label-prev', 'bwc.pagination.prev', 'Previous page');
+    const lNext = this.label('label-next', 'bwc.pagination.next', 'Next page');
+    const lPageSize = this.label('label-page-size', 'bwc.pagination.pageSize', 'Page size');
 
     return `
-      <nav class="pagination" role="navigation" aria-label="${this.attr('label-pagination', 'Pagination')}">
+      <nav class="pagination" role="navigation" aria-label="${this.label('label-pagination', 'bwc.pagination.title', 'Pagination')}">
         <div class="pagination-left">
           <span class="info">${totalCount ? `${totalCount} ${lItems}` : `${lPage} ${page} ${lOf} ${totalPages}`}</span>
           ${showSizePicker ? `<b-select class="page-size-select" aria-label="${lPageSize}"></b-select>` : ''}
@@ -82,7 +82,7 @@ export class BPagination extends BaseComponent {
     if (sizeSelect) {
       const pageSize = this.numAttr('page-size', 0);
       const pageSizes = this._getPageSizes();
-      const lPerPage = this.attr('label-per-page', '/ page');
+      const lPerPage = this.label('label-per-page', 'bwc.pagination.perPage', '/ page');
 
       // Set options using the component's API
       const options = pageSizes.map(s => ({ value: String(s), label: `${s} ${lPerPage}` }));

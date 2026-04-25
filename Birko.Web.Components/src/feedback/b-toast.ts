@@ -140,7 +140,7 @@ export class BToastItem extends BaseComponent {
       <div class="toast ${variant}" role="${role}" aria-live="${live}">
         ${icon ? `<span class="icon" aria-hidden="true">${icon}</span>` : ''}
         <span class="msg">${this.attr('message')}</span>
-        <button class="close" aria-label="${this.attr('label-dismiss', 'Dismiss')}">&times;</button>
+        <button class="close" aria-label="${this.label('label-dismiss', 'bwc.common.dismiss', 'Dismiss')}">&times;</button>
       </div>
     `;
   }

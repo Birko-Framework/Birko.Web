@@ -1,4 +1,4 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderLabel } from './label-hint';
 
@@ -242,15 +242,19 @@ export class BDatetimePicker extends BaseComponent {
   }
 
   private _todayLabel(): string {
-    return this.attr('label-today') ?? _globalLocale.today ?? 'Today';
+    const attr = this.getAttribute('label-today');
+    if (attr !== null) return attr;
+    return _globalLocale.today ?? t('bwc.datetime.today', undefined, 'Today');
   }
 
   private _clearLabel(): string {
-    return this.attr('label-clear') ?? _globalLocale.clear ?? 'Clear';
+    const attr = this.getAttribute('label-clear');
+    if (attr !== null) return attr;
+    return _globalLocale.clear ?? t('bwc.common.clear', undefined, 'Clear');
   }
 
   private _nowLabel(): string {
-    return _globalLocale.now ?? 'Now';
+    return _globalLocale.now ?? t('bwc.datetime.now', undefined, 'Now');
   }
 
   get value(): string { return this.inputValue; }
@@ -272,7 +276,7 @@ export class BDatetimePicker extends BaseComponent {
     const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
-    const placeholder = this.attr('placeholder', 'YYYY-MM-DD HH:mm');
+    const placeholder = this.label('placeholder', 'bwc.datetime.placeholder', 'YYYY-MM-DD HH:mm');
     const disabled = this.boolAttr('disabled');
 
     return `

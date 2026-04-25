@@ -204,9 +204,9 @@ export class BMarkdownEditor extends BaseComponent {
     const modeSplit = mode === 'split';
     const modeSource = mode === 'source';
     const modePreview = mode === 'preview';
-    const lSplit = this.attr('label-split', 'Split');
-    const lSource = this.attr('label-source', 'Source');
-    const lPreview = this.attr('label-preview', 'Preview');
+    const lSplit = this.label('label-split', 'bwc.markdown.split', 'Split');
+    const lSource = this.label('label-source', 'bwc.markdown.source', 'Source');
+    const lPreview = this.label('label-preview', 'bwc.markdown.preview', 'Preview');
 
     return `
       <div class="field">

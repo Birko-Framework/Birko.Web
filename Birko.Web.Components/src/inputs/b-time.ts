@@ -1,4 +1,4 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderLabel } from './label-hint';
 
@@ -138,8 +138,8 @@ export class BTime extends BaseComponent {
   private _minute = 0;
   private _outsideClickHandler: ((e: Event) => void) | null = null;
 
-  private _nowLabel(): string { return _globalLocale.now ?? 'Now'; }
-  private _clearLabel(): string { return _globalLocale.clear ?? 'Clear'; }
+  private _nowLabel(): string { return _globalLocale.now ?? t('bwc.datetime.now', undefined, 'Now'); }
+  private _clearLabel(): string { return _globalLocale.clear ?? t('bwc.common.clear', undefined, 'Clear'); }
 
   private _step(): number {
     return parseInt(this.attr('step') ?? '1', 10) || 1;
@@ -164,7 +164,7 @@ export class BTime extends BaseComponent {
     const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
-    const placeholder = this.attr('placeholder', 'HH:mm');
+    const placeholder = this.label('placeholder', 'bwc.time.placeholder', 'HH:mm');
     const disabled = this.boolAttr('disabled');
 
     return `

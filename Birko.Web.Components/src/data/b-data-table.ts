@@ -197,7 +197,7 @@ export class BDataTable extends BaseComponent {
         this._totalPages = 1;
       } else if (Array.isArray(resp.data)) {
         const all = (this._config.dataKey
-          ? ((resp.data as Record<string, unknown>)[this._config.dataKey] as unknown as Record<string, unknown>[])
+          ? ((resp.data as unknown as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[])
           : resp.data) as Record<string, unknown>[];
         this._allData = all;
         this._totalCount = all.length;
@@ -527,7 +527,7 @@ export class BDataTable extends BaseComponent {
     // Inline editable cells
     const editableCols = this._config?.columns.filter(c => c.editable) ?? [];
     if (editableCols.length) {
-      (table.shadowRoot as ShadowRoot).querySelectorAll('td[data-editable]').forEach((td: HTMLElement) => {
+      (table.shadowRoot as ShadowRoot).querySelectorAll<HTMLTableCellElement>('td[data-editable]').forEach((td) => {
         td.addEventListener('click', (e: Event) => {
           // Ignore if already editing (input/select already injected)
           if (td.querySelector('input, select')) return;

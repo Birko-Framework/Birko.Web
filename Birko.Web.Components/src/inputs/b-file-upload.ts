@@ -155,13 +155,13 @@ export class BFileUpload extends BaseComponent {
     const maxSize = this.numAttr('max-size', 10485760);
     const hasFiles = this._files.length > 0;
 
-    const lMax = this.attr('label-max', 'Max');
+    const lMax = this.label('label-max', 'bwc.fileUpload.max', 'Max');
     const sizeHint = `${lMax} ${this._formatSize(maxSize)}` +
       (accept !== '*' ? ` · ${accept}` : '');
 
-    const lDrop = this.attr('label-drop', 'Drop to upload');
-    const lDropMore = this.attr('label-drop-more', 'Drop more files or click to browse');
-    const lDropEmpty = this.attr('label-drop-empty', 'Drop files here or click to browse');
+    const lDrop = this.label('label-drop', 'bwc.fileUpload.drop', 'Drop to upload');
+    const lDropMore = this.label('label-drop-more', 'bwc.fileUpload.dropMore', 'Drop more files or click to browse');
+    const lDropEmpty = this.label('label-drop-empty', 'bwc.fileUpload.dropEmpty', 'Drop files here or click to browse');
 
     const fieldHint = this.attr('hint');
     return `
@@ -198,9 +198,9 @@ export class BFileUpload extends BaseComponent {
     } else if (f.status === 'complete') {
       status = '<span class="file-status status-complete">&#10003;</span>';
     } else if (f.status === 'error') {
-      status = `<span class="file-status status-error">${f.error ?? this.attr('label-error', 'Error')}</span>`;
+      status = `<span class="file-status status-error">${f.error ?? this.label('label-error', 'bwc.common.error', 'Error')}</span>`;
     } else {
-      status = `<span class="file-status status-pending">${this.attr('label-pending', 'Pending')}</span>`;
+      status = `<span class="file-status status-pending">${this.label('label-pending', 'bwc.common.pending', 'Pending')}</span>`;
     }
 
     return `
@@ -211,7 +211,7 @@ export class BFileUpload extends BaseComponent {
           <span class="file-meta">${this._formatSize(f.size)}</span>
         </div>
         ${status}
-        <button class="file-remove" data-id="${f.id}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${f.name}">&times;</button>
+        <button class="file-remove" data-id="${f.id}" type="button" aria-label="${this.label('label-remove', 'bwc.common.remove', 'Remove')} ${f.name}">&times;</button>
       </div>
     `;
   }
@@ -283,7 +283,7 @@ export class BFileUpload extends BaseComponent {
         type: file.type,
         status: file.size > maxSize ? 'error' : 'pending',
         progress: 0,
-        error: file.size > maxSize ? (this.attr('label-too-large', 'File too large')) : undefined,
+        error: file.size > maxSize ? (this.label('label-too-large', 'bwc.fileUpload.tooLarge', 'File too large')) : undefined,
       };
 
       // Generate thumbnail for images
@@ -335,7 +335,7 @@ export class BFileUpload extends BaseComponent {
         }
       } else {
         file.status = 'error';
-        file.error = `${this.attr('label-upload-failed', 'Upload failed')} (${xhr.status})`;
+        file.error = `${this.label('label-upload-failed', 'bwc.fileUpload.uploadFailed', 'Upload failed')} (${xhr.status})`;
         this.emit('upload-error', { fileId: file.id, error: file.error });
       }
       this.update();
@@ -344,7 +344,7 @@ export class BFileUpload extends BaseComponent {
 
     xhr.addEventListener('error', () => {
       file.status = 'error';
-      file.error = this.attr('label-network-error', 'Network error');
+      file.error = this.label('label-network-error', 'bwc.fileUpload.networkError', 'Network error');
       this.emit('upload-error', { fileId: file.id, error: file.error });
       this.update();
       this._checkAllComplete();

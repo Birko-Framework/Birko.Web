@@ -33,10 +33,10 @@ export class BConfirmDialog extends BaseComponent {
   }
 
   render() {
-    const title = this.attr('title', 'Confirm');
+    const title = this.label('title', 'bwc.confirm.title', 'Confirm');
     const message = this.attr('message');
-    const confirmText = this.attr('confirm-text', 'Confirm');
-    const cancelText = this.attr('cancel-text', 'Cancel');
+    const confirmText = this.label('confirm-text', 'bwc.confirm.confirmText', 'Confirm');
+    const cancelText = this.label('cancel-text', 'bwc.confirm.cancelText', 'Cancel');
     const variant = this.attr('variant', 'primary');
     return `
       <dialog id="dlg">

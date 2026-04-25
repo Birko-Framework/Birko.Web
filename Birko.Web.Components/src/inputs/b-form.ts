@@ -1,17 +1,21 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, t as globalT } from 'birko-web-core';
 
 // ── Types ──
 
+// `(string & {})` hints the known literals via IntelliSense while still accepting
+// plain `string` from inline object literals (where TS widens `type: 'text'`).
 export type FieldType =
   | 'text' | 'password' | 'email' | 'number' | 'percent'
   | 'textarea' | 'markdown' | 'select' | 'multi-select' | 'tags'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'time' | 'custom';
+  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'time' | 'custom'
+  | (string & {});
 
 export type RuleType =
   | 'required' | 'minLength' | 'maxLength'
   | 'min' | 'max' | 'range'
-  | 'pattern' | 'email' | 'match' | 'custom';
+  | 'pattern' | 'email' | 'match' | 'custom'
+  | (string & {});
 
 export type ValidatorFn = (value: unknown, data: Record<string, unknown>) => string | null;
 
@@ -61,7 +65,9 @@ export interface FormField {
 export interface FormGroupDef {
   name: string;
   label?: string;
-  layout?: 'stack' | 'grid' | 'inline';
+  // `string & {}` preserves IntelliSense while allowing consumers to pass inline
+  // object literals (where `layout: 'stack'` widens to `string`) without `as const`.
+  layout?: 'stack' | 'grid' | 'inline' | (string & {});
   collapsible?: boolean;
   collapsed?: boolean;
   children: (FormField | FormGroupDef)[];
@@ -87,27 +93,31 @@ function isGroup(child: FormField | FormGroupDef): child is FormGroupDef {
 
 export type FormTranslateFn = (key: string, params?: Record<string, string | number>) => string;
 
-let _t: FormTranslateFn | null = null;
-
+/**
+ * Resolve a validation key against (in order): the legacy `setTranslate` hook, the
+ * global i18n singleton, and finally the English fallback with interpolation.
+ */
 function fmt(key: string, params: Record<string, string | number>, fallback: string): string {
-  if (_t) {
-    const result = _t(key, params);
-    if (result !== key) return result;  // key was resolved
+  // Legacy shim — some apps (e.g. Symbio.UI) wire translations via BForm.setTranslate.
+  if (_legacyTranslate) {
+    const result = _legacyTranslate(key, params);
+    if (result !== key) return result;
   }
-  // Fallback: interpolate params into the fallback string
-  return fallback.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? k));
+  return globalT(key, params, fallback);
 }
+
+let _legacyTranslate: FormTranslateFn | null = null;
 
 // ── Component ──
 
 export class BForm extends BaseComponent {
   /**
-   * Set a global translation function for validation messages.
-   * Keys follow the pattern: `common.required`, `common.minLength`, etc.
-   * Params: `{label}`, `{value}`, `{min}`, `{max}`.
+   * @deprecated Prefer the global i18n singleton — call `useI18n(instance)` or
+   * `getI18n().addMessages('en', { common: { required: '...' } })` so translations
+   * are shared across all components. Kept as a backward-compatible shim.
    */
   static setTranslate(fn: FormTranslateFn): void {
-    _t = fn;
+    _legacyTranslate = fn;
   }
 
   static get observedAttributes() {

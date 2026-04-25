@@ -209,7 +209,7 @@ export class BCommandPalette extends BaseComponent {
 
     return `
       <div class="palette-backdrop open" id="backdrop">
-        <div class="palette-panel" role="dialog" aria-modal="true" aria-label="${this.attr('label-palette', 'Command palette')}">
+        <div class="palette-panel" role="dialog" aria-modal="true" aria-label="${this.label('label-palette', 'bwc.palette.title', 'Command palette')}">
 
           <div class="search-row">
             <span class="search-icon">\u2315</span>
@@ -217,19 +217,19 @@ export class BCommandPalette extends BaseComponent {
               class="search-input"
               id="search-input"
               type="text"
-              placeholder="${this.attr('placeholder', 'Search commands, pages, actions\u2026')}"
+              placeholder="${this.label('placeholder', 'bwc.palette.placeholder', 'Search commands, pages, actions\u2026')}"
               value="${this._escAttr(query)}"
               autocomplete="off"
               spellcheck="false"
             />
-            <span class="search-hint"><kbd>Esc</kbd> ${this.attr('label-esc-close', 'to close')}</span>
+            <span class="search-hint"><kbd>Esc</kbd> ${this.label('label-esc-close', 'bwc.palette.escClose', 'to close')}</span>
           </div>
 
           <div class="results" id="results" role="listbox">
             ${loading
-              ? `<div class="empty-state"><b-spinner></b-spinner> ${this.attr('label-searching', 'Searching\u2026')}</div>`
+              ? `<div class="empty-state"><b-spinner></b-spinner> ${this.label('label-searching', 'bwc.palette.searching', 'Searching\u2026')}</div>`
               : groups.length === 0
-                ? `<div class="empty-state">${query ? this.attr('label-no-results', 'No results found') : this.attr('label-type-to-search', 'Type to search\u2026')}</div>`
+                ? `<div class="empty-state">${query ? this.label('label-no-results', 'bwc.palette.noResults', 'No results found') : this.label('label-type-to-search', 'bwc.palette.typeToSearch', 'Type to search\u2026')}</div>`
                 : groups.map(g => `
                     <div class="category-label">${g.category}</div>
                     ${g.items.map(item => {
@@ -254,9 +254,9 @@ export class BCommandPalette extends BaseComponent {
           </div>
 
           <div class="palette-footer">
-            <span class="footer-hint"><kbd>\u2191</kbd><kbd>\u2193</kbd> ${this.attr('label-navigate', 'Navigate')}</span>
-            <span class="footer-hint"><kbd>\u21B5</kbd> ${this.attr('label-select', 'Select')}</span>
-            <span class="footer-hint"><kbd>Esc</kbd> ${this.attr('label-close', 'Close')}</span>
+            <span class="footer-hint"><kbd>\u2191</kbd><kbd>\u2193</kbd> ${this.label('label-navigate', 'bwc.palette.navigate', 'Navigate')}</span>
+            <span class="footer-hint"><kbd>\u21B5</kbd> ${this.label('label-select', 'bwc.palette.select', 'Select')}</span>
+            <span class="footer-hint"><kbd>Esc</kbd> ${this.label('label-close', 'bwc.common.close', 'Close')}</span>
           </div>
         </div>
       </div>

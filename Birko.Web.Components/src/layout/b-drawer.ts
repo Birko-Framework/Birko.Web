@@ -57,7 +57,7 @@ export class BDrawer extends BaseComponent {
         <div class="drawer">
           <div class="overlay-header">
             <span>${title}</span>
-            <button class="close-btn" aria-label="${this.attr('label-close', 'Close')}">&times;</button>
+            <button class="close-btn" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&times;</button>
           </div>
           <div class="overlay-body"><slot></slot></div>
           <div class="overlay-footer"><slot name="footer"></slot></div>

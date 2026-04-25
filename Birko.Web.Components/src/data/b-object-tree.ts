@@ -145,11 +145,11 @@ export class BObjectTree extends BaseComponent {
     const showCopy = !this.boolAttr('no-copy');
     const showExpandActions = !this.boolAttr('no-expand-actions');
     const expandActions = showExpandActions
-      ? `<button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.attr('label-expand', 'Expand'))}</button>
-         <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.attr('label-collapse', 'Collapse'))}</button>`
+      ? `<button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
+         <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>`
       : '';
     const copyBtn = showCopy
-      ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>`
+      ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>`
       : '';
     return `
       <header class="data-viewer-header">
@@ -183,7 +183,7 @@ export class BObjectTree extends BaseComponent {
         try {
           await navigator.clipboard.writeText(text);
           const original = copyBtn.textContent;
-          copyBtn.textContent = this.attr('label-copied', 'Copied!');
+          copyBtn.textContent = this.label('label-copied', 'bwc.common.copied', 'Copied!');
           copyBtn.classList.add('copied');
           this.emit('copy', { text });
           setTimeout(() => {

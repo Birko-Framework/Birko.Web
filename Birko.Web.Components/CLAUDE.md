@@ -260,6 +260,23 @@ Supports pluggable `CommandProvider` via `registerProvider()`. Built-in `createR
 - Use `CustomEvent` with `bubbles: true, composed: true` so events cross Shadow DOM boundaries
 - Prefer attribute-based API (`el.setAttribute('disabled', '')`) over property-based for declarative HTML usage
 
+## i18n / user-facing text
+
+Every user-visible string in a component goes through `this.label(attrName, i18nKey, fallback, params?)` — inherited from `BaseComponent`. Do **not** call `this.attr('label-X', 'English')` — the label pattern adds the i18n layer while keeping per-instance attribute overrides working.
+
+```typescript
+// In render():
+<button aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&times;</button>
+```
+
+Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.close`) > English fallback.
+
+**Key namespace:** use `bwc.*` prefixed keys (`bwc.common.*`, `bwc.palette.*`, `bwc.pagination.*`, etc.) so app bundles don't collide. The canonical English key set is shipped at `locales/en.json` — copy it as a starter for other locales.
+
+**BForm validation messages** still use `common.*` keys (`common.required`, `common.minLength`, etc.) and fall back to English via `globalT()`. `BForm.setTranslate(fn)` is kept as a deprecated backward-compat shim — new code should populate messages via the global singleton instead.
+
+**Date/time locale labels** (months, weekday headers) can be set via `BDatePicker.setLocale({months, days, today, clear})` / `BDatetimePicker.setLocale(...)` / `BTime.setLocale(...)`. These are deprecated shims that win over global i18n but are still honoured for back-compat.
+
 ## What NOT to do
 - Do not hardcode colors, spacing, or sizes — always `var(--b-*)`
 - Do not copy `@keyframes spin` — import `spinSheet`
