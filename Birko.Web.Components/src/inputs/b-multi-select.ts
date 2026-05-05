@@ -22,6 +22,7 @@ export class BMultiSelect extends BaseComponent {
   private _filter = '';
   private _open = false;
   private _outsideClickHandler: ((e: Event) => void) | null = null;
+  private _wiredContainer: HTMLElement | null = null;
 
   static get sharedStyles() {
     return [formFieldSheet, comboControlSheet];
@@ -207,10 +208,22 @@ export class BMultiSelect extends BaseComponent {
     `;
   }
 
+  protected update(): void {
+    this._wiredContainer = null;
+    super.update();
+  }
+
   protected onUpdated() {
     const container = this.$<HTMLElement>('.container');
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (!container || !dropdown) return;
+    // Skip re-wiring if onUpdated fires twice without an intervening update()
+    // (e.g. b-form populates options after the element's own connectedCallback
+    // has already wired). Otherwise the container click handler gets registered
+    // twice on the same AbortController and a single click both opens and
+    // closes the dropdown.
+    if (this._wiredContainer === container) return;
+    this._wiredContainer = container;
 
     // Toggle dropdown on container click
     this.listen(container, 'click', (e) => {
