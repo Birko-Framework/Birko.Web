@@ -54,7 +54,7 @@ export class BTable extends BaseComponent {
       .table-wrap { overflow-x: auto; overflow-y: auto; max-height: var(--b-table-max-height, none); }
       table { width: 100%; border-collapse: collapse; font-size: var(--b-text-sm, 0.8125rem); }
       th {
-        text-align: left; padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+        text-align: left; padding: calc(var(--b-space-sm, 0.5rem) + 1px) var(--b-space-md, 0.75rem);
         font-weight: var(--b-font-weight-semibold, 600); color: var(--b-text-secondary);
         font-size: var(--b-text-xs, 0.6875rem); text-transform: uppercase; letter-spacing: var(--b-letter-spacing-caps, 0.03125rem);
         border-bottom: 2px solid var(--b-border); white-space: nowrap;
