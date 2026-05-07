@@ -47,6 +47,7 @@ export class BTable extends BaseComponent {
   private _idField: string | null = null;
   private _sortKey: string | null = null;
   private _sortDesc = false;
+  private _activeRowId: string | null = null;
 
   static get styles() {
     return `
@@ -75,6 +76,17 @@ export class BTable extends BaseComponent {
       tr.skeleton-row { cursor: default; }
       tr.skeleton-row td { background: var(--b-bg); }
       tr { cursor: default; transition: background var(--b-transition, 150ms ease); }
+      /* Selected row — wins over striped, hover darkens slightly */
+      tr[aria-selected="true"] td,
+      :host([striped]) tr[aria-selected="true"]:nth-child(even) td {
+        background: var(--b-color-primary-light);
+      }
+      tr[aria-selected="true"] td:first-child {
+        box-shadow: inset 3px 0 0 var(--b-color-primary);
+      }
+      :host([hoverable]) tr[aria-selected="true"]:not(.skeleton-row):hover td {
+        background: color-mix(in srgb, var(--b-color-primary-light) 80%, var(--b-color-primary) 20%);
+      }
       .align-center { text-align: center; }
       .align-right { text-align: right; }
       .empty { text-align: center; padding: var(--b-space-3xl, 3rem); color: var(--b-text-muted); }
@@ -100,6 +112,14 @@ export class BTable extends BaseComponent {
   setIdField(field: string) {
     this._idField = field;
   }
+
+  /** Highlight a single row as the active/selected one (or pass null to clear). */
+  setActiveRow(id: string | null) {
+    this._activeRowId = id == null ? null : String(id);
+    this.update();
+  }
+
+  getActiveRow(): string | null { return this._activeRowId; }
 
   render() {
     const loading = this.boolAttr('loading');
@@ -143,7 +163,10 @@ export class BTable extends BaseComponent {
                 ).join('')
               : sorted.length === 0
                 ? `<tr><td colspan="${this._columns.length}" class="empty">${emptyText}</td></tr>`
-                : sorted.map(row => `<tr data-id="${this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? '')}">${
+                : sorted.map(row => {
+                    const rowId = String(this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? ''));
+                    const isActive = this._activeRowId !== null && rowId === this._activeRowId;
+                    return `<tr data-id="${rowId}"${isActive ? ' aria-selected="true"' : ''}>${
                     this._columns.map(c => {
                       const val = row[c.key];
                       const rendered = c.render ? c.render(val, row) : this._escape(val);
@@ -152,7 +175,8 @@ export class BTable extends BaseComponent {
                       }
                       return `<td class="${c.align ? 'align-' + c.align : ''}">${rendered}</td>`;
                     }).join('')
-                  }</tr>`).join('')}
+                  }</tr>`;
+                  }).join('')}
           </tbody>
         </table>
       </div>

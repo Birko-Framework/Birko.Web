@@ -97,6 +97,7 @@ export class BDataTable extends BaseComponent {
   private _totalCount = 0;
   private _loading = false;
   private _selected = new Set<string>();
+  private _activeRowId: string | null = null;
   private _filters: Record<string, string> = {};
 
   static get styles() {
@@ -247,6 +248,17 @@ export class BDataTable extends BaseComponent {
   getRowById(id: string): Record<string, unknown> | undefined {
     return this._allData.find(r => this._rowId(r) === id);
   }
+
+  // ── Active row (single-row highlight, distinct from bulk-checkbox selection) ──
+
+  /** Highlight a single row as active/selected. Persists across reloads until cleared. */
+  setActiveRow(id: string | null): void {
+    this._activeRowId = id == null ? null : String(id);
+    const table = this.$('b-table') as any;
+    if (table?.setActiveRow) table.setActiveRow(this._activeRowId);
+  }
+
+  getActiveRow(): string | null { return this._activeRowId; }
 
   // ── Selection API ──
 
@@ -431,6 +443,7 @@ export class BDataTable extends BaseComponent {
 
     const pageData = this._getPageData();
     table.setData(pageData);
+    if (table.setActiveRow) table.setActiveRow(this._activeRowId);
 
     // Wire selection checkboxes after table renders
     requestAnimationFrame(() => this._wireTableInteractions());
