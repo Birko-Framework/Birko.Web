@@ -271,7 +271,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   static override get styles(): string {
     return BasePage.styles + `
       .filter-row {
-        display: flex; align-items: flex-end; gap: var(--b-space-md, 0.75rem);
+        display: flex; align-items: center; gap: var(--b-space-md, 0.75rem);
         margin-bottom: var(--b-space-lg, 1.25rem);
         flex-wrap: wrap;
       }
