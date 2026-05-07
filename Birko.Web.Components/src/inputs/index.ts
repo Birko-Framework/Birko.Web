@@ -13,6 +13,7 @@ export { BTagInput } from './b-tag-input.js';
 export { BFileUpload, type UploadFile, type UploadResult } from './b-file-upload.js';
 export { BMarkdownEditor, type MarkdownRenderer } from './b-markdown-editor.js';
 export { BRange } from './b-range.js';
+export { BSegmented, type SegmentedOption } from './b-segmented.js';
 export { BDatePicker } from './b-date-picker.js';
 export { type FilterDef, type FilterOption } from './filter-types.js';
 export { BDatetimePicker } from './b-datetime-picker.js';
