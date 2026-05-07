@@ -344,7 +344,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     let html = '';
     for (const a of this.extraToolbarActions) {
-      html += `<b-button variant="${a.variant ?? 'secondary'}" size="sm" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
+      html += `<b-button variant="${a.variant ?? 'secondary'}" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
     }
     if (canCreate) {
       html += `<b-button variant="primary" id="btn-create"${disabled}>${this.t('bws.common.new')}</b-button>`;
