@@ -123,6 +123,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     this._selectedId = null;
     const card = this.$<HTMLElement>('#detail-card');
     if (card) card.hidden = true;
+    const table = this.$<BDataTable>('#table');
+    table?.setActiveRow?.(null);
   }
 
   /** Re-fetch and re-render the currently selected entity's detail. */
@@ -249,6 +251,9 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
     this._selectedEntity = resp.data;
     this._selectedId = id;
+
+    const table = this.$<BDataTable>('#table');
+    table?.setActiveRow?.(id);
 
     const card = this.$<HTMLElement>('#detail-card');
     if (card) card.hidden = false;
