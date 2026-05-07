@@ -280,6 +280,21 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       .filter-row b-search-input { flex: 0 1 var(--b-filter-chip-width-lg, 16rem); margin-left: auto; }
       .filter-row b-button { flex: 0 0 auto; }
       .filter-row b-date-picker { flex: 0 1 var(--b-filter-chip-width, 12rem); }
+      .filter-row b-datetime-picker { flex: 0 1 var(--b-filter-chip-width-lg, 16rem); }
+      .filter-row b-multi-select { flex: 1; max-width: var(--b-filter-chip-width-xl, 24rem); }
+      .filter-row b-tag-input { flex: 1; max-width: var(--b-filter-chip-width-xl, 24rem); }
+      .filter-row b-segmented { flex: 0 0 auto; }
+      .filter-row b-switch { flex: 0 0 auto; }
+      .filter-row .filter-range {
+        display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
+        flex: 0 1 auto;
+      }
+      .filter-row .filter-range b-input,
+      .filter-row .filter-range b-date-picker {
+        flex: 0 1 var(--b-filter-chip-width, 12rem);
+        max-width: var(--b-filter-chip-width, 12rem);
+      }
+      .filter-range-sep { color: var(--b-text-muted); }
       .detail-actions {
         display: flex; gap: var(--b-space-sm); flex-wrap: wrap;
         margin-top: var(--b-space-md);
@@ -365,19 +380,62 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     for (const f of defs) {
       const id = `filter-${f.name}`;
+      const dis = f.disabled ? ' disabled' : '';
+      const minAttr = f.min != null ? ` min="${f.min}"` : '';
+      const maxAttr = f.max != null ? ` max="${f.max}"` : '';
+      const stepAttr = f.step != null ? ` step="${f.step}"` : '';
       switch (f.type) {
         case 'select':
-          html += `<b-select id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${f.searchable ? ' searchable' : ''}${f.clearable ? ' clearable' : ''}${f.disabled ? ' disabled' : ''}></b-select>`;
+        case 'async-select':
+          html += `<b-select id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${(f.searchable || f.type === 'async-select') ? ' searchable' : ''}${f.clearable ? ' clearable' : ''}${dis}></b-select>`;
           break;
         case 'search':
           html += `<b-search-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? 'Search...'}" debounce="300"></b-search-input>`;
           break;
         case 'text':
-          html += `<b-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"></b-input>`;
+          html += `<b-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${dis}></b-input>`;
+          break;
+        case 'number':
+          html += `<b-input id="${id}" name="${f.name}" type="number" placeholder="${f.placeholder ?? ''}"${minAttr}${maxAttr}${stepAttr}${dis}></b-input>`;
           break;
         case 'date':
-          html += `<b-date-picker id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"></b-date-picker>`;
+          html += `<b-date-picker id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${dis}></b-date-picker>`;
           break;
+        case 'datetime':
+          html += `<b-datetime-picker id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${dis}></b-datetime-picker>`;
+          break;
+        case 'switch':
+          html += `<b-switch id="${id}" name="${f.name}"${f.label ? ` label="${f.label}"` : ''}${dis}></b-switch>`;
+          break;
+        case 'multi-select':
+          html += `<b-multi-select id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${f.searchable ? ' searchable' : ''}${dis}></b-multi-select>`;
+          break;
+        case 'tags':
+          html += `<b-tag-input id="${id}" name="${f.name}" placeholder="${f.placeholder ?? ''}"${dis}></b-tag-input>`;
+          break;
+        case 'segmented':
+          html += `<b-segmented id="${id}" name="${f.name}"${dis}></b-segmented>`;
+          break;
+        case 'date-range': {
+          const nFrom = f.nameFrom ?? `${f.name}From`;
+          const nTo = f.nameTo ?? `${f.name}To`;
+          html += `<div class="filter-range" id="${id}">`
+            + `<b-date-picker name="${nFrom}" placeholder="${f.placeholder ?? ''}"${dis}></b-date-picker>`
+            + `<span class="filter-range-sep">–</span>`
+            + `<b-date-picker name="${nTo}" placeholder="${f.placeholderTo ?? ''}"${dis}></b-date-picker>`
+            + `</div>`;
+          break;
+        }
+        case 'range': {
+          const nMin = f.nameMin ?? `${f.name}Min`;
+          const nMax = f.nameMax ?? `${f.name}Max`;
+          html += `<div class="filter-range" id="${id}">`
+            + `<b-input name="${nMin}" type="number" placeholder="${f.placeholder ?? ''}"${minAttr}${maxAttr}${stepAttr}${dis}></b-input>`
+            + `<span class="filter-range-sep">–</span>`
+            + `<b-input name="${nMax}" type="number" placeholder="${f.placeholderTo ?? ''}"${minAttr}${maxAttr}${stepAttr}${dis}></b-input>`
+            + `</div>`;
+          break;
+        }
       }
     }
 
@@ -484,13 +542,65 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       const el = this.$(`#filter-${f.name}`) as any;
       if (!el) continue;
 
-      if (f.type === 'select') {
-        if (f.options && el.setOptions) el.setOptions(f.options);
+      // Disabled state for control-bearing types (compound types skip — children handle this)
+      if (f.type !== 'date-range' && f.type !== 'range') {
         if (f.disabled) el.setAttribute('disabled', '');
         else el.removeAttribute('disabled');
       }
 
-      // Apply value from config (the getter reads page state)
+      if (f.type === 'select' || f.type === 'multi-select' || f.type === 'segmented' || f.type === 'async-select') {
+        if (f.options && el.setOptions) el.setOptions(f.options);
+      }
+
+      if (f.type === 'async-select' && f.optionsLoader && !el.__loaderWired) {
+        el.__loaderWired = true;
+        // Initial load
+        Promise.resolve(f.optionsLoader('')).then(opts => el.setOptions?.(opts));
+        // Search: debounced typeahead reload
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let seq = 0;
+        el.addEventListener('search', (e: Event) => {
+          const q = (e as CustomEvent).detail?.query ?? '';
+          clearTimeout(timer);
+          const my = ++seq;
+          timer = setTimeout(async () => {
+            const opts = await f.optionsLoader!(q);
+            if (my === seq) el.setOptions?.(opts);
+          }, 300);
+        });
+      }
+
+      if (f.type === 'switch') {
+        if (f.value === 'true') el.setAttribute('checked', '');
+        else if (f.value === 'false') el.removeAttribute('checked');
+        continue;
+      }
+
+      // Multi-select / tags initial values: CSV
+      if (f.type === 'multi-select') {
+        if (f.value != null && el.setSelected) el.setSelected(f.value ? f.value.split(',') : []);
+        continue;
+      }
+      if (f.type === 'tags') {
+        if (f.value != null && el.setTags) el.setTags(f.value ? f.value.split(',') : []);
+        continue;
+      }
+
+      // Compound types: split value on '..' if provided ("from..to" / "min..max")
+      if (f.type === 'date-range' || f.type === 'range') {
+        if (f.value != null) {
+          const [a, b] = f.value.split('..');
+          const nA = f.type === 'date-range' ? (f.nameFrom ?? `${f.name}From`) : (f.nameMin ?? `${f.name}Min`);
+          const nB = f.type === 'date-range' ? (f.nameTo ?? `${f.name}To`) : (f.nameMax ?? `${f.name}Max`);
+          const elA = el.querySelector?.(`[name="${nA}"]`);
+          const elB = el.querySelector?.(`[name="${nB}"]`);
+          if (elA && a != null) elA.setAttribute('value', a);
+          if (elB && b != null) elB.setAttribute('value', b);
+        }
+        continue;
+      }
+
+      // Single-value controls
       if (f.value != null) {
         el.setAttribute('value', f.value);
       }
@@ -538,6 +648,44 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       }) as EventListener);
     });
 
+    // b-switch: 'change' event (immediate). Sends 'true' when on, null when off.
+    filterRow.querySelectorAll<HTMLElement>('b-switch[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        const checked = e.detail?.checked === true;
+        this.onFilterChange(el.getAttribute('name')!, checked ? 'true' : null);
+      }) as EventListener);
+    });
+
+    // b-datetime-picker: 'change' event (immediate)
+    filterRow.querySelectorAll<HTMLElement>('b-datetime-picker[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        this.onFilterChange(el.getAttribute('name')!, e.detail?.value || null);
+      }) as EventListener);
+    });
+
+    // b-multi-select: 'change' with values[] → CSV
+    filterRow.querySelectorAll<HTMLElement>('b-multi-select[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        const values: string[] = e.detail?.values ?? [];
+        this.onFilterChange(el.getAttribute('name')!, values.length ? values.join(',') : null);
+      }) as EventListener);
+    });
+
+    // b-tag-input: 'change' with tags[] → CSV
+    filterRow.querySelectorAll<HTMLElement>('b-tag-input[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        const tags: string[] = e.detail?.tags ?? [];
+        this.onFilterChange(el.getAttribute('name')!, tags.length ? tags.join(',') : null);
+      }) as EventListener);
+    });
+
+    // b-segmented: 'change' event (immediate)
+    filterRow.querySelectorAll<HTMLElement>('b-segmented[name]').forEach(el => {
+      this.listen(el as EventTarget, 'change', ((e: CustomEvent) => {
+        this.onFilterChange(el.getAttribute('name')!, e.detail?.value || null);
+      }) as EventListener);
+    });
+
     // Native select (legacy renderFilters): 'change' event
     filterRow.querySelectorAll<HTMLSelectElement>('select[name]').forEach(el => {
       this.listen(el, 'change', () => {
@@ -556,12 +704,29 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     const filterRow = this.$<HTMLElement>('.filter-row');
     const params: Record<string, string> = {};
-    const localNames = new Set(this.filterDefs.filter(f => f.local).map(f => f.name));
+    const localNames = new Set<string>();
+    for (const f of this.filterDefs) {
+      if (!f.local) continue;
+      localNames.add(f.name);
+      if (f.type === 'date-range') {
+        localNames.add(f.nameFrom ?? `${f.name}From`);
+        localNames.add(f.nameTo ?? `${f.name}To`);
+      } else if (f.type === 'range') {
+        localNames.add(f.nameMin ?? `${f.name}Min`);
+        localNames.add(f.nameMax ?? `${f.name}Max`);
+      }
+    }
 
     if (filterRow) {
       filterRow.querySelectorAll<HTMLElement>('[name]').forEach(el => {
         const name = el.getAttribute('name')!;
         if (localNames.has(name)) return; // Skip local-only filters
+        const tag = el.tagName.toLowerCase();
+        // Switches/checkboxes return 'true'/'false' strings — only send when truly on
+        if (tag === 'b-switch' || tag === 'b-checkbox') {
+          if ((el as any).checked) params[name] = 'true';
+          return;
+        }
         const value = (el as any).value ?? '';
         if (value) params[name] = value;
       });
