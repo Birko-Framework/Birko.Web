@@ -91,7 +91,13 @@ export class BCheckbox extends BaseComponent {
     this._syncIndeterminate();
 
     const input = this.$<HTMLInputElement>('input');
-    if (input) this.listen(input, 'change', (e: Event) => {
+    if (!input) return;
+    // Sync the input's `checked` property to the host attribute on every render —
+    // a user click makes the property "dirty" and decoupled from the attribute,
+    // so a later morph that removes the attribute leaves the property (and the
+    // visual state) stuck on the user's last value.
+    input.checked = this.boolAttr('checked');
+    this.listen(input, 'change', (e: Event) => {
       const inp = e.target as HTMLInputElement;
       // Native click clears indeterminate automatically
       this.removeAttribute('indeterminate');

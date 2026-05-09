@@ -79,7 +79,15 @@ export class BSwitch extends BaseComponent {
 
   protected onUpdated() {
     const input = this.$<HTMLInputElement>('input');
-    if (input) this.listen(input, 'change', (e: Event) => {
+    if (!input) return;
+    // After a user click, the input's `checked` *property* becomes "dirty" and
+    // is no longer reflected by the `checked` *attribute*. When a re-render later
+    // morphs the attribute (e.g. b-form.setValues to a different value), the
+    // attribute is removed/added but the dirty property stays — so the toggle
+    // visually keeps the previous user state. Sync the property to the host
+    // attribute on every render to keep them in lock-step.
+    input.checked = this.boolAttr('checked');
+    this.listen(input, 'change', (e: Event) => {
       const inp = e.target as HTMLInputElement;
       if (inp.checked) {
         this.setAttribute('checked', '');

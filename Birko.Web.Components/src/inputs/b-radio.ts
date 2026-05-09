@@ -93,7 +93,12 @@ export class BRadio extends BaseComponent {
 
   protected onUpdated() {
     const input = this.$<HTMLInputElement>('input');
-    if (input) this.listen(input, 'change', (e: Event) => {
+    if (!input) return;
+    // Keep the input's `checked` property in lock-step with the host attribute —
+    // once a user clicks, the property becomes "dirty" and a later attribute
+    // morph (e.g. b-form.setValues to a different value) won't update the visual.
+    input.checked = this.boolAttr('checked');
+    this.listen(input, 'change', (e: Event) => {
       const inp = e.target as HTMLInputElement;
       if (inp.checked) {
         this.setAttribute('checked', '');
