@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`.
+Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`. **54 components** across inputs, layout, data, feedback, navigation, and command palette.
 
 ## Install
 
@@ -25,6 +25,30 @@ import { BModal, BDataTable, toast } from 'birko-web-components';
 birko-web-components              # main (registers all components)
 birko-web-components/form-utils   # showFormError, loadOptions, wireSearchableSelect
 ```
+
+## Internationalization
+
+All built-in user-facing strings (labels, ARIA labels, button captions) use the unified i18n system from `birko-web-core`. Each component renders strings through `this.label(attrName, i18nKey, fallback, params?)` — explicit `label-*` attributes win over the global lookup, which in turn falls back to English.
+
+**Canonical key namespace:** `bwc.*` (Birko Web Components). The English bundle ships at `locales/en.json` — copy it as a starter for other locales. Examples: `bwc.common.close`, `bwc.palette.placeholder`, `bwc.pagination.prev`/`bwc.pagination.next`, `bwc.fileUpload.dropHint`, `bwc.toast.dismiss`.
+
+```typescript
+import { useI18n, I18n } from 'birko-web-core';
+
+const myI18n = new I18n('sk');
+await myI18n.loadBundle('sk', skBundle);
+useI18n(myI18n);          // every BaseComponent re-renders automatically
+```
+
+**Per-instance override (unchanged):** any component still honours an explicit `label-*` attribute, so you can pin a single instance to a custom string without touching the global bundle:
+
+```html
+<b-pagination label-prev="Späť" label-next="Ďalej"></b-pagination>
+```
+
+**Legacy shims kept for back-compat:**
+- `BForm.setTranslate(fn)` — still works; new code should populate `common.required`/`common.minLength`/etc. via the global singleton.
+- `BDatePicker.setLocale({months, days, today, clear})` / `BDatetimePicker.setLocale(...)` / `BTime.setLocale(...)` — still win over global i18n for per-class month/day overrides.
 
 ---
 
@@ -237,6 +261,68 @@ BDatePicker.setLocale({ months: [...], days: [...], today: 'Dnes', clear: 'Vymaz
 Attributes: `label`, `name`, `value` (ISO yyyy-MM-dd), `min`, `max`, `native`, `placeholder`, `error`, `disabled`, `required`, `hint`
 Emits: `change` → `{ name, value }`
 
+### b-datetime-picker
+
+Combined date + time picker. Same locale API as `b-date-picker` (`BDatetimePicker.setLocale({...})`).
+
+```html
+<b-datetime-picker label="Starts at" name="startsAt" value="2026-04-22T09:00"></b-datetime-picker>
+```
+
+Attributes: `label`, `name`, `value` (ISO `yyyy-MM-ddTHH:mm`), `min`, `max`, `error`, `disabled`, `required`, `hint`
+
+### b-time
+
+Time-only picker with hour/minute steppers.
+
+```html
+<b-time label="Open at" name="openAt" value="08:30" step="15"></b-time>
+```
+
+Attributes: `label`, `name`, `value` (`HH:mm`), `step` (minutes), `error`, `disabled`, `required`
+
+### b-segmented
+
+Single-select segmented control — picks one of several mutually exclusive values, rendered as connected buttons. Use it where a `<b-option-group>` would feel overkill (no icons, no per-option styling) or where a `<b-select>` would feel heavy (3–5 short choices).
+
+```html
+<b-segmented label="View" name="view" value="grid"></b-segmented>
+```
+
+```typescript
+(el as BSegmented).setOptions([
+  { value: 'grid', label: 'Grid' },
+  { value: 'list', label: 'List' },
+]);
+```
+
+Attributes: `label`, `name`, `value`, `disabled`, `hint`
+Emits: `change` → `{ name, value }`
+
+### b-markdown-editor
+
+Split-view markdown editor with toolbar, source/preview/split modes, Word HTML paste cleanup, and a pluggable renderer.
+
+```html
+<b-markdown-editor name="content" mode="split"></b-markdown-editor>
+```
+
+```typescript
+import { BMarkdownEditor, type MarkdownRenderer } from 'birko-web-components';
+
+const editor = document.querySelector('b-markdown-editor') as BMarkdownEditor;
+editor.setValue('# Hello\n\nSome **bold** text.');
+editor.getValue();
+
+// Override the default renderer (e.g. plug in marked / markdown-it):
+editor.setRenderer(((md: string) => myRenderer.render(md)) as MarkdownRenderer);
+```
+
+**Toolbar:** bold, italic, strikethrough, **highlight** (`==text==` → `<mark>`), **superscript** (`^text^` → `<sup>`), **subscript** (`~text~` → `<sub>`), **heading dropdown (H1–H6)**, blockquote, code, bullet/numbered/**task** lists (`- [ ] task` checkboxes), link, image, **table** (GFM template), horizontal rule.
+
+Attributes: `value`, `mode` (`split` | `source` | `preview`), `placeholder`, `disabled`
+Emits: `change` → `{ name, value }`
+
 ### b-option-group
 
 Segmented button group for selecting a single value from a small set of options.
@@ -397,6 +483,35 @@ Master-detail split layout with responsive collapse.
 
 Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`
 Slots: `master`, `detail`
+
+### b-chat
+
+Chat transcript surface with message list + composer. Useful for AI/agent UIs, support inboxes, and team chat panels.
+
+```typescript
+import { BChat, type ChatMessage, type ChatConfig } from 'birko-web-components';
+
+const chat = document.querySelector('b-chat') as BChat;
+
+chat.setConfig({
+  placeholder: 'Ask anything…',
+  showAvatar: true,
+} satisfies ChatConfig);
+
+chat.setMessages([
+  { id: '1', role: 'user',      content: 'Hi there' },
+  { id: '2', role: 'assistant', content: 'How can I help?' },
+]);
+
+chat.appendMessage({ id: '3', role: 'user', content: 'Tell me a joke' });
+
+chat.addEventListener('send', e => {
+  const text = (e as CustomEvent<{ value: string }>).detail.value;
+  // ... call API, append assistant reply
+});
+```
+
+Emits: `send` → `{ value }`, `message-click` → `{ message }`
 
 ---
 
@@ -646,6 +761,48 @@ Emits: `page-change` → `{ page }`
 
 Attributes: `type` (bar|line|area|pie|donut|gauge), `height`, `legend`, `animate`
 
+### b-kanban
+
+Kanban board with columns, drag-and-drop between cards/columns, keyboard navigation, and **recursive card nesting** (sub-tasks, three-zone drop targets, expand/collapse, depth-aware rendering).
+
+```typescript
+import { BKanban, type KanbanColumn, type KanbanCard, type KanbanConfig } from 'birko-web-components';
+
+const board = document.querySelector('b-kanban') as BKanban;
+
+board.setConfig({
+  maxNestingDepth: 3,
+  renderCard: (card, depth) => `
+    <strong>${card.title}</strong>
+    ${card.children?.length ? `<span class="muted">${card.children.length} sub</span>` : ''}
+  ` ,
+} satisfies KanbanConfig);
+
+board.setColumns([
+  { id: 'todo',  title: 'To do' },
+  { id: 'doing', title: 'In progress' },
+  { id: 'done',  title: 'Done' },
+]);
+
+board.setCards([
+  { id: 'a', columnId: 'todo', title: 'Parent task', children: [
+    { id: 'a1', columnId: 'todo', parentId: 'a', title: 'Child 1' },
+    { id: 'a2', columnId: 'todo', parentId: 'a', title: 'Child 2' },
+  ]},
+]);
+
+board.addSubCard('a', { id: 'a3', columnId: 'todo', title: 'Child 3' });
+board.getChildren('a');           // returns immediate children
+board.removeCard('a');            // removes descendants recursively
+```
+
+**3-zone drag targets:** the top 25% of a card is "drop before", the middle 50% is "drop inside" (nest), the bottom 25% is "drop after". Self/descendant nesting is rejected.
+
+**Keyboard:** `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`.
+
+Methods: `setColumns()`, `setCards()`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
+Emits: `card-move` → `{ cardId, fromColumnId, toColumnId, parentId, position }`, `card-click` → `{ card }`
+
 ### b-pre
 
 Preformatted text block. Monospace, tokenized background/border, scrollable when bounded by `max-height`.
@@ -814,6 +971,23 @@ toast.notify('Door sensor triggered', {
 <b-spinner></b-spinner>
 <b-spinner size="lg"></b-spinner>
 ```
+
+### b-progress
+
+Linear progress bar — determinate or indeterminate, with optional label and inline value display.
+
+```html
+<b-progress value="42" max="100" label="Uploading" show-value></b-progress>
+<b-progress indeterminate label="Working…"></b-progress>
+<b-progress value="0.3" max="1" value-format="percent" size="sm" variant="success" striped animated></b-progress>
+```
+
+```typescript
+(el as BProgress).setValue(75, 100);
+```
+
+Attributes: `value`, `max`, `indeterminate`, `label`, `show-value`, `value-format` (`percent`|`fraction`|`value`), `size` (`sm`|`md`|`lg`|`xl`), `variant` (`primary`|`success`|`warning`|`danger`|`info`|`secondary`), `striped`, `animated`
+Emits: `change` → `{ value, max }`, `complete` (when `value >= max`)
 
 ### b-empty
 

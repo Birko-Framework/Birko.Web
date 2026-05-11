@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 51 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 54 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -10,16 +10,18 @@ Component library built on `Birko.Web.Core`. 51 Shadow DOM web components coveri
 src/
 ├── inputs/          # b-input, b-select, b-button, b-checkbox, b-switch, b-radio,
 │                    # b-textarea, b-multi-select, b-tag-input, b-search-input,
-│                    # b-file-upload, b-inline-edit, b-range, b-form,
-│                    # b-date-picker, b-option-group
+│                    # b-file-upload, b-inline-edit, b-range, b-form, b-segmented,
+│                    # b-date-picker, b-datetime-picker, b-time, b-markdown-editor,
+│                    # b-option-group
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
-│                    # b-dropdown-menu, b-tooltip, b-split-panel
-├── data/            # b-table, b-data-table, b-pagination, b-badge, b-tag,
-│                    # b-chart, b-pre, b-code-block, b-definition-list,
-│                    # b-object-tree, b-json-viewer, b-xml-viewer
+│                    # b-dropdown-menu, b-tooltip, b-split-panel, b-chat
+├── data/            # b-table, b-editable-table, b-data-table, b-pagination,
+│                    # b-badge, b-tag, b-chart, b-kanban, b-pre, b-code-block,
+│                    # b-definition-list, b-object-tree, b-json-viewer, b-xml-viewer
 ├── feedback/        # b-toast (+ toast manager), b-spinner, b-progress, b-empty, b-skeleton, b-stale-banner
 ├── nav/             # b-sidebar, b-breadcrumb, b-ribbon, b-tree-menu
 ├── command/         # b-command-palette, command-provider
+├── locales/         # en.json (canonical bwc.* keys)
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
 └── shared-styles.css# Source CSS with @sheet sections
 css/
@@ -130,7 +132,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 
 ## Component inventory
 
-### Inputs (16)
+### Inputs (20)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
@@ -146,31 +148,38 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
+| `<b-segmented>` | BSegmented | `setOptions([{value,label}])` | `label`, `name`, `value`, `disabled` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
+| `<b-datetime-picker>` | BDatetimePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `error`, `disabled` |
+| `<b-time>` | BTime | `setLocale()` (static) | `label`, `name`, `value`, `step`, `error`, `disabled` |
+| `<b-markdown-editor>` | BMarkdownEditor | `setValue()`, `getValue()`, `setRenderer()` | `value`, `mode` (split\|source\|preview); toolbar: H1–H6, bold/italic/strike/highlight/sup/sub, blockquote, code, bullet/numbered/task lists, link, image, table, hr |
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
-### Layout (8)
+### Layout (9)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|lg\|xl) |
-| `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl) |
+| `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl) |
 | `<b-drawer>` | BDrawer | `open()`, `close()` | `title`, `size`, `modal` |
 | `<b-tabs>` | BTabs | `setTabs([{id,label}])` | `active` |
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
 | `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap` |
+| `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 
-### Data (12)
+### Data (14)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
-| `<b-table>` | BTable | `setColumns()`, `setData()` | `loading`, `striped`, `hoverable` |
+| `<b-table>` | BTable | `setColumns()`, `setData()`, `setIdField()` | `loading`, `striped`, `hoverable`, `label-no-data` |
+| `<b-editable-table>` | BEditableTable | `setConfig()`, `setData()`, `getData()`, `validate()` | — |
 | `<b-data-table>` | BDataTable | `setConfig(DataTableConfig)`, `load()`, `reload()` | — |
 | `<b-pagination>` | BPagination | — | `page`, `total-pages`, `total-count` |
 | `<b-badge>` | BBadge | — | `variant` (success\|warning\|danger\|info\|secondary) |
 | `<b-tag>` | BTag | — | `color`, `removable`, `size` |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
+| `<b-kanban>` | BKanban | `setConfig()`, `setColumns()`, `setCards()`, `addSubCard(parentId,card)`, `getChildren(id)`, `removeCard()`, `toggleCard()`, `expandAll()`, `collapseAll()` | recursive nesting via `KanbanCard.children`/`parentId`/`collapsed`; 3-zone DnD (before/inside/after); `maxNestingDepth`; depth-aware `renderCard(card, depth)` |
 | `<b-pre>` | BPre | — | `wrap`, `max-height`, `size` |
 | `<b-code-block>` | BCodeBlock | `setCode(code, language?)` | `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size`, `sticky-header` (page) |
 | `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
