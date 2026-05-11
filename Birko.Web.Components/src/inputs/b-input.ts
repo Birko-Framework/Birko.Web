@@ -46,7 +46,7 @@ export class BInput extends BaseComponent {
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
-          ${hasSuggestions ? `list="${this._datalistId}"` : ''}
+          ${hasSuggestions ? `list="${this._datalistId}" autocomplete="off"` : ''}
         />
         ${hasSuggestions ? `<datalist id="${this._datalistId}">${
           this._suggestions.map(s => `<option value="${this._escapeAttr(s)}"></option>`).join('')
