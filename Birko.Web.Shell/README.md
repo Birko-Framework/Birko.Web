@@ -28,8 +28,34 @@ birko-web-shell/dashboard      # BaseDashboardWidget
 
 ## Dependencies
 
-- `birko-web-core` — BaseComponent, Store, Signal, Router, ApiClient
+- `birko-web-core` — BaseComponent, Store, Signal, Router, ApiClient, unified `i18n` singleton
 - `birko-web-components` — BRibbon, BDropdownMenu, BCommandPalette (type imports + custom element tags)
+
+---
+
+## Internationalization
+
+The shell uses the same global i18n singleton as the rest of the ecosystem. Bootstrap once with `useI18n(myI18n)` (from `birko-web-core`) and every shell surface — ribbon, status bar, user menu, notifications, command palette, page bases — picks up the active locale automatically.
+
+**Canonical key namespace:** `bws.*` (Birko Web Shell). Examples: `bws.common.new`, `bws.common.edit`, `bws.common.delete`, `bws.common.cancel`, `bws.common.save`, `bws.common.confirmDelete`, `bws.pagination.items`, `bws.ribbon.selectModule`.
+
+**`{entity}` placeholder.** The shell's `t()` helper (and `BaseCrudPage.t()` etc.) automatically interpolate `{entity}` with the page's `entityLabel`. A single bundle entry produces entity-specific strings across every CRUD page:
+
+```jsonc
+// locales/sk.json
+{
+  "bws.common.new":           "Nový {entity}",
+  "bws.common.confirmDelete": "Naozaj zmazať {entity}?"
+}
+```
+
+```typescript
+class DevicesPage extends BaseListPage<Device> {
+  entityLabel = 'zariadenie';   // → "Nový zariadenie", "Naozaj zmazať zariadenie?"
+}
+```
+
+Per-page overrides remain possible — override `t(key)` in your shell or page class to short-circuit the global lookup. The shell's `base-crud-page.t(key)` default returns English so apps with zero i18n bundle still render readable text.
 
 ---
 
