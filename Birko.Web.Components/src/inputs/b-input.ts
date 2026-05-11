@@ -18,11 +18,24 @@ export class BInput extends BaseComponent {
   }
 
   private _value = '';
+  private _suggestions: string[] = [];
+  private _datalistId = `b-input-dl-${Math.random().toString(36).slice(2, 10)}`;
+
+  /**
+   * Offer autocomplete suggestions via a co-located `<datalist>`. The user can
+   * still type any value — suggestions are advisory, not enforced. Pass `[]` to
+   * remove the datalist.
+   */
+  setSuggestions(values: string[]) {
+    this._suggestions = values;
+    this.update();
+  }
 
   render() {
     const label = this.attr('label');
     const hint = this.attr('hint');
     const error = this.attr('error');
+    const hasSuggestions = this._suggestions.length > 0;
     return `
       <div class="field">
         ${renderLabel(label, hint, this.boolAttr('required'))}
@@ -33,10 +46,18 @@ export class BInput extends BaseComponent {
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
+          ${hasSuggestions ? `list="${this._datalistId}"` : ''}
         />
+        ${hasSuggestions ? `<datalist id="${this._datalistId}">${
+          this._suggestions.map(s => `<option value="${this._escapeAttr(s)}"></option>`).join('')
+        }</datalist>` : ''}
         ${error ? `<span class="error">${error}</span>` : ''}
       </div>
     `;
+  }
+
+  private _escapeAttr(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 
   protected onUpdated() {

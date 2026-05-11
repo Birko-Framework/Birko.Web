@@ -10,7 +10,7 @@ interface Option {
 
 export class BSelect extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'label-no-matches', 'hint'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'allow-free-text', 'label-no-matches', 'hint'];
   }
 
   private _options: Option[] = [];
@@ -209,7 +209,8 @@ export class BSelect extends BaseComponent {
     const value = this.attr('value');
     const placeholder = this.attr('placeholder', 'Select...');
     const disabled = this.boolAttr('disabled');
-    const selectedLabel = this._options.find(o => o.value === value)?.label ?? '';
+    const allowFree = this.boolAttr('allow-free-text');
+    const selectedLabel = this._options.find(o => o.value === value)?.label ?? (allowFree ? (value ?? '') : '');
 
     const filtered = this._filter
       ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
@@ -258,6 +259,12 @@ export class BSelect extends BaseComponent {
     this.listen(input, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       if (ke.key === 'Escape') { this._closeDropdown(); input.blur(); }
+      if (ke.key === 'Enter' && this.boolAttr('allow-free-text')) {
+        e.preventDefault();
+        this._selectValue(input.value.trim());
+        input.blur();
+        return;
+      }
       if (ke.key === 'Backspace' && !input.value && this.attr('value')) {
         this._selectValue('');
       }
@@ -287,10 +294,15 @@ export class BSelect extends BaseComponent {
 
   private _openDropdown(input: HTMLInputElement, dropdown: HTMLElement) {
     this._open = true;
-    this._filter = '';
-    input.value = '';
-    input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
-      || this.attr('placeholder', 'Select...');
+    if (this.boolAttr('allow-free-text')) {
+      // Preserve whatever's typed / committed so the user can edit it.
+      this._filter = input.value;
+    } else {
+      this._filter = '';
+      input.value = '';
+      input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
+        || this.attr('placeholder', 'Select...');
+    }
     this._refreshOptions();
     input.focus();
     this._positionDropdown(dropdown);
@@ -309,12 +321,18 @@ export class BSelect extends BaseComponent {
     dropdown?.classList.remove('open');
     dropdown?.style.removeProperty('display');
     const input = this.$<HTMLInputElement>('.combo-input');
-    if (input) {
-      const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
-      this._filter = '';
-      input.value = selectedLabel;
-      input.placeholder = selectedLabel || this.attr('placeholder', 'Select...');
+    if (!input) return;
+
+    if (this.boolAttr('allow-free-text')) {
+      // Commit whatever was typed — that IS the value in free-text mode.
+      this._selectValue(input.value.trim());
+      return;
     }
+
+    const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
+    this._filter = '';
+    input.value = selectedLabel;
+    input.placeholder = selectedLabel || this.attr('placeholder', 'Select...');
   }
 
   private _positionDropdown(dropdown: HTMLElement) {
@@ -340,7 +358,8 @@ export class BSelect extends BaseComponent {
 
     const input = this.$<HTMLInputElement>('.combo-input');
     const dropdown = this.$<HTMLElement>('.dropdown');
-    const label = this._options.find(o => o.value === val)?.label ?? '';
+    const allowFree = this.boolAttr('allow-free-text');
+    const label = this._options.find(o => o.value === val)?.label ?? (allowFree ? val : '');
 
     if (input) {
       input.value = label;
