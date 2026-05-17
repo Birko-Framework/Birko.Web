@@ -596,6 +596,32 @@ export class BForm extends BaseComponent {
 
     // Populate select/multi-select options from schema
     this._populateOptions(this._schema, '');
+
+    // Submit-on-Enter: fire a `submit` CustomEvent when the user hits Enter in a
+    // single-line text input. Multi-line inputs (textarea / contenteditable),
+    // toggles, file pickers, buttons, IME composition, and already-handled events
+    // are ignored. Consumers opt in by adding a `submit` listener on the b-form.
+    if (this.shadowRoot) {
+      this.listen(this.shadowRoot, 'keydown', ((e: KeyboardEvent) => {
+        if (e.key !== 'Enter') return;
+        if (e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+        if ((e as { isComposing?: boolean }).isComposing) return;
+        if (e.defaultPrevented) return;
+
+        const target = e.composedPath()[0] as HTMLElement | undefined;
+        if (!target) return;
+        if (target instanceof HTMLTextAreaElement) return;
+        if (target instanceof HTMLButtonElement) return;
+        if (target.isContentEditable) return;
+        if (target instanceof HTMLInputElement) {
+          const skip = ['checkbox', 'radio', 'file', 'range', 'color', 'button', 'submit', 'reset'];
+          if (skip.includes(target.type)) return;
+        }
+
+        e.preventDefault();
+        this.emit('submit', this.validate());
+      }) as EventListener);
+    }
   }
 
   private _wireFieldEvents(group: FormGroupDef, prefix: string, isRoot = false) {
