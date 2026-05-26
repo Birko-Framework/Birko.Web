@@ -8,7 +8,7 @@ export type FieldType =
   | 'text' | 'password' | 'email' | 'number' | 'percent'
   | 'textarea' | 'markdown' | 'select' | 'multi-select' | 'tags'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'time' | 'custom'
+  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'date-range' | 'time' | 'custom'
   | (string & {});
 
 export type RuleType =
@@ -56,6 +56,13 @@ export interface FormField {
   step?: number;
   // Date-specific
   native?: boolean;
+  // Date-range-specific
+  minDays?: number;
+  maxDays?: number;
+  monthsVisible?: 1 | 2;
+  confirm?: boolean;
+  presets?: { label: string; start: string; end: string }[];
+  separator?: string;
   // Tags-specific
   separators?: string;
   maxCount?: number;
@@ -494,6 +501,8 @@ export class BForm extends BaseComponent {
         return (a) => `<b-date-picker ${a}></b-date-picker>`;
       case 'datetime':
         return (a) => `<b-datetime-picker ${a}></b-datetime-picker>`;
+      case 'date-range':
+        return (a) => `<b-date-range-picker ${a}></b-date-range-picker>`;
       case 'time':
         return (a) => `<b-time ${a}></b-time>`;
       default: // text, password, email, number
@@ -558,6 +567,17 @@ export class BForm extends BaseComponent {
       case 'datetime':
         if (field.min !== undefined) parts.push(`min="${field.min}"`);
         if (field.max !== undefined) parts.push(`max="${field.max}"`);
+        break;
+      case 'date-range':
+        if (field.min !== undefined) parts.push(`min="${field.min}"`);
+        if (field.max !== undefined) parts.push(`max="${field.max}"`);
+        if (field.minDays !== undefined) parts.push(`min-days="${field.minDays}"`);
+        if (field.maxDays !== undefined) parts.push(`max-days="${field.maxDays}"`);
+        if (field.monthsVisible !== undefined) parts.push(`months-visible="${field.monthsVisible}"`);
+        if (field.confirm) parts.push('confirm');
+        if (field.native) parts.push('native');
+        if (field.separator) parts.push(`separator="${field.separator}"`);
+        if (field.presets) parts.push(`presets='${JSON.stringify(field.presets).replace(/'/g, '&apos;')}'`);
         break;
       case 'time':
         if (field.min !== undefined) parts.push(`min="${field.min}"`);
@@ -889,6 +909,13 @@ export class BForm extends BaseComponent {
         }
         return Number(raw) || 0;
       }
+      case 'date-range': {
+        const raw = 'inputValue' in el ? (el as any).inputValue : '';
+        if (!raw) return null;
+        const idx = raw.indexOf('/');
+        if (idx < 0) return null;
+        return { start: raw.slice(0, idx), end: raw.slice(idx + 1) };
+      }
       default:
         // All Birko input components expose unified inputValue getter
         return 'inputValue' in el ? (el as any).inputValue : el.getAttribute('value') ?? '';
@@ -913,6 +940,16 @@ export class BForm extends BaseComponent {
           (el as any).inputValue = typeof value === 'object'
             ? JSON.stringify(value)
             : String(value ?? '');
+        }
+        break;
+      case 'date-range':
+        if ('inputValue' in el) {
+          if (value && typeof value === 'object' && 'start' in (value as object) && 'end' in (value as object)) {
+            const v = value as { start: string; end: string };
+            (el as any).inputValue = v.start && v.end ? `${v.start}/${v.end}` : '';
+          } else {
+            (el as any).inputValue = String(value ?? '');
+          }
         }
         break;
       default:

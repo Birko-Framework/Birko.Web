@@ -17,6 +17,7 @@ export { BSegmented, type SegmentedOption } from './b-segmented.js';
 export { BDatePicker } from './b-date-picker.js';
 export { type FilterDef, type FilterOption } from './filter-types.js';
 export { BDatetimePicker } from './b-datetime-picker.js';
+export { BDateRangePicker, type RangeValue, type RangePreset } from './b-date-range-picker.js';
 export { BTime } from './b-time.js';
 export {
   BForm,
