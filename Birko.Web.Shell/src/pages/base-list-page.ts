@@ -59,8 +59,8 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
   /** Column definitions for `<b-data-table>`. */
   protected abstract override get columns(): TableColumn[];
 
-  /** Form schema for the create/edit modal. */
-  protected abstract get formSchema(): FormSchema;
+  /** Form schema for the create/edit modal. Return `null` to opt out of the built-in modal. */
+  protected abstract override get formSchema(): FormSchema | null;
 
   // ── Optional — override to customise ─────────────────────────────────────
 

@@ -290,7 +290,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
   // ── Split-specific CRUD ───────────────────────────────────────────────────
 
-  private async _openEditSelected(): Promise<void> {
+  protected async _openEditSelected(): Promise<void> {
     if (!this._selectedEntity || !this._selectedId) return;
     await this._openEdit(this._selectedId);
   }
