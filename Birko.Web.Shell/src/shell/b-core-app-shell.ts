@@ -1,6 +1,6 @@
 import { BaseComponent } from 'birko-web-core';
 import type { BDropdownMenu } from 'birko-web-components';
-import type { MenuItem, ShellRoutes, BreadcrumbItem } from './shell-types.js';
+import type { MenuItem, ShellRoutes, BreadcrumbItem, ThemeOption } from './shell-types.js';
 
 /**
  * Core abstract app shell providing shared infrastructure for all Birko.Web shells.
@@ -24,6 +24,7 @@ import type { MenuItem, ShellRoutes, BreadcrumbItem } from './shell-types.js';
 export abstract class BCoreAppShell extends BaseComponent {
   protected _unsubs: (() => void)[] = [];
   private _baseEventsBound = false;
+  private _theme = 'light';
   private _isOnline = navigator.onLine;
   private _onlineHandler  = () => { this._isOnline = true;  this.onOnlineChanged(); };
   private _offlineHandler = () => { this._isOnline = false; this.onOnlineChanged(); };
@@ -52,6 +53,41 @@ export abstract class BCoreAppShell extends BaseComponent {
 
   /** localStorage key prefix for theme/layout/pin persistence (default: 'app'). */
   protected get storagePrefix(): string { return 'app'; }
+
+  /** Show the theme switcher in the header (default: true). */
+  protected get showThemeSwitcher(): boolean { return true; }
+
+  /** Accessible label for the theme switcher trigger. Override to localize. */
+  protected get themeMenuLabel(): string { return 'Theme'; }
+
+  /**
+   * Selectable themes for the switcher. Each `id` maps to a `[data-theme="id"]`
+   * block in `tokens.css` (`'light'` = default `:root`). Override to add/remove
+   * themes or localize labels.
+   */
+  protected getAvailableThemes(): ThemeOption[] {
+    return [
+      { id: 'light', label: 'Light', icon: '&#9728;' },  // ☀
+      { id: 'dark',  label: 'Dark',  icon: '&#9790;' },  // ☾
+      { id: 'neon',  label: 'Neon',  icon: '&#9889;' },  // ⚡
+    ];
+  }
+
+  /** The currently applied theme id. */
+  get currentTheme(): string { return this._theme; }
+
+  /**
+   * Apply a theme: set `data-theme` on `<html>` (removed for `'light'`),
+   * persist to `{storagePrefix}-theme`, refresh the menu, emit `theme-change`.
+   */
+  setTheme(theme: string): void {
+    this._theme = theme;
+    if (theme && theme !== 'light') document.documentElement.setAttribute('data-theme', theme);
+    else document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem(`${this.storagePrefix}-theme`, theme);
+    this.refreshThemeMenu();
+    this.emit('theme-change', { theme });
+  }
 
   /** User initials for the avatar (default: first 2 chars of userName). */
   protected getUserInitials(): string {
@@ -101,6 +137,18 @@ export abstract class BCoreAppShell extends BaseComponent {
     return `<a class="brand-name" href="${this.brandHref}" id="brand-link">${this.brandName}</a>`;
   }
 
+  /** Render the theme switcher dropdown. Returns '' when `showThemeSwitcher` is false. */
+  protected renderThemeDropdown(): string {
+    if (!this.showThemeSwitcher) return '';
+    return `
+      <b-dropdown-menu id="theme-dropdown" align="right">
+        <button class="theme-trigger" slot="trigger" aria-label="${this.themeMenuLabel}">
+          <span id="theme-trigger-icon" aria-hidden="true"></span>
+        </button>
+      </b-dropdown-menu>
+    `;
+  }
+
   /** Render the user dropdown menu with avatar. */
   protected renderUserDropdown(): string {
     const userName = this.getUserName() ?? 'User';
@@ -129,6 +177,24 @@ export abstract class BCoreAppShell extends BaseComponent {
     dropdown.setItems(this.getUserMenuItems());
   }
 
+  /** Re-populate the theme menu (active theme gets a checkmark) and trigger glyph. */
+  refreshThemeMenu(): void {
+    const dropdown = this.$<BDropdownMenu>('#theme-dropdown');
+    if (!dropdown) return;
+    const themes = this.getAvailableThemes();
+    const current = this._theme;
+    dropdown.setItems(
+      themes.map(th => ({
+        id: th.id,
+        label: `${th.id === current ? '&#10003; ' : ''}${th.label}`,
+        icon: th.icon,
+      })),
+    );
+    const active = themes.find(th => th.id === current) ?? themes[0];
+    const icon = this.$<HTMLElement>('#theme-trigger-icon');
+    if (icon && active) icon.innerHTML = active.icon;
+  }
+
   // ── RENDER — default minimal layout ────────────────────────────────────────
 
   render() {
@@ -145,7 +211,7 @@ export abstract class BCoreAppShell extends BaseComponent {
       <header class="app-header">
         <div class="app-brand">${this.renderBrand()}</div>
         <div class="app-header-spacer"></div>
-        <div class="app-actions">${this.renderUserDropdown()}</div>
+        <div class="app-actions">${this.renderThemeDropdown()}${this.renderUserDropdown()}</div>
       </header>
     `;
   }
@@ -171,7 +237,9 @@ export abstract class BCoreAppShell extends BaseComponent {
     else document.documentElement.removeAttribute('data-layout');
 
     const savedTheme = localStorage.getItem(`${prefix}-theme`);
-    if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+    this._theme = savedTheme || 'light';
+    if (savedTheme && savedTheme !== 'light') document.documentElement.setAttribute('data-theme', savedTheme);
+    else document.documentElement.removeAttribute('data-theme');
 
     // Online / offline
     window.addEventListener('online',  this._onlineHandler);
@@ -185,12 +253,14 @@ export abstract class BCoreAppShell extends BaseComponent {
 
   protected onUpdated() {
     this.refreshUserMenu();
+    this.refreshThemeMenu();
 
     if (this._baseEventsBound) return;
     this._baseEventsBound = true;
 
     this._setupBrandLink();
     this._setupUserDropdown();
+    this._setupThemeDropdown();
   }
 
   protected onUnmount() {
@@ -213,6 +283,13 @@ export abstract class BCoreAppShell extends BaseComponent {
     const dropdown = this.$<BDropdownMenu>('#user-dropdown');
     dropdown?.addEventListener('select', (e: Event) => {
       this.onUserMenuSelect((e as CustomEvent<{ id: string }>).detail.id);
+    });
+  }
+
+  private _setupThemeDropdown(): void {
+    const dropdown = this.$<BDropdownMenu>('#theme-dropdown');
+    dropdown?.addEventListener('select', (e: Event) => {
+      this.setTheme((e as CustomEvent<{ id: string }>).detail.id);
     });
   }
 
@@ -257,6 +334,16 @@ export abstract class BCoreAppShell extends BaseComponent {
         height: 100%;
       }
 
+      .theme-trigger {
+        display: flex; align-items: center; justify-content: center;
+        background: none; border: none; cursor: pointer;
+        color: var(--b-text-secondary);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border-radius: var(--b-radius, 0.375rem);
+        font-size: 1.125rem; line-height: 1;
+      }
+      .theme-trigger:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+
       .user-trigger {
         display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);
         font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-secondary);
@@ -275,7 +362,7 @@ export abstract class BCoreAppShell extends BaseComponent {
 
       .app-content {
         flex: 1; overflow-y: auto;
-        background: var(--b-bg-secondary); min-width: 0;
+        background: var(--b-bg-gradient, var(--b-bg-secondary)); min-width: 0;
       }
       .app-content-inner {
         max-width: var(--b-content-max-width, 100rem);
