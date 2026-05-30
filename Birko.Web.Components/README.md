@@ -1151,7 +1151,7 @@ Exports: `openCommandPalette()`, `closeCommandPalette()`, `toggleCommandPalette(
 
 ## Design tokens
 
-All `--b-*` properties are defined in `css/tokens.css`. Dark theme activates on `[data-theme="dark"]`.
+All `--b-*` properties are defined in `css/tokens.css`. Alternate themes activate via the `data-theme` attribute on `<html>`: `[data-theme="dark"]` (dark) and `[data-theme="neon"]` (dark navy base with neon green/cyan accents). The shell restores any saved value from the `{storagePrefix}-theme` localStorage key, so a `<b-option-group>` writing that key is enough to switch themes at runtime.
 
 **Key tokens:**
 

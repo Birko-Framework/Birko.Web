@@ -25,7 +25,7 @@ src/
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
 └── shared-styles.css# Source CSS with @sheet sections
 css/
-├── tokens.css       # All --b-* design tokens (light + dark theme)
+├── tokens.css       # All --b-* design tokens (light + dark + neon theme)
 └── reset.css        # Minimal reset
 ```
 
