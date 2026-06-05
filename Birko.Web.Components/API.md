@@ -550,6 +550,20 @@ Collapsible XML tree via DOMParser.
 
 Slots: default (body), `header` (custom header).
 
+### `<b-button-group>`
+| Attribute | Values |
+|-----------|--------|
+| `label` | string (aria-label for the group) |
+
+Slot: default (related `<b-button>`s, rendered as one bordered, rounded cluster).
+
+### `<b-toolbar>`
+| Attribute | Values |
+|-----------|--------|
+| `label` | string (aria-label for the toolbar) |
+
+Slots: default (button groups / buttons, laid out with gap + wrap), `end` (pushed to the far edge — destructive/exit actions).
+
 ### `<b-modal>`
 | Attribute | Values |
 |-----------|--------|

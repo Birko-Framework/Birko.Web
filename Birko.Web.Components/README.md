@@ -377,6 +377,27 @@ form.setSchema({
 Attributes: `header`, `padding` (none|sm|lg|xl)
 Slots: default (body), `actions` (header right)
 
+### b-button-group + b-toolbar
+
+```html
+<b-toolbar label="Contest controls">
+  <b-button-group label="Transport">
+    <b-button size="lg" variant="primary">▶ Start</b-button>
+    <b-button size="lg" variant="secondary">⏸ Pause</b-button>
+    <b-button size="lg" variant="secondary">⏹ Stop</b-button>
+  </b-button-group>
+  <b-button-group>
+    <b-button size="lg" variant="secondary">↺ Reset</b-button>
+  </b-button-group>
+  <b-button slot="end" variant="danger">✕ Close</b-button>
+</b-toolbar>
+```
+
+`b-button-group` renders related buttons as one bordered, rounded cluster; `b-toolbar` lays the clusters out in a wrapping row, with the `end` slot pushed to the far edge (destructive/exit actions). Both are purely presentational — buttons keep their own variant/size/clicks.
+
+Attributes (both): `label` (aria-label)
+Slots: default; `b-toolbar` adds `end`
+
 ### b-modal
 
 ```html

@@ -1,4 +1,6 @@
 export { BCard } from './b-card.js';
+export { BButtonGroup } from './b-button-group.js';
+export { BToolbar } from './b-toolbar.js';
 export { BModal } from './b-modal.js';
 export { BTabs } from './b-tabs.js';
 export { BDrawer } from './b-drawer.js';

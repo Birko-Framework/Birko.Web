@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 54 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 56 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -14,7 +14,8 @@ src/
 │                    # b-date-picker, b-datetime-picker, b-date-range-picker, b-time, b-markdown-editor,
 │                    # b-option-group
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
-│                    # b-dropdown-menu, b-tooltip, b-split-panel, b-chat
+│                    # b-dropdown-menu, b-tooltip, b-split-panel, b-chat,
+│                    # b-button-group, b-toolbar
 ├── data/            # b-table, b-editable-table, b-data-table, b-pagination,
 │                    # b-badge, b-tag, b-chart, b-kanban, b-pre, b-code-block,
 │                    # b-definition-list, b-object-tree, b-json-viewer, b-xml-viewer
@@ -157,10 +158,12 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
-### Layout (9)
+### Layout (11)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|lg\|xl) |
+| `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |
+| `<b-toolbar>` | BToolbar | — | `label` (aria-label); default slot (clusters, gap + wrap) + `end` slot (pushed to far edge) |
 | `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl) |
 | `<b-drawer>` | BDrawer | `open()`, `close()` | `title`, `size`, `modal` |
 | `<b-tabs>` | BTabs | `setTabs([{id,label}])` | `active` |
