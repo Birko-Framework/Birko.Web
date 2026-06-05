@@ -122,7 +122,8 @@ Both sidebars can be enabled simultaneously. Collapsed state of each persists in
 Subclasses use these in their `render()`:
 ```typescript
 protected renderBrand(): string         // <a id="brand-link" href="...">brandName</a>
-protected renderUserDropdown(): string  // <b-dropdown-menu> with avatar
+protected renderUserDropdown(): string  // <b-dropdown-menu> with avatar; '' when getUserName() is empty;
+                                        //   static badge (no dropdown) when getUserMenuItems() is []
 ```
 
 Subclasses can override `render()` entirely (BAppShell does this) or override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout.
@@ -149,6 +150,8 @@ These are efficient — they update only their section of the DOM, not a full re
 | Connection dot | `null` from `getConnectionState()` |
 | Search button | `false` from `showCommandPalette` |
 | Version label | `''` from `version` |
+| User area (avatar + dropdown) | `''` from `getUserName()` (anonymous apps — kiosks, public dashboards) |
+| User dropdown only (static avatar + name badge instead) | `[]` from `getUserMenuItems()` |
 
 ### Auth store — JWT claim extraction
 

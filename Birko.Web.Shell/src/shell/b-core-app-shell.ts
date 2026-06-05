@@ -34,7 +34,7 @@ export abstract class BCoreAppShell extends BaseComponent {
   /** Application brand name displayed in the header. */
   protected abstract get brandName(): string;
 
-  /** Current user's display name. */
+  /** Current user's display name. Return '' for anonymous apps — hides the user area entirely. */
   protected abstract getUserName(): string;
 
   /** Translation function. */
@@ -149,16 +149,28 @@ export abstract class BCoreAppShell extends BaseComponent {
     `;
   }
 
-  /** Render the user dropdown menu with avatar. */
+  /**
+   * Render the user dropdown menu with avatar.
+   *
+   * Hidden entirely when `getUserName()` returns ''/null (anonymous apps —
+   * kiosks, public dashboards). When `getUserMenuItems()` returns `[]` the
+   * avatar + name render as a static badge instead of a dropdown, so the
+   * trigger never opens an empty menu.
+   */
   protected renderUserDropdown(): string {
-    const userName = this.getUserName() ?? 'User';
+    const userName = this.getUserName();
+    if (!userName) return '';
     const initials = this.getUserInitials();
+    const trigger = `
+      <div class="user-avatar">${initials}</div>
+      <span class="user-name">${userName}</span>
+    `;
+    if (this.getUserMenuItems().length === 0) {
+      return `<div class="user-trigger is-static">${trigger}</div>`;
+    }
     return `
       <b-dropdown-menu id="user-dropdown" align="right">
-        <div class="user-trigger" slot="trigger">
-          <div class="user-avatar">${initials}</div>
-          <span class="user-name">${userName}</span>
-        </div>
+        <div class="user-trigger" slot="trigger">${trigger}</div>
       </b-dropdown-menu>
     `;
   }
@@ -170,11 +182,17 @@ export abstract class BCoreAppShell extends BaseComponent {
 
   // ── PUBLIC REFRESH API ─────────────────────────────────────────────────────
 
-  /** Re-populate the user dropdown items. Call after language change or route changes. */
+  /**
+   * Re-populate the user dropdown items. Call after language change or route changes.
+   * No-op when the user area rendered without a dropdown (anonymous app or empty
+   * `getUserMenuItems()`) — switching between those states needs a full `update()`.
+   */
   refreshUserMenu(): void {
     const dropdown = this.$<BDropdownMenu>('#user-dropdown');
     if (!dropdown) return;
-    dropdown.setItems(this.getUserMenuItems());
+    const items = this.getUserMenuItems();
+    if (items.length === 0) return;
+    dropdown.setItems(items);
   }
 
   /** Re-populate the theme menu (active theme gets a checkmark) and trigger glyph. */
@@ -351,6 +369,8 @@ export abstract class BCoreAppShell extends BaseComponent {
         border-radius: var(--b-radius, 0.375rem); cursor: pointer; white-space: nowrap;
       }
       .user-trigger:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .user-trigger.is-static { cursor: default; }
+      .user-trigger.is-static:hover { background: none; color: var(--b-text-secondary); }
       .user-avatar {
         width: 1.75rem; height: 1.75rem; border-radius: 50%;
         background: var(--b-color-primary-light); color: var(--b-color-primary);

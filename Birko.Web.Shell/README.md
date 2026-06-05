@@ -315,6 +315,8 @@ define('my-sidebar-shell', MySidebarShell);
 
 **Render helpers provided by `BCoreAppShell`:** `renderBrand()`, `renderUserDropdown()`. You can also override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout instead of replacing `render()` entirely.
 
+`renderUserDropdown()` hides itself when `getUserName()` returns `''` (anonymous apps — kiosks, public dashboards) and degrades to a static avatar + name badge (no dropdown) when `getUserMenuItems()` returns `[]`, so the trigger never opens an empty menu.
+
 **State exposed:** `protected get isOnline(): boolean` (auto-tracked from window online/offline events).
 
 **Refresh API:** `refreshUserMenu()` — re-populates the user dropdown items.
@@ -328,9 +330,9 @@ define('my-sidebar-shell', MySidebarShell);
 | Method | Source | Returns | Purpose |
 |--------|--------|---------|---------|
 | `brandName` | base | `string` | Brand displayed in ribbon header |
-| `getUserName()` | base | `string` | Current user's display name |
+| `getUserName()` | base | `string` | Current user's display name; return `''` for anonymous apps (hides the user area) |
 | `t(key, params?)` | base | `string` | Translation function |
-| `onSignOut()` | base | `void` | Handle sign-out action |
+| `onSignOut()` | base | `void` | Handle sign-out action (noop for anonymous apps) |
 | `getRibbonTabs()` | BAppShell | `RibbonTab[]` | Ribbon tabs from module state |
 | `getActiveTabId()` | BAppShell | `string` | Active tab ID for highlighting |
 | `onTabChange(tabId)` | BAppShell | `void` | Navigate when user clicks a tab |
@@ -344,7 +346,7 @@ define('my-sidebar-shell', MySidebarShell);
 | `storagePrefix` | `'app'` | localStorage key prefix for theme/layout/pin |
 | `getUserInitials()` | First 2 chars | Avatar initials |
 | `getRoutes()` | `{ dashboard, profile, settings, login }` | Shell route paths |
-| `getUserMenuItems()` | Profile, Settings, Sign out | User dropdown items |
+| `getUserMenuItems()` | Profile, Settings, Sign out | User dropdown items; return `[]` for a static avatar badge with no dropdown |
 | `onUserMenuSelect(id)` | Navigate to routes | User menu handler |
 | `onItemClick(tab, group, item)` | noop | Ribbon item click |
 | `onBreadcrumbsChange(items)` | noop | Called when a page fires `setBreadcrumbs()` |
