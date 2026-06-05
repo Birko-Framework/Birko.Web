@@ -10,6 +10,13 @@ export interface RibbonTab {
   disabled?: boolean;
   category?: string;
   groups: RibbonGroup[];
+  /**
+   * Suppress the dropdown panel for this tab — the tab itself is the
+   * navigation. Unset = auto: a tab whose groups hold exactly one plain nav
+   * link (href, not action) is panelless, since its panel would only
+   * duplicate the tab click. Set `false` to force the panel even then.
+   */
+  noPanel?: boolean;
 }
 
 export interface RibbonGroup {
@@ -33,7 +40,7 @@ export interface RibbonItem {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export class BRibbon extends BaseComponent {
-  static get observedAttributes() { return ['active', 'expanded', 'pinned',
+  static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close']; }
 
@@ -288,14 +295,41 @@ export class BRibbon extends BaseComponent {
     this.update();
   }
 
-  expand()  { this.setAttribute('expanded', ''); this.emit('expand', { expanded: true }); }
+  /**
+   * Whether a tab suppresses its dropdown panel. Explicit `noPanel` wins;
+   * otherwise auto: exactly one plain nav-link item (and no context actions)
+   * means the panel would only duplicate the tab click.
+   */
+  private _isPanelless(tab: RibbonTab | undefined): boolean {
+    if (!tab) return false;
+    if (tab.noPanel != null) return tab.noPanel;
+    if (this._contextActions.length > 0) return false;
+    const items = tab.groups.flatMap(g => g.items);
+    return items.length === 1 && !!items[0].href && !items[0].action;
+  }
+
+  /** Pure tab-strip mode: forced via the `tabs-only` attribute, or every tab is panelless. */
+  private get _tabsOnlyMode(): boolean {
+    return this.boolAttr('tabs-only')
+      || (this._tabs.length > 0 && this._tabs.every(t => this._isPanelless(t)));
+  }
+
+  expand()  {
+    // tabs-only: there is no panel to expand — keep the attribute clean and
+    // emit nothing (hover handlers and refreshRibbon() may still call this).
+    if (this._tabsOnlyMode) return;
+    this.setAttribute('expanded', ''); this.emit('expand', { expanded: true });
+  }
   collapse() { this.removeAttribute('expanded'); this.emit('expand', { expanded: false }); }
 
   toggleExpand() {
     if (this.boolAttr('expanded')) this.collapse(); else this.expand();
   }
 
-  pin()   { this.setAttribute('pinned', ''); this.expand(); this.emit('pin', { pinned: true }); }
+  pin()   {
+    if (this._tabsOnlyMode) return;
+    this.setAttribute('pinned', ''); this.expand(); this.emit('pin', { pinned: true });
+  }
   unpin() { this.removeAttribute('pinned'); this.emit('pin', { pinned: false }); }
 
   togglePin() {
@@ -308,6 +342,10 @@ export class BRibbon extends BaseComponent {
     const active = this.attr('active');
     const expanded = this.boolAttr('expanded');
     const pinned = this.boolAttr('pinned');
+    // tabs-only: pure tab-strip navigation — no panel, no expand/pin controls.
+    // Forced via attribute, or automatic when every tab is panelless (single
+    // nav-link tabs whose panel would only duplicate the tab's navigation).
+    const tabsOnly = this._tabsOnlyMode;
     const activeTab = this._tabs.find(t => t.id === active);
     const activeLabel = activeTab?.label ?? '';
 
@@ -341,6 +379,7 @@ export class BRibbon extends BaseComponent {
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
+          ${tabsOnly ? '' : `
           <button class="ribbon-ctrl" id="ribbon-toggle"
             aria-label="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}"
             aria-expanded="${expanded}"
@@ -352,10 +391,10 @@ export class BRibbon extends BaseComponent {
             aria-pressed="${pinned}"
             title="${pinned ? this.label('label-unpin', 'bwc.ribbon.unpin', 'Unpin ribbon') : this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}">
             ${pinned ? '&#128204;' : '&#128205;'}
-          </button>
+          </button>`}
         </div>
 
-        ${this._renderPanel(active, activeTab)}
+        ${tabsOnly ? '' : this._renderPanel(active, activeTab)}
 
         <dialog class="mobile-dialog" id="mobile-dialog">
           <div class="mobile-dialog-header">
@@ -566,6 +605,8 @@ export class BRibbon extends BaseComponent {
         overTab = true;
         this._clearTimers();
         const tabId = btn.dataset.tab!;
+        // Panelless tab: nothing to preview or expand — the tab IS the link.
+        if (this._isPanelless(this._tabs.find(t => t.id === tabId))) return;
         this._hoverTabId = tabId;
         // Show hovered tab's panel content
         this._showTabContent(tabId);

@@ -203,7 +203,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()` |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
