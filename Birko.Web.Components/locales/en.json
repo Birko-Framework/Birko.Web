@@ -87,6 +87,11 @@
     "time": {
       "placeholder": "HH:mm"
     },
+    "colorPicker": {
+      "swatch": "Pick a color",
+      "placeholder": "#RRGGBB",
+      "alpha": "Opacity"
+    },
     "daterange": {
       "placeholderStart": "Start date",
       "placeholderEnd": "End date",

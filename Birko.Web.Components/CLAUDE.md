@@ -2,7 +2,7 @@
 
 ## What this project is
 
-Component library built on `Birko.Web.Core`. 56 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
+Component library built on `Birko.Web.Core`. 57 Shadow DOM web components covering inputs, layout, data, feedback, navigation, and command palette. Consumed by Symbio UI and any project that imports `birko-web-components`.
 
 ## Directory structure
 
@@ -12,7 +12,7 @@ src/
 │                    # b-textarea, b-multi-select, b-tag-input, b-search-input,
 │                    # b-file-upload, b-inline-edit, b-range, b-form, b-segmented,
 │                    # b-date-picker, b-datetime-picker, b-date-range-picker, b-time, b-markdown-editor,
-│                    # b-option-group
+│                    # b-option-group, b-color-picker
 ├── layout/          # b-card, b-modal, b-drawer, b-tabs, b-confirm-dialog,
 │                    # b-dropdown-menu, b-tooltip, b-split-panel, b-chat,
 │                    # b-button-group, b-toolbar
@@ -133,7 +133,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 
 ## Component inventory
 
-### Inputs (21)
+### Inputs (22)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
@@ -150,6 +150,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
 | `<b-segmented>` | BSegmented | `setOptions([{value,label}])` | `label`, `name`, `value`, `disabled` |
+| `<b-color-picker>` | BColorPicker | — | `label`, `name`, `value` (`#rrggbb`, or `#rrggbbaa` with `alpha`), `placeholder`, `alpha` (opacity slider), `size`, `error`, `hint`, `required`, `disabled` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
 | `<b-datetime-picker>` | BDatetimePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `error`, `disabled` |
 | `<b-date-range-picker>` | BDateRangePicker | `getRange()`, `setRange({start,end})`, `setPresets([])`, `clear()`, `setLocale()` (static) | `label`, `name`, `value` (ISO interval `start/end`), `min`, `max`, `min-days`, `max-days`, `months-visible` (1\|2), `confirm`, `presets` (JSON), `separator`, `native`, `error`, `disabled` |
