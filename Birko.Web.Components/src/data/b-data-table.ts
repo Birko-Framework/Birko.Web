@@ -160,6 +160,21 @@ export class BDataTable extends BaseComponent {
   }
 
   /**
+   * Re-apply localized labels — columns, row actions, pagination labels, and the
+   * label set — WITHOUT resetting data, filters, selection or the current page.
+   * Use after a locale switch; unlike `setConfig()` this preserves table state.
+   */
+  relabel(labels: Partial<Pick<DataTableConfig, 'columns' | 'rowActions' | 'paginationLabels' | 'labels'>>): void {
+    if (!this._config) return;
+    if (labels.columns) this._config.columns = labels.columns;
+    if ('rowActions' in labels) this._config.rowActions = labels.rowActions;
+    if (labels.paginationLabels) this._config.paginationLabels = labels.paginationLabels;
+    if (labels.labels) this._config.labels = labels.labels;
+    this.update();      // re-renders pagination labels, no-data, action aria-label
+    this._applyData();  // re-applies columns/row-actions over the current page data
+  }
+
+  /**
    * Set external filter parameters.
    * Merges into query params on next load, resets to page 1, and triggers a reload.
    */
