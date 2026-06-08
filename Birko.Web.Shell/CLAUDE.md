@@ -121,10 +121,13 @@ Both sidebars can be enabled simultaneously. Collapsed state of each persists in
 
 Subclasses use these in their `render()`:
 ```typescript
-protected renderBrand(): string         // <a id="brand-link" href="...">brandName</a>
-protected renderUserDropdown(): string  // <b-dropdown-menu> with avatar; '' when getUserName() is empty;
-                                        //   static badge (no dropdown) when getUserMenuItems() is []
+protected renderBrand(): string          // <a id="brand-link" href="...">brandName</a>
+protected renderUserDropdown(): string   // <b-dropdown-menu> with avatar; '' when getUserName() is empty;
+                                         //   static badge (no dropdown) when getUserMenuItems() is []
+protected renderHeaderActions(): string  // app-specific header controls, left of the theme switcher; '' by default
 ```
+
+To add custom header controls (buttons, pickers, status chips), **override `renderHeaderActions()`** — not `renderThemeDropdown()`. The actions render left of the theme switcher and user area, in all three layouts (core/minimal, sidebar, ribbon). The header is not re-rendered by the `refresh*()` methods, so wire any controls you return once in `onMount()` (keep mutable state, e.g. enabled/disabled, in sync from your store subscriptions).
 
 Subclasses can override `render()` entirely (BAppShell does this) or override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout.
 

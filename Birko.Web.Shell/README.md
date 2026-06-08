@@ -313,9 +313,21 @@ class MySidebarShell extends BCoreAppShell {
 define('my-sidebar-shell', MySidebarShell);
 ```
 
-**Render helpers provided by `BCoreAppShell`:** `renderBrand()`, `renderUserDropdown()`. You can also override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout instead of replacing `render()` entirely.
+**Render helpers provided by `BCoreAppShell`:** `renderBrand()`, `renderUserDropdown()`, `renderHeaderActions()`. You can also override the granular hooks `renderHeader()`, `renderContent()`, `renderFooter()` of the default minimal layout instead of replacing `render()` entirely.
 
 `renderUserDropdown()` hides itself when `getUserName()` returns `''` (anonymous apps — kiosks, public dashboards) and degrades to a static avatar + name badge (no dropdown) when `getUserMenuItems()` returns `[]`, so the trigger never opens an empty menu.
+
+`renderHeaderActions()` is the seam for app-specific header controls (buttons, pickers, status chips). It returns `''` by default and renders left of the theme switcher and user area in every layout (core/minimal, sidebar, ribbon). Override it instead of `renderThemeDropdown()` — the latter is only for restyling the theme switcher itself. The header isn't re-rendered by `refresh*()`, so wire returned controls once in `onMount()`:
+
+```typescript
+protected override renderHeaderActions(): string {
+  return `<b-button id="reload-btn" variant="danger" size="sm">Reload</b-button>`;
+}
+protected override onMount(): void {
+  super.onMount();
+  this.$('#reload-btn')?.addEventListener('click', () => this.reload());
+}
+```
 
 **State exposed:** `protected get isOnline(): boolean` (auto-tracked from window online/offline events).
 

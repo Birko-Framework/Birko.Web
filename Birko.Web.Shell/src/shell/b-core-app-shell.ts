@@ -137,6 +137,18 @@ export abstract class BCoreAppShell extends BaseComponent {
     return `<a class="brand-name" href="${this.brandHref}" id="brand-link">${this.brandName}</a>`;
   }
 
+  /**
+   * App-specific header actions (buttons, pickers, status chips), rendered at the
+   * left edge of the header action cluster — before the theme switcher and user
+   * area. Default: none.
+   *
+   * This is the seam for injecting custom header controls; do **not** override
+   * `renderThemeDropdown()` for that. Wire any controls you return here in your
+   * own `onMount()`/`onUpdated()` (the shell does not re-render the header on
+   * `refresh*()`, so listeners bound once stay valid).
+   */
+  protected renderHeaderActions(): string { return ''; }
+
   /** Render the theme switcher dropdown. Returns '' when `showThemeSwitcher` is false. */
   protected renderThemeDropdown(): string {
     if (!this.showThemeSwitcher) return '';
@@ -229,7 +241,7 @@ export abstract class BCoreAppShell extends BaseComponent {
       <header class="app-header">
         <div class="app-brand">${this.renderBrand()}</div>
         <div class="app-header-spacer"></div>
-        <div class="app-actions">${this.renderThemeDropdown()}${this.renderUserDropdown()}</div>
+        <div class="app-actions">${this.renderHeaderActions()}${this.renderThemeDropdown()}${this.renderUserDropdown()}</div>
       </header>
     `;
   }

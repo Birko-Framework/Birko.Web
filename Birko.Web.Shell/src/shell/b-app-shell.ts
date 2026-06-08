@@ -217,6 +217,7 @@ export abstract class BAppShell extends BSidebarAppShell {
               &#128276;${this._renderBadge()}
             </button>
           ` : ''}
+          ${this.renderHeaderActions()}
           ${this.renderThemeDropdown()}
           ${this.renderUserDropdown()}
         </div>
