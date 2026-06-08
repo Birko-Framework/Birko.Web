@@ -15,6 +15,10 @@ const DEFAULT_RGB = '#000000';
  * the text field also accepts `#rgba` / `#rrggbbaa`. The native swatch is sRGB
  * only, so RGB comes from the swatch and the alpha byte from the slider.
  *
+ * Compact: add the `swatch-only` attribute to drop the hex text field and show
+ * just the clickable swatch (the swatch then carries `name` for form posts).
+ * Useful for toolbars/headers where the hex box is noise.
+ *
  * Mirrors the native element's two-event contract:
  *  - `input`  — live preview during a swatch drag, slider drag, or while a valid
  *               hex is typed. Ephemeral: the `value` attribute is NOT reflected
@@ -25,7 +29,7 @@ const DEFAULT_RGB = '#000000';
  */
 export class BColorPicker extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'alpha', 'error', 'hint', 'required', 'disabled'];
+    return ['label', 'name', 'value', 'placeholder', 'alpha', 'swatch-only', 'error', 'hint', 'required', 'disabled'];
   }
 
   static get sharedStyles() {
@@ -148,6 +152,7 @@ export class BColorPicker extends BaseComponent {
     const hint = this.attr('hint');
     const error = this.attr('error');
     const disabled = this.boolAttr('disabled');
+    const swatchOnly = this.boolAttr('swatch-only');
     const { rgb, a } = this._currentParts();
     const value = this._format(rgb, a);
     const placeholder = this.label('placeholder', 'bwc.colorPicker.placeholder', this._alpha ? '#RRGGBBAA' : '#RRGGBB');
@@ -156,12 +161,13 @@ export class BColorPicker extends BaseComponent {
         ${renderLabel(label, hint, this.boolAttr('required'))}
         <div class="color-control">
           <input class="swatch" type="color" value="${rgb}"
+            ${swatchOnly ? `name="${this.attr('name')}"` : ''}
             ${disabled ? 'disabled' : ''}
             aria-label="${this.label('label-swatch', 'bwc.colorPicker.swatch', 'Pick a color')}" />
-          <input type="text" inputmode="text" spellcheck="false" autocomplete="off"
+          ${swatchOnly ? '' : `<input type="text" inputmode="text" spellcheck="false" autocomplete="off"
             class="hex ${error ? 'has-error' : ''}"
             name="${this.attr('name')}" value="${value}" placeholder="${placeholder}"
-            ${disabled ? 'disabled' : ''} ${this.boolAttr('required') ? 'required' : ''} />
+            ${disabled ? 'disabled' : ''} ${this.boolAttr('required') ? 'required' : ''} />`}
         </div>
         ${this._alpha ? `
         <div class="alpha-control" style="--b-cp-rgb:${rgb}">

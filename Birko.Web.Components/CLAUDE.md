@@ -150,7 +150,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
 | `<b-segmented>` | BSegmented | `setOptions([{value,label}])` | `label`, `name`, `value`, `disabled` |
-| `<b-color-picker>` | BColorPicker | — | `label`, `name`, `value` (`#rrggbb`, or `#rrggbbaa` with `alpha`), `placeholder`, `alpha` (opacity slider), `size`, `error`, `hint`, `required`, `disabled` |
+| `<b-color-picker>` | BColorPicker | — | `label`, `name`, `value` (`#rrggbb`, or `#rrggbbaa` with `alpha`), `placeholder`, `alpha` (opacity slider), `swatch-only` (hide hex field, swatch only), `size`, `error`, `hint`, `required`, `disabled` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
 | `<b-datetime-picker>` | BDatetimePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `error`, `disabled` |
 | `<b-date-range-picker>` | BDateRangePicker | `getRange()`, `setRange({start,end})`, `setPresets([])`, `clear()`, `setLocale()` (static) | `label`, `name`, `value` (ISO interval `start/end`), `min`, `max`, `min-days`, `max-days`, `months-visible` (1\|2), `confirm`, `presets` (JSON), `separator`, `native`, `error`, `disabled` |
