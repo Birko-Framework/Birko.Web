@@ -356,6 +356,14 @@ export class BForm extends BaseComponent {
     }
   }
 
+  /** Set (or clear) the hint text shown under a field, after the form is rendered. */
+  setFieldHint(path: string, hint: string | null) {
+    const el = this._getFieldElement(path);
+    if (!el) return;
+    if (hint) el.setAttribute('hint', hint);
+    else el.removeAttribute('hint');
+  }
+
   /** Add a single option to a multi-select field and optionally select it (no full re-render). */
   addFieldOption(path: string, option: { value: string; label: string; color?: string }, select = true) {
     const el = this._getFieldElement(path);
