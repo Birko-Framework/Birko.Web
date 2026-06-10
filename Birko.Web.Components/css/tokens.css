@@ -101,9 +101,21 @@
   --b-backdrop-bg-light: rgba(0, 0, 0, 0.15);
   --b-backdrop-overlay: rgba(0, 0, 0, 0.06);
 
-  /* ── Transitions ── */
-  --b-transition: 150ms ease;
-  --b-transition-slow: 300ms ease;
+  /* ── Motion: durations (ms — composable with easing tokens below) ── */
+  --b-duration-instant: 75ms;   /* press feedback, taps */
+  --b-duration-fast: 150ms;     /* hover, focus, small toggles */
+  --b-duration-base: 250ms;     /* default UI transitions */
+  --b-duration-slow: 400ms;     /* drawers, modals, large reveals */
+
+  /* ── Motion: easing curves ── */
+  --b-ease: cubic-bezier(0.4, 0, 0.2, 1);          /* standard — most transitions */
+  --b-ease-out: cubic-bezier(0, 0, 0.2, 1);        /* entering elements (decelerate) */
+  --b-ease-in: cubic-bezier(0.4, 0, 1, 1);         /* exiting elements (accelerate) */
+  --b-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* playful overshoot — chips, badges */
+
+  /* ── Transitions (back-compat shorthands; prefer duration+easing tokens) ── */
+  --b-transition: var(--b-duration-fast) var(--b-ease);
+  --b-transition-slow: var(--b-duration-slow) var(--b-ease);
 
   /* ── Animation speeds ── */
   --b-animation-speed: 0.6s;      /* spinner, tree loading */
@@ -280,4 +292,24 @@
   /* Radial backdrop for the main content area. Left undefined in other themes
      so consumers fall back to var(--b-bg-gradient, var(--b-bg-secondary)). */
   --b-bg-gradient: radial-gradient(circle at 50% 30%, #16306a 0%, #0b0f1a 70%);
+}
+
+/* ── Reduced motion (accessibility) ───────────────────────────────────────────
+   When the OS requests reduced motion, collapse all motion-token durations to a
+   near-instant value so every component using --b-duration-* / --b-transition
+   stops animating without each one needing its own media query. Light-DOM
+   (page chrome) and host-level styles inherit these custom-property overrides
+   through the Shadow DOM boundary, since inherited CSS variables cross it. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --b-duration-instant: 0.01ms;
+    --b-duration-fast: 0.01ms;
+    --b-duration-base: 0.01ms;
+    --b-duration-slow: 0.01ms;
+    --b-transition: 0.01ms linear;
+    --b-transition-slow: 0.01ms linear;
+    --b-animation-speed: 0.01ms;
+    --b-animation-slow: 0.01ms;
+    --b-animation-progress: 0.01ms;
+  }
 }
