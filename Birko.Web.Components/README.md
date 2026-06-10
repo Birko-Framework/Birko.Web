@@ -1220,7 +1220,7 @@ For shell chrome (ribbon/header/footer) the shell renders for you, use the `head
 | Spacing | `--b-space-xs` (4px) → `--b-space-3xl` (48px) |
 | Radius | `--b-radius-sm` (4px) → `--b-radius-xl` (16px), `--b-radius-full` (9999px) |
 | Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font` (body), `--b-font-heading` (titles — card/modal/drawer headers; defaults to `--b-font`), `--b-font-weight-medium/bold` |
-| Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows) |
+| Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows), `--b-table-row-height` (uniform header+body band height; defaults to `--b-control-min-height` = 38px) |
 | Card | `--b-card-header-bg`, `--b-card-header-text` (override per instance for an accent header band) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
 | Z-index | `--b-z-sticky` (200), `--b-z-dropdown` (220 — overlays sticky bars), `--b-z-modal` (400), `--b-z-toast` (500) |
