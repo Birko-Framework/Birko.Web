@@ -37,4 +37,19 @@
 
   --b-backdrop-bg: rgba(0, 0, 0, 0.6);
   --b-backdrop-bg-light: rgba(0, 0, 0, 0.3);
+
+  /* Status alpha — brighter hues + stronger alpha so tints read on dark surfaces */
+  --b-color-danger-alpha-bg: rgba(239, 68, 68, 0.15);
+  --b-color-danger-alpha-border: rgba(239, 68, 68, 0.4);
+  --b-color-success-alpha-bg: rgba(34, 197, 94, 0.15);
+  --b-color-success-alpha-border: rgba(34, 197, 94, 0.4);
+  --b-color-warning-alpha-bg: rgba(234, 179, 8, 0.15);
+  --b-color-warning-alpha-border: rgba(234, 179, 8, 0.4);
+  --b-color-info-alpha-bg: rgba(14, 165, 233, 0.15);
+  --b-color-info-alpha-border: rgba(14, 165, 233, 0.4);
+
+  /* Neutral overlays — white-based so hover/dividers stay visible on dark */
+  --b-overlay-subtle: rgba(255, 255, 255, 0.04);
+  --b-overlay-light: rgba(255, 255, 255, 0.06);
+  --b-overlay-medium: rgba(255, 255, 255, 0.12);
 }

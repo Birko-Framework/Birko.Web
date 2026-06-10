@@ -1192,6 +1192,8 @@ Link/bundle `tokens.css` plus only the theme files you use, then register the ma
 | Group | Examples |
 |-------|---------|
 | Colors | `--b-color-primary`, `--b-color-danger`, `--b-color-success` |
+| Status alpha | `--b-color-{danger,success,warning,info}-alpha-bg/-border` (tinted backgrounds/borders; themes retune for dark surfaces) |
+| Overlay | `--b-overlay-subtle/light/medium` (neutral tints/dividers; white-based in dark/neon) |
 | Text | `--b-text`, `--b-text-secondary`, `--b-text-muted`, `--b-text-inverse` |
 | Background | `--b-bg`, `--b-bg-secondary`, `--b-bg-tertiary`, `--b-bg-elevated` |
 | Border | `--b-border`, `--b-border-hover`, `--b-border-focus` |
@@ -1200,7 +1202,7 @@ Link/bundle `tokens.css` plus only the theme files you use, then register the ma
 | Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font` (body), `--b-font-heading` (titles — card/modal/drawer headers; defaults to `--b-font`), `--b-font-weight-medium/bold` |
 | Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
-| Z-index | `--b-z-dropdown` (100), `--b-z-modal` (400), `--b-z-toast` (500) |
+| Z-index | `--b-z-sticky` (200), `--b-z-dropdown` (220 — overlays sticky bars), `--b-z-modal` (400), `--b-z-toast` (500) |
 
 ---
 

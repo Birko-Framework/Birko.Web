@@ -16,6 +16,22 @@
   --b-color-info: #0891b2;
   --b-color-info-light: #cffafe;
 
+  /* ── Status alpha (semi-transparent tints for backgrounds/borders) ── */
+  --b-color-danger-alpha-bg: rgba(220, 38, 38, 0.08);
+  --b-color-danger-alpha-border: rgba(220, 38, 38, 0.3);
+  --b-color-success-alpha-bg: rgba(22, 163, 74, 0.08);
+  --b-color-success-alpha-border: rgba(22, 163, 74, 0.3);
+  --b-color-warning-alpha-bg: rgba(217, 119, 6, 0.08);
+  --b-color-warning-alpha-border: rgba(217, 119, 6, 0.3);
+  --b-color-info-alpha-bg: rgba(8, 145, 178, 0.08);
+  --b-color-info-alpha-border: rgba(8, 145, 178, 0.3);
+
+  /* ── Overlay (neutral semi-transparent for tints, dividers, hover states).
+        Themes flip these to light/white on dark surfaces. ── */
+  --b-overlay-subtle: rgba(0, 0, 0, 0.06);
+  --b-overlay-light: rgba(0, 0, 0, 0.08);
+  --b-overlay-medium: rgba(0, 0, 0, 0.2);
+
   /* ── Surfaces ── */
   --b-bg: #ffffff;
   --b-bg-secondary: #f8fafc;
@@ -44,6 +60,7 @@
   --b-border-hover: #cbd5e1;
   --b-border-focus: var(--b-color-primary);
   --b-border-width: 1px;
+  --b-border-width-thick: 2px;
 
   /* ── Border radius (rem — scales with font size) ── */
   --b-radius-sm: 0.25rem;   /* 4px */
@@ -74,6 +91,7 @@
   --b-text-xl: 1.25rem;     /* 20px */
   --b-text-2xl: 1.5rem;     /* 24px */
   --b-text-3xl: 1.875rem;   /* 30px */
+  --b-text-4xl: 2.5rem;     /* 40px — hero / display numbers */
   --b-line-height: 1.5;
   --b-line-height-tight: 1.4;
   --b-letter-spacing-caps: 0.03125rem; /* 0.5px */
@@ -87,6 +105,7 @@
   --b-icon-base: 1rem;      /* 16px */
   --b-icon-lg: 1.25rem;     /* 20px */
   --b-icon-xl: 2.5rem;      /* 40px */
+  --b-icon-2xl: 3rem;       /* 48px — decorative / empty-state icons */
 
   /* ── Shadows (px — fixed depth regardless of font size) ── */
   --b-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -130,8 +149,8 @@
   --b-animation-progress: 1.4s;   /* progress indeterminate, typing bounce */
 
   /* ── Z-index ── */
-  --b-z-dropdown: 100;
   --b-z-sticky: 200;
+  --b-z-dropdown: 220;            /* above sticky bars (ribbon/header) so menus overlay them */
   --b-z-drawer-backdrop: 250;
   --b-z-drawer: 260;
   --b-z-modal-backdrop: 300;
