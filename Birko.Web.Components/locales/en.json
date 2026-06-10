@@ -19,6 +19,17 @@
       "error": "Error",
       "pending": "Pending"
     },
+    "stat": {
+      "up": "increased",
+      "down": "decreased",
+      "flat": "unchanged"
+    },
+    "tour": {
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "done": "Done"
+    },
     "palette": {
       "title": "Command palette",
       "placeholder": "Search commands, pages, actions…",

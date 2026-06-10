@@ -159,7 +159,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
-### Layout (11)
+### Layout (12)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|lg\|xl) |
@@ -173,8 +173,9 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
 | `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap` |
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
+| `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
 
-### Data (14)
+### Data (15)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-table>` | BTable | `setColumns()`, `setData()`, `setIdField()` | `loading`, `striped`, `hoverable`, `label-no-data` |
@@ -182,6 +183,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-data-table>` | BDataTable | `setConfig(DataTableConfig)`, `load()`, `reload()` | — |
 | `<b-pagination>` | BPagination | — | `page`, `total-pages`, `total-count` |
 | `<b-badge>` | BBadge | — | `variant` (success\|warning\|danger\|info\|secondary) |
+| `<b-stat>` | BStat | — | `label`, `value`, `delta`, `trend` (up\|down\|flat), `sentiment` (auto\|positive\|negative\|neutral), `size` |
 | `<b-tag>` | BTag | — | `color`, `removable`, `size` |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
 | `<b-kanban>` | BKanban | `setConfig()`, `setColumns()`, `setCards()`, `addSubCard(parentId,card)`, `getChildren(id)`, `removeCard()`, `toggleCard()`, `expandAll()`, `collapseAll()` | recursive nesting via `KanbanCard.children`/`parentId`/`collapsed`; 3-zone DnD (before/inside/after); `maxNestingDepth`; depth-aware `renderCard(card, depth)` |

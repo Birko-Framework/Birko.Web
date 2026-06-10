@@ -7,5 +7,6 @@ export { BDrawer } from './b-drawer.js';
 export { BConfirmDialog } from './b-confirm-dialog.js';
 export { BDropdownMenu, type DropdownItem } from './b-dropdown-menu.js';
 export { BTooltip } from './b-tooltip.js';
+export { BTour, tour, type TourStep, type TourOptions } from './b-tour.js';
 export { BSplitPanel } from './b-split-panel.js';
 export { BChat, type ChatMessage, type ChatConfig } from './b-chat.js';

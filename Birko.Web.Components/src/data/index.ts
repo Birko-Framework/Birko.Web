@@ -12,6 +12,7 @@ export {
   type CellEditDetail,
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';
+export { BStat } from './b-stat.js';
 export { BTag } from './b-tag.js';
 export { BPre } from './b-pre.js';
 export { BCodeBlock } from './b-code-block.js';
