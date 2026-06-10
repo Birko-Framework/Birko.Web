@@ -1,6 +1,6 @@
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
-import { t as globalT } from 'birko-web-core';
+import { t as globalT, getI18n } from 'birko-web-core';
 import type { TableColumn } from 'birko-web-components/data';
 import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
 import type { BModal } from 'birko-web-components/layout';
@@ -41,6 +41,8 @@ import { BasePage } from './base-page.js';
 export abstract class BaseCrudPage<T extends Record<string, unknown>> extends BasePage {
   protected _editingId: string | null = null;
   protected _tableReady = false;
+  /** Locale the table was last configured/relabelled under (for live i18n switches). */
+  private _tableLocale = '';
   private _needsInitialLoad = false;
 
   // ── Required ──────────────────────────────────────────────────────────────
@@ -482,6 +484,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected onUpdated(): void {
     // Retry table setup if it wasn't ready on mount (e.g. requiredFilterSet was false)
     if (!this._tableReady) this._setupTable();
+    else this._relabelTableIfLocaleChanged();
     this._applyFilterDefs();
     this._wireCrudEvents();
     this._wireFilterRow();
@@ -516,6 +519,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     this._tableReady = true;
     this._needsInitialLoad = true;
+    this._tableLocale = getI18n().locale;
     const rowActions = this._getRowActions();
 
     table.setConfig({
@@ -526,6 +530,28 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       flatArray: this.flatArray,
       rowActions: rowActions.length ? rowActions : undefined,
       idField: this.idField,
+      paginationLabels: this._getPaginationLabels(),
+    });
+  }
+
+  /**
+   * Re-localize the table after a language switch. The page itself re-renders on
+   * a locale change (global i18n broadcast soft-updates document-rooted
+   * components), but the table config is pushed only once in `_setupTable()`, so
+   * its columns/row-actions/pagination labels would otherwise stay in the old
+   * language. `relabel()` refreshes them in place — no data refetch, no loss of
+   * filters or selection.
+   */
+  protected _relabelTableIfLocaleChanged(): void {
+    const locale = getI18n().locale;
+    if (locale === this._tableLocale) return;
+    this._tableLocale = locale;
+    const table = this.$<BDataTable>('#table');
+    if (!table) return;
+    const rowActions = this._getRowActions();
+    table.relabel({
+      columns: this.columns,
+      rowActions: rowActions.length ? rowActions : undefined,
       paginationLabels: this._getPaginationLabels(),
     });
   }
