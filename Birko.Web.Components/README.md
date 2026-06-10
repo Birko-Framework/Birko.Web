@@ -1184,8 +1184,28 @@ The base/light tokens (`:root`) ship in `css/tokens.css` (required). **Each alte
 | `css/themes/dark.css` | `dark` | Dark |
 | `css/themes/neon.css` | `neon` | Dark navy + neon green/cyan accents |
 | `css/themes/finstat.css` | `finstat` | Finstat brand — green primary, warm-grey surfaces, Roboto, flat/square corners (extracted from the Finstat app's LESS tokens) |
+| `css/themes/inverse.css` | `inverse` | **Partial accent** — flips only surfaces/text/borders to dark charcoal; brand color **inherits** from the page theme. For scoped dark chrome (Finstat-style dark top menu + footer), not a global theme |
 
 Link/bundle `tokens.css` plus only the theme files you use, then register the matching switcher entries in your shell bootstrap (`registerThemes([BUILTIN_THEMES.dark, …])` — see `Birko.Web.Shell`). A theme activates via the `data-theme` attribute on `<html>`; the shell restores any saved value from the `{storagePrefix}-theme` localStorage key. To author a project-private theme, add a `[data-theme="my-brand"]` block in your app's own CSS and `registerTheme({ id: 'my-brand', label: '…' })` — no framework change needed.
+
+### Scoped accents (dark menu/footer, alternate component colors)
+
+Themes are plain `[data-theme]` attribute selectors and `--b-*` custom properties **inherit across the Shadow DOM boundary**, so you can theme a *region* or a *single component* — not just the whole app. Two patterns:
+
+1. **`data-theme` on a light-DOM element/host** — works for elements the global stylesheet can match (page chrome, or a component placed in light DOM):
+   ```html
+   <header data-theme="inverse"> … </header>   <!-- dark top bar, brand accent kept -->
+   <b-card data-theme="inverse"> … </b-card>
+   ```
+2. **Per-instance token overrides (inline)** — `--b-*` set inline always inherit, regardless of nesting. Best for accenting one part of a component:
+   ```html
+   <!-- dark card header only; body stays light -->
+   <b-card style="--b-card-header-bg:#434040; --b-card-header-text:#fff" header="Reports"> … </b-card>
+   <!-- dark table header band (works on b-table AND b-data-table — it wraps a b-table) -->
+   <b-table style="--b-table-header-bg:#434040; --b-table-header-text:#fff; --b-table-header-text-hover:#fff"></b-table>
+   ```
+
+For shell chrome (ribbon/header/footer) the shell renders for you, use the `headerAccent` / `ribbonAccent` / `footerAccent` hooks — see `Birko.Web.Shell`.
 
 **Key tokens:**
 
@@ -1201,6 +1221,7 @@ Link/bundle `tokens.css` plus only the theme files you use, then register the ma
 | Radius | `--b-radius-sm` (4px) → `--b-radius-xl` (16px), `--b-radius-full` (9999px) |
 | Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font` (body), `--b-font-heading` (titles — card/modal/drawer headers; defaults to `--b-font`), `--b-font-weight-medium/bold` |
 | Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows) |
+| Card | `--b-card-header-bg`, `--b-card-header-text` (override per instance for an accent header band) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
 | Z-index | `--b-z-sticky` (200), `--b-z-dropdown` (220 — overlays sticky bars), `--b-z-modal` (400), `--b-z-toast` (500) |
 

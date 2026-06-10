@@ -1,0 +1,43 @@
+/* ── Inverse accent ────────────────────────────────────────────────────────────
+   PARTIAL theme: flips only surfaces / text / borders / overlays / shadows /
+   tooltip to a dark charcoal, and leaves brand colors (primary, success,
+   danger, …), radius, and fonts to INHERIT from the active page theme. Use it
+   for dark chrome on a light page — Finstat-style dark top menu + footer —
+   where the brand accent must stay on-brand.
+
+   Because it's partial, it's meant to be applied SCOPED, not globally:
+     - on a light-DOM region wrapper:  <header data-theme="inverse"> … </header>
+     - on a single component host:      <b-card data-theme="inverse"> … </b-card>
+     - per shell region via the headerAccent / ribbonAccent / footerAccent hooks
+   (Custom properties cross the Shadow DOM boundary, so the nested components
+   inherit these surface tokens while keeping the page theme's brand color.) ── */
+[data-theme="inverse"] {
+  --b-bg: #2b2929;
+  --b-bg-secondary: #434040;
+  --b-bg-tertiary: #4c4949;
+  --b-bg-elevated: #434040;
+
+  --b-text: #ffffff;
+  --b-text-secondary: #d5d0d0;
+  --b-text-muted: #b0abab;
+
+  --b-border: #5a5656;
+  --b-border-hover: #736f6f;
+
+  --b-tooltip-bg: #1a1818;
+  --b-tooltip-text: #ffffff;
+  --b-tooltip-border: #4c4949;
+
+  --b-overlay-subtle: rgba(255, 255, 255, 0.04);
+  --b-overlay-light: rgba(255, 255, 255, 0.06);
+  --b-overlay-medium: rgba(255, 255, 255, 0.12);
+
+  --b-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --b-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --b-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --b-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  /* primary / secondary / success / warning / danger / info, radius, fonts,
+     --b-text-inverse and --b-input-thumb-bg are intentionally NOT set — they
+     inherit from the page theme so accents stay on-brand inside the dark area. */
+}

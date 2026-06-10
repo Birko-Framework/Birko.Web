@@ -39,10 +39,14 @@
   --b-bg-elevated: #ffffff;
 
   /* ── Data table / hoverable rows ── */
-  --b-table-header-bg: var(--b-bg);          /* <th> band */
+  --b-table-header-bg: var(--b-bg);          /* <th> band (b-table + b-data-table) */
   --b-table-header-text: var(--b-text-secondary);
   --b-table-header-text-hover: var(--b-text); /* sortable <th> on hover */
   --b-row-hover-bg: var(--b-bg-tertiary);    /* hoverable table rows / list items */
+
+  /* ── Card header band (override per instance for an accent header) ── */
+  --b-card-header-bg: transparent;
+  --b-card-header-text: var(--b-text);
 
   /* ── Tooltip ── */
   --b-tooltip-bg: #1e293b;
