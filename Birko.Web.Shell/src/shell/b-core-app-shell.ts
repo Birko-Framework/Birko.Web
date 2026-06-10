@@ -1,6 +1,7 @@
 import { BaseComponent } from 'birko-web-core';
 import type { BDropdownMenu } from 'birko-web-components';
 import type { MenuItem, ShellRoutes, BreadcrumbItem, ThemeOption } from './shell-types.js';
+import { getRegisteredThemes } from './theme-registry.js';
 
 /**
  * Core abstract app shell providing shared infrastructure for all Birko.Web shells.
@@ -61,16 +62,17 @@ export abstract class BCoreAppShell extends BaseComponent {
   protected get themeMenuLabel(): string { return 'Theme'; }
 
   /**
-   * Selectable themes for the switcher. Each `id` maps to a `[data-theme="id"]`
-   * block in `tokens.css` (`'light'` = default `:root`). Override to add/remove
-   * themes or localize labels.
+   * Selectable themes for the switcher. Defaults to whatever the app registered
+   * via `registerThemes()` (from `birko-web-shell`) — only `'light'` (the base
+   * `:root`) is present until the app opts in. Each non-light `id` must have a
+   * matching `[data-theme="id"]` block linked/bundled (the per-theme files live
+   * in `birko-web-components/css/themes/`).
+   *
+   * Override only if you want a hard-coded list instead of the registry, or to
+   * localize labels. The switcher auto-hides when fewer than 2 themes exist.
    */
   protected getAvailableThemes(): ThemeOption[] {
-    return [
-      { id: 'light', label: 'Light', icon: '&#9728;' },  // ☀
-      { id: 'dark',  label: 'Dark',  icon: '&#9790;' },  // ☾
-      { id: 'neon',  label: 'Neon',  icon: '&#9889;' },  // ⚡
-    ];
+    return getRegisteredThemes();
   }
 
   /** The currently applied theme id. */
@@ -149,9 +151,13 @@ export abstract class BCoreAppShell extends BaseComponent {
    */
   protected renderHeaderActions(): string { return ''; }
 
-  /** Render the theme switcher dropdown. Returns '' when `showThemeSwitcher` is false. */
+  /**
+   * Render the theme switcher dropdown. Returns '' when `showThemeSwitcher` is
+   * false or fewer than 2 themes are registered (a single-theme app has nothing
+   * to switch between).
+   */
   protected renderThemeDropdown(): string {
-    if (!this.showThemeSwitcher) return '';
+    if (!this.showThemeSwitcher || this.getAvailableThemes().length < 2) return '';
     return `
       <b-dropdown-menu id="theme-dropdown" align="right">
         <button class="theme-trigger" slot="trigger" aria-label="${this.themeMenuLabel}">

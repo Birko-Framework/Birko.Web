@@ -59,6 +59,38 @@ Per-page overrides remain possible — override `t(key)` in your shell or page c
 
 ---
 
+## Themes
+
+Themes are **opt-in per app**. The base/light tokens live in `birko-web-components/css/tokens.css`; every alternate theme is a separate CSS file under `birko-web-components/css/themes/`. A project pulls in only the themes it wants, in two coordinated steps:
+
+**1. Link/bundle the theme CSS** (only what you use):
+```html
+<link rel="stylesheet" href=".../birko-web-components/css/tokens.css" />     <!-- required -->
+<link rel="stylesheet" href=".../birko-web-components/css/themes/dark.css" />
+<link rel="stylesheet" href=".../birko-web-components/css/themes/finstat.css" />
+```
+
+**2. Register the matching switcher entries** in your app bootstrap:
+```typescript
+import { registerThemes, BUILTIN_THEMES } from 'birko-web-shell';
+
+registerThemes([BUILTIN_THEMES.dark, BUILTIN_THEMES.finstat]);
+```
+
+`getAvailableThemes()` on the shell returns the registry by default, so the header switcher lists exactly what you registered. `'light'` (the `:root` base) is always present; the switcher **auto-hides** when fewer than 2 themes are registered. No need to override `getAvailableThemes()` unless you want a hard-coded list or localized labels.
+
+**Registry API** (`birko-web-shell`):
+- `BUILTIN_THEMES` — ready-made `{ id, label, icon }` for `light` / `dark` / `neon` / `finstat` (metadata only; the CSS is still opt-in)
+- `registerTheme(opt)` / `registerThemes(opts)` — add/replace switcher entries
+- `unregisterTheme(id)` — remove one (`'light'` is kept)
+- `getRegisteredThemes()` — current list (`light` first)
+
+**Project-private theme:** add a `[data-theme="my-brand"]` block in your app's own CSS and `registerTheme({ id: 'my-brand', label: 'My Brand', icon: '…' })` — no framework change.
+
+> **Migration (pre-2026-06-10):** the switcher used to hard-code `light`/`dark`/`neon`/`finstat`. It now shows only registered themes. Add a one-line `registerThemes([...])` in bootstrap (and link the theme CSS) to restore the entries you want.
+
+---
+
 ## Quick start
 
 ### 1. Set up build aliases
