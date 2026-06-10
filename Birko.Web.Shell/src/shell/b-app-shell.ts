@@ -196,7 +196,7 @@ export abstract class BAppShell extends BSidebarAppShell {
     const showBell = previewTag !== null || drawerTag !== null;
 
     return `
-      <b-ribbon id="ribbon">
+      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}>
         <div slot="before-tabs" class="app-brand">
           ${this.renderBrand()}
         </div>
@@ -231,7 +231,7 @@ export abstract class BAppShell extends BSidebarAppShell {
       ${this.showCommandPalette ? `<b-command-palette></b-command-palette>` : ''}
 
       ${this.showStatusBar ? `
-        <footer class="app-status-bar">
+        <footer class="app-status-bar"${this.accentAttr(this.footerAccent)}>
           <div class="tenant-switcher-wrap" id="tenant-wrap" hidden>
             <b-dropdown-menu id="tenant-switcher" align="left" position="top">
               <button class="tenant-trigger" slot="trigger">

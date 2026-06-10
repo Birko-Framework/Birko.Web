@@ -87,6 +87,21 @@ registerThemes([BUILTIN_THEMES.dark, BUILTIN_THEMES.finstat]);
 
 **Project-private theme:** add a `[data-theme="my-brand"]` block in your app's own CSS and `registerTheme({ id: 'my-brand', label: 'My Brand', icon: '…' })` — no framework change.
 
+### Region accents (dark top bar / footer)
+
+To give a *region* of the shell a different look from the page (e.g. Finstat's dark top menu + footer on a light page) without switching the whole theme, override the per-region accent hooks. The shell applies the accent as inline custom properties on that region only, so the rest of the app keeps the active theme:
+
+```typescript
+class FinstatShell extends BAppShell {
+  protected get ribbonAccent() { return 'inverse'; }  // dark ribbon, brand accent kept
+  protected get footerAccent() { return 'inverse'; }
+}
+// BCoreAppShell / BSidebarAppShell use headerAccent for their header bar.
+```
+
+- **`headerAccent`** → core/sidebar header bar · **`ribbonAccent`** → ribbon · **`footerAccent`** → status bar/footer. Default `''` (no accent).
+- Built-in accent `'inverse'` = dark charcoal chrome that **keeps the brand color** (mirrors `birko-web-components/css/themes/inverse.css`). You can also return a raw `--b-x:…;` custom-property string for an ad-hoc accent.
+
 > **Migration (pre-2026-06-10):** the switcher used to hard-code `light`/`dark`/`neon`/`finstat`. It now shows only registered themes. Add a one-line `registerThemes([...])` in bootstrap (and link the theme CSS) to restore the entries you want.
 
 ---

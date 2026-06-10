@@ -27,6 +27,7 @@ export const BUILTIN_THEMES = {
   dark:    { id: 'dark',    label: 'Dark',    icon: '&#9790;' },  // ☾
   neon:    { id: 'neon',    label: 'Neon',    icon: '&#9889;' },  // ⚡
   finstat: { id: 'finstat', label: 'Finstat', icon: '&#9670;' },  // ◆
+  inverse: { id: 'inverse', label: 'Inverse', icon: '&#9680;' },  // ◐ (partial — mainly for scoped/region accents, not the global switcher)
 } satisfies Record<string, ThemeOption>;
 
 const _registry = new Map<string, ThemeOption>([['light', BUILTIN_THEMES.light]]);

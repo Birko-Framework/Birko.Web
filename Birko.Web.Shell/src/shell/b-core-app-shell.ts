@@ -4,6 +4,23 @@ import type { MenuItem, ShellRoutes, BreadcrumbItem, ThemeOption } from './shell
 import { getRegisteredThemes } from './theme-registry.js';
 
 /**
+ * Built-in shell-region accents. A region (header / ribbon / footer) opts into
+ * one of these via the headerAccent / ribbonAccent / footerAccent hooks; the
+ * shell applies it as inline custom properties on that region element only, so
+ * the rest of the app keeps the active page theme. `inverse` mirrors
+ * birko-web-components/css/themes/inverse.css — dark chrome that keeps the brand
+ * accent (Finstat-style dark top menu + footer). Consumers can also return a raw
+ * `--b-x:…;` custom-property string for an ad-hoc accent.
+ */
+const SHELL_ACCENTS: Record<string, string> = {
+  inverse:
+    '--b-bg:#2b2929;--b-bg-secondary:#434040;--b-bg-tertiary:#4c4949;--b-bg-elevated:#434040;' +
+    '--b-text:#ffffff;--b-text-secondary:#d5d0d0;--b-text-muted:#b0abab;' +
+    '--b-border:#5a5656;--b-border-hover:#736f6f;' +
+    '--b-overlay-subtle:rgba(255,255,255,.04);--b-overlay-light:rgba(255,255,255,.06);--b-overlay-medium:rgba(255,255,255,.12)',
+};
+
+/**
  * Core abstract app shell providing shared infrastructure for all Birko.Web shells.
  *
  * Responsibilities:
@@ -57,6 +74,26 @@ export abstract class BCoreAppShell extends BaseComponent {
 
   /** Show the theme switcher in the header (default: true). */
   protected get showThemeSwitcher(): boolean { return true; }
+
+  /**
+   * Per-region accent (default: none). Return a built-in shell accent key
+   * (currently `'inverse'` — dark chrome that keeps the brand color) or a raw
+   * `--b-x:…;` custom-property string. Applied as inline custom properties on
+   * that region only, so the rest of the app keeps the active theme:
+   *   headerAccent → core/sidebar header bar (BCoreAppShell.renderHeader)
+   *   ribbonAccent → ribbon bar              (BAppShell)
+   *   footerAccent → status bar / footer     (BAppShell)
+   */
+  protected get headerAccent(): string { return ''; }
+  protected get ribbonAccent(): string { return ''; }
+  protected get footerAccent(): string { return ''; }
+
+  /** Resolve a region accent to an inline `style="…"` attribute (or ''). */
+  protected accentAttr(accent: string): string {
+    if (!accent) return '';
+    const css = SHELL_ACCENTS[accent] ?? (accent.includes(':') ? accent : '');
+    return css ? ` style="${css}"` : '';
+  }
 
   /** Accessible label for the theme switcher trigger. Override to localize. */
   protected get themeMenuLabel(): string { return 'Theme'; }
@@ -244,7 +281,7 @@ export abstract class BCoreAppShell extends BaseComponent {
   /** Default header: brand + spacer + user dropdown. Override or use helpers directly. */
   protected renderHeader(): string {
     return `
-      <header class="app-header">
+      <header class="app-header"${this.accentAttr(this.headerAccent)}>
         <div class="app-brand">${this.renderBrand()}</div>
         <div class="app-header-spacer"></div>
         <div class="app-actions">${this.renderHeaderActions()}${this.renderThemeDropdown()}${this.renderUserDropdown()}</div>
