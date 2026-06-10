@@ -128,10 +128,11 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     const canEdit   = this.editEnabled   && (!this.editPermission   || this.hasPermission(this.editPermission));
     const canDelete = this.deleteEnabled && (!this.deletePermission || this.hasPermission(this.deletePermission));
 
+    // Order: edit first, page-specific actions next, destructive delete always last.
     const actions: RowAction[] = [];
     if (canEdit)   actions.push({ id: 'edit',   label: this.t('bws.common.edit') });
-    if (canDelete) actions.push({ id: 'delete', label: this.t('bws.common.delete'), variant: 'danger' });
     actions.push(...this.extraRowActions);
+    if (canDelete) actions.push({ id: 'delete', label: this.t('bws.common.delete'), variant: 'danger' });
     return actions;
   }
 
