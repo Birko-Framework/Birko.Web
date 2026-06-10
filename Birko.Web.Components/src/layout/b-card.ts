@@ -14,6 +14,7 @@ export class BCard extends BaseComponent {
       .card-header {
         padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
         border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+        font-family: var(--b-font-heading, var(--b-font));
         font-weight: var(--b-font-weight-semibold, 600); font-size: var(--b-text-lg, 1rem);
         display: flex; align-items: center; justify-content: space-between;
         flex-shrink: 0;

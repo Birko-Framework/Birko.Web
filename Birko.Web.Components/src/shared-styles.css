@@ -85,6 +85,7 @@ dialog:not([open]) {
   justify-content: space-between;
   padding: var(--b-space-lg, 1rem) var(--b-space-xl, 1.5rem);
   border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+  font-family: var(--b-font-heading, var(--b-font));
   font-weight: var(--b-font-weight-semibold, 600);
   font-size: var(--b-text-lg, 1rem);
   flex-shrink: 0;

@@ -5,8 +5,12 @@ Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core
 ## Install
 
 ```html
-<!-- Design tokens (required) -->
+<!-- Design tokens — base/light, required -->
 <link rel="stylesheet" href="css/tokens.css" />
+
+<!-- Alternate themes — opt in to ONLY the ones you use -->
+<link rel="stylesheet" href="css/themes/dark.css" />
+<link rel="stylesheet" href="css/themes/finstat.css" />
 
 <!-- Optional reset -->
 <link rel="stylesheet" href="css/reset.css" />
@@ -1172,7 +1176,16 @@ Exports: `openCommandPalette()`, `closeCommandPalette()`, `toggleCommandPalette(
 
 ## Design tokens
 
-All `--b-*` properties are defined in `css/tokens.css`. Alternate themes activate via the `data-theme` attribute on `<html>`: `[data-theme="dark"]` (dark) and `[data-theme="neon"]` (dark navy base with neon green/cyan accents). The shell restores any saved value from the `{storagePrefix}-theme` localStorage key, so a `<b-option-group>` writing that key is enough to switch themes at runtime.
+The base/light tokens (`:root`) ship in `css/tokens.css` (required). **Each alternate theme is its own file under `css/themes/` so a project pulls in only the ones it wants** — no unused theme bytes:
+
+| File | `data-theme` | Look |
+|------|-------------|------|
+| `css/tokens.css` | _(none — `:root`)_ | Light / default (always loaded) |
+| `css/themes/dark.css` | `dark` | Dark |
+| `css/themes/neon.css` | `neon` | Dark navy + neon green/cyan accents |
+| `css/themes/finstat.css` | `finstat` | Finstat brand — green primary, warm-grey surfaces, Roboto, flat/square corners (extracted from the Finstat app's LESS tokens) |
+
+Link/bundle `tokens.css` plus only the theme files you use, then register the matching switcher entries in your shell bootstrap (`registerThemes([BUILTIN_THEMES.dark, …])` — see `Birko.Web.Shell`). A theme activates via the `data-theme` attribute on `<html>`; the shell restores any saved value from the `{storagePrefix}-theme` localStorage key. To author a project-private theme, add a `[data-theme="my-brand"]` block in your app's own CSS and `registerTheme({ id: 'my-brand', label: '…' })` — no framework change needed.
 
 **Key tokens:**
 
@@ -1184,7 +1197,8 @@ All `--b-*` properties are defined in `css/tokens.css`. Alternate themes activat
 | Border | `--b-border`, `--b-border-hover`, `--b-border-focus` |
 | Spacing | `--b-space-xs` (4px) → `--b-space-3xl` (48px) |
 | Radius | `--b-radius-sm` (4px) → `--b-radius-xl` (16px), `--b-radius-full` (9999px) |
-| Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font-weight-medium/bold` |
+| Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font` (body), `--b-font-heading` (titles — card/modal/drawer headers; defaults to `--b-font`), `--b-font-weight-medium/bold` |
+| Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
 | Z-index | `--b-z-dropdown` (100), `--b-z-modal` (400), `--b-z-toast` (500) |
 

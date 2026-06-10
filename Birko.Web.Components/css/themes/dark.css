@@ -1,0 +1,40 @@
+/* ── Dark theme ───────────────────────────────────────────────────────────────
+   Opt-in theme. Link AFTER tokens.css (the base/light tokens live in :root there):
+     <link rel="stylesheet" href="css/tokens.css" />
+     <link rel="stylesheet" href="css/themes/dark.css" />
+   Activate with `data-theme="dark"` on <html> (the shell persists this via the
+   `{storagePrefix}-theme` localStorage key). Register it in the switcher with
+   `registerThemes([BUILTIN_THEMES.dark])` from birko-web-shell. ── */
+[data-theme="dark"] {
+  --b-color-primary: #3b82f6;
+  --b-color-primary-hover: #60a5fa;
+  --b-color-primary-light: #1e3a5f;
+  --b-color-danger-hover: #ef4444;
+
+  --b-bg: #0f172a;
+  --b-bg-secondary: #1e293b;
+  --b-bg-tertiary: #334155;
+  --b-bg-elevated: #1e293b;
+
+  --b-tooltip-bg: #0f172a;
+  --b-tooltip-text: #e2e8f0;
+  --b-tooltip-border: #1e293b;
+
+  --b-text: #f1f5f9;
+  --b-text-secondary: #94a3b8;
+  --b-text-muted: #64748b;
+
+  --b-border: #334155;
+  --b-border-hover: #475569;
+
+  --b-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --b-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --b-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --b-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+
+  --b-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  --b-focus-ring-danger: 0 0 0 3px rgba(239, 68, 68, 0.25);
+
+  --b-backdrop-bg: rgba(0, 0, 0, 0.6);
+  --b-backdrop-bg-light: rgba(0, 0, 0, 0.3);
+}

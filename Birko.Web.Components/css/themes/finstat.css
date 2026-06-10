@@ -1,0 +1,81 @@
+/* ── Finstat theme ─────────────────────────────────────────────────────────────
+   Opt-in theme reproducing the Finstat web app's brand look. Extracted from
+   Finstat's LESS design tokens (finstat/DevContent/less/, catalogued in
+   finstat/LESS_TOKENS.md): brand green primary, warm-grey surfaces, Roboto,
+   blue focus, and Finstat's signature flat / square corners (its
+   `@border-radius-*` are all 0). Values are Finstat's own hexes; `-light` tints
+   and darker hover shades are derived (Finstat had no token for those slots).
+
+   Link AFTER tokens.css:
+     <link rel="stylesheet" href="css/tokens.css" />
+     <link rel="stylesheet" href="css/themes/finstat.css" />
+   Activate with `data-theme="finstat"`; register it in the switcher with
+   `registerThemes([BUILTIN_THEMES.finstat])` from birko-web-shell. ── */
+[data-theme="finstat"] {
+  /* Brand green is primary; Finstat hovers *lighter* green (@clr-green-hover),
+     not darker — kept faithful. White text reads on the green active state. */
+  --b-color-primary: #25ba7a;        /* @clr-green */
+  --b-color-primary-hover: #33db93;  /* @clr-green-hover */
+  --b-color-primary-light: #d7f3e6;  /* derived light tint */
+  --b-color-secondary: #736f6f;      /* @clr-bg-gray-light */
+  --b-color-secondary-hover: #4c4949;/* @clr-bg-gray-dark */
+
+  --b-color-success: #25ba7a;        /* @clr-green */
+  --b-color-success-light: #d7f3e6;  /* derived */
+  --b-color-warning: #fab921;        /* @clr-yellow */
+  --b-color-warning-light: #fdf0cf;  /* derived */
+  --b-color-danger: #f26d4f;         /* @clr-red */
+  --b-color-danger-hover: #e05335;   /* derived (darken) */
+  --b-color-danger-light: #fcdfd7;   /* derived */
+  --b-color-info: #54b9e8;           /* @clr-blue */
+  --b-color-info-light: #d7eef9;     /* derived */
+
+  /* Surfaces — white cards on Finstat's warm-grey page background */
+  --b-bg: #ffffff;                   /* @clr-bg-white */
+  --b-bg-secondary: #f3f2f0;         /* @clr-bg-default (page bg) */
+  --b-bg-tertiary: #edeef0;          /* @clr-bg-white-darker */
+  --b-bg-elevated: #ffffff;
+
+  /* Tooltip — Finstat's dark charcoal on white */
+  --b-tooltip-bg: #434040;           /* @clr-dark */
+  --b-tooltip-text: #ffffff;
+  --b-tooltip-border: #4c4949;       /* @clr-bg-gray-dark */
+
+  --b-text: #434040;                 /* @clr-text-dark */
+  --b-text-secondary: #807a7a;       /* @clr-text-dark-dim */
+  --b-text-muted: #b0abab;           /* @clr-text-gray */
+  --b-text-inverse: #ffffff;
+
+  --b-border: #e6e5e5;               /* @clr-gray */
+  --b-border-hover: #cfcccc;         /* derived */
+  --b-border-focus: #54b9e8;         /* @input-border-focus (@clr-bg-blue) */
+
+  /* Finstat is flat / square — @border-radius-base|large|small are all 0px.
+     --b-radius-full kept for circular avatars / switch thumbs. */
+  --b-radius-sm: 0;
+  --b-radius: 0;
+  --b-radius-lg: 0;
+  --b-radius-xl: 0;
+
+  /* @ff-normal for body, @ff-heading ("Roboto Condensed") for titles */
+  --b-font: "Roboto", Arial, Helvetica, sans-serif;
+  --b-font-heading: "Roboto Condensed", "Roboto", Tahoma, Arial, sans-serif;
+
+  /* Finstat's signature dark table-header band + warm-yellow row hover */
+  --b-table-header-bg: #434040;             /* @table-header-bg (@clr-bg-dark) */
+  --b-table-header-text: #ffffff;           /* @table-header-color */
+  --b-table-header-text-hover: #ffffff;
+  --b-row-hover-bg: rgba(253, 222, 129, 0.3); /* @clr-hover */
+
+  /* Shadows — panels are flat in Finstat; depth comes from @box-shadow
+     (0 5px 10px) and the strong dropdown shadow (0 20px 70px -25px). */
+  --b-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
+  --b-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+  --b-shadow-md: 0 5px 10px rgba(0, 0, 0, 0.2);        /* @box-shadow */
+  --b-shadow-lg: 0 5px 15px -5px rgba(0, 0, 0, 0.15);  /* @box-shadow-preset */
+  --b-shadow-xl: 0 20px 70px -25px rgba(0, 0, 0, 0.3); /* @box-shadow-dropdown */
+
+  /* Blue focus glow (Finstat focuses inputs with @clr-bg-blue) */
+  --b-focus-ring: 0 0 0 3px rgba(84, 185, 232, 0.3);
+  --b-focus-ring-danger: 0 0 0 3px rgba(242, 109, 79, 0.25);
+}

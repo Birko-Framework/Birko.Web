@@ -56,14 +56,14 @@ export class BTable extends BaseComponent {
       table { width: 100%; border-collapse: collapse; font-size: var(--b-text-sm, 0.8125rem); }
       th {
         text-align: left; padding: calc(var(--b-space-sm, 0.5rem) + 1px) var(--b-space-md, 0.75rem);
-        font-weight: var(--b-font-weight-semibold, 600); color: var(--b-text-secondary);
+        font-weight: var(--b-font-weight-semibold, 600); color: var(--b-table-header-text, var(--b-text-secondary));
         font-size: var(--b-text-xs, 0.6875rem); text-transform: uppercase; letter-spacing: var(--b-letter-spacing-caps, 0.03125rem);
         border-bottom: 2px solid var(--b-border); white-space: nowrap;
         user-select: none;
-        position: sticky; top: 0; z-index: 1; background: var(--b-bg);
+        position: sticky; top: 0; z-index: 1; background: var(--b-table-header-bg, var(--b-bg));
       }
       th.sortable { cursor: pointer; }
-      th.sortable:hover { color: var(--b-text); }
+      th.sortable:hover { color: var(--b-table-header-text-hover, var(--b-text)); }
       .sort-icon { margin-left: var(--b-space-xs); opacity: var(--b-muted-opacity); }
       th.sorted .sort-icon { opacity: 1; color: var(--b-color-primary); }
       td {
@@ -72,7 +72,7 @@ export class BTable extends BaseComponent {
         vertical-align: middle;
       }
       :host([striped]) tr:nth-child(even):not(.skeleton-row) td { background: var(--b-bg-secondary); }
-      :host([hoverable]) tr:not(.skeleton-row):hover td { background: var(--b-bg-tertiary); }
+      :host([hoverable]) tr:not(.skeleton-row):hover td { background: var(--b-row-hover-bg, var(--b-bg-tertiary)); }
       tr.skeleton-row { cursor: default; }
       tr.skeleton-row td { background: var(--b-bg); }
       tr { cursor: default; transition: background var(--b-transition, 150ms ease); }
