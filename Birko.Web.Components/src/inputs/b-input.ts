@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export class BInput extends BaseComponent {
   static get observedAttributes() {
@@ -46,18 +47,15 @@ export class BInput extends BaseComponent {
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
+          ${fieldAria({ uid: this.uid, error })}
           ${hasSuggestions ? `list="${this._datalistId}" autocomplete="off"` : ''}
         />
         ${hasSuggestions ? `<datalist id="${this._datalistId}">${
-          this._suggestions.map(s => `<option value="${this._escapeAttr(s)}"></option>`).join('')
+          this._suggestions.map(s => `<option value="${escapeAttr(s)}"></option>`).join('')
         }</datalist>` : ''}
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 
   protected onUpdated() {

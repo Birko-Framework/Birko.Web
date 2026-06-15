@@ -52,7 +52,7 @@ export class BPagination extends BaseComponent {
           <b-button variant="ghost" size="sm" class="page-btn-prev" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} aria-label="${lPrev}">&lsaquo;</b-button>
           ${pages.map(p =>
             p === '...'
-              ? '<span class="ellipsis">...</span>'
+              ? '<span class="ellipsis" aria-hidden="true">...</span>'
               : `<b-button variant="${p === page ? 'primary' : 'ghost'}" size="sm" class="page-btn" data-page="${p}" ${p === page ? 'aria-current="page"' : ''} aria-label="${lPage} ${p}">${p}</b-button>`
           ).join('')}
           <b-button variant="ghost" size="sm" class="page-btn-next" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} aria-label="${lNext}">&rsaquo;</b-button>

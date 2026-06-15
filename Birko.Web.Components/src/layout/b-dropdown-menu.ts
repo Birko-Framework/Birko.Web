@@ -105,6 +105,8 @@ export class BDropdownMenu extends BaseComponent {
       triggerEl?.setAttribute('aria-expanded', String(open));
       triggerEl?.setAttribute('aria-haspopup', 'menu');
     };
+    // Expose the menu-button semantics immediately, not only after first open.
+    setExpanded(menu.matches(':popover-open'));
 
     // Trigger click toggles popover
     const trigger = this.$('.trigger');

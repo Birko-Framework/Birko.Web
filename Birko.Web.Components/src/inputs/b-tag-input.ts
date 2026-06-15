@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export class BTagInput extends BaseComponent {
   static get observedAttributes() {
@@ -109,8 +110,8 @@ export class BTagInput extends BaseComponent {
 
     const chips = this._tags.map((t, i) => `
       <span class="chip">
-        <span class="chip-text">${this._escapeHtml(t)}</span>
-        <button class="chip-remove" data-index="${i}" type="button" aria-label="Remove ${this._escapeAttr(t)}" ${disabled ? 'disabled' : ''}>&times;</button>
+        <span class="chip-text">${escapeHtml(t)}</span>
+        <button class="chip-remove" data-index="${i}" type="button" aria-label="Remove ${escapeAttr(t)}" ${disabled ? 'disabled' : ''}>&times;</button>
       </span>
     `).join('');
 
@@ -120,11 +121,12 @@ export class BTagInput extends BaseComponent {
         <div class="container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           ${chips}
           <input type="text"
-                 placeholder="${this._escapeAttr(placeholder)}"
+                 placeholder="${escapeAttr(placeholder)}"
                  ${disabled ? 'disabled' : ''}
-                 value="${this._escapeAttr(this._buffer)}" />
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 value="${escapeAttr(this._buffer)}" />
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }
@@ -304,14 +306,6 @@ export class BTagInput extends BaseComponent {
     if (!raw) return /[,\n\t]/;
     const chars = raw.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
     return new RegExp(`[${chars}]`);
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

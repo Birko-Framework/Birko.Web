@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export type MarkdownRenderer = (markdown: string) => string;
 
@@ -251,24 +252,25 @@ export class BMarkdownEditor extends BaseComponent {
               <button class="toolbar-btn" data-action="hr" title="Horizontal rule" aria-label="Horizontal rule" type="button">&mdash;</button>
             </div>
             <div class="mode-toggle">
-              <button class="mode-btn ${modeSplit ? 'active' : ''}" data-mode="split" type="button">${this._escapeHtml(lSplit)}</button>
-              <button class="mode-btn ${modeSource ? 'active' : ''}" data-mode="source" type="button">${this._escapeHtml(lSource)}</button>
-              <button class="mode-btn ${modePreview ? 'active' : ''}" data-mode="preview" type="button">${this._escapeHtml(lPreview)}</button>
+              <button class="mode-btn ${modeSplit ? 'active' : ''}" data-mode="split" type="button">${escapeHtml(lSplit)}</button>
+              <button class="mode-btn ${modeSource ? 'active' : ''}" data-mode="source" type="button">${escapeHtml(lSource)}</button>
+              <button class="mode-btn ${modePreview ? 'active' : ''}" data-mode="preview" type="button">${escapeHtml(lPreview)}</button>
             </div>
           </div>
           <div class="editor-split">
             <textarea class="source"
-                      placeholder="${this._escapeAttr(placeholder)}"
+                      placeholder="${escapeAttr(placeholder)}"
                       rows="${rows}"
                       ${disabled ? 'disabled' : ''}
                       ${readonly ? 'readonly' : ''}
-            >${this._escapeHtml(this._source)}</textarea>
+                      ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+            >${escapeHtml(this._source)}</textarea>
             <div class="preview">
               <div class="preview-content">${rendered}</div>
             </div>
           </div>
         </div>
-        ${error ? `<span class="error">${this._escapeHtml(error)}</span>` : ''}
+        ${renderError(this.uid, error ? escapeHtml(error) : error)}
       </div>
     `;
   }
@@ -673,14 +675,6 @@ export class BMarkdownEditor extends BaseComponent {
     text = text.trim();
 
     return text;
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

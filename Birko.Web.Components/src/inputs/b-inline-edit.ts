@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { isActivationKey } from '../dom-utils';
 
 export class BInlineEdit extends BaseComponent {
   static get observedAttributes() { return ['value', 'placeholder', 'type', 'label-save', 'label-cancel']; }
@@ -69,9 +70,9 @@ export class BInlineEdit extends BaseComponent {
     }
 
     return `
-      <span class="display">
+      <span class="display" role="button" tabindex="0">
         ${value ? `<span>${value}</span>` : `<span class="placeholder">${placeholder}</span>`}
-        <span class="pencil">&#9998;</span>
+        <span class="pencil" aria-hidden="true">&#9998;</span>
       </span>
     `;
   }
@@ -98,7 +99,14 @@ export class BInlineEdit extends BaseComponent {
       if (cancelBtn) this.listen(cancelBtn, 'click', () => this._cancel());
     } else {
       const display = this.$('.display');
-      if (display) this.listen(display, 'click', () => this._startEdit());
+      if (display) {
+        this.listen(display, 'click', () => this._startEdit());
+        this.listen<KeyboardEvent>(display, 'keydown', (e) => {
+          if (!isActivationKey(e)) return;
+          e.preventDefault();
+          this._startEdit();
+        });
+      }
     }
   }
 

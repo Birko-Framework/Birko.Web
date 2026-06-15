@@ -368,7 +368,7 @@ export class BRibbon extends BaseComponent {
               const divider = tab.category && prevCat && tab.category !== prevCat
                 ? '<span class="ribbon-tab-divider" aria-hidden="true"></span>' : '';
               return `${divider}<button class="ribbon-tab" role="tab"
-                aria-selected="${isActive}" aria-controls="ribbon-panel-${tab.id}"
+                aria-selected="${isActive}" ${tabsOnly ? '' : 'aria-controls="ribbon-panel"'}
                 id="ribbon-tab-${tab.id}" tabindex="${isActive ? '0' : '-1'}"
                 data-tab="${tab.id}" ${disabled}>
                 ${icon}<span class="ribbon-tab-label">${tab.label}</span>${badge}
@@ -396,19 +396,20 @@ export class BRibbon extends BaseComponent {
 
         ${tabsOnly ? '' : this._renderPanel(active, activeTab)}
 
-        <dialog class="mobile-dialog" id="mobile-dialog">
+        <dialog class="mobile-dialog" id="mobile-dialog" aria-labelledby="mobile-dialog-title">
           <div class="mobile-dialog-header">
-            <span>${this.label('label-navigation', 'bwc.ribbon.navigation', 'Navigation')}</span>
+            <span id="mobile-dialog-title">${this.label('label-navigation', 'bwc.ribbon.navigation', 'Navigation')}</span>
             <button class="mobile-dialog-close" id="mobile-dialog-close" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&#10005;</button>
           </div>
           <div class="mobile-dialog-body">
             ${this._tabs.map(tab => `
               <div class="mobile-tab-section">
-                <button class="mobile-tab-header ${tab.id === active ? 'active' : ''}" data-mobile-tab="${tab.id}">
+                <button class="mobile-tab-header ${tab.id === active ? 'active' : ''}" data-mobile-tab="${tab.id}"
+                  aria-expanded="${tab.id === active}" aria-controls="mobile-group-${tab.id}">
                   ${tab.icon ? `<span aria-hidden="true">${tab.icon}</span>` : ''}
                   ${tab.label}
                 </button>
-                <div class="mobile-group" data-mobile-group="${tab.id}" ${tab.id !== active ? 'hidden' : ''}>
+                <div class="mobile-group" id="mobile-group-${tab.id}" data-mobile-group="${tab.id}" ${tab.id !== active ? 'hidden' : ''}>
                   ${tab.groups.map(group => `
                     <div class="mobile-group-label">${group.label}</div>
                     ${group.items.map(item => {
@@ -433,7 +434,7 @@ export class BRibbon extends BaseComponent {
   private _renderPanel(active: string, activeTab: RibbonTab | undefined): string {
     const labelledBy = activeTab ? ` aria-labelledby="ribbon-tab-${active}"` : '';
     return `
-      <div class="ribbon-panel" role="tabpanel" id="ribbon-panel-${active}"${labelledBy}>
+      <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
         <div class="ribbon-panel-inner">
           ${activeTab ? this._renderPanelInner(activeTab) : '<slot name="empty"></slot>'}
         </div>
@@ -644,7 +645,9 @@ export class BRibbon extends BaseComponent {
           g.hidden = g.dataset.mobileGroup !== tabId;
         });
         this.$$<HTMLElement>('.mobile-tab-header').forEach(h => {
-          h.classList.toggle('active', h.dataset.mobileTab === tabId);
+          const isSel = h.dataset.mobileTab === tabId;
+          h.classList.toggle('active', isSel);
+          h.setAttribute('aria-expanded', String(isSel));
         });
       });
     });

@@ -1,9 +1,10 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { spinSheet } from '../shared-styles';
+import { escapeAttr } from '../dom-utils';
 
 export class BButton extends BaseComponent {
   static get observedAttributes() {
-    return ['variant', 'size', 'disabled', 'loading'];
+    return ['variant', 'size', 'disabled', 'loading', 'aria-label', 'aria-current', 'title'];
   }
 
   static get sharedStyles() {
@@ -53,9 +54,19 @@ export class BButton extends BaseComponent {
     const variant = this.attr('variant', 'primary');
     const loading = this.boolAttr('loading');
     const disabled = this.boolAttr('disabled') || loading;
+    // Forward naming attributes to the real focusable <button> in the shadow root —
+    // set on the host they would never reach the control AT actually sees.
+    const ariaLabel = this.getAttribute('aria-label');
+    const ariaCurrent = this.getAttribute('aria-current');
+    const title = this.getAttribute('title');
+    const fwd = [
+      ariaLabel !== null ? `aria-label="${escapeAttr(ariaLabel)}"` : '',
+      ariaCurrent !== null ? `aria-current="${escapeAttr(ariaCurrent)}"` : '',
+      title !== null ? `title="${escapeAttr(title)}"` : '',
+    ].filter(Boolean).join(' ');
     return `
-      <button class="${variant}${loading ? ' loading' : ''}" ${disabled ? 'disabled' : ''}>
-        ${loading ? '<span class="spinner"></span>' : ''}
+      <button class="${variant}${loading ? ' loading' : ''}" ${disabled ? 'disabled' : ''} ${loading ? 'aria-busy="true"' : ''} ${fwd}>
+        ${loading ? '<span class="spinner" aria-hidden="true"></span>' : ''}
         <slot></slot>
       </button>
     `;

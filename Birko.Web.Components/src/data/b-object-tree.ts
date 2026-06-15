@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import {
   dataViewerCardSheet,
   dataViewerHeaderSheet,
@@ -120,7 +121,7 @@ export class BObjectTree extends BaseComponent {
       ? `<div class="empty"><slot></slot></div>`
       : this._renderNode(this._data, '', undefined, 0);
     if (!showHeader) {
-      return `<div class="body"${bodyStyle}>${body}</div>`;
+      return `<div class="body" role="tree"${bodyStyle}>${body}</div>`;
     }
     const cardClass = this.attr('sticky-header') === 'page'
       ? 'data-viewer-card sticky-page'
@@ -128,7 +129,7 @@ export class BObjectTree extends BaseComponent {
     return `
       <div class="${cardClass}">
         ${this._renderHeader()}
-        <div class="body"${bodyStyle}>${body}</div>
+        <div class="body" role="tree"${bodyStyle}>${body}</div>
       </div>
     `;
   }
@@ -137,7 +138,7 @@ export class BObjectTree extends BaseComponent {
     const maxHeight = this.attr('max-height');
     const sticky = this.attr('sticky-header');
     if (!maxHeight || sticky === 'page') return '';
-    return ` style="max-height:${this._escapeAttr(maxHeight)}"`;
+    return ` style="max-height:${escapeAttr(maxHeight)}"`;
   }
 
   private _renderHeader(): string {
@@ -145,15 +146,15 @@ export class BObjectTree extends BaseComponent {
     const showCopy = !this.boolAttr('no-copy');
     const showExpandActions = !this.boolAttr('no-expand-actions');
     const expandActions = showExpandActions
-      ? `<button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
-         <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>`
+      ? `<button class="toolbar-btn expand-all" type="button">${escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
+         <button class="toolbar-btn collapse-all" type="button">${escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>`
       : '';
     const copyBtn = showCopy
-      ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>`
+      ? `<button class="toolbar-btn copy-btn" type="button">${escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>`
       : '';
     return `
       <header class="data-viewer-header">
-        <span class="title">${this._escapeHtml(title)}</span>
+        <span class="title">${escapeHtml(title)}</span>
         <div class="actions">${expandActions}${copyBtn}</div>
       </header>
     `;
@@ -242,9 +243,9 @@ export class BObjectTree extends BaseComponent {
 
     if (!isContainer) {
       return `
-        <div class="node">
+        <div class="node" role="treeitem">
           <div class="row">
-            <span class="toggle ${toggleClass}" data-path="${this._escapeAttr(path)}">${toggleChar}</span>
+            <span class="toggle ${toggleClass}" data-path="${escapeAttr(path)}" aria-hidden="true">${toggleChar}</span>
             ${keyHtml}${this._renderPrimitive(value as Primitive)}
           </div>
         </div>
@@ -255,12 +256,12 @@ export class BObjectTree extends BaseComponent {
     const children = isOpen ? this._renderChildren(value, path, depth + 1) : '';
 
     return `
-      <div class="node">
+      <div class="node" role="treeitem" aria-expanded="${isOpen}">
         <div class="row">
-          <span class="toggle" data-path="${this._escapeAttr(path)}">${toggleChar}</span>
+          <span class="toggle" data-path="${escapeAttr(path)}" aria-hidden="true">${toggleChar}</span>
           ${keyHtml}<span class="meta">${summary}</span>
         </div>
-        ${isOpen ? `<div class="children">${children}</div>` : ''}
+        ${isOpen ? `<div class="children" role="group">${children}</div>` : ''}
       </div>
     `;
   }
@@ -280,7 +281,7 @@ export class BObjectTree extends BaseComponent {
     if (typeof key === 'number') {
       return `<span class="index">${key}</span><span class="colon">:</span>`;
     }
-    return `<span class="key">${this._escapeHtml(key)}</span><span class="colon">:</span>`;
+    return `<span class="key">${escapeHtml(key)}</span><span class="colon">:</span>`;
   }
 
   private _renderPrimitive(v: Primitive): string {
@@ -288,11 +289,11 @@ export class BObjectTree extends BaseComponent {
     if (v === null) return `<span class="val-null">null</span>${showTypes ? '<span class="type-tag">null</span>' : ''}`;
     if (v === undefined) return `<span class="val-undefined">undefined</span>${showTypes ? '<span class="type-tag">undefined</span>' : ''}`;
     const t = typeof v;
-    if (t === 'string') return `<span class="val-string">"${this._escapeHtml(String(v))}"</span>${showTypes ? '<span class="type-tag">string</span>' : ''}`;
+    if (t === 'string') return `<span class="val-string">"${escapeHtml(String(v))}"</span>${showTypes ? '<span class="type-tag">string</span>' : ''}`;
     if (t === 'number') return `<span class="val-number">${v}</span>${showTypes ? '<span class="type-tag">number</span>' : ''}`;
     if (t === 'boolean') return `<span class="val-boolean">${v}</span>${showTypes ? '<span class="type-tag">boolean</span>' : ''}`;
     if (t === 'bigint') return `<span class="val-bigint">${v}n</span>${showTypes ? '<span class="type-tag">bigint</span>' : ''}`;
-    return `<span class="val-string">${this._escapeHtml(String(v))}</span>`;
+    return `<span class="val-string">${escapeHtml(String(v))}</span>`;
   }
 
   private _renderSummary(value: unknown): string {
@@ -308,14 +309,6 @@ export class BObjectTree extends BaseComponent {
     if (typeof v !== 'object') return false;
     if (v instanceof Date) return false;
     return true;
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

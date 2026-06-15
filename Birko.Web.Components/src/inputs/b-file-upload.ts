@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet } from '../shared-styles';
 import { renderLabel } from './label-hint';
+import { isActivationKey } from '../dom-utils';
 
 export interface UploadFile {
   id: string;
@@ -51,6 +52,11 @@ export class BFileUpload extends BaseComponent {
         background: var(--b-bg-secondary);
         cursor: pointer;
         transition: border-color var(--b-transition, 150ms ease), background var(--b-transition, 150ms ease);
+      }
+      .dropzone:focus-visible {
+        outline: none;
+        border-color: var(--b-color-primary);
+        box-shadow: var(--b-focus-ring);
       }
       .dropzone.dragging {
         border-color: var(--b-color-primary);
@@ -167,7 +173,9 @@ export class BFileUpload extends BaseComponent {
     return `
       <div class="field">
         ${renderLabel(label, fieldHint, this.boolAttr('required'))}
-        <div class="dropzone ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}">
+        <div class="dropzone ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}"
+             role="button" tabindex="${disabled ? '-1' : '0'}"
+             aria-label="${this.label('label-browse', 'bwc.fileUpload.browse', 'Choose files')}">
           <input type="file"
                  ${accept !== '*' ? `accept="${accept}"` : ''}
                  ${multiple ? 'multiple' : ''}
@@ -223,6 +231,14 @@ export class BFileUpload extends BaseComponent {
 
     // Click to browse
     this.listen(dropzone, 'click', () => input.click());
+
+    // Keyboard: the native <input> is display:none (removed from tab order), so the
+    // dropzone is the focusable control — open the file dialog on Enter/Space.
+    this.listen<KeyboardEvent>(dropzone, 'keydown', (e) => {
+      if (!isActivationKey(e)) return;
+      e.preventDefault();
+      input.click();
+    });
 
     // File input change
     this.listen(input, 'change', () => {

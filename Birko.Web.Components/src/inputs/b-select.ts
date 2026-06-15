@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 interface Option {
   value: string;
@@ -160,11 +160,12 @@ export class BSelect extends BaseComponent {
     return `
       <div class="field">
         ${renderLabel(label, hint, this.boolAttr('required'))}
-        <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}>
+        <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}
+                ${this.boolAttr('required') ? 'required' : ''} ${fieldAria({ uid: this.uid, error })}>
           ${placeholder ? `<option value="" disabled ${!value ? 'selected' : ''}>${placeholder}</option>` : ''}
           ${this._renderNativeOptions(value)}
         </select>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }
@@ -224,6 +225,7 @@ export class BSelect extends BaseComponent {
                  value="${this._filter || selectedLabel}"
                  placeholder="${value ? selectedLabel : placeholder}"
                  ${disabled ? 'disabled' : ''}
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  autocomplete="off" />
           ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
           <span class="combo-arrow">&#9660;</span>
@@ -231,7 +233,7 @@ export class BSelect extends BaseComponent {
         <div class="dropdown" popover="manual">
           ${this._renderOptionsHtml(filtered, value)}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

@@ -24,7 +24,8 @@ src/
 ├── command/         # b-command-palette, command-provider
 ├── locales/         # en.json (canonical bwc.* keys)
 ├── shared-styles.ts # Pre-parsed CSSStyleSheet objects
-└── shared-styles.css# Source CSS with @sheet sections
+├── shared-styles.css# Source CSS with @sheet sections
+└── dom-utils.ts     # Shared markup/keyboard helpers: escapeHtml/escapeAttr, isActivationKey, rovingIndex
 css/
 ├── tokens.css       # Base/light --b-* design tokens (:root) — required
 ├── themes/          # One file per opt-in theme (dark.css, neon.css, finstat.css)
@@ -58,6 +59,7 @@ Before writing CSS, check if a shared sheet covers the pattern:
 | `dataViewerCardSheet` | `.data-viewer-card` shell (bg-tertiary, border, radius) + `.sticky-page` modifier | b-object-tree (header on), b-json-viewer, b-xml-viewer, b-code-block |
 | `dataViewerHeaderSheet` | `.data-viewer-header` compact sticky toolbar header with `.title` + `.actions` | same set as above |
 | `toolbarBtnSheet` | `.toolbar-btn` small bordered header button with `.copied` state | same set as above |
+| `srOnlySheet` | `.sr-only` / `.sr-only-focusable` visually-hidden helper | aria-live regions, off-screen labels |
 
 ```typescript
 import { overlayHeaderSheet, overlayFooterSheet, closeButtonSheet } from '../shared-styles';
@@ -92,6 +94,26 @@ When switching from `<div>` / `<span>` to `<p>`, `<h*>`, `<ul>` — always reset
 
 ### Spinner rule
 Never write `@keyframes spin` in a component. Use `spinSheet` from `shared-styles.ts`. For loading states use `<b-spinner>`.
+
+### Shared markup/keyboard helpers (MANDATORY — no duplication)
+Do **not** re-declare per-component `_escapeHtml` / `_escapeAttr` or hand-roll the same key handling. Import from `dom-utils.ts`:
+- `escapeHtml(s)` — escape `& < > "` for HTML text (and double-quoted attributes).
+- `escapeAttr(s)` — alias of `escapeHtml`, used at attribute call sites for intent.
+- `isActivationKey(e)` — `true` for Enter/Space; gate the keydown handler of any `role="button"` element with it.
+- `rovingIndex(e, current, count)` — arrow/Home/End roving-tabindex math for radio groups / toolbars (returns the next index or `null`; calls `preventDefault()`).
+
+### Accessibility (ARIA / screen readers)
+Components must be operable and announced correctly. The catalogue's baseline (see [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full map):
+
+- **Roles** — interactive widgets carry the right ARIA role (`dialog`, `tablist`/`tab`/`tabpanel`, `menu`/`menuitem`, `listbox`/`option`, `tree`/`treeitem`/`group`, `status`/`alert`, `progressbar`). Decorative glyphs get `aria-hidden="true"`.
+- **Form-control validation (MANDATORY for inputs)** — use the shared helpers from `inputs/label-hint.ts` instead of hand-rolling:
+  - `fieldAria({ uid: this.uid, error, required })` → spreads `aria-invalid` / `aria-describedby` / `aria-required` onto the control. Pass `required` **only** for non-native controls (div-based combos / tag inputs); native `<input required>` already exposes it.
+  - `renderError(this.uid, error)` → renders the error as `<span role="alert" id="${uid}-error">` so screen readers announce it, linked from the control via `aria-describedby`.
+  - `this.uid` (from `BaseComponent`) is a stable per-instance id prefix that survives re-renders — use it to mint element ids (`${this.uid}-error`, `${this.uid}-body`, …).
+- **Expand/collapse** — toggles reflect state with `aria-expanded` (on the `treeitem` for tree patterns, on the toggle button otherwise) and `aria-controls` pointing at the collapsible region. Async expansion sets `aria-busy="true"` while loading.
+- **Live regions** — transient feedback (toasts, result counts, drag-drop) goes in an `aria-live` region. Use a `.sr-only` element (`srOnlySheet`) with `role="status"`/`aria-live="polite"` (or `alert`/`assertive` for errors) for screen-reader-only announcements.
+- **Names** — every icon-only control has an `aria-label` via `this.label(...)`. Dialogs set `aria-labelledby` (and `aria-describedby` when there's body text).
+- **Shadow DOM caveat** — `aria-*` IDREF attributes (`aria-labelledby`, `aria-describedby`, `aria-controls`) only resolve **within the same shadow root**. Mint both the referenced element and the reference inside the component. Cross-boundary association (e.g. a tooltip describing slotted light-DOM content) is a known limitation — see ACCESSIBILITY.md.
 
 ### Component public API pattern
 Every component exposes:
@@ -129,7 +151,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 6. Use `--b-*` tokens exclusively
 7. Use semantic HTML
 8. Emit typed `CustomEvent` for state changes
-9. `aria-hidden="true"` on decorative elements
+9. Accessibility — follow the [Accessibility (ARIA / screen readers)](#accessibility-aria--screen-readers) rules: semantic role, `aria-hidden="true"` on decorative elements, validation ARIA via `fieldAria()`/`renderError()` for form controls, `aria-expanded` on expand/collapse toggles
 10. Add to `CLAUDE.md` component table in this file
 
 ## Component inventory

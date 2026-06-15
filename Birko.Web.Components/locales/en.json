@@ -38,7 +38,11 @@
       "noResults": "No results found",
       "typeToSearch": "Type to search…",
       "navigate": "Navigate",
-      "select": "Select"
+      "select": "Select",
+      "resultsCount": "{count} results"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb"
     },
     "confirm": {
       "title": "Confirm",
@@ -74,6 +78,7 @@
       "drop": "Drop to upload",
       "dropMore": "Drop more files or click to browse",
       "dropEmpty": "Drop files here or click to browse",
+      "browse": "Choose files",
       "tooLarge": "File too large",
       "uploadFailed": "Upload failed",
       "networkError": "Network error"

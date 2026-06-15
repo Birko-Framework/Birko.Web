@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { rovingIndex } from '../dom-utils';
 
 export interface SegmentedOption {
   value: string;
@@ -13,7 +14,7 @@ export interface SegmentedOption {
  */
 export class BSegmented extends BaseComponent {
   static get observedAttributes() {
-    return ['name', 'value', 'disabled'];
+    return ['name', 'value', 'disabled', 'label'];
   }
 
   private _options: SegmentedOption[] = [];
@@ -65,22 +66,36 @@ export class BSegmented extends BaseComponent {
   render() {
     const value = this.attr('value');
     const disabled = this.boolAttr('disabled');
-    const buttons = this._options.map(o => `
-      <button type="button" role="tab" data-value="${o.value}"
+    // Single-choice control → radiogroup pattern (not tabs: there are no tabpanels).
+    // Roving tabindex: the checked option is the tab stop, else the first option.
+    const selectedIdx = this._options.findIndex(o => o.value === value);
+    const focusIdx = selectedIdx >= 0 ? selectedIdx : 0;
+    const buttons = this._options.map((o, i) => `
+      <button type="button" role="radio" data-value="${o.value}"
               class="${o.value === value ? 'active' : ''}"
               ${disabled ? 'disabled' : ''}
-              aria-selected="${o.value === value}">${o.label}</button>
+              tabindex="${i === focusIdx ? '0' : '-1'}"
+              aria-checked="${o.value === value}">${o.label}</button>
     `).join('');
-    return `<div class="segmented" role="tablist">${buttons}</div>`;
+    const groupLabel = this.attr('label') || this.attr('name');
+    return `<div class="segmented" role="radiogroup"${groupLabel ? ` aria-label="${groupLabel}"` : ''}>${buttons}</div>`;
   }
 
   protected onUpdated() {
-    this.$$<HTMLButtonElement>('button').forEach(btn => {
-      this.listen(btn, 'click', () => {
-        const v = btn.dataset.value!;
-        if (v === this.attr('value')) return;
-        this.setAttribute('value', v);
-        this.emit('change', { name: this.attr('name'), value: v });
+    const buttons = this.$$<HTMLButtonElement>('button');
+    const select = (v: string) => {
+      if (v === this.attr('value')) return;
+      this.setAttribute('value', v);
+      this.emit('change', { name: this.attr('name'), value: v });
+    };
+    buttons.forEach((btn, i) => {
+      this.listen(btn, 'click', () => select(btn.dataset.value!));
+      // Arrow keys move + select (focus follows selection, per the radio-group pattern).
+      this.listen<KeyboardEvent>(btn, 'keydown', (e) => {
+        const next = rovingIndex(e, i, buttons.length);
+        if (next === null) return;
+        select(buttons[next].dataset.value!);
+        buttons[next].focus();
       });
     });
   }

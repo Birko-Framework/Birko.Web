@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import {
   dataViewerCardSheet,
   dataViewerHeaderSheet,
@@ -123,13 +124,13 @@ export class BXmlViewer extends BaseComponent {
         <header class="data-viewer-header">
           <span class="title">XML</span>
           <div class="actions">
-            <button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
-            <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>
-            ${showCopy ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>` : ''}
+            <button class="toolbar-btn expand-all" type="button">${escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
+            <button class="toolbar-btn collapse-all" type="button">${escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>
+            ${showCopy ? `<button class="toolbar-btn copy-btn" type="button">${escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>` : ''}
           </div>
         </header>
         ${this._parseError
-          ? `<div class="error">XML parse error: ${this._escapeHtml(this._parseError)}</div>`
+          ? `<div class="error">XML parse error: ${escapeHtml(this._parseError)}</div>`
           : `<div class="body"${bodyStyle}>${this._renderBody()}</div>`}
       </div>
     `;
@@ -139,7 +140,7 @@ export class BXmlViewer extends BaseComponent {
     const maxHeight = this.attr('max-height');
     const sticky = this.attr('sticky-header');
     if (!maxHeight || sticky === 'page') return '';
-    return ` style="max-height:${this._escapeAttr(maxHeight)}"`;
+    return ` style="max-height:${escapeAttr(maxHeight)}"`;
   }
 
   protected onMount() {
@@ -245,7 +246,7 @@ export class BXmlViewer extends BaseComponent {
   private _renderNode(el: Element, path: string, depth: number, limit: number): string {
     const name = el.tagName;
     const attrs = Array.from(el.attributes).map(a =>
-      ` <span class="attr-name">${this._escapeHtml(a.name)}</span><span class="tag-punct">=</span><span class="attr-value">"${this._escapeHtml(a.value)}"</span>`
+      ` <span class="attr-name">${escapeHtml(a.name)}</span><span class="tag-punct">=</span><span class="attr-value">"${escapeHtml(a.value)}"</span>`
     ).join('');
 
     const childNodes = Array.from(el.childNodes);
@@ -262,9 +263,9 @@ export class BXmlViewer extends BaseComponent {
       return `
         <div class="node">
           <div class="row">
-            <span class="toggle leaf" data-path="${this._escapeAttr(path)}">·</span>
+            <span class="toggle leaf" data-path="${escapeAttr(path)}">·</span>
             <span>
-              <span class="tag-punct">&lt;</span><span class="tag-name">${this._escapeHtml(name)}</span>${attrs}<span class="tag-punct"> /&gt;</span>
+              <span class="tag-punct">&lt;</span><span class="tag-name">${escapeHtml(name)}</span>${attrs}<span class="tag-punct"> /&gt;</span>
             </span>
           </div>
         </div>
@@ -278,16 +279,16 @@ export class BXmlViewer extends BaseComponent {
     if (onlyText) {
       const textContent = childNodes.map(n => {
         if (n.nodeType === Node.CDATA_SECTION_NODE) {
-          return `<span class="cdata">&lt;![CDATA[${this._escapeHtml(n.textContent ?? '')}]]&gt;</span>`;
+          return `<span class="cdata">&lt;![CDATA[${escapeHtml(n.textContent ?? '')}]]&gt;</span>`;
         }
-        return `<span class="text">${this._escapeHtml(n.textContent ?? '')}</span>`;
+        return `<span class="text">${escapeHtml(n.textContent ?? '')}</span>`;
       }).join('');
       return `
         <div class="node">
           <div class="row">
-            <span class="toggle leaf" data-path="${this._escapeAttr(path)}">·</span>
+            <span class="toggle leaf" data-path="${escapeAttr(path)}">·</span>
             <span>
-              <span class="tag-punct">&lt;</span><span class="tag-name">${this._escapeHtml(name)}</span>${attrs}<span class="tag-punct">&gt;</span>${textContent}<span class="tag-punct">&lt;/</span><span class="tag-name">${this._escapeHtml(name)}</span><span class="tag-punct">&gt;</span>
+              <span class="tag-punct">&lt;</span><span class="tag-name">${escapeHtml(name)}</span>${attrs}<span class="tag-punct">&gt;</span>${textContent}<span class="tag-punct">&lt;/</span><span class="tag-name">${escapeHtml(name)}</span><span class="tag-punct">&gt;</span>
             </span>
           </div>
         </div>
@@ -307,14 +308,14 @@ export class BXmlViewer extends BaseComponent {
         } else if (n.nodeType === Node.TEXT_NODE) {
           const text = (n.textContent ?? '').trim();
           if (!text) continue;
-          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="text">${this._escapeHtml(text)}</span></div></div>`;
+          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="text">${escapeHtml(text)}</span></div></div>`;
         } else if (n.nodeType === Node.CDATA_SECTION_NODE) {
-          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="cdata">&lt;![CDATA[${this._escapeHtml(n.textContent ?? '')}]]&gt;</span></div></div>`;
+          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="cdata">&lt;![CDATA[${escapeHtml(n.textContent ?? '')}]]&gt;</span></div></div>`;
         } else if (n.nodeType === Node.COMMENT_NODE) {
-          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="comment">&lt;!--${this._escapeHtml(n.textContent ?? '')}--&gt;</span></div></div>`;
+          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="comment">&lt;!--${escapeHtml(n.textContent ?? '')}--&gt;</span></div></div>`;
         } else if (n.nodeType === Node.PROCESSING_INSTRUCTION_NODE) {
           const pi = n as ProcessingInstruction;
-          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="pi">&lt;?${this._escapeHtml(pi.target)} ${this._escapeHtml(pi.data)}?&gt;</span></div></div>`;
+          childHtml += `<div class="node"><div class="row"><span class="toggle leaf">·</span><span class="pi">&lt;?${escapeHtml(pi.target)} ${escapeHtml(pi.data)}?&gt;</span></div></div>`;
         }
       }
     }
@@ -322,23 +323,15 @@ export class BXmlViewer extends BaseComponent {
     return `
       <div class="node">
         <div class="row">
-          <span class="toggle" data-path="${this._escapeAttr(path)}">${toggleChar}</span>
+          <span class="toggle" data-path="${escapeAttr(path)}">${toggleChar}</span>
           <span>
-            <span class="tag-punct">&lt;</span><span class="tag-name">${this._escapeHtml(name)}</span>${attrs}<span class="tag-punct">&gt;</span>${summary}
+            <span class="tag-punct">&lt;</span><span class="tag-name">${escapeHtml(name)}</span>${attrs}<span class="tag-punct">&gt;</span>${summary}
           </span>
         </div>
         ${isOpen ? `<div class="children">${childHtml}</div>` : ''}
-        ${isOpen ? `<div class="row"><span class="toggle leaf">·</span><span><span class="tag-punct">&lt;/</span><span class="tag-name">${this._escapeHtml(name)}</span><span class="tag-punct">&gt;</span></span></div>` : ''}
+        ${isOpen ? `<div class="row"><span class="toggle leaf">·</span><span><span class="tag-punct">&lt;/</span><span class="tag-name">${escapeHtml(name)}</span><span class="tag-punct">&gt;</span></span></div>` : ''}
       </div>
     `;
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

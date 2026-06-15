@@ -39,10 +39,10 @@ export class BConfirmDialog extends BaseComponent {
     const cancelText = this.label('cancel-text', 'bwc.confirm.cancelText', 'Cancel');
     const variant = this.attr('variant', 'primary');
     return `
-      <dialog id="dlg">
+      <dialog id="dlg" aria-labelledby="${this.uid}-title" ${message ? `aria-describedby="${this.uid}-body"` : ''}>
         <div class="dialog">
-          <div class="dialog-header">${title}</div>
-          <div class="dialog-body">${message}</div>
+          <div class="dialog-header" id="${this.uid}-title">${title}</div>
+          <div class="dialog-body" id="${this.uid}-body">${message}</div>
           <div class="overlay-footer">
             <b-button variant="secondary" class="btn-cancel">${cancelText}</b-button>
             <b-button variant="${variant}" class="btn-confirm">${confirmText}</b-button>

@@ -1,4 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
+import { srOnlySheet } from '../shared-styles';
 
 export interface KanbanColumn {
   id: string;
@@ -187,20 +189,11 @@ export class BKanban extends BaseComponent {
         font-size: var(--b-text-xs, 0.6875rem);
         font-style: italic;
       }
-
-      /* Screen reader only */
-      .sr-only {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      }
     `;
+  }
+
+  static get sharedStyles() {
+    return [srOnlySheet];
   }
 
   private _columns: KanbanColumn[] = [];
@@ -236,16 +229,16 @@ export class BKanban extends BaseComponent {
       const totalCount = this._countAllCards(cards);
       const cardsHtml = topLevelCards.length
         ? topLevelCards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
-        : `<div class="empty-placeholder">${this._escapeHtml(emptyText)}</div>`;
+        : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`;
 
       const accent = col.color ? `border-left: 3px solid ${col.color};` : '';
       return `
-        <div class="column" data-column-id="${this._escapeAttr(col.id)}">
+        <div class="column" data-column-id="${escapeAttr(col.id)}">
           <div class="column-header" style="${accent}">
-            <span class="column-title">${this._escapeHtml(col.label)}</span>
+            <span class="column-title">${escapeHtml(col.label)}</span>
             <span class="column-count">${totalCount}</span>
           </div>
-          <div class="column-body" data-column-id="${this._escapeAttr(col.id)}" role="list" aria-label="${this._escapeAttr(col.label)}">
+          <div class="column-body" data-column-id="${escapeAttr(col.id)}" role="list" aria-label="${escapeAttr(col.label)}">
             ${cardsHtml}
           </div>
           <div class="column-footer">${totalCount} card${totalCount !== 1 ? 's' : ''}</div>
@@ -257,7 +250,7 @@ export class BKanban extends BaseComponent {
       <div class="board" role="group" aria-label="Kanban board" tabindex="0">
         ${columnsHtml}
       </div>
-      <div class="sr-only" aria-live="polite">${this._escapeHtml(this._liveText)}</div>
+      <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
     `;
   }
 
@@ -267,12 +260,15 @@ export class BKanban extends BaseComponent {
     const maxDepth = this._config?.maxNestingDepth;
     const canNest = !maxDepth || depth < maxDepth;
     const showToggle = hasChildren || canNest;
+    const childrenId = `${this.uid}-kc-${escapeAttr(card.id)}`;
 
     const toggleHtml = showToggle
       ? (hasChildren
         ? `<button class="card-toggle ${isExpanded ? 'expanded' : ''}"
-                  data-toggle="${this._escapeAttr(card.id)}"
+                  data-toggle="${escapeAttr(card.id)}"
                   type="button" tabindex="-1"
+                  aria-expanded="${isExpanded}"
+                  aria-controls="${childrenId}"
                   aria-label="${isExpanded ? 'Collapse' : 'Expand'}">&#9654;</button>`
         : `<span class="card-toggle-spacer"></span>`)
       : '';
@@ -284,7 +280,7 @@ export class BKanban extends BaseComponent {
     const contentHtml = this._renderCardContent(card, depth);
 
     const childrenHtml = hasChildren
-      ? `<div class="card-children ${isExpanded ? '' : 'collapsed'}" data-parent-card-id="${this._escapeAttr(card.id)}">
+      ? `<div class="card-children ${isExpanded ? '' : 'collapsed'}" id="${childrenId}" data-parent-card-id="${escapeAttr(card.id)}">
            ${card.children!.map((child, idx) => this._renderCard(child, columnId, idx, depth + 1)).join('')}
          </div>`
       : '';
@@ -295,13 +291,13 @@ export class BKanban extends BaseComponent {
       <div class="card"
            draggable="true"
            tabindex="-1"
-           data-card-id="${this._escapeAttr(card.id)}"
-           data-column-id="${this._escapeAttr(columnId)}"
-           data-parent-id="${card.parentId ? this._escapeAttr(card.parentId) : ''}"
+           data-card-id="${escapeAttr(card.id)}"
+           data-column-id="${escapeAttr(columnId)}"
+           data-parent-id="${card.parentId ? escapeAttr(card.parentId) : ''}"
            data-depth="${depth}"
            data-index="${index}"
            role="listitem"
-           aria-label="${this._escapeAttr(card.title)}"
+           aria-label="${escapeAttr(card.title)}"
            ${colorStyle ? `style="${colorStyle}"` : ''}>
         <div class="card-header">
           ${toggleHtml}
@@ -999,7 +995,7 @@ export class BKanban extends BaseComponent {
   private _renderCardContent(card: KanbanCard, depth: number): string {
     if (this._renderCardFn) return this._renderCardFn(card, depth);
     if (this._config?.renderCard) return this._config.renderCard(card, depth);
-    return `<span class="card-title">${this._escapeHtml(card.title)}</span>`;
+    return `<span class="card-title">${escapeHtml(card.title)}</span>`;
   }
 
   private _clearDropIndicators(): void {
@@ -1009,14 +1005,6 @@ export class BKanban extends BaseComponent {
     this.$$<HTMLElement>('.column-body').forEach(el => {
       el.classList.remove('drag-over');
     });
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

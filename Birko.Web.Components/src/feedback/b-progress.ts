@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 
 type ValueFormat = 'percent' | 'fraction' | 'value';
 
@@ -111,15 +112,15 @@ export class BProgress extends BaseComponent {
     const labelRow = hasLabelRow
       ? `
         <div class="label-row">
-          <span class="label">${label ? this._escapeHtml(label) : ''}</span>
+          <span class="label">${label ? escapeHtml(label) : ''}</span>
           ${showValue && !indeterminate
-            ? `<span class="value">${this._escapeHtml(this._formatValue(value, max, percent))}</span>`
+            ? `<span class="value">${escapeHtml(this._formatValue(value, max, percent))}</span>`
             : ''}
         </div>
       `
       : '';
 
-    const ariaLabel = label ? ` aria-label="${this._escapeAttr(label)}"` : '';
+    const ariaLabel = label ? ` aria-label="${escapeAttr(label)}"` : '';
     const ariaValueNow = indeterminate ? '' : ` aria-valuenow="${value}"`;
 
     const inner = indeterminate
@@ -167,14 +168,6 @@ export class BProgress extends BaseComponent {
     if (format === 'fraction') return `${value} / ${max}`;
     if (format === 'value') return String(value);
     return `${Math.round(percent)}%`;
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

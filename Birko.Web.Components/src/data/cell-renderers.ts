@@ -1,4 +1,5 @@
 import type { Formatter } from 'birko-web-core/i18n';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -158,12 +159,4 @@ export function createCellRenderers(
 
 function muted(text: string): string {
   return `<span style="color:var(--b-text-muted)">${text}</span>`;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function escapeAttr(s: string): string {
-  return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

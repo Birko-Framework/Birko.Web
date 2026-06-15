@@ -1,6 +1,6 @@
 import { BaseComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 const DAYS_IN_WEEK = 7;
 
@@ -257,8 +257,10 @@ export class BDatePicker extends BaseComponent {
                value="${value ?? ''}"
                ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
+               ${this.boolAttr('required') ? 'required' : ''}
+               ${fieldAria({ uid: this.uid, error })}
                ${disabled ? 'disabled' : ''} />
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }
@@ -280,13 +282,14 @@ export class BDatePicker extends BaseComponent {
                  name="${this.attr('name')}"
                  value="${this._formatDisplay(value ?? '')}"
                  placeholder="${placeholder}"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  ${disabled ? 'disabled' : ''} />
           ${value && !disabled ? '<button class="dp-clear" type="button">&times;</button>' : ''}
         </div>
         <div class="dp-panel ${this._open ? 'open' : ''}">
           ${this._monthPicker ? this._renderMonthPicker() : this._renderCalendar()}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

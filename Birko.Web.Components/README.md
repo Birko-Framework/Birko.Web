@@ -56,6 +56,18 @@ useI18n(myI18n);          // every BaseComponent re-renders automatically
 
 ---
 
+## Accessibility
+
+Components ship with ARIA roles, keyboard support, focus management, and screen-reader announcements built in. Form controls automatically wire validation ARIA (`aria-invalid` / `aria-describedby` + a `role="alert"` error region) when you set the `error` attribute, so screen-reader users hear validation failures:
+
+```html
+<b-input label="Email" required error="Enter a valid email"></b-input>
+```
+
+See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full role map, the `fieldAria()` / `renderError()` helpers used to build new inputs, expand/collapse and live-region conventions, and the Shadow DOM IDREF caveats.
+
+---
+
 ## Inputs
 
 ### b-input

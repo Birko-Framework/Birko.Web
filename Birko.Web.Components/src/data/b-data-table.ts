@@ -76,6 +76,10 @@ export interface DataTableLabels {
   confirmDefault?: string;
   noData?: string;
   actions?: string;
+  /** Accessible name for the header "select all rows" checkbox (default "Select all rows"). */
+  selectAll?: string;
+  /** Accessible name for each row's selection checkbox (default "Select row"). */
+  selectRow?: string;
 }
 
 /** localStorage key for default page size (set via Settings page). */
@@ -428,12 +432,12 @@ export class BDataTable extends BaseComponent {
 
       columns.push({
         key: '__select',
-        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} ${someSelected && !allSelected ? 'indeterminate' : ''} class="select-all" />`,
+        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} ${someSelected && !allSelected ? 'indeterminate' : ''} class="select-all" aria-label="${this._config?.labels?.selectAll ?? 'Select all rows'}" />`,
         width: '2.5rem',
         align: 'center',
         render: (_v, row) => {
           const id = this._rowId(row);
-          return `<input type="checkbox" class="row-select" data-id="${id}" ${this._selected.has(id) ? 'checked' : ''} />`;
+          return `<input type="checkbox" class="row-select" data-id="${id}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${this._config?.labels?.selectRow ?? 'Select row'}" />`;
         },
       });
     }

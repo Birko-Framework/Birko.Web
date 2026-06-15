@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError } from './label-hint';
 
 export class BRange extends BaseComponent {
   static get observedAttributes() {
@@ -316,7 +316,7 @@ export class BRange extends BaseComponent {
           ${sliderHtml}
           ${inputHtml}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

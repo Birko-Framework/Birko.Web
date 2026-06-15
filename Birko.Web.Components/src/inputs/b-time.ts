@@ -1,6 +1,6 @@
 import { BaseComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -176,13 +176,14 @@ export class BTime extends BaseComponent {
                  name="${this.attr('name')}"
                  value="${value ?? ''}"
                  placeholder="${placeholder}"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  ${disabled ? 'disabled' : ''} />
           ${value && !disabled ? '<button class="tp-clear" type="button">&times;</button>' : ''}
         </div>
         <div class="tp-panel ${this._open ? 'open' : ''}">
           ${this._renderPanel()}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

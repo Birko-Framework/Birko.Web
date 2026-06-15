@@ -91,3 +91,6 @@ export const focusVisibleSheet = getSheet('focusVisible');
 
 /** Bare icon-only button: no background, no border, cursor pointer. */
 export const iconButtonSheet = getSheet('iconButton');
+
+/** Visually-hidden helper (`.sr-only` / `.sr-only-focusable`) for screen-reader-only text and aria-live regions. */
+export const srOnlySheet = getSheet('srOnly');

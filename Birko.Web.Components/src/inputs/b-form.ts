@@ -1,4 +1,5 @@
 import { BaseComponent, define, t as globalT } from 'birko-web-core';
+import { isActivationKey } from '../dom-utils';
 
 // ── Types ──
 
@@ -444,10 +445,15 @@ export class BForm extends BaseComponent {
       ? groupErrs.map(e => `<span class="b-form-group-error">${e}</span>`).join('')
       : '';
 
+    const bodyId = `${this.uid}-fg-${group.name}`;
+    const legendAttrs = group.collapsible
+      ? ` role="button" tabindex="0" aria-expanded="${!isCollapsed}" aria-controls="${bodyId}"`
+      : '';
+
     return `
       <fieldset class="b-form-group ${isInvalid ? 'b-form-group--invalid' : ''}" data-group="${group.name}">
-        ${hasLabel ? `<legend class="b-form-legend ${group.collapsible ? 'b-form-legend--toggle' : ''}">${legendContent}${errHtml}</legend>` : ''}
-        <div class="${bodyClasses}" ${bodyStyle ? `style="${bodyStyle}"` : ''}>
+        ${hasLabel ? `<legend class="b-form-legend ${group.collapsible ? 'b-form-legend--toggle' : ''}"${legendAttrs}>${legendContent}${errHtml}</legend>` : ''}
+        <div class="${bodyClasses}" id="${bodyId}" ${bodyStyle ? `style="${bodyStyle}"` : ''}>
           ${children}
         </div>
       </fieldset>
@@ -606,19 +612,26 @@ export class BForm extends BaseComponent {
     this._wireFieldEvents(this._schema, '', true);
 
     // Wire up collapsible group toggles
-    this.$$<HTMLElement>('.b-form-legend--toggle').forEach(legend => {
-      this.listen(legend, 'click', () => {
-        const icon = legend.querySelector('.b-form-collapse-icon') as HTMLElement;
-        const groupName = icon?.dataset.group;
-        if (!groupName) return;
+    const toggleGroup = (legend: HTMLElement) => {
+      const icon = legend.querySelector('.b-form-collapse-icon') as HTMLElement;
+      const groupName = icon?.dataset.group;
+      if (!groupName) return;
 
-        if (this._collapsed.has(groupName)) {
-          this._collapsed.delete(groupName);
-        } else {
-          this._collapsed.add(groupName);
-        }
-        this.update();
-        this.emit('group-toggle', { group: groupName, collapsed: this._collapsed.has(groupName) });
+      if (this._collapsed.has(groupName)) {
+        this._collapsed.delete(groupName);
+      } else {
+        this._collapsed.add(groupName);
+      }
+      this.update();
+      this.emit('group-toggle', { group: groupName, collapsed: this._collapsed.has(groupName) });
+    };
+    this.$$<HTMLElement>('.b-form-legend--toggle').forEach(legend => {
+      this.listen(legend, 'click', () => toggleGroup(legend));
+      // The legend exposes role="button"; honor Enter/Space activation for keyboard users.
+      this.listen<KeyboardEvent>(legend, 'keydown', (e) => {
+        if (!isActivationKey(e)) return;
+        e.preventDefault();
+        toggleGroup(legend);
       });
     });
 

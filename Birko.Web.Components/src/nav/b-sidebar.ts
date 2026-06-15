@@ -66,7 +66,7 @@ export class BSidebar extends BaseComponent {
         <div class="brand" part="brand">
           <slot name="brand"></slot>
         </div>
-        <div class="nav" role="list">
+        <div class="nav" role="list" id="${this.uid}-nav">
           ${this._items.map(item => `
             <a class="nav-item ${item.id === active ? 'active' : ''}"
                href="${item.href ?? '#/' + item.id}" data-id="${item.id}"
@@ -78,7 +78,7 @@ export class BSidebar extends BaseComponent {
           `).join('')}
         </div>
         <div class="footer">
-          <button class="toggle-btn" aria-label="${collapsed ? this.label('label-expand', 'bwc.sidebar.expand', 'Expand sidebar') : this.label('label-collapse', 'bwc.sidebar.collapse', 'Collapse sidebar')}">${collapsed ? '&#9654;' : '&#9664;'}</button>
+          <button class="toggle-btn" aria-expanded="${!collapsed}" aria-controls="${this.uid}-nav" aria-label="${collapsed ? this.label('label-expand', 'bwc.sidebar.expand', 'Expand sidebar') : this.label('label-collapse', 'bwc.sidebar.collapse', 'Collapse sidebar')}">${collapsed ? '&#9654;' : '&#9664;'}</button>
         </div>
       </nav>
     `;

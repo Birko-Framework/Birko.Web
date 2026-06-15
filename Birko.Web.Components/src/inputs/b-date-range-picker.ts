@@ -1,6 +1,6 @@
 import { BaseComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 const DAYS_IN_WEEK = 7;
 
@@ -438,19 +438,25 @@ export class BDateRangePicker extends BaseComponent {
                  class="drp-native-start ${error ? 'has-error' : ''}"
                  name="${name}-start"
                  value="${range?.start ?? ''}"
+                 aria-label="${this.label('label-start', 'bwc.daterange.placeholderStart', 'Start date')}"
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
+                 ${this.boolAttr('required') ? 'required' : ''}
+                 ${fieldAria({ uid: this.uid, error })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${this.attr('separator') ?? '→'}</span>
           <input type="date"
                  class="drp-native-end ${error ? 'has-error' : ''}"
                  name="${name}-end"
                  value="${range?.end ?? ''}"
+                 aria-label="${this.label('label-end', 'bwc.daterange.placeholderEnd', 'End date')}"
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
+                 ${this.boolAttr('required') ? 'required' : ''}
+                 ${fieldAria({ uid: this.uid, error })}
                  ${disabled ? 'disabled' : ''} />
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }
@@ -474,19 +480,23 @@ export class BDateRangePicker extends BaseComponent {
                  type="text" readonly
                  value="${formatDisplay(range?.start ?? '')}"
                  placeholder="${phStart}"
+                 aria-label="${phStart}"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${sep}</span>
           <input class="drp-input drp-input-end ${error ? 'has-error' : ''}"
                  type="text" readonly
                  value="${formatDisplay(range?.end ?? '')}"
                  placeholder="${phEnd}"
+                 aria-label="${phEnd}"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  ${disabled ? 'disabled' : ''} />
           ${range && !disabled ? '<button class="drp-clear" type="button" aria-label="Clear">&times;</button>' : ''}
         </div>
         <div class="drp-panel ${this._open ? 'open' : ''}" data-months="${months}">
           ${this._renderPanelBody()}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

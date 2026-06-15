@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export class BTextarea extends BaseComponent {
   static get observedAttributes() {
@@ -31,8 +31,10 @@ export class BTextarea extends BaseComponent {
           rows="${this.numAttr('rows', 4)}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
+          ${this.boolAttr('required') ? 'required' : ''}
+          ${fieldAria({ uid: this.uid, error })}
         >${this.attr('value')}</textarea>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

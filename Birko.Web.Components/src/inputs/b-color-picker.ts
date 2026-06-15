@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 const DEFAULT_RGB = '#000000';
 
@@ -167,7 +167,8 @@ export class BColorPicker extends BaseComponent {
           ${swatchOnly ? '' : `<input type="text" inputmode="text" spellcheck="false" autocomplete="off"
             class="hex ${error ? 'has-error' : ''}"
             name="${this.attr('name')}" value="${value}" placeholder="${placeholder}"
-            ${disabled ? 'disabled' : ''} ${this.boolAttr('required') ? 'required' : ''} />`}
+            ${disabled ? 'disabled' : ''} ${this.boolAttr('required') ? 'required' : ''}
+            ${fieldAria({ uid: this.uid, error })} />`}
         </div>
         ${this._alpha ? `
         <div class="alpha-control" style="--b-cp-rgb:${rgb}">
@@ -176,7 +177,7 @@ export class BColorPicker extends BaseComponent {
             aria-label="${this.label('label-alpha', 'bwc.colorPicker.alpha', 'Opacity')}" />
           <output class="alpha-out">${this._pct(a)}%</output>
         </div>` : ''}
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }

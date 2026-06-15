@@ -66,6 +66,14 @@ export class BTable extends BaseComponent {
       }
       th.sortable { cursor: pointer; }
       th.sortable:hover { color: var(--b-table-header-text-hover, var(--b-text)); }
+      /* Sortable headers use an inner <button> so they're keyboard-operable;
+         strip its chrome so it reads as the header text. */
+      .th-sort-btn {
+        display: inline-flex; align-items: center;
+        background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+        font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit;
+      }
+      .th-sort-btn:focus-visible { outline: none; box-shadow: var(--b-focus-ring); border-radius: var(--b-radius-sm, 0.25rem); }
       .sort-icon { margin-left: var(--b-space-xs); opacity: var(--b-muted-opacity); }
       th.sorted .sort-icon { opacity: 1; color: var(--b-color-primary); }
       td {
@@ -153,7 +161,9 @@ export class BTable extends BaseComponent {
                   style="${c.width ? 'width:' + c.width : ''}"
                   data-key="${c.key}"
                   ${ariaSort}
-                >${c.label}${c.sortable ? `<span class="sort-icon" aria-hidden="true">${arrow}</span>` : ''}</th>`;
+                >${c.sortable
+                  ? `<button type="button" class="th-sort-btn">${c.label}<span class="sort-icon" aria-hidden="true">${arrow}</span></button>`
+                  : c.label}</th>`;
               }).join('')}
             </tr>
           </thead>

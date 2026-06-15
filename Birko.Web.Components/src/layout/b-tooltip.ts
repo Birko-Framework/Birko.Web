@@ -32,12 +32,13 @@ export class BTooltip extends BaseComponent {
 
   render() {
     const text = this.attr('text');
+    const tipId = `${this.uid}-tip`;
 
     return `
-      <span class="trigger">
+      <span class="trigger" ${text ? `aria-describedby="${tipId}"` : ''}>
         <slot></slot>
       </span>
-      ${text ? `<div class="tip" role="tooltip">${text}</div>` : ''}
+      ${text ? `<div class="tip" id="${tipId}" role="tooltip">${text}</div>` : ''}
     `;
   }
 

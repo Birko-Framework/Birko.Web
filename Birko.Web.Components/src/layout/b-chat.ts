@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml } from '../dom-utils';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -323,7 +324,7 @@ export class BChat extends BaseComponent {
   private _renderMessage(m: ChatMessage, showTimestamps: boolean): string {
     const renderHtml = this._config.renderHtml && m.role === 'assistant';
     const bubbleClass = renderHtml ? 'bubble html-content' : 'bubble';
-    const content = renderHtml ? m.content : this._escapeHtml(m.content);
+    const content = renderHtml ? m.content : escapeHtml(m.content);
 
     let statusHtml = '';
     if (m.status === 'sending') {
@@ -466,13 +467,6 @@ export class BChat extends BaseComponent {
     }
   }
 
-  private _escapeHtml(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
 }
 
 define('b-chat', BChat);

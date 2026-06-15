@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export interface MultiSelectOption {
   value: string;
@@ -189,11 +190,13 @@ export class BMultiSelect extends BaseComponent {
         ${renderLabel(label, hint, this.boolAttr('required'))}
         <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
-             aria-haspopup="listbox"
-             aria-expanded="${this._open}">
+             aria-haspopup="true"
+             aria-expanded="${this._open}"
+             aria-controls="${this.uid}-opts"
+             ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}>
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
-        <div class="dropdown" popover="manual" role="listbox">
+        <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this.attr('label-options', 'Options')}">
           ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${this._filter}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
@@ -203,7 +206,7 @@ export class BMultiSelect extends BaseComponent {
             </label>
           `).join('') : `<div class="no-results">${noMatchesLabel}</div>`}
         </div>
-        ${error ? `<span class="error">${error}</span>` : ''}
+        ${renderError(this.uid, error)}
       </div>
     `;
   }
@@ -363,7 +366,7 @@ export class BMultiSelect extends BaseComponent {
       if (!exactMatch) {
         const createLabel = this.attr('label-create', 'Create');
         dropdown.insertAdjacentHTML('beforeend',
-          `<div class="option-create" data-create-value="${this._escapeAttr(this._filter.trim())}">+ ${createLabel} &ldquo;${this._escapeHtml(this._filter.trim())}&rdquo;</div>`
+          `<div class="option-create" data-create-value="${escapeAttr(this._filter.trim())}">+ ${createLabel} &ldquo;${escapeHtml(this._filter.trim())}&rdquo;</div>`
         );
       }
     }
@@ -429,14 +432,6 @@ export class BMultiSelect extends BaseComponent {
 
   private _canCreate(): boolean {
     return this.boolAttr('creatable');
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

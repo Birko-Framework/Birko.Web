@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet } from '../shared-styles';
 import { renderLabel } from './label-hint';
+import { rovingIndex } from '../dom-utils';
 
 interface Option {
   value: string;
@@ -79,16 +80,22 @@ export class BOptionGroup extends BaseComponent {
     const value = this.attr('value');
     const disabled = this.boolAttr('disabled');
 
-    const buttons = this._options.map(o => {
+    // Single-choice control → radiogroup with roving tabindex (the selected option,
+    // or the first when none, is the tab stop).
+    const selectedIdx = this._options.findIndex(o => o.value === value);
+    const focusIdx = selectedIdx >= 0 ? selectedIdx : 0;
+    const buttons = this._options.map((o, i) => {
       const active = o.value === value ? 'active' : '';
       const icon = o.icon ? `${o.icon} ` : '';
-      return `<button type="button" class="opt-btn ${active}" data-value="${o.value}" ${disabled ? 'disabled' : ''}>${icon}${o.label}</button>`;
+      return `<button type="button" role="radio" class="opt-btn ${active}" data-value="${o.value}"
+        aria-checked="${o.value === value}" tabindex="${!disabled && i === focusIdx ? '0' : '-1'}"
+        ${disabled ? 'disabled' : ''}>${icon}${o.label}</button>`;
     }).join('');
 
     return `
       <div class="field">
         ${renderLabel(label, hint)}
-        <div class="options">${buttons}</div>
+        <div class="options" role="radiogroup"${label ? ` aria-label="${label}"` : ''}>${buttons}</div>
       </div>
     `;
   }
@@ -100,16 +107,30 @@ export class BOptionGroup extends BaseComponent {
 
   protected onUpdated() {
     const container = this.$<HTMLElement>('.options');
-    if (container) {
-      this.listen(container, 'click', (e: Event) => {
-        const btn = (e.target as HTMLElement).closest<HTMLElement>('.opt-btn');
-        if (!btn || btn.hasAttribute('disabled')) return;
+    if (!container) return;
 
-        const val = btn.dataset.value ?? '';
-        this.setAttribute('value', val);
-        this.emit('change', { name: this.attr('name'), value: val });
+    const select = (val: string) => {
+      if (val === this.attr('value')) return;
+      this.setAttribute('value', val);
+      this.emit('change', { name: this.attr('name'), value: val });
+    };
+
+    this.listen(container, 'click', (e: Event) => {
+      const btn = (e.target as HTMLElement).closest<HTMLElement>('.opt-btn');
+      if (!btn || btn.hasAttribute('disabled')) return;
+      select(btn.dataset.value ?? '');
+    });
+
+    // Arrow/Home/End move + select (focus follows selection, per the radio-group pattern).
+    const buttons = this.$$<HTMLElement>('.opt-btn');
+    buttons.forEach((btn, i) => {
+      this.listen<KeyboardEvent>(btn, 'keydown', (e) => {
+        const next = rovingIndex(e, i, buttons.length);
+        if (next === null) return;
+        select(buttons[next].dataset.value ?? '');
+        buttons[next].focus();
       });
-    }
+    });
   }
 
   get value(): string {

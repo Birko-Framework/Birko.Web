@@ -46,6 +46,7 @@ export class BTabs extends BaseComponent {
           const panelId = `tabpanel-${t.id}`;
           return `<button class="tab ${isActive ? 'active' : ''}"
             role="tab"
+            id="tab-${t.id}"
             aria-selected="${isActive}"
             aria-controls="${panelId}"
             tabindex="${isActive ? '0' : '-1'}"
@@ -54,7 +55,7 @@ export class BTabs extends BaseComponent {
       </div>
       ${this._tabs.map(t => {
         const isActive = t.id === active;
-        return `<div class="tab-panel ${isActive ? 'active' : ''}" role="tabpanel" id="tabpanel-${t.id}" aria-labelledby="${t.id}">
+        return `<div class="tab-panel ${isActive ? 'active' : ''}" role="tabpanel" id="tabpanel-${t.id}" aria-labelledby="tab-${t.id}">
           <slot name="${t.id}"></slot>
         </div>`;
       }).join('')}

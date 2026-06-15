@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml } from '../dom-utils';
 
 export interface DefinitionItem {
   term: string;
@@ -85,21 +86,17 @@ export class BDefinitionList extends BaseComponent {
       if (layout === 'grid') {
         return `<dl>${this._items.map(i => `
           <div class="pair">
-            <dt>${this._escapeHtml(i.term)}</dt>
-            <dd>${this._escapeHtml(i.description)}</dd>
+            <dt>${escapeHtml(i.term)}</dt>
+            <dd>${escapeHtml(i.description)}</dd>
           </div>
         `).join('')}</dl>`;
       }
       return `<dl>${this._items.map(i => `
-        <dt>${this._escapeHtml(i.term)}</dt>
-        <dd>${this._escapeHtml(i.description)}</dd>
+        <dt>${escapeHtml(i.term)}</dt>
+        <dd>${escapeHtml(i.description)}</dd>
       `).join('')}</dl>`;
     }
     return `<dl><slot></slot></dl>`;
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 }
 

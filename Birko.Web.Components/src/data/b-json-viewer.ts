@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import {
   dataViewerCardSheet,
   dataViewerHeaderSheet,
@@ -57,13 +58,13 @@ export class BJsonViewer extends BaseComponent {
         <header class="data-viewer-header">
           <span class="title">JSON</span>
           <div class="actions">
-            <button class="toolbar-btn expand-all" type="button">${this._escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
-            <button class="toolbar-btn collapse-all" type="button">${this._escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>
-            ${showCopy ? `<button class="toolbar-btn copy-btn" type="button">${this._escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>` : ''}
+            <button class="toolbar-btn expand-all" type="button">${escapeHtml(this.label('label-expand', 'bwc.common.expand', 'Expand'))}</button>
+            <button class="toolbar-btn collapse-all" type="button">${escapeHtml(this.label('label-collapse', 'bwc.common.collapse', 'Collapse'))}</button>
+            ${showCopy ? `<button class="toolbar-btn copy-btn" type="button">${escapeHtml(this.label('label-copy', 'bwc.common.copy', 'Copy'))}</button>` : ''}
           </div>
         </header>
         ${this._parseError
-          ? `<div class="error">JSON parse error: ${this._escapeHtml(this._parseError)}</div>`
+          ? `<div class="error">JSON parse error: ${escapeHtml(this._parseError)}</div>`
           : `<div class="body"${bodyStyle}>${this._renderTree()}</div>`}
       </div>
     `;
@@ -73,7 +74,7 @@ export class BJsonViewer extends BaseComponent {
     const maxHeight = this.attr('max-height');
     const sticky = this.attr('sticky-header');
     if (!maxHeight || sticky === 'page') return '';
-    return ` style="max-height:${this._escapeAttr(maxHeight)}"`;
+    return ` style="max-height:${escapeAttr(maxHeight)}"`;
   }
 
   protected onMount() {
@@ -154,9 +155,9 @@ export class BJsonViewer extends BaseComponent {
     const ed = this.attr('expanded-depth');
     const md = this.attr('max-depth');
     const size = this.attr('size');
-    if (ed) attrs.push(`expanded-depth="${this._escapeAttr(ed)}"`);
-    if (md) attrs.push(`max-depth="${this._escapeAttr(md)}"`);
-    if (size) attrs.push(`size="${this._escapeAttr(size)}"`);
+    if (ed) attrs.push(`expanded-depth="${escapeAttr(ed)}"`);
+    if (md) attrs.push(`max-depth="${escapeAttr(md)}"`);
+    if (size) attrs.push(`size="${escapeAttr(size)}"`);
     if (this.boolAttr('show-types')) attrs.push('show-types');
     return `<b-object-tree ${attrs.join(' ')}></b-object-tree>`;
   }
@@ -167,14 +168,6 @@ export class BJsonViewer extends BaseComponent {
     } catch {
       return String(this._data);
     }
-  }
-
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   }
 }
 

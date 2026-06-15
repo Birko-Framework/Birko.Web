@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import {
   dataViewerCardSheet,
   dataViewerHeaderSheet,
@@ -71,7 +72,7 @@ export class BCodeBlock extends BaseComponent {
     const showCopy = !this.boolAttr('no-copy');
     const maxHeight = this.attr('max-height');
     const sticky = this.attr('sticky-header');
-    const preStyle = maxHeight && sticky !== 'page' ? ` style="max-height:${this._escapeAttr(maxHeight)}"` : '';
+    const preStyle = maxHeight && sticky !== 'page' ? ` style="max-height:${escapeAttr(maxHeight)}"` : '';
     const code = this._getCode();
     this._code = code;
     const highlighted = this._highlight(code, lang);
@@ -85,9 +86,9 @@ export class BCodeBlock extends BaseComponent {
       <div class="${cardClass}">
         ${(showLang || showCopy) ? `
           <header class="data-viewer-header">
-            <span class="title">${showLang ? this._escapeHtml(lang) : ''}</span>
+            <span class="title">${showLang ? escapeHtml(lang) : ''}</span>
             <div class="actions">
-              ${showCopy ? `<button class="toolbar-btn copy-btn" type="button" aria-label="Copy">${this._escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
+              ${showCopy ? `<button class="toolbar-btn copy-btn" type="button" aria-label="Copy">${escapeHtml(this.attr('label-copy', 'Copy'))}</button>` : ''}
             </div>
           </header>
         ` : ''}
@@ -143,7 +144,7 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _highlight(code: string, lang: Lang): string {
-    if (lang === 'plain') return this._escapeHtml(code);
+    if (lang === 'plain') return escapeHtml(code);
     if (lang === 'json') return this._highlightJson(code);
     if (lang === 'html' || lang === 'xml') return this._highlightMarkup(code);
     if (lang === 'css') return this._highlightCss(code);
@@ -156,7 +157,7 @@ export class BCodeBlock extends BaseComponent {
     // digits inside string values (e.g. hex-like API keys) are not mistaken for
     // numeric literals. `&(?!quot;)` lets other entities (`&amp;`, `&lt;`) sit
     // inside a string without prematurely closing it.
-    const escaped = this._escapeHtml(src);
+    const escaped = escapeHtml(src);
     return escaped.replace(
       /(&quot;(?:\\.|&(?!quot;)|[^&\\])*&quot;)(\s*:)?|\b(true|false)\b|\bnull\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
       (_m, str, colon, bool, num) => {
@@ -177,7 +178,7 @@ export class BCodeBlock extends BaseComponent {
     // angle bracket is already an entity. The attrs slot accepts a whole
     // `&quot;…&quot;` string atomically so its inner entities don't abort the
     // outer tag match (the bug with the previous `[^&]*?` slot).
-    const escaped = this._escapeHtml(src);
+    const escaped = escapeHtml(src);
     // Comments
     let out = escaped.replace(/&lt;!--[\s\S]*?--&gt;/g, m => `<span class="tok-com">${m}</span>`);
     // Tags + attrs
@@ -196,7 +197,7 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _highlightCss(src: string): string {
-    const escaped = this._escapeHtml(src);
+    const escaped = escapeHtml(src);
     let out = escaped.replace(/\/\*[\s\S]*?\*\//g, m => `<span class="tok-com">${m}</span>`);
     out = out.replace(/([a-zA-Z-]+)(\s*:)([^;{}\n]+)(;?)/g,
       (_m, prop, colon, val, semi) => `<span class="tok-attr">${prop}</span>${colon}<span class="tok-str">${val}</span>${semi}`);
@@ -213,18 +214,18 @@ export class BCodeBlock extends BaseComponent {
     };
     let work = src;
     // Line comments //
-    work = work.replace(/\/\/[^\n]*/g, m => mask(`<span class="tok-com">${this._escapeHtml(m)}</span>`));
+    work = work.replace(/\/\/[^\n]*/g, m => mask(`<span class="tok-com">${escapeHtml(m)}</span>`));
     // Block comments /* */
-    work = work.replace(/\/\*[\s\S]*?\*\//g, m => mask(`<span class="tok-com">${this._escapeHtml(m)}</span>`));
+    work = work.replace(/\/\*[\s\S]*?\*\//g, m => mask(`<span class="tok-com">${escapeHtml(m)}</span>`));
     // Hash comments (bash/sql)
     if (lang === 'bash' || lang === 'sql') {
-      work = work.replace(/(^|[\s;])(#|--)[^\n]*/g, (_m, pre, op) => pre + mask(`<span class="tok-com">${this._escapeHtml(op + _m.slice(pre.length + op.length))}</span>`));
+      work = work.replace(/(^|[\s;])(#|--)[^\n]*/g, (_m, pre, op) => pre + mask(`<span class="tok-com">${escapeHtml(op + _m.slice(pre.length + op.length))}</span>`));
     }
     // Strings
     work = work.replace(/"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`/g,
-      m => mask(`<span class="tok-str">${this._escapeHtml(m)}</span>`));
+      m => mask(`<span class="tok-str">${escapeHtml(m)}</span>`));
     // Escape remaining HTML
-    work = this._escapeHtml(work);
+    work = escapeHtml(work);
     // Numbers
     work = work.replace(/\b\d+(?:\.\d+)?\b/g, m => `<span class="tok-num">${m}</span>`);
     // Keywords
@@ -237,13 +238,6 @@ export class BCodeBlock extends BaseComponent {
     return work;
   }
 
-  private _escapeHtml(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
-  private _escapeAttr(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-  }
 }
 
 define('b-code-block', BCodeBlock);

@@ -1,4 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml } from '../dom-utils';
+import { srOnlySheet } from '../shared-styles';
 import { getProviders, type CommandItem } from './command-provider.js';
 
 // ── Store ────────────────────────────────────────────────────────────────────
@@ -31,6 +33,10 @@ export class BCommandPalette extends BaseComponent {
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private _unsub: (() => void) | null = null;
   private _kbHandler: ((e: KeyboardEvent) => void) | null = null;
+
+  static get sharedStyles() {
+    return [srOnlySheet];
+  }
 
   static get styles() {
     return `
@@ -206,6 +212,14 @@ export class BCommandPalette extends BaseComponent {
 
     const { query, results, activeIdx, loading } = this._state;
     const groups = this._groupResults(results);
+    const hasResults = groups.length > 0;
+    const statusText = loading
+      ? this.label('label-searching', 'bwc.palette.searching', 'Searching…')
+      : query
+        ? (results.length === 0
+            ? this.label('label-no-results', 'bwc.palette.noResults', 'No results found')
+            : this.label('label-results-count', 'bwc.palette.resultsCount', '{count} results', { count: results.length }))
+        : '';
 
     return `
       <div class="palette-backdrop open" id="backdrop">
@@ -217,6 +231,11 @@ export class BCommandPalette extends BaseComponent {
               class="search-input"
               id="search-input"
               type="text"
+              role="combobox"
+              aria-controls="results"
+              aria-expanded="${hasResults}"
+              aria-autocomplete="list"
+              ${activeIdx >= 0 ? `aria-activedescendant="result-${activeIdx}"` : ''}
               placeholder="${this.label('placeholder', 'bwc.palette.placeholder', 'Search commands, pages, actions\u2026')}"
               value="${this._escAttr(query)}"
               autocomplete="off"
@@ -224,6 +243,8 @@ export class BCommandPalette extends BaseComponent {
             />
             <span class="search-hint"><kbd>Esc</kbd> ${this.label('label-esc-close', 'bwc.palette.escClose', 'to close')}</span>
           </div>
+
+          <div class="sr-only" role="status" aria-live="polite">${statusText}</div>
 
           <div class="results" id="results" role="listbox">
             ${loading
@@ -242,8 +263,8 @@ export class BCommandPalette extends BaseComponent {
                              id="result-${globalIdx}">
                           <div class="result-icon">${item.icon ?? '\u25CB'}</div>
                           <div class="result-body">
-                            <div class="result-label">${this._esc(item.label)}</div>
-                            ${item.description ? `<div class="result-desc">${this._esc(item.description)}</div>` : ''}
+                            <div class="result-label">${escapeHtml(item.label)}</div>
+                            ${item.description ? `<div class="result-desc">${escapeHtml(item.description)}</div>` : ''}
                           </div>
                           <span class="result-enter"><kbd>\u21B5</kbd></span>
                         </div>
@@ -447,10 +468,6 @@ export class BCommandPalette extends BaseComponent {
       const active = this.shadowRoot?.querySelector('.result-row.active');
       active?.scrollIntoView({ block: 'nearest' });
     });
-  }
-
-  private _esc(s: string): string {
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   private _escAttr(s: string): string {

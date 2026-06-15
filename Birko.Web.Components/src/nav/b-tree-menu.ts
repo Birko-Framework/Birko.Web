@@ -398,7 +398,8 @@ export class BTreeMenu extends BaseComponent {
 
       return `
         <li class="node" role="treeitem"
-            aria-expanded="${hasChildren ? String(isExpanded) : ''}"
+            ${hasChildren ? `aria-expanded="${isExpanded}"` : ''}
+            ${isLoading ? 'aria-busy="true"' : ''}
             data-id="${item.id}">
           <${tag} class="node-row ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''}"
                ${hrefAttr}
