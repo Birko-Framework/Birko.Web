@@ -137,7 +137,7 @@ export class BXmlViewer extends BaseComponent {
   }
 
   private _computeBodyStyle(): string {
-    const maxHeight = this.attr('max-height');
+    const maxHeight = this.lengthAttr('max-height');
     const sticky = this.attr('sticky-header');
     if (!maxHeight || sticky === 'page') return '';
     return ` style="max-height:${escapeAttr(maxHeight)}"`;

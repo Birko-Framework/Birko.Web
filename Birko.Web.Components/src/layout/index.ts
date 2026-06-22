@@ -1,4 +1,5 @@
 export { BCard } from './b-card.js';
+export { BAccordion, type AccordionItem } from './b-accordion.js';
 export { BButtonGroup } from './b-button-group.js';
 export { BToolbar } from './b-toolbar.js';
 export { BModal } from './b-modal.js';

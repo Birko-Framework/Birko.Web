@@ -627,6 +627,27 @@ Slots: default (body), `footer`.
 
 Slots: named slots matching tab IDs (e.g. `slot="tab-1"`).
 
+### `<b-accordion>`
+| Attribute | Values |
+|-----------|--------|
+| `multiple` | boolean (allow several sections open at once; default single-open) |
+| `size` | `sm` \| `md` \| `lg` (header vertical footprint) |
+
+| Method | Signature |
+|--------|-----------|
+| `setItems` | `(items: AccordionItem[]) => void` |
+| `open` / `close` / `toggle` | `(id: string) => void` |
+| `openAll` / `closeAll` | `() => void` |
+| `getOpen` | `() => string[]` |
+
+| Event | Detail |
+|-------|--------|
+| `toggle` | `{ id, open }` |
+
+**AccordionItem**: `{ id, header, open?: boolean, disabled?: boolean }`
+
+Slots: one per section, named after its `id` (e.g. `slot="general"`).
+
 ### `<b-split-panel>`
 | Attribute | Values |
 |-----------|--------|

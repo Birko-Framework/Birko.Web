@@ -33,7 +33,7 @@ export class BPre extends BaseComponent {
   }
 
   render() {
-    const maxHeight = this.attr('max-height');
+    const maxHeight = this.lengthAttr('max-height');
     const style = maxHeight ? ` style="max-height:${escapeAttr(maxHeight)}"` : '';
     return `<pre${style}><slot></slot></pre>`;
   }

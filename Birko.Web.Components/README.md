@@ -393,6 +393,28 @@ form.setSchema({
 Attributes: `header`, `padding` (none|sm|lg|xl)
 Slots: default (body), `actions` (header right)
 
+### b-accordion
+
+```html
+<b-accordion multiple>
+  <div slot="general">General settings…</div>
+  <div slot="advanced">Advanced settings…</div>
+</b-accordion>
+<script>
+  document.querySelector('b-accordion').setItems([
+    { id: 'general', header: 'General', open: true },
+    { id: 'advanced', header: 'Advanced' },
+  ]);
+</script>
+```
+
+Collapsible disclosure group. Single-open by default; add `multiple` to allow several open at once. Each section's body is a slot named after its `id`. Headers are native buttons (`aria-expanded`/`aria-controls`), keyboard-operable with Enter/Space (toggle) and Up/Down/Home/End (move between headers).
+
+Attributes: `multiple`, `size` (sm|md|lg — header footprint)
+Methods: `setItems([{id, header, open?, disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()`
+Events: `toggle` → `{ id, open }`
+Slots: one per section, `slot="{id}"`
+
 ### b-button-group + b-toolbar
 
 ```html

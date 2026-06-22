@@ -69,13 +69,13 @@ export class BSkeleton extends BaseComponent {
   }
 
   private _renderText(): string {
-    const width = this.attr('width', '100%');
-    const height = this.attr('height', '0.875rem');
+    const width = this.lengthAttr('width', '100%');
+    const height = this.lengthAttr('height', '0.875rem');
     return `<div class="bone" style="width:${width};height:${height}"></div>`;
   }
 
   private _renderCircle(): string {
-    const size = this.attr('width', '3rem');
+    const size = this.lengthAttr('width', '3rem');
     return `<div class="bone circle" style="width:${size};height:${size}"></div>`;
   }
 

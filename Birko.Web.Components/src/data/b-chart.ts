@@ -207,7 +207,7 @@ export class BChart extends BaseComponent {
   }
 
   render() {
-    const height = this.attr('height', '300px');
+    const height = this.lengthAttr('height', '300px');
     const type = this.attr('type', 'bar') as ChartType;
     const showLegend = this.attr('legend') !== 'false';
     const renderer = this.attr('renderer', 'svg');
