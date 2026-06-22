@@ -6,6 +6,7 @@ import type { BButton } from 'birko-web-components/inputs';
 import type { BModal } from 'birko-web-components/layout';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
+import { entityUrl } from './endpoint-utils.js';
 
 /**
  * Abstract reusable create/edit modal component.
@@ -185,7 +186,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       saveBtn?.setAttribute('loading', '');
       modal.open();
 
-      const resp = await this.api.get<T>(`${this.endpoint}/${id}`);
+      const resp = await this.api.get<T>(entityUrl(this.endpoint, id));
       saveBtn?.removeAttribute('loading');
 
       if (!resp.ok) {
@@ -229,7 +230,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
     const body = this.mapFromForm(data);
     const isEdit = this._editingId !== null;
     const resp = isEdit
-      ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
+      ? await this.api.put<T>(entityUrl(this.endpoint, this._editingId!), body)
       : await this.api.post<T>(this.endpoint, body);
 
     saveBtn.removeAttribute('loading');

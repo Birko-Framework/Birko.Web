@@ -11,6 +11,7 @@ import type { FilterDef } from 'birko-web-components/inputs';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
 import { BasePage } from './base-page.js';
+import { entityUrl } from './endpoint-utils.js';
 
 // ── BaseCrudPage ────────────────────────────────────────────────────────────
 
@@ -822,7 +823,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     let resp: Awaited<ReturnType<ApiClient['get']>>;
     try {
-      resp = await this.api.get<T>(`${this.endpoint}/${id}`);
+      resp = await this.api.get<T>(entityUrl(this.endpoint, id));
     } catch {
       toast.error(this.t('bws.common.edit') + ' failed');
       modal.close();
@@ -854,7 +855,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     const confirmed = await confirm.show();
     if (!confirmed) return;
 
-    const resp = await this.api.delete(`${this.endpoint}/${id}`);
+    const resp = await this.api.delete(entityUrl(this.endpoint, id));
     if (resp.ok) {
       toast.success(this.t('bws.common.deleted'));
       this.onDeleteSuccess?.(id);
@@ -888,7 +889,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       if (!body) return;
 
       const resp = isEdit
-        ? await this.api.put<T>(`${this.endpoint}/${this._editingId}`, body)
+        ? await this.api.put<T>(entityUrl(this.endpoint, this._editingId!), body)
         : await this.api.post<T>(this.endpoint, body);
 
       if (!resp.ok) {

@@ -5,6 +5,7 @@ import type { BForm, FormSchema } from 'birko-web-components/inputs';
 import type { BButton } from 'birko-web-components/inputs';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
+import { entityUrl } from './endpoint-utils.js';
 
 /**
  * Abstract base class for detail / edit pages that load a single entity by ID.
@@ -198,7 +199,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
       return;
     }
 
-    const resp = await this.api.get<T>(`${this.endpoint}/${id}`);
+    const resp = await this.api.get<T>(entityUrl(this.endpoint, id));
     if (!resp.ok) {
       this._loadError = apiErrorMessage(resp.data, this.t('bws.common.loadError'));
       this.update();
@@ -249,7 +250,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
     saveBtn.setAttribute('loading', '');
 
     const body = this.mapFromForm(data);
-    const resp = await this.api.put<T>(`${this.endpoint}/${id}`, body);
+    const resp = await this.api.put<T>(entityUrl(this.endpoint, id), body);
 
     saveBtn.removeAttribute('loading');
 

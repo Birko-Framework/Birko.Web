@@ -7,6 +7,7 @@ import { apiErrorMessage } from 'birko-web-core/http';
 import { toast } from 'birko-web-components/feedback';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
+import { entityUrl } from './endpoint-utils.js';
 
 /** Options for {@link renderDetailCardScaffold}. */
 export interface DetailCardOptions {
@@ -158,7 +159,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
    * Default: `${endpoint}/${id}`. Override for nested resources.
    */
   protected detailEndpoint(id: string): string {
-    return `${this.endpoint}/${id}`;
+    return entityUrl(this.endpoint, id);
   }
 
   // ── Public API ────────────────────────────────────────────────────────────
