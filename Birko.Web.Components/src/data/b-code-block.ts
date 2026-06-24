@@ -197,10 +197,15 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _highlightCss(src: string): string {
-    const escaped = escapeHtml(src);
-    let out = escaped.replace(/\/\*[\s\S]*?\*\//g, m => `<span class="tok-com">${m}</span>`);
+    // Mask comments first so the property/value pass below can't re-highlight a
+    // colon inside a comment (e.g. `/* color: red */`).
+    const tokens: string[] = [];
+    const mask = (s: string) => { tokens.push(s); return ` T${tokens.length - 1} `; };
+    let out = src.replace(/\/\*[\s\S]*?\*\//g, m => mask(`<span class="tok-com">${escapeHtml(m)}</span>`));
+    out = escapeHtml(out);
     out = out.replace(/([a-zA-Z-]+)(\s*:)([^;{}\n]+)(;?)/g,
       (_m, prop, colon, val, semi) => `<span class="tok-attr">${prop}</span>${colon}<span class="tok-str">${val}</span>${semi}`);
+    out = out.replace(/ T(\d+) /g, (_m, i) => tokens[Number(i)]);
     return out;
   }
 
@@ -226,8 +231,9 @@ export class BCodeBlock extends BaseComponent {
       m => mask(`<span class="tok-str">${escapeHtml(m)}</span>`));
     // Escape remaining HTML
     work = escapeHtml(work);
-    // Numbers
-    work = work.replace(/\b\d+(?:\.\d+)?\b/g, m => `<span class="tok-num">${m}</span>`);
+    // Numbers — masked like strings/comments so the keyword pass below can't match a
+    // language keyword inside the injected markup (e.g. `class` in `class="tok-num"`).
+    work = work.replace(/\b\d+(?:\.\d+)?\b/g, m => mask(`<span class="tok-num">${m}</span>`));
     // Keywords
     if (kws.length) {
       const pattern = new RegExp(`\\b(${kws.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, lang === 'sql' ? 'gi' : 'g');
