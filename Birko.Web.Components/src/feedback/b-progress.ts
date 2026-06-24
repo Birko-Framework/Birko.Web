@@ -2,12 +2,14 @@ import { BaseComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 
 type ValueFormat = 'percent' | 'fraction' | 'value';
+type ProgressType = 'linear' | 'circular';
 
 export class BProgress extends BaseComponent {
   static get observedAttributes() {
     return [
       'value', 'max', 'label', 'show-value', 'value-format',
       'size', 'variant', 'striped', 'animated', 'indeterminate',
+      'type', 'thickness',
     ];
   }
 
@@ -54,6 +56,11 @@ export class BProgress extends BaseComponent {
       :host([variant="info"]) .fill-indeterminate { background-color: var(--b-color-info); }
       :host([variant="secondary"]) .fill,
       :host([variant="secondary"]) .fill-indeterminate { background-color: var(--b-text-muted); }
+      :host([variant="success"]) .ring-fill { stroke: var(--b-color-success); }
+      :host([variant="warning"]) .ring-fill { stroke: var(--b-color-warning); }
+      :host([variant="danger"]) .ring-fill { stroke: var(--b-color-danger); }
+      :host([variant="info"]) .ring-fill { stroke: var(--b-color-info); }
+      :host([variant="secondary"]) .ring-fill { stroke: var(--b-text-muted); }
       .fill.striped, .fill-indeterminate.striped {
         background-image: linear-gradient(
           45deg,
@@ -85,9 +92,56 @@ export class BProgress extends BaseComponent {
         0%   { left: -40%; }
         100% { left: 100%; }
       }
+      /* circular */
+      .ring-wrap {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+      }
+      .ring {
+        position: relative;
+        width: var(--b-progress-ring-size, 3rem);
+        height: var(--b-progress-ring-size, 3rem);
+      }
+      :host([size="sm"]) .ring { width: 2rem; height: 2rem; }
+      :host([size="lg"]) .ring { width: 4rem; height: 4rem; }
+      :host([size="xl"]) .ring { width: 6rem; height: 6rem; }
+      .ring svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+      .ring circle {
+        fill: none;
+        stroke-width: var(--b-progress-ring-thickness, 3.5);
+        stroke-linecap: round;
+      }
+      .ring .ring-track { stroke: var(--b-bg-tertiary); }
+      .ring .ring-fill {
+        stroke: var(--b-color-primary);
+        transition: stroke-dasharray var(--b-transition, 150ms ease);
+      }
+      .ring-value {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: var(--b-text-sm, 0.8125rem);
+        font-variant-numeric: tabular-nums;
+        color: var(--b-text);
+      }
+      .ring-label {
+        font-size: var(--b-text-sm, 0.8125rem);
+        color: var(--b-text);
+      }
+      .ring.indeterminate svg { animation: b-progress-ring-spin var(--b-animation-progress, 1.4s) linear infinite; }
+      @keyframes b-progress-ring-spin {
+        from { transform: rotate(0); }
+        to   { transform: rotate(360deg); }
+      }
       @media (prefers-reduced-motion: reduce) {
         .fill { transition: none; }
         .fill.animated, .fill-indeterminate { animation: none; }
+        .ring-fill { transition: none; }
+        .ring.indeterminate svg { animation: none; }
       }
     `;
   }
@@ -101,6 +155,42 @@ export class BProgress extends BaseComponent {
   }
 
   render() {
+    const type = this.attr('type', 'linear') as ProgressType;
+    return type === 'circular' ? this._renderCircular() : this._renderLinear();
+  }
+
+  private _renderCircular() {
+    const { value, max, percent, indeterminate } = this._readState();
+    const label = this.attr('label');
+    const showValue = this.boolAttr('show-value');
+    const ariaLabel = label ? ` aria-label="${escapeAttr(label)}"` : '';
+    const ariaValueNow = indeterminate ? '' : ` aria-valuenow="${value}"`;
+    // r=15.9155 → circumference ≈ 100, so dasharray reads directly as a percentage
+    const dash = indeterminate ? '25 100' : `${percent} 100`;
+    const ringStyle = this.hasAttribute('thickness')
+      ? ` style="--b-progress-ring-thickness:${this.numAttr('thickness', 3.5)}"`
+      : '';
+
+    const valueEl = showValue && !indeterminate
+      ? `<span class="ring-value">${escapeHtml(this._formatValue(value, max, percent))}</span>`
+      : '';
+    const labelEl = label ? `<span class="ring-label">${escapeHtml(label)}</span>` : '';
+
+    return `
+      <div class="ring-wrap" role="progressbar" aria-valuemin="0" aria-valuemax="${max}"${ariaValueNow}${ariaLabel}>
+        <div class="ring${indeterminate ? ' indeterminate' : ''}"${ringStyle}>
+          <svg viewBox="0 0 36 36" aria-hidden="true">
+            <circle class="ring-track" cx="18" cy="18" r="15.9155"></circle>
+            <circle class="ring-fill" cx="18" cy="18" r="15.9155" stroke-dasharray="${dash}"></circle>
+          </svg>
+          ${valueEl}
+        </div>
+        ${labelEl}
+      </div>
+    `;
+  }
+
+  private _renderLinear() {
     const { value, max, percent, indeterminate } = this._readState();
     const label = this.attr('label');
     const showValue = this.boolAttr('show-value');

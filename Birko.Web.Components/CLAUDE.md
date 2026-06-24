@@ -135,7 +135,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | **Vertical footprint** | `min-height` of the chrome | `--b-control-min-height-sm/-md/-lg` | form inputs (via `formControlSheet` + `comboControlSheet`), `b-tag-input` |
 | **Text scale** | inner `font-size` only | `--b-text-xs / -sm / -base` | `b-pre`, `b-code-block`, `b-object-tree`, `b-json-viewer`, `b-xml-viewer`, `b-definition-list` |
 | **Width** | `max-width` / `width` of the panel | `--b-{modal,drawer}-width-{sm,md,lg,xl,xxl}` | `b-modal`, `b-drawer` (extend to `xl`/`xxl`) |
-| **Shape weight** | diameter / track thickness | component-specific | `b-spinner` (diameter), `b-progress` (track height) |
+| **Shape weight** | diameter / track thickness | component-specific | `b-spinner` (diameter), `b-progress` (linear: track height; circular: ring diameter) |
 | **Inline chip / button** | `padding` + `font-size` | `--b-space-*` + `--b-text-*` | `b-button`, `b-badge`, `b-tag` |
 
 **Always style via `:host([size="sm"])` / `:host([size="lg"])` selectors** — never via class interpolation (`class="${size}"`). The host-attribute pattern keeps `size` as a pure CSS switch (no `observedAttributes` entry needed, no re-render on change) and stays consistent across the library.
@@ -223,7 +223,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 |---|---|
 | `toast` (manager) | `toast.success(msg)`, `toast.error(msg)`, `toast.warning(msg)`, `toast.info(msg)`, `toast.notify(msg, opts)` |
 | `<b-spinner>` | `size` attribute (sm\|md\|lg) |
-| `<b-progress>` | `setValue(value, max?)`; attributes `value`, `max`, `indeterminate`, `label`, `show-value`, `value-format` (percent\|fraction\|value), `size` (sm\|md\|lg\|xl), `variant` (primary\|success\|warning\|danger\|info\|secondary), `striped`, `animated`; events `change`, `complete` |
+| `<b-progress>` | `setValue(value, max?)`; attributes `type` (linear\|circular), `value`, `max`, `indeterminate`, `label`, `show-value`, `value-format` (percent\|fraction\|value), `size` (sm\|md\|lg\|xl), `variant` (primary\|success\|warning\|danger\|info\|secondary), `striped`, `animated` (linear only), `thickness` (circular stroke width); events `change`, `complete` |
 | `<b-empty>` | `icon`, `message` attributes |
 | `<b-skeleton>` | `type` (text\|circle\|table\|form), `rows`, `columns` attributes |
 | `<b-stale-banner>` | `show(cachedAt)` method, `message` attribute — stale/cached data warning |

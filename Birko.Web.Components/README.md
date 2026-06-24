@@ -1033,13 +1033,20 @@ toast.notify('Door sensor triggered', {
 
 ### b-progress
 
-Linear progress bar — determinate or indeterminate, with optional label and inline value display.
+Progress indicator — determinate or indeterminate, with optional label and inline value display. `type="linear"` (default) renders a horizontal bar; `type="circular"` renders an SVG ring (value centered, label below).
 
 ```html
 <b-progress value="42" max="100" label="Uploading" show-value></b-progress>
 <b-progress indeterminate label="Working…"></b-progress>
 <b-progress value="0.3" max="1" value-format="percent" size="sm" variant="success" striped animated></b-progress>
+
+<!-- circular -->
+<b-progress type="circular" value="72" show-value variant="success"></b-progress>
+<b-progress type="circular" indeterminate label="Loading…"></b-progress>
+<b-progress type="circular" value="40" size="lg" thickness="2.5"></b-progress>
 ```
+
+`size` controls the ring diameter (`sm`/`lg`/`xl`, or `--b-progress-ring-size`); `thickness` (unitless, `~3.5` default) sets stroke width via `--b-progress-ring-thickness`. `striped`/`animated` apply to the linear bar only.
 
 ```typescript
 (el as BProgress).setValue(75, 100);
