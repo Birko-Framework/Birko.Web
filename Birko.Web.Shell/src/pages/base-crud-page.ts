@@ -56,6 +56,14 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** REST resource base path, e.g. `'api/products'`. Required for table + CRUD pages. */
   protected declare endpoint?: string;
 
+  /**
+   * Base URL for single-entity operations: create (POST `resourceEndpoint`) and {id}-scoped
+   * get/update/delete (`resourceEndpoint/{id}`). Defaults to `endpoint` (the list URL). Override
+   * ONLY when the list lives at a nested/filtered route but CRUD targets a flat resource — e.g.
+   * Contacts: list `api/contact-persons/customer/{customerId}` vs resource `api/contact-persons`.
+   */
+  protected get resourceEndpoint(): string | undefined { return this.endpoint; }
+
   /** Column definitions for `<b-data-table>`. Required for pages with a table. */
   protected get columns(): TableColumn[] { return []; }
 
@@ -809,7 +817,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Open the modal in edit mode for the given entity ID. */
   protected async _openEdit(id: string): Promise<void> {
     const schema = this.editFormSchema;
-    if (!schema || !this.endpoint) return;
+    const resource = this.resourceEndpoint;
+    if (!schema || !resource) return;
     const modal = this.$<BModal>('#modal');
     const form = this.$<BForm>('#form');
     const saveBtn = this.$<BButton>('#btn-save');
@@ -823,7 +832,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
     let resp: Awaited<ReturnType<ApiClient['get']>>;
     try {
-      resp = await this.api.get<T>(entityUrl(this.endpoint, id));
+      resp = await this.api.get<T>(entityUrl(resource, id));
     } catch {
       toast.error(this.t('bws.common.edit') + ' failed');
       modal.close();
@@ -848,14 +857,15 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
   /** Show delete confirmation and delete the entity. */
   protected async _confirmDelete(id: string): Promise<void> {
-    if (!this.endpoint) return;
+    const resource = this.resourceEndpoint;
+    if (!resource) return;
     const confirm = this.$<BConfirmDialog>('#confirm');
     if (!confirm) return;
 
     const confirmed = await confirm.show();
     if (!confirmed) return;
 
-    const resp = await this.api.delete(entityUrl(this.endpoint, id));
+    const resp = await this.api.delete(entityUrl(resource, id));
     if (resp.ok) {
       toast.success(this.t('bws.common.deleted'));
       this.onDeleteSuccess?.(id);
@@ -872,7 +882,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
   /** Save the form (create or edit). */
   protected async _save(): Promise<void> {
-    if (!this.endpoint) return;
+    const resource = this.resourceEndpoint;
+    if (!resource) return;
     const form = this.$<BForm>('#form');
     const saveBtn = this.$<BButton>('#btn-save');
     const modal = this.$<BModal>('#modal');
@@ -889,8 +900,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       if (!body) return;
 
       const resp = isEdit
-        ? await this.api.put<T>(entityUrl(this.endpoint, this._editingId!), body)
-        : await this.api.post<T>(this.endpoint, body);
+        ? await this.api.put<T>(entityUrl(resource, this._editingId!), body)
+        : await this.api.post<T>(resource, body);
 
       if (!resp.ok) {
         showFormError(form as Parameters<typeof showFormError>[0], resp.data);
