@@ -153,6 +153,13 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected get emptyFilterMessage(): string { return 'Select a filter to continue'; }
 
   /**
+   * Hint shown as a tooltip on the create button while it is disabled because
+   * `requiredFilterSet` is `false` (i.e. a prerequisite selection/page is missing).
+   * Defaults to `emptyFilterMessage`; override for button-specific wording.
+   */
+  protected get createDisabledHint(): string { return this.emptyFilterMessage; }
+
+  /**
    * Called when any filter value changes.
    *
    * Override for cascading logic (update dependent filter options, change endpoint, etc.).
@@ -373,7 +380,10 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       html += `<b-button variant="${a.variant ?? 'secondary'}" class="toolbar-action" data-action="${a.id}">${a.icon ?? ''}${a.label}</b-button>`;
     }
     if (canCreate) {
-      html += `<b-button variant="primary" id="btn-create"${disabled}>${this.t('bws.common.new')}</b-button>`;
+      const btn = `<b-button variant="primary" id="btn-create"${disabled}>${this.t('bws.common.new')}</b-button>`;
+      html += disabled
+        ? `<b-tooltip text="${this.createDisabledHint}" position="bottom">${btn}</b-tooltip>`
+        : btn;
     }
     return html;
   }
