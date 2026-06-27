@@ -251,6 +251,11 @@ input.has-error:focus, select.has-error:focus {
   gap: var(--b-space-sm, 0.5rem);
   cursor: pointer;
   vertical-align: middle;
+  /* Containing block for visually-hidden absolutely-positioned inputs (b-switch).
+     Without this their containing block is <html>, so they escape any ancestor
+     overflow:hidden (e.g. the app-shell) and stretch the document height,
+     producing a phantom page scrollbar. */
+  position: relative;
 }
 .toggle-wrapper.disabled {
   opacity: var(--b-disabled-opacity, 0.5);
