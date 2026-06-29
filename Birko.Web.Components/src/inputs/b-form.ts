@@ -249,7 +249,11 @@ export class BForm extends BaseComponent {
     this._walkGroups(schema, (g) => {
       if (g.collapsible && g.collapsed) this._collapsed.add(g.name);
     });
-    this.update();
+    // A schema swap changes the field set wholesale (e.g. create → edit, which drops/adds fields).
+    // forceRender (full innerHTML) instead of the morphing update() so fields removed from the new
+    // schema cannot survive as stale `[data-field]` nodes — values are repopulated right after via
+    // reset()/setValues(), so there is no state to preserve.
+    this.forceRender();
   }
 
   setValue(name: string, value: unknown) {
