@@ -19,6 +19,11 @@ const DEFAULT_RGB = '#000000';
  * just the clickable swatch (the swatch then carries `name` for form posts).
  * Useful for toolbars/headers where the hex box is noise.
  *
+ * Add the `compact` attribute to lay the controls out on a single row instead of
+ * stacked — the opacity slider (alpha mode) sits inline beside the swatch rather
+ * than dropping below it, so the whole control fits a fixed-height toolbar/ribbon
+ * without overflowing. Pairs naturally with `swatch-only alpha`.
+ *
  * Mirrors the native element's two-event contract:
  *  - `input`  — live preview during a swatch drag, slider drag, or while a valid
  *               hex is typed. Ephemeral: the `value` attribute is NOT reflected
@@ -29,7 +34,7 @@ const DEFAULT_RGB = '#000000';
  */
 export class BColorPicker extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'alpha', 'swatch-only', 'error', 'hint', 'required', 'disabled'];
+    return ['label', 'name', 'value', 'placeholder', 'alpha', 'swatch-only', 'compact', 'error', 'hint', 'required', 'disabled'];
   }
 
   static get sharedStyles() {
@@ -140,6 +145,20 @@ export class BColorPicker extends BaseComponent {
         font-size: var(--b-text-sm, 0.8125rem);
         color: var(--b-text-secondary);
       }
+
+      /* ── Compact: single row, so the alpha slider sits beside the swatch
+         instead of dropping below it (fits fixed-height toolbars/ribbons). ── */
+      :host([compact]) .field {
+        flex-direction: row;
+        align-items: center;
+        gap: var(--b-space-sm, 0.5rem);
+      }
+      :host([compact]) .alpha-control {
+        margin-top: 0;
+        flex: 0 0 auto;
+        width: 5rem;
+      }
+      :host([compact]) .alpha-out { display: none; }
     `;
   }
 
@@ -266,20 +285,28 @@ export class BColorPicker extends BaseComponent {
     const hex = this.$<HTMLInputElement>('.hex');
     const alpha = this.$<HTMLInputElement>('.alpha');
 
+    // The inner controls fire native, composed `input`/`change` events that would
+    // otherwise bubble past the host and masquerade as this component's own
+    // (detail-less) input/change. Stop them at the boundary; we re-emit our own
+    // semantic events with a { name, value } detail instead.
+    const contain = (e: Event) => e.stopPropagation();
+
     if (swatch) {
       // Drag preview: mirror into the hex text + slider tint, emit a live event.
-      this.listen(swatch, 'input', () => {
+      this.listen(swatch, 'input', e => {
+        contain(e);
         const value = this._compose();
         if (hex) hex.value = value;
         this._paint(swatch.value, alpha ? Number(alpha.value) : 255);
         this.emit('input', { name: this.attr('name'), value });
       });
-      this.listen(swatch, 'change', () => this._commit(this._compose()));
+      this.listen(swatch, 'change', e => { contain(e); this._commit(this._compose()); });
     }
 
     if (hex) {
       // Live-preview a valid typed hex on the swatch + slider, without committing.
-      this.listen(hex, 'input', () => {
+      this.listen(hex, 'input', e => {
+        contain(e);
         const p = this._parse(hex.value);
         if (!p) return;
         if (swatch) swatch.value = p.rgb;
@@ -288,7 +315,8 @@ export class BColorPicker extends BaseComponent {
         this._paint(p.rgb, a);
         this.emit('input', { name: this.attr('name'), value: this._format(p.rgb, a) });
       });
-      this.listen(hex, 'change', () => {
+      this.listen(hex, 'change', e => {
+        contain(e);
         const p = this._parse(hex.value);
         if (!p) { hex.value = this._current(); return; }
         const a = p.a ?? (alpha ? Number(alpha.value) : 255);
@@ -297,7 +325,8 @@ export class BColorPicker extends BaseComponent {
     }
 
     if (alpha) {
-      this.listen(alpha, 'input', () => {
+      this.listen(alpha, 'input', e => {
+        contain(e);
         const a = Number(alpha.value);
         const rgb = swatch?.value || this._currentParts().rgb;
         const value = this._format(rgb, a);
@@ -305,7 +334,7 @@ export class BColorPicker extends BaseComponent {
         this._paint(rgb, a);
         this.emit('input', { name: this.attr('name'), value });
       });
-      this.listen(alpha, 'change', () => this._commit(this._compose()));
+      this.listen(alpha, 'change', e => { contain(e); this._commit(this._compose()); });
     }
   }
 
