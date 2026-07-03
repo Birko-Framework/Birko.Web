@@ -337,6 +337,10 @@ export class BMultiSelect extends BaseComponent {
 
   /** Refresh dropdown options in-place without full re-render. */
   private _refreshOptions(dropdown: HTMLElement) {
+    // Preserve scroll position — rebuilding the option nodes would otherwise
+    // reset scrollTop to 0, jumping the list back to the top when a user
+    // toggles a selection partway down.
+    const prevScrollTop = dropdown.scrollTop;
     const searchWrap = dropdown.querySelector('.search-wrap');
     const filterLower = this._filter.toLowerCase();
     const filtered = this._filter
@@ -373,6 +377,9 @@ export class BMultiSelect extends BaseComponent {
 
     this._wireOptionCheckboxes(dropdown);
     this._wireCreateOption(dropdown);
+
+    // Restore scroll position after the option nodes were rebuilt.
+    dropdown.scrollTop = prevScrollTop;
   }
 
   private _wireOptionCheckboxes(dropdown: HTMLElement) {
