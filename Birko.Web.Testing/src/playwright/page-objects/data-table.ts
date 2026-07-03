@@ -40,8 +40,25 @@ export class DataTablePO {
 
   /** Open the row menu and pick an action by its id (emits row-action {action,id,row}). */
   async pickRowAction(rowId: string, actionId: string): Promise<void> {
-    await this.openRowActions(rowId);
-    await this.page.locator(pw(B.dropdownItemFor(actionId))).first().click();
+    // EVERY row renders its own (closed) `b-dropdown-menu`, so `dropdownItemFor(actionId)` matches one
+    // hidden `.item` per row. `.first()` therefore targets the FIRST row's CLOSED menu item — which is
+    // "not visible" whenever rowId is not the first row (with a single row it happens to work, which is why
+    // this only flaked on populated tables). Scope to the VISIBLE item instead: opening a row's ⋮ shows
+    // exactly one menu (a popover), so the visible `.item[data-id=…]` is unambiguously the one we opened.
+    // A small retry covers the separate race where a late list re-render orphans the just-opened popover.
+    const item = this.page.locator(pw(B.dropdownItemFor(actionId))).filter({ visible: true }).first();
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await this.page.keyboard.press('Escape').catch(() => { /* nothing open */ });
+      await this.openRowActions(rowId);
+      try {
+        await item.click({ timeout: 3000 });
+        return;
+      } catch (e) {
+        lastErr = e;
+      }
+    }
+    throw lastErr;
   }
 
   async selectRow(rowId: string): Promise<void> {

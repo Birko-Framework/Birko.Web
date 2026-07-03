@@ -32,6 +32,20 @@ export class FormPO {
   /** Toggle a checkbox/switch-type field. */
   async setChecked(name: string, checked = true): Promise<void> {
     const input = this.field(name).first();
+    // Idempotent: read the live checked state from the native <input> (works even when it is
+    // visually hidden, as in b-switch). If it is already in the desired state, do nothing.
+    const current = await input.evaluate((el) => (el as HTMLInputElement).checked).catch(() => undefined);
+    if (current === checked) return;
+    // b-switch hides its native <input> (1px-clipped, non-actionable) and both b-switch and
+    // b-checkbox flip via the wrapping <label class="toggle-wrapper">. Playwright's .check() on the
+    // hidden switch input never satisfies actionability and blocks for the full timeout, so click
+    // the label instead — it natively toggles the wrapped checkbox. Fall back to .check()/.uncheck()
+    // for a bare input that has no toggle-wrapper label.
+    const label = this.page.locator(pw({ host: 'b-form', inner: `[data-field="${cssAttr(name)}"] label.toggle-wrapper` })).first();
+    if (await label.count()) {
+      await label.click();
+      return;
+    }
     if (checked) await input.check(); else await input.uncheck();
   }
 
