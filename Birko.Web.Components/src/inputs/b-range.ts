@@ -5,7 +5,7 @@ import { renderLabel, renderError } from './label-hint';
 export class BRange extends BaseComponent {
   static get observedAttributes() {
     return ['label', 'hint', 'error', 'disabled', 'required', 'name',
-            'min', 'max', 'step', 'mode', 'display', 'value-type', 'value'];
+            'min', 'max', 'step', 'mode', 'display', 'value-type', 'value', 'orientation'];
   }
 
   static get sharedStyles() {
@@ -170,6 +170,36 @@ export class BRange extends BaseComponent {
       :host([error]) .range-input {
         border-color: var(--b-color-danger);
       }
+
+      /* ── Vertical (equalizer): thin rail up the column, fill grows from the bottom ── */
+      :host([orientation="vertical"]) .range-wrap { height: 100%; }
+      :host([orientation="vertical"]) .range-slider {
+        width: 1.5rem;
+        height: 100%;
+        min-height: 8rem;
+        justify-content: center;
+      }
+      :host([orientation="vertical"]) input[type="range"] {
+        writing-mode: vertical-lr;
+        direction: rtl;               /* max at top, min at bottom — natural for an equalizer */
+        /* Absolute so the input's large vertical min-content height doesn't blow out the layout;
+           height comes from the (definite) slider box instead. */
+        position: absolute;
+        top: 0; bottom: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 1.5rem;
+        height: auto;
+      }
+      :host([orientation="vertical"]) .range-track {
+        top: 0; bottom: 0; left: 50%; right: auto;
+        transform: translateX(-50%);
+        width: 0.25rem; height: auto;
+      }
+      :host([orientation="vertical"]) .range-track-fill {
+        top: auto; left: 50%; right: auto;
+        transform: translateX(-50%);
+        width: 0.25rem;
+      }
     `;
   }
 
@@ -184,6 +214,13 @@ export class BRange extends BaseComponent {
   private get _step(): number { return Number(this.attr('step', '1')); }
   private get _mode(): string { return this.attr('mode', 'single')!; }
   private get _display(): string { return this.attr('display', 'both')!; }
+  private get _isVertical(): boolean { return this.attr('orientation', 'horizontal') === 'vertical'; }
+
+  /** Inline fill style for the current orientation (horizontal = left/width, vertical = bottom/height). */
+  private _fillStyle(fromPct: number, toPct: number): string {
+    const size = toPct - fromPct;
+    return this._isVertical ? `bottom:${fromPct}%;height:${size}%` : `left:${fromPct}%;width:${size}%`;
+  }
   private get _valueType(): string { return this.attr('value-type', 'number')!; }
   private get _isRange(): boolean { return this._mode === 'range'; }
   private get _showSlider(): boolean { return this._display !== 'input'; }
@@ -268,7 +305,7 @@ export class BRange extends BaseComponent {
         sliderHtml = `
           <div class="range-slider range-slider--dual">
             <div class="range-track"></div>
-            <div class="range-track-fill" style="left:${fromPct}%;width:${toPct - fromPct}%"></div>
+            <div class="range-track-fill" style="${this._fillStyle(fromPct, toPct)}"></div>
             <input type="range" class="slider-from" min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} aria-label="From" />
             <input type="range" class="slider-to" min="${min}" max="${max}" step="${step}"
@@ -280,7 +317,7 @@ export class BRange extends BaseComponent {
         sliderHtml = `
           <div class="range-slider">
             <div class="range-track"></div>
-            <div class="range-track-fill" style="left:0;width:${fromPct}%"></div>
+            <div class="range-track-fill" style="${this._fillStyle(0, fromPct)}"></div>
             <input type="range" class="slider-single" min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} />
           </div>`;
@@ -408,14 +445,18 @@ export class BRange extends BaseComponent {
     const fill = this.$<HTMLElement>('.range-track-fill');
     if (!fill) return;
 
-    if (this._isRange) {
-      const fromPct = this._pct(this._from);
-      const toPct = this._pct(this._to);
-      fill.style.left = `${fromPct}%`;
-      fill.style.width = `${toPct - fromPct}%`;
+    const from = this._isRange ? this._pct(this._from) : 0;
+    const to = this._pct(this._isRange ? this._to : this._from);
+    if (this._isVertical) {
+      fill.style.left = '';
+      fill.style.width = '';
+      fill.style.bottom = `${from}%`;
+      fill.style.height = `${to - from}%`;
     } else {
-      fill.style.left = '0';
-      fill.style.width = `${this._pct(this._from)}%`;
+      fill.style.bottom = '';
+      fill.style.height = '';
+      fill.style.left = `${from}%`;
+      fill.style.width = `${to - from}%`;
     }
   }
 

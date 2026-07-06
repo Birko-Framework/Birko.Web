@@ -203,10 +203,15 @@ Slider/input for single values or from-to ranges. Supports number, int, and perc
 
 <!-- Input only -->
 <b-range label="Temperature" name="temp" display="input" min="-40" max="80" step="0.5"></b-range>
+
+<!-- Vertical (equalizer): stack several slider-only vertical ranges in a flex row -->
+<b-range orientation="vertical" display="slider" min="0" max="100" value="60"></b-range>
 ```
 
-Attributes: `label`, `name`, `min`, `max`, `step`, `mode` (single|range), `display` (both|slider|input), `value-type` (number|int|percent), `error`, `disabled`, `required`
+Attributes: `label`, `name`, `min`, `max`, `step`, `mode` (single|range), `display` (both|slider|input), `orientation` (horizontal|vertical), `value-type` (number|int|percent), `error`, `disabled`, `required`
 Emits: `change` → `{ name, value }` (single) or `{ name, value: { from, to } }` (range)
+
+`orientation="vertical"` renders the slider bottom-to-top (fill grows from the bottom) — set a height on the host (or a flex-row container) and use `display="slider"` to build an equalizer/mixer bank. Single and range modes both work vertically.
 
 ### b-form
 
