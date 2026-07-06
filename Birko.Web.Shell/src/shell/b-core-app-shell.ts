@@ -374,7 +374,12 @@ export abstract class BCoreAppShell extends BaseComponent {
         display: flex;
         flex-direction: column;
         width: 100%;
+        /* Dynamic viewport height: on mobile Safari/Chrome the browser's URL/toolbar shrinks the
+           visible area, but 100vh is the LARGE viewport (as if the toolbar were hidden), so a
+           fixed bottom nav ends up occluded behind the toolbar. 100dvh tracks the currently
+           visible height; keep 100vh first as the fallback for browsers without dvh. */
         height: 100vh;
+        height: 100dvh;
         overflow: hidden;
       }
 
