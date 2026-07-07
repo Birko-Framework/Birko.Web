@@ -201,6 +201,11 @@
         token. Override per-component if a dark thumb is desired. ── */
   --b-input-thumb-bg: #ffffff;
 
+  /* ── Form-control font size. 16px MINIMUM: iOS Safari auto-zooms into a focused
+        <input>/<select>/<textarea> whose text is smaller than this and never zooms
+        back out, leaving the whole view enlarged. Keep any editable control ≥ 16px. ── */
+  --b-input-font-size: 16px;
+
   /* ── Unified form-control minimum height (rem — scales with font size).
         Applied to <input>/<select>/<textarea> via formControlSheet, to
         `.combo-container` via comboControlSheet, and to b-tag-input's

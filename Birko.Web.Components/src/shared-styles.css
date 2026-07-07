@@ -179,7 +179,7 @@ input, select, textarea {
   min-height: var(--b-control-min-height, 2.375rem);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
-  font-size: var(--b-text-base, 0.875rem);
+  font-size: var(--b-input-font-size, 16px); /* ≥16px — see token: prevents iOS Safari focus auto-zoom */
   background: var(--b-bg);
   color: var(--b-text);
   outline: none;
