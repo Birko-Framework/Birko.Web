@@ -49,6 +49,13 @@ dialog {
   background: transparent;
   overflow: visible;
 }
+/* showModal() moves focus to the <dialog>; suppress the UA focus ring on the
+   container itself (Safari paints it blue around the whole modal). The dialog is
+   not an interactive control — its focusable children keep their own focus styling. */
+dialog:focus,
+dialog:focus-visible {
+  outline: none;
+}
 dialog::backdrop {
   background: var(--b-backdrop-bg, rgba(0, 0, 0, 0.4));
 }

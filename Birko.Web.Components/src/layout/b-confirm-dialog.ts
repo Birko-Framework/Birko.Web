@@ -29,6 +29,12 @@ export class BConfirmDialog extends BaseComponent {
         color: var(--b-text-secondary); font-size: var(--b-text-base);
         line-height: var(--b-line-height);
       }
+      /* On phones the two right-aligned compact buttons look cramped; make them
+         equal-width and fill the footer row (flex:1 1 0 → same width regardless
+         of label length). Desktop consumers keep the flex-end compact layout. */
+      @media (max-width: 30rem) {
+        .overlay-footer b-button { flex: 1 1 0; }
+      }
     `;
   }
 
