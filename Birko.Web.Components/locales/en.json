@@ -49,6 +49,18 @@
       "confirmText": "Confirm",
       "cancelText": "Cancel"
     },
+    "dialog": {
+      "confirmTitle": "Confirm",
+      "noticeTitle": "Notice",
+      "promptTitle": "Prompt",
+      "chooseTitle": "Choose",
+      "formTitle": "Details",
+      "ok": "OK",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "save": "Save",
+      "required": "This field is required"
+    },
     "pagination": {
       "title": "Pagination",
       "items": "items",

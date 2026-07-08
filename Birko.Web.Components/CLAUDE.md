@@ -20,6 +20,8 @@ src/
 │                    # b-badge, b-tag, b-chart, b-kanban, b-pre, b-code-block,
 │                    # b-definition-list, b-object-tree, b-json-viewer, b-xml-viewer
 ├── feedback/        # b-toast (+ toast manager), b-spinner, b-progress, b-empty, b-skeleton, b-stale-banner
+├── dialogs/         # imperative helpers (NOT components): confirm/confirmDelete/alert/prompt/
+│                    # choose/promptForm/busy/notify — a lean subpath over the components below
 ├── nav/             # b-sidebar, b-breadcrumb, b-ribbon, b-tree-menu
 ├── command/         # b-command-palette, command-provider
 ├── locales/         # en.json (canonical bwc.* keys)
@@ -227,6 +229,21 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | `<b-empty>` | `icon`, `message` attributes |
 | `<b-skeleton>` | `type` (text\|circle\|table\|form), `rows`, `columns` attributes |
 | `<b-stale-banner>` | `show(cachedAt)` method, `message` attribute — stale/cached data warning |
+
+### Dialogs (imperative helpers — `birko-web-components/dialogs`)
+Functions, not components — call them instead of hand-rendering a `<b-confirm-dialog>`/`<b-modal>` + `await el.show()`. Imported from a **lean subpath** so only the few components used are bundled (importing the `layout`/`inputs` barrels ~doubles the bundle). `promptForm` code-splits `b-form` via dynamic import.
+| Export | Signature | Notes |
+|---|---|---|
+| `confirm` | `(message, opts?) => Promise<boolean>` | over `b-confirm-dialog`; Escape → false |
+| `confirmDelete` | `(message, opts?) => Promise<boolean>` | danger variant, Delete/Cancel defaults |
+| `alert` | `(message, opts?) => Promise<void>` | modal acknowledgement (blocking OK) — distinct from the transient `notify` toast |
+| `prompt` | `(message, opts?) => Promise<string \| null>` | over `b-modal` + `b-input`; `required` blocks empty; Enter submits |
+| `choose<T>` | `(message, ChooseOption<T>[], opts?) => Promise<T \| null>` | pick one of N (the "which format?" pattern) |
+| `promptForm` | `(FormField[], opts?) => Promise<Record<string,unknown> \| null>` | multi-field over `b-form` (validates); dynamic-imports `b-form` |
+| `busy<T>` | `(work: Promise<T> \| () => Promise<T>, opts?) => Promise<T>` | non-dismissable spinner overlay (top-layer `<dialog>`) while work runs |
+| `notify` | `(message, variant?) => void` | transient toast (wraps the `toast` manager) |
+
+All render in the browser **top layer** (`<dialog>.showModal()`), so z-index never applies. i18n keys `bwc.dialog.*`.
 
 ### Navigation (4)
 | Tag | Class | Key methods |

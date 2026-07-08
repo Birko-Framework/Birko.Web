@@ -27,8 +27,27 @@ import { BModal, BDataTable, toast } from 'birko-web-components';
 
 ```
 birko-web-components              # main (registers all components)
+birko-web-components/dialogs      # imperative confirm/confirmDelete/alert/prompt/choose/promptForm/busy/notify
 birko-web-components/form-utils   # showFormError, loadOptions, wireSearchableSelect
 ```
+
+### Imperative dialogs
+
+Instead of hand-rendering `<b-confirm-dialog>` / `<b-modal>` and awaiting `el.show()`, call a function:
+
+```ts
+import { confirm, confirmDelete, prompt, choose, promptForm, busy, alert, notify }
+  from 'birko-web-components/dialogs';
+
+if (await confirmDelete('Delete this item?')) { /* … */ }
+const name = await prompt('Your name?', { defaultValue: 'Ada' });        // string | null
+const fmt  = await choose('Export as', [{ label: 'PDF', value: 'pdf' }, { label: 'CSV', value: 'csv' }]);
+const data = await promptForm([{ name: 'email', type: 'email', label: 'Email', required: true }]);
+await busy(() => api.save(model), { message: 'Saving…' });               // spinner overlay while it runs
+notify('Saved', 'success');                                             // transient toast
+```
+
+This is a **lean subpath** — it pulls only the handful of components each helper uses (not the `layout`/`inputs` barrels, which bundle `b-chat`, pickers, data-table and roughly double the bundle). All dialogs render in the browser top layer (`<dialog>.showModal()`), so they sit above any z-index and are Escape-dismissable.
 
 ## Internationalization
 
