@@ -1,16 +1,22 @@
+import { escapeHtml } from '../dom-utils';
+
 /**
  * Render a label element with optional hint tooltip and required indicator.
  * Used by all form input components (b-input, b-select, b-textarea, etc.).
  *
  * When `hint` or `required` is provided, renders a label-row wrapper.
  * Required fields get a red asterisk (*) after the label text.
+ *
+ * `label` and `hint` are escaped so schema-supplied text with quotes or angle brackets
+ * cannot break out of the attribute / inject markup into the shadow tree.
  */
 export function renderLabel(label: string | null, hint: string | null, required = false): string {
   if (!label) return '';
+  const safeLabel = escapeHtml(label);
   const req = required ? '<span class="required-mark">*</span>' : '';
-  const hintEl = hint ? `<b-tooltip text="${hint}"><span class="hint-icon">?</span></b-tooltip>` : '';
-  if (!req && !hintEl) return `<label>${label}</label>`;
-  return `<div class="label-row"><label>${label}${req}</label>${hintEl}</div>`;
+  const hintEl = hint ? `<b-tooltip text="${escapeHtml(hint)}"><span class="hint-icon">?</span></b-tooltip>` : '';
+  if (!req && !hintEl) return `<label>${safeLabel}</label>`;
+  return `<div class="label-row"><label>${safeLabel}${req}</label>${hintEl}</div>`;
 }
 
 /** Options describing the validation/accessibility state of a form control. */

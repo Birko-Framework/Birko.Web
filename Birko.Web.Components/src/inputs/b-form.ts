@@ -1,5 +1,5 @@
 import { BaseComponent, define, t as globalT } from 'birko-web-core';
-import { isActivationKey } from '../dom-utils';
+import { isActivationKey, escapeAttr } from '../dom-utils';
 
 // ── Types ──
 
@@ -529,17 +529,20 @@ export class BForm extends BaseComponent {
   }
 
   private _fieldAttrs(field: FormField, path: string, error: string, disabled: boolean): string {
-    const parts: string[] = [`data-path="${path}"`];
+    // Escape every interpolated value: field.value comes from loaded entity data and
+    // label/hint/placeholder/error from the schema, so an unescaped double-quote or angle bracket
+    // would break out of the attribute and inject markup into the shadow tree.
+    const parts: string[] = [`data-path="${escapeAttr(path)}"`];
 
     if (field.type !== 'radio') {
-      parts.push(`name="${field.name}"`);
-      if (field.label) parts.push(`label="${field.label}"`);
+      parts.push(`name="${escapeAttr(field.name)}"`);
+      if (field.label) parts.push(`label="${escapeAttr(field.label)}"`);
     }
 
-    if (field.hint) parts.push(`hint="${field.hint}"`);
-    if (field.value !== undefined && field.value !== '') parts.push(`value="${String(field.value)}"`);
-    if (field.placeholder) parts.push(`placeholder="${field.placeholder}"`);
-    if (error) parts.push(`error="${error}"`);
+    if (field.hint) parts.push(`hint="${escapeAttr(field.hint)}"`);
+    if (field.value !== undefined && field.value !== '') parts.push(`value="${escapeAttr(String(field.value))}"`);
+    if (field.placeholder) parts.push(`placeholder="${escapeAttr(field.placeholder)}"`);
+    if (error) parts.push(`error="${escapeAttr(error)}"`);
     if (disabled) parts.push('disabled');
     const isRequired = field.required || field.rules?.some(r => r.type === 'required');
     if (isRequired) parts.push('required');

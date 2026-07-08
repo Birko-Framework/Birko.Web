@@ -558,8 +558,12 @@ export class BMarkdownEditor extends BaseComponent {
     work = work.replace(/^(\s*)[-*+]\s+(.+)$/gm, '$1<li>$2</li>');
     work = work.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
 
-    // 10. Ordered lists
-    work = work.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    // 10. Ordered lists — generate items AFTER the <ul> wrap (so they aren't swept into a <ul>),
+    // with a `data-ol` marker so their runs wrap in <ol>, then drop the marker. Without this the
+    // ordered <li>s were never wrapped in any list element and fell through to <p>.
+    work = work.replace(/^\d+\.\s+(.+)$/gm, '<li data-ol>$1</li>');
+    work = work.replace(/((?:<li data-ol>.*<\/li>\n?)+)/g, '<ol>$1</ol>');
+    work = work.replace(/<li data-ol>/g, '<li>');
 
     // 11. Inline formatting
     work = work.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
