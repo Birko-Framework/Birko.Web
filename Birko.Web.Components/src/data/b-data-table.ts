@@ -545,13 +545,17 @@ export class BDataTable extends BaseComponent {
         menu.setItems(actions);
         menu.show();
 
+        // Single teardown shared by both the select and outside-click paths. Selecting an item is
+        // the common path — it must also unregister the document listener, otherwise every
+        // row-action leaves a dangling listener whose closure retains the removed menu.
+        const cleanup = () => { menu.remove(); document.removeEventListener('click', cleanup); };
+
         menu.addEventListener('select', ((se: CustomEvent) => {
           this.emit('row-action', { action: se.detail.id, id, row });
-          menu.remove();
+          cleanup();
         }) as EventListener);
 
         // Clean up on outside click (popover handles this, but belt and suspenders)
-        const cleanup = () => { menu.remove(); document.removeEventListener('click', cleanup); };
         setTimeout(() => document.addEventListener('click', cleanup), 0);
       });
     });

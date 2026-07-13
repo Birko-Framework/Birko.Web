@@ -31,6 +31,7 @@ export class BCommandPalette extends BaseComponent {
   static get observedAttributes() { return ['placeholder', 'label-esc-close', 'label-searching', 'label-no-results', 'label-type-to-search', 'label-navigate', 'label-select', 'label-close', 'label-palette']; }
   private _state: PaletteState = { query: '', results: [], activeIdx: -1, loading: false };
   private _debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _searchSeq = 0;
   private _unsub: (() => void) | null = null;
   private _kbHandler: ((e: KeyboardEvent) => void) | null = null;
 
@@ -388,6 +389,10 @@ export class BCommandPalette extends BaseComponent {
   }
 
   private async _runSearch(query: string): Promise<void> {
+    // Tag this request so an older, slower provider set can't overwrite a newer query's results
+    // when it resolves out of order.
+    const seq = ++this._searchSeq;
+
     this._state.loading = true;
     this.update();
 
@@ -402,6 +407,9 @@ export class BCommandPalette extends BaseComponent {
     });
 
     await Promise.all(promises);
+
+    // Discard stale responses — only the most recent search may commit.
+    if (seq !== this._searchSeq) return;
 
     // Deduplicate by id
     const seen = new Set<string>();

@@ -680,8 +680,14 @@ export class BTreeMenu extends BaseComponent {
         this._collectExpanded(children);
       }
       this._loadedNodes.add(id);
+    } catch (err) {
+      // Surface the failure instead of leaking an unhandled rejection out of toggle(); leave the
+      // node un-marked so a retry re-attempts the load.
+      this.emit('load-error', { id, item, error: err });
     } finally {
+      // Always clear the spinner and re-render — toggle()'s own update() is skipped on the throw path.
       this._loadingNodes.delete(id);
+      this.update();
     }
   }
 
