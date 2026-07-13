@@ -186,8 +186,17 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
       saveBtn?.setAttribute('loading', '');
       modal.open();
 
-      const resp = await this.api.get<T>(entityUrl(this.endpoint, id));
-      saveBtn?.removeAttribute('loading');
+      let resp;
+      try {
+        resp = await this.api.get<T>(entityUrl(this.endpoint, id));
+      } catch (e) {
+        // A rejected api.get must not leave the modal open with a stuck spinner.
+        toast.error(apiErrorMessage((e as { data?: unknown })?.data));
+        modal.close();
+        return;
+      } finally {
+        saveBtn?.removeAttribute('loading');
+      }
 
       if (!resp.ok) {
         toast.error(apiErrorMessage(resp.data));
@@ -227,23 +236,26 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
 
     saveBtn.setAttribute('loading', '');
 
-    const body = this.mapFromForm(data);
-    const isEdit = this._editingId !== null;
-    const resp = isEdit
-      ? await this.api.put<T>(entityUrl(this.endpoint, this._editingId!), body)
-      : await this.api.post<T>(this.endpoint, body);
+    // try/finally so a rejected api.put/api.post doesn't leave the Save button spinning.
+    try {
+      const body = this.mapFromForm(data);
+      const isEdit = this._editingId !== null;
+      const resp = isEdit
+        ? await this.api.put<T>(entityUrl(this.endpoint, this._editingId!), body)
+        : await this.api.post<T>(this.endpoint, body);
 
-    saveBtn.removeAttribute('loading');
+      if (!resp.ok) {
+        showFormError(form as Parameters<typeof showFormError>[0], resp.data);
+        return;
+      }
 
-    if (!resp.ok) {
-      showFormError(form as Parameters<typeof showFormError>[0], resp.data);
-      return;
+      await this.afterSave(resp.data, isEdit);
+
+      toast.success(this.t('bws.common.saved'));
+      modal.close();
+      this.onSuccess(resp.data, isEdit);
+    } finally {
+      saveBtn.removeAttribute('loading');
     }
-
-    await this.afterSave(resp.data, isEdit);
-
-    toast.success(this.t('bws.common.saved'));
-    modal.close();
-    this.onSuccess(resp.data, isEdit);
   }
 }

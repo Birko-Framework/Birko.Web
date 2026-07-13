@@ -249,19 +249,23 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
 
     saveBtn.setAttribute('loading', '');
 
-    const body = this.mapFromForm(data);
-    const resp = await this.api.put<T>(entityUrl(this.endpoint, id), body);
+    // try/finally so a rejected api.put (network error / thrown interceptor) doesn't leave the
+    // Save button stuck in its spinner state — mirrors base-crud-page._save.
+    try {
+      const body = this.mapFromForm(data);
+      const resp = await this.api.put<T>(entityUrl(this.endpoint, id), body);
 
-    saveBtn.removeAttribute('loading');
+      if (!resp.ok) {
+        showFormError(form as Parameters<typeof showFormError>[0], resp.data);
+        return;
+      }
 
-    if (!resp.ok) {
-      showFormError(form as Parameters<typeof showFormError>[0], resp.data);
-      return;
+      this.entity = resp.data;
+      toast.success(this.t('bws.common.saved'));
+      this.onSaveSuccess?.(resp.data);
+    } finally {
+      saveBtn.removeAttribute('loading');
     }
-
-    this.entity = resp.data;
-    toast.success(this.t('bws.common.saved'));
-    this.onSaveSuccess?.(resp.data);
   }
 
   /** Reload entity data from the server — useful after external changes. */
