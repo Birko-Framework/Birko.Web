@@ -428,11 +428,10 @@ export class BDataTable extends BaseComponent {
     if (this._config.selectable) {
       const pageData = this._getPageData();
       const allSelected = pageData.length > 0 && pageData.every(r => this._selected.has(this._rowId(r)));
-      const someSelected = pageData.some(r => this._selected.has(this._rowId(r)));
 
       columns.push({
         key: '__select',
-        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} ${someSelected && !allSelected ? 'indeterminate' : ''} class="select-all" aria-label="${this._config?.labels?.selectAll ?? 'Select all rows'}" />`,
+        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${this._config?.labels?.selectAll ?? 'Select all rows'}" />`,
         width: '2.5rem',
         align: 'center',
         render: (_v, row) => {

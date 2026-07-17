@@ -447,7 +447,7 @@ export class BKanban extends BaseComponent {
 
     this.update();
 
-    const toIndex = targetIndex ?? this._getOrderedCards(targetColumnId, targetParentId ?? '').findIndex(c => c.id === cardId) - 1;
+    const toIndex = targetIndex ?? this._getOrderedCards(targetColumnId, targetParentId ?? '').findIndex(c => c.id === cardId);
 
     const detail: Record<string, unknown> = {
       card,

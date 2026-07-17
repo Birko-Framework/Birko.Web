@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -299,7 +300,7 @@ export class BEditableTable extends BaseComponent {
     if (type === 'select') {
       const opts = col.getOptions ? col.getOptions(row, idx) : (col.options ?? []);
       const optHtml = opts.map(o =>
-        `<option value="${_escAttr(o.value)}" ${String(val) === o.value ? 'selected' : ''}>${_escText(o.label)}</option>`
+        `<option value="${escapeAttr(o.value)}" ${String(val) === o.value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`
       ).join('');
       return `<select class="cell-input${errClass}" data-key="${col.key}" data-idx="${idx}">${optHtml}</select>`;
     }
@@ -309,8 +310,8 @@ export class BEditableTable extends BaseComponent {
     const minAttr = col.min !== undefined ? ` min="${col.min}"` : '';
     const maxAttr = col.max !== undefined ? ` max="${col.max}"` : '';
     const stepAttr = col.step !== undefined ? ` step="${col.step}"` : '';
-    const phAttr = col.placeholder ? ` placeholder="${_escAttr(col.placeholder)}"` : '';
-    const valAttr = val !== null && val !== undefined ? ` value="${_escAttr(String(val))}"` : '';
+    const phAttr = col.placeholder ? ` placeholder="${escapeAttr(col.placeholder)}"` : '';
+    const valAttr = val !== null && val !== undefined ? ` value="${escapeAttr(String(val))}"` : '';
 
     return `<input
       type="${htmlType}"
@@ -507,18 +508,6 @@ export class BEditableTable extends BaseComponent {
     if (col.type === 'checkbox') return Boolean(value);
     return value;
   }
-}
-
-// ── Attribute escape helpers ──────────────────────────────────────────────
-
-function _escAttr(val: string): string {
-  return val.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-}
-
-function _escText(val: string): string {
-  const el = document.createElement('span');
-  el.textContent = val;
-  return el.innerHTML;
 }
 
 define('b-editable-table', BEditableTable);
