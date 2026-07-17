@@ -29,7 +29,9 @@ export function createEntitySearchProvider(options: EntitySearchProviderOptions)
       const resp = await apiClient.get<{ id: string; label: string; href?: string }[]>(
         `${endpoint}?q=${encodeURIComponent(query)}&limit=5`,
       );
-      if (!resp.ok) return [];
+      // Guard against an ok response with a null/empty/non-array body (the API
+      // envelope is loosely typed, so `data` may be null even when ok).
+      if (!resp.ok || !Array.isArray(resp.data)) return [];
 
       return resp.data.map((item: { id: string; label: string; href?: string }) => ({
         id: `entity:${moduleId}:${item.id}`,

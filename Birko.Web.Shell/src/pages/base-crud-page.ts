@@ -927,14 +927,21 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
         this.onCreateSuccess?.(resp.data);
       }
       modal.close();
-      this._afterSaveComplete(resp.data, isEdit);
+      // Awaited so an async override (e.g. base-split-page re-selecting the detail
+      // panel) completes — and surfaces any error — before the finally clears the
+      // save button's loading state. A synchronous (void) override awaits to a no-op.
+      await this._afterSaveComplete(resp.data, isEdit);
     } finally {
       saveBtn.removeAttribute('loading');
     }
   }
 
-  /** Hook called after save + toast + modal close. Override for subclass-specific reload. */
-  protected _afterSaveComplete(_entity: T, _isEdit: boolean): void {
+  /**
+   * Hook called after save + toast + modal close. Override for subclass-specific reload.
+   * Return type is `void | Promise<void>` so an async override can be awaited by the
+   * caller; a plain `void` override (the common case) remains valid.
+   */
+  protected _afterSaveComplete(_entity: T, _isEdit: boolean): void | Promise<void> {
     this.reload();
   }
 

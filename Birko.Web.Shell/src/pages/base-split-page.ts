@@ -305,12 +305,9 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     if (closeDetailBtn) {
       this.listen(closeDetailBtn, 'click', () => this.deselectEntity());
     }
-
-    // Wire detail panel edit/delete buttons
-    const editBtn = this.$<HTMLElement>('#btn-detail-edit');
-    const deleteBtn = this.$<HTMLElement>('#btn-detail-delete');
-    if (editBtn) this.listen(editBtn, 'click', () => this._openEditSelected());
-    if (deleteBtn) this.listen(deleteBtn, 'click', () => this._confirmDeleteSelected());
+    // Detail-panel edit/delete buttons are owned and wired by _selectEntity — they
+    // only exist after a row is selected (created via innerHTML there) and are
+    // re-bound on every selection, so there is nothing to wire here.
   }
 
   // ── Detail selection ──────────────────────────────────────────────────────
