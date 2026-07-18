@@ -105,6 +105,11 @@ export function renderDetailCardScaffold(opts: DetailCardOptions = {}): string {
 export abstract class BaseSplitPage<T extends Record<string, unknown>> extends BaseCrudPage<T> {
   private _selectedEntity: T | null = null;
   private _selectedId: string | null = null;
+  // Monotonic token for out-of-order detail loads. Fast row switching can resolve an earlier
+  // detail fetch AFTER a later one; without a guard the stale response overwrites the newer
+  // selection and the action buttons target the wrong record. Each _selectEntity call takes the
+  // next token and discards its response if a newer selection has since started (latest-wins).
+  private _selectToken = 0;
 
   // ── Required ──────────────────────────────────────────────────────────────
 
@@ -151,6 +156,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   /**
    * Called after the detail entity is fetched and rendered.
    * Use to wire event listeners inside the detail panel (e.g. sub-entity buttons).
+   * If this override `await`s further fetches, re-check `isSelectionCurrent(entity.id)` after each
+   * await and return early when false — otherwise a stale sub-fetch can render under a newer selection.
    */
   protected onDetailUpdated(_entity: T): void {}
 
@@ -167,10 +174,23 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   /** The currently selected entity, or null. */
   protected get selectedEntity(): T | null { return this._selectedEntity; }
 
+  /**
+   * True while `id` is still the selected entity — i.e. no newer selection has started since it was
+   * fetched. Async `onDetailUpdated` overrides that fetch sub-entities MUST re-check this after each
+   * `await` and bail early when it returns false, so a superseded sub-fetch can't render stale data
+   * (or mis-targeted action buttons) under the newly-selected row. The base main-detail render is
+   * already latest-wins guarded; this extends the same guarantee to override sub-fetches.
+   */
+  protected isSelectionCurrent(id: string): boolean {
+    return this._selectedId === id;
+  }
+
   /** Clear the detail selection and hide the detail panel. */
   protected deselectEntity(): void {
     this._selectedEntity = null;
     this._selectedId = null;
+    // Invalidate any in-flight detail fetch so it can't re-open the panel after a deselect.
+    this._selectToken++;
     const card = this.$<HTMLElement>('#detail-card');
     if (card) card.hidden = true;
     const table = this.$<BDataTable>('#table');
@@ -313,7 +333,11 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   // ── Detail selection ──────────────────────────────────────────────────────
 
   private async _selectEntity(id: string): Promise<void> {
+    const token = ++this._selectToken;
     const resp = await this.api.get<T>(this.detailEndpoint(id));
+    // Latest-wins: a newer selection started while this fetch was in flight → discard this stale
+    // response so it can't overwrite the current detail / mis-target the action buttons.
+    if (token !== this._selectToken) return;
     if (!resp.ok || !resp.data) {
       toast.error(apiErrorMessage(resp.data));
       return;
