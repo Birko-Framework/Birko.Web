@@ -1,9 +1,10 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { dialogBaseSheet, overlayFooterSheet } from '../shared-styles';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 
 export class BConfirmDialog extends BaseComponent {
   static get observedAttributes() {
-    return ['title', 'message', 'confirm-text', 'cancel-text', 'variant'];
+    return ['title', 'message', 'message-html', 'confirm-text', 'cancel-text', 'variant'];
   }
 
   private _resolve: ((value: boolean) => void) | null = null;
@@ -44,14 +45,20 @@ export class BConfirmDialog extends BaseComponent {
     const confirmText = this.label('confirm-text', 'bwc.confirm.confirmText', 'Confirm');
     const cancelText = this.label('cancel-text', 'bwc.confirm.cancelText', 'Cancel');
     const variant = this.attr('variant', 'primary');
+    // SECURITY: `message`/`title` are caller-supplied and often built from user data (e.g. a
+    // member's username in a "remove {name}?" prompt). Render them as TEXT by default so markup
+    // like `<img src=x onerror=…>` can never execute — matching the alert/prompt helpers, which
+    // write their body via `textContent`. The opt-in `message-html` boolean attribute renders the
+    // message as raw HTML for the rare intentional-markup case (`allowHtml` on the dialog helpers).
+    const body = message ? (this.boolAttr('message-html') ? message : escapeHtml(message)) : '';
     return `
       <dialog id="dlg" aria-labelledby="${this.uid}-title" ${message ? `aria-describedby="${this.uid}-body"` : ''}>
         <div class="dialog">
-          <div class="dialog-header" id="${this.uid}-title">${title}</div>
-          <div class="dialog-body" id="${this.uid}-body">${message}</div>
+          <div class="dialog-header" id="${this.uid}-title">${escapeHtml(title)}</div>
+          <div class="dialog-body" id="${this.uid}-body">${body}</div>
           <div class="overlay-footer">
-            <b-button variant="secondary" class="btn-cancel">${cancelText}</b-button>
-            <b-button variant="${variant}" class="btn-confirm">${confirmText}</b-button>
+            <b-button variant="secondary" class="btn-cancel">${escapeHtml(cancelText)}</b-button>
+            <b-button variant="${escapeAttr(variant)}" class="btn-confirm">${escapeHtml(confirmText)}</b-button>
           </div>
         </div>
       </dialog>

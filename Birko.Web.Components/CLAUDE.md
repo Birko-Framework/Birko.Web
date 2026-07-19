@@ -341,3 +341,12 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 - Do not use `document.querySelector` — use `this.$()` inside Shadow DOM
 - Do not add non-`--b-*` CSS variables — extend `tokens.css` if a new token is needed
 - Do not write `<button>` in component templates — use `<b-button>` (unless you are implementing `<b-button>` itself)
+- Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
+
+## Recent Updates
+
+Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### b-confirm-dialog: escape message/title by default (stored-XSS fix) (2026-07-19)
+
+`b-confirm-dialog` interpolated its caller-supplied `message`/`title` straight into `innerHTML`, so a confirm built from user data (e.g. a tenant member's username in a "remove {name}?" prompt) was a **stored/reflected-XSS sink** — inconsistent with the sibling `alert`/`prompt` dialog helpers, which write their body via `textContent`. Both now render as **text by default** via `escapeHtml` (from `dom-utils.ts`). Intentional markup is an explicit opt-in: the `message-html` boolean attribute on the component, surfaced as `allowHtml?: boolean` on `ConfirmOptions` for the `confirm()`/`confirmDelete()` dialog helpers. `confirm()`/`confirmDelete()` are safe by default with **no caller change required** (audited all callers across this repo + `../Consumers/*` — none passed HTML). Regression coverage in the Playground `backport-smoke` harness (`STORY-065 …`): the `<img src=x onerror=…>` payload renders as literal text (no `<img>` node, `onerror` never fires), and the `message-html` opt-in still renders real markup. Reported from Symbio `STORY-065` / `TASK-208`.

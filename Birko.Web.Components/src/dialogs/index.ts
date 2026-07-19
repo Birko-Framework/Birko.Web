@@ -55,15 +55,25 @@ export interface ConfirmOptions {
   confirmText?: string;
   cancelText?: string;
   variant?: 'primary' | 'danger';
+  /**
+   * Render `message` as raw HTML instead of escaped text. Default `false` — the message is
+   * treated as plain text (safe against XSS from user-derived strings such as usernames). Only
+   * set this for a trusted, developer-authored markup string; NEVER for user-controlled input.
+   */
+  allowHtml?: boolean;
 }
 
 /**
  * A themed confirm dialog (replaces `window.confirm`). Resolves `true` on confirm,
  * `false` on cancel / Escape. Created on demand, shown modally, removed when answered.
+ *
+ * `message` is rendered as **text** by default — safe to pass user-derived strings. Opt into
+ * markup with `{ allowHtml: true }` only for trusted, developer-authored content.
  */
 export async function confirm(message: string, opts: ConfirmOptions = {}): Promise<boolean> {
   const el = document.createElement('b-confirm-dialog');
   el.setAttribute('message', message);
+  if (opts.allowHtml) el.setAttribute('message-html', '');
   el.setAttribute('variant', opts.variant ?? 'primary');
   // Always set a (localized) title, else the component falls back to its English 'Confirm'.
   el.setAttribute('title', opts.title ?? t('bwc.dialog.confirmTitle', undefined, 'Confirm'));
