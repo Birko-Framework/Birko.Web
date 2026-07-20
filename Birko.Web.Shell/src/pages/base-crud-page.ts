@@ -82,7 +82,19 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Default page size for the data table. */
   protected declare pageSize?: number;
 
-  /** Whether the API returns a flat array (true) or a paged envelope (false). Default: `true`. */
+  /**
+   * Whether the API returns a flat array the table paginates client-side (`true`), or a server-paged
+   * envelope `{ items, totalCount, page, pageSize }` the table pages server-side (`false`).
+   *
+   * This stays `true` (client-side) as the historical default, but `b-data-table` now AUTO-CORRECTS:
+   * when an endpoint returns a CAPPED page envelope (`items.length < totalCount`, as the TASK-195..200
+   * server-paged lists do), the table detects it and switches that table to server paging on its own —
+   * so the old "page 2+ renders empty" trap is gone even with this default. What is NOT auto-fixed and
+   * remains a CONSUMER concern: list SORT. Server paging shows the server's page order, so a list must
+   * sort newest-first for a freshly-created row to land on page 1, and create→delete E2E specs that
+   * assume the new row is on page 1 must search for it. Set this explicitly (`true`/`false`) only to
+   * override the auto-detection.
+   */
   protected flatArray = true;
 
   /** Show Edit actions. Default: `true`. */
