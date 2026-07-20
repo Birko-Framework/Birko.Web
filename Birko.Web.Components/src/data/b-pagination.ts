@@ -62,19 +62,19 @@ export class BPagination extends BaseComponent {
   }
 
   protected onUpdated() {
-    // Page buttons (b-button)
+    // Page buttons (b-button). Listen on the <b-button> HOST, not an inner <button>: b-button
+    // renders its <button> in its shadow root, so btn.querySelector('button') is null (the click
+    // handler was never wired — pagination was dead). b-button is designed for host-level clicks
+    // (composed click bubbles to the host; disabled hosts get pointer-events:none), so bind there.
     this.$$<HTMLElement>('.page-btn, .page-btn-prev, .page-btn-next').forEach(btn => {
       const page = Number(btn.dataset.page);
-      // Listen on the internal button element
-      const internalBtn = btn.querySelector('button');
-      if (internalBtn && !internalBtn.disabled) {
-        this.listen(internalBtn, 'click', () => {
-          if (page > 0) {
-            this.setAttribute('page', String(page));
-            this.emit('page-change', { page });
-          }
-        });
-      }
+      if (btn.hasAttribute('disabled')) return;
+      this.listen(btn, 'click', () => {
+        if (page > 0) {
+          this.setAttribute('page', String(page));
+          this.emit('page-change', { page });
+        }
+      });
     });
 
     // Page size select (b-select)

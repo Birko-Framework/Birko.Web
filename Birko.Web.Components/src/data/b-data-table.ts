@@ -44,6 +44,13 @@ export interface DataTableConfig {
   dataKey?: string | null;
   totalKey?: string | null;
   params?: Record<string, string>;
+  /**
+   * Paging mode escape hatch. Leave UNSET (recommended) to auto-detect from the response shape:
+   * a bare array is client-paged; a `{ items, totalCount }` envelope is server-paged. Set `true`
+   * to force client-side slicing, `false` to force server paging. NOTE: even with `true`, a CAPPED
+   * envelope (`items.length < totalCount`) auto-switches to server mode — client slicing can only
+   * blank page 2+ of a page the server already capped, so detection wins over a mis-set default.
+   */
   flatArray?: boolean;
 
   // Selection + bulk
@@ -100,6 +107,15 @@ export class BDataTable extends BaseComponent {
   private _totalPages = 1;
   private _totalCount = 0;
   private _loading = false;
+  /**
+   * Effective paging mode for the CURRENT data — resolved per load, not just from `flatArray`.
+   * `true`  → `_allData` is one server page: render as-is, refetch on page-change.
+   * `false` → `_allData` is the full set: slice locally, no refetch on page-change.
+   * Detection (see `load()`) can flip a mis-set `flatArray:true` default to server mode when the
+   * response is a CAPPED envelope; an explicit `flatArray:false` is always server mode. Sticky once
+   * server mode is detected so subsequent loads keep sending page/pageSize.
+   */
+  private _serverPaged = false;
   private _selected = new Set<string>();
   private _activeRowId: string | null = null;
   private _filters: Record<string, string> = {};
@@ -158,6 +174,9 @@ export class BDataTable extends BaseComponent {
     this._config = config;
     this._selected.clear();
     this._filters = {};
+    // Explicit flatArray:false starts in server mode; everything else starts client and may be
+    // flipped by envelope detection on the first load.
+    this._serverPaged = config.flatArray === false;
     this._pageSize = this._resolvePageSize();
     this.update();
     this._applyData();
@@ -199,7 +218,11 @@ export class BDataTable extends BaseComponent {
       const params: Record<string, string> = { ...this._config.params };
       const pageSize = this._pageSize;
 
-      if (!this._config.flatArray) {
+      // Send server-paging params when we KNOW we're server-paged: an explicit flatArray:false, or a
+      // mode already detected on a prior load (sticky). An explicit flatArray:true suppresses them
+      // (client escape hatch) until a capped envelope forces the flip; an unset flatArray sends them
+      // eagerly since a bare-array endpoint harmlessly ignores unknown query params.
+      if (this._config.flatArray !== true || this._serverPaged) {
         params['page'] = String(this._page);
         params['pageSize'] = String(pageSize);
       }
@@ -216,35 +239,34 @@ export class BDataTable extends BaseComponent {
         this._totalCount = 0;
         this._totalPages = 1;
       } else if (Array.isArray(resp.data)) {
+        // Bare array. Client-paged unless the consumer explicitly forced server mode.
         const all = (this._config.dataKey
           ? ((resp.data as unknown as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[])
-          : resp.data) as Record<string, unknown>[];
-        this._allData = all;
-        this._totalCount = all.length;
-        this._totalPages = Math.max(1, Math.ceil(all.length / pageSize));
-      } else if (this._config.flatArray && !Array.isArray(resp.data) && typeof resp.data === 'object' && resp.data !== null && 'items' in (resp.data as object)) {
-        // PagedResult response unwrap: { items, totalCount, page, pageSize }
-        const data = resp.data as Record<string, unknown>;
-        const all = (data['items'] ?? []) as Record<string, unknown>[];
-        this._allData = all;
-        this._totalCount = (data['totalCount'] as number) ?? all.length;
-        this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
-      } else if (this._config.flatArray) {
-        // Legacy flat array (resp.data is the array directly)
-        const all = (this._config.dataKey
-          ? (resp.data as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[]
           : resp.data) as Record<string, unknown>[];
         this._allData = all ?? [];
         this._totalCount = this._allData.length;
         this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
+        if (this._config.flatArray !== false) this._serverPaged = false;
       } else {
-        const data = resp.data as Record<string, unknown>;
-        const items = (this._config.dataKey ? data[this._config.dataKey] : data['items']) as Record<string, unknown>[];
-        this._allData = items ?? [];
-        this._totalCount = (this._config.totalKey
-          ? data[this._config.totalKey] as number
-          : data['totalCount'] as number) ?? this._allData.length;
-        this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
+        const env = this._extractEnvelope(resp.data);
+        if (env) {
+          // { items, totalCount } envelope. Auto-detect the mode: a CAPPED page (fewer rows than
+          // totalCount) can ONLY be paged by the server — client slicing would blank page 2+ — so
+          // switch to server mode even if flatArray was left at its client default. A full list that
+          // merely arrives wrapped in an envelope stays client-paged when flatArray:true. An explicit
+          // flatArray:false is always server. Server mode is sticky (next load sends page/pageSize).
+          this._allData = env.items;
+          this._totalCount = env.totalCount;
+          this._totalPages = Math.max(1, Math.ceil(env.totalCount / pageSize));
+          const capped = env.items.length < env.totalCount;
+          if (this._config.flatArray === true) this._serverPaged = this._serverPaged || capped;
+          else this._serverPaged = true;
+        } else {
+          // Unrecognised object shape → treat as an empty result rather than mis-render.
+          this._allData = [];
+          this._totalCount = 0;
+          this._totalPages = 1;
+        }
       }
     } catch {
       this._allData = [];
@@ -341,11 +363,11 @@ export class BDataTable extends BaseComponent {
     if (pagination) {
       this.listen(pagination, 'page-change', ((e: CustomEvent) => {
         this._page = e.detail.page;
-        if (this._config?.flatArray) {
+        if (this._serverPaged) {
+          this.load(e.detail.page);
+        } else {
           this.update();
           this._applyData();
-        } else {
-          this.load(e.detail.page);
         }
       }) as EventListener);
 
@@ -353,12 +375,12 @@ export class BDataTable extends BaseComponent {
       this.listen(pagination, 'page-size-change', ((e: CustomEvent) => {
         this._pageSize = e.detail.pageSize;
         this._page = 1;
-        if (this._config?.flatArray) {
+        if (this._serverPaged) {
+          this.load(1);
+        } else {
           this._totalPages = Math.max(1, Math.ceil(this._totalCount / this._pageSize));
           this.update();
           this._applyData();
-        } else {
-          this.load(1);
         }
       }) as EventListener);
     }
@@ -674,9 +696,27 @@ export class BDataTable extends BaseComponent {
     });
   }
 
+  /**
+   * Recognise a `{ items, totalCount }` (PagedResult) envelope, honouring `dataKey`/`totalKey`
+   * overrides. Returns null for anything that isn't an object carrying an array under the items key.
+   */
+  private _extractEnvelope(data: unknown): { items: Record<string, unknown>[]; totalCount: number } | null {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    const obj = data as Record<string, unknown>;
+    const itemsKey = this._config?.dataKey || 'items';
+    const items = obj[itemsKey];
+    if (!Array.isArray(items)) return null;
+    const totalKey = this._config?.totalKey || 'totalCount';
+    const rawTotal = obj[totalKey];
+    const totalCount = typeof rawTotal === 'number' ? rawTotal : items.length;
+    return { items: items as Record<string, unknown>[], totalCount };
+  }
+
   private _getPageData(): Record<string, unknown>[] {
     if (!this._config) return [];
-    if (this._config.flatArray) {
+    // Server-paged: _allData is already the current page — never re-slice (that is the page-2-empty
+    // trap). Client-paged: _allData is the full set — slice to the current page locally.
+    if (!this._serverPaged) {
       const start = (this._page - 1) * this._pageSize;
       return this._allData.slice(start, start + this._pageSize);
     }
