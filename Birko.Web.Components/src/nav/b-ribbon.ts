@@ -348,6 +348,14 @@ export class BRibbon extends BaseComponent {
     const tabsOnly = this._tabsOnlyMode;
     const activeTab = this._tabs.find(t => t.id === active);
     const activeLabel = activeTab?.label ?? '';
+    // The panel previews the HOVERED tab when one is set (unpinned flyout / pinned preview),
+    // else the active tab. Deriving it here — not only imperatively via _showTabContent — keeps
+    // the preview correct across full re-renders (e.g. expand() flips the `expanded` attribute,
+    // which triggers update()), so the panel's buttons always carry the shown tab's data-tab.
+    // Without this, hovering an unpinned tab then clicking a button resolved to the active tab.
+    const panelTabId = (this._hoverTabId && this._tabs.some(t => t.id === this._hoverTabId))
+      ? this._hoverTabId : active;
+    const panelTab = this._tabs.find(t => t.id === panelTabId);
 
     return `
       <div class="ribbon" role="toolbar" aria-label="${this.label('label-ribbon', 'bwc.ribbon.title', 'Module ribbon')}">
@@ -394,7 +402,7 @@ export class BRibbon extends BaseComponent {
           </button>`}
         </div>
 
-        ${tabsOnly ? '' : this._renderPanel(active, activeTab)}
+        ${tabsOnly ? '' : this._renderPanel(panelTabId, panelTab)}
 
         <dialog class="mobile-dialog" id="mobile-dialog" aria-labelledby="mobile-dialog-title">
           <div class="mobile-dialog-header">
@@ -431,12 +439,12 @@ export class BRibbon extends BaseComponent {
     `;
   }
 
-  private _renderPanel(active: string, activeTab: RibbonTab | undefined): string {
-    const labelledBy = activeTab ? ` aria-labelledby="ribbon-tab-${active}"` : '';
+  private _renderPanel(panelTabId: string, panelTab: RibbonTab | undefined): string {
+    const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
         <div class="ribbon-panel-inner">
-          ${activeTab ? this._renderPanelInner(activeTab) : '<slot name="empty"></slot>'}
+          ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
       </div>
     `;
@@ -482,7 +490,7 @@ export class BRibbon extends BaseComponent {
           groupId: target.dataset.group,
           itemId: target.dataset.item,
         });
-        if (!this.boolAttr('pinned')) this.collapse();
+        if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
       });
     });
   }
