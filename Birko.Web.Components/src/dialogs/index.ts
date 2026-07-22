@@ -22,7 +22,7 @@ import '../inputs/b-input.js';          // <b-input> — prompt
 import '../feedback/b-spinner.js';      // <b-spinner> — busy
 import { toast, type ToastVariant } from '../feedback/b-toast.js';
 import { t } from 'birko-web-core';
-import type { FormField } from '../inputs/b-form.js'; // type-only — no runtime import (see promptForm)
+import type { FormField, FormSchema, FormResult } from '../inputs/b-form.js'; // type-only — no runtime import (see promptForm / formModal)
 
 /** The `toast` singleton, re-exported for convenience (notify() wraps it). */
 export { toast };
@@ -340,6 +340,151 @@ export async function promptForm(
     cancel.addEventListener('click', onClose);
     form.addEventListener('submit', submit); // b-form fires `submit` on Enter
     modal.addEventListener('close', onClose); // Escape / × close button (backdrop is disabled while a form is present)
+    (modal as unknown as { open(): void }).open();
+  });
+}
+
+// ── formModal (create/edit form modal — the hand-rendered-CRUD-modal replacement) ──
+
+/**
+ * The subset of the `<b-form>` API a {@link formModal} `onLoad`/`onSubmit` hook needs. Structural
+ * so callers don't import the component class. Use `setFieldOptions` to inject async-loaded options
+ * (codebooks), `setValues` for extra pre-fill, and `setFieldError` to surface a server error inline.
+ */
+export interface FormModalApi {
+  setValues(values: Record<string, unknown>): void;
+  getValues(): Record<string, unknown>;
+  setFieldOptions(path: string, options: { value: string; label: string }[]): void;
+  setFieldError(path: string, error: string): void;
+  /** Wire a field-change reaction (e.g. auto-fill a field when a select changes). Returns an unsubscribe fn. */
+  onFieldChange(path: string, callback: (value: unknown, data: Record<string, unknown>) => void): () => void;
+}
+
+/**
+ * Thrown from a {@link formModal} `onSubmit` to surface a server-side validation error on a specific
+ * field and keep the modal open (the imperative equivalent of the hand-rolled
+ * `form.setFieldError(path, msg); return;` on a failed save).
+ */
+export class FieldError extends Error {
+  constructor(public readonly field: string, message: string) {
+    super(message);
+    this.name = 'FieldError';
+  }
+}
+
+export interface FormModalOptions {
+  title?: string;
+  confirmText?: string;
+  cancelText?: string;
+  size?: 'sm' | 'md' | 'lg';
+  /** Pre-fill values (edit mode) — applied after `onLoad` so option lists are ready first. */
+  values?: Record<string, unknown>;
+  /**
+   * Async hook run after the form mounts (schema set) but before it's shown — load and inject
+   * async field options (`setFieldOptions`), compute dynamic defaults, etc. Receives the live form.
+   */
+  onLoad?: (form: FormModalApi) => void | Promise<void>;
+  /**
+   * Optional submit handler. Receives the validated `{ field: value }` data (the modal only submits
+   * when the form validates). While it runs the confirm button shows a loading state and the modal
+   * stays open. Resolve to close (and resolve the returned promise with the data); throw a
+   * {@link FieldError} to surface an inline field error and keep the modal open (or call
+   * `form.setFieldError(...)` yourself and throw any error to keep it open). When omitted, the modal
+   * closes on a valid submit and simply returns the data for the caller to persist.
+   */
+  onSubmit?: (data: Record<string, unknown>, form: FormModalApi) => void | Promise<void>;
+}
+
+/**
+ * A themed create/edit form modal built on `b-modal` + `b-form` — the imperative replacement for the
+ * `~40` pages that hand-render `<b-modal><b-form>…</b-modal>` plus open/close/save/error wiring per
+ * entity. Takes a full `b-form` **schema** (groups, layout, field hints — not just a flat field list
+ * like {@link promptForm}), supports edit pre-fill (`values`), async option loading (`onLoad`) and an
+ * inline server-error channel (`onSubmit` + {@link FieldError}).
+ *
+ * Resolves the collected data on a successful submit, or `null` on cancel / Escape. `b-form` is loaded
+ * via dynamic import so importing this module stays lean (same code-split as `promptForm`).
+ *
+ *   const created = await formModal(schema, {
+ *     title: t('…'),
+ *     onLoad: (f) => f.setFieldOptions('typeId', await loadCodebookOptions('…')),
+ *     onSubmit: async (data) => {
+ *       const r = await api.post('…', data);
+ *       if (!r.ok) throw new FieldError('name', r.error?.message ?? 'Save failed');
+ *     },
+ *   });
+ */
+export async function formModal(
+  schema: FormSchema,
+  opts: FormModalOptions = {},
+): Promise<Record<string, unknown> | null> {
+  await import('../inputs/b-form.js'); // registers <b-form> (heavy — code-split out of the lean entry)
+
+  const modal = document.createElement('b-modal');
+  modal.setAttribute('size', opts.size ?? 'md');
+  modal.setAttribute('title', opts.title ?? t('bwc.dialog.formTitle', undefined, 'Details'));
+
+  const form = document.createElement('b-form');
+  modal.appendChild(form);
+
+  const cancel = footerButton(opts.cancelText ?? t('bwc.dialog.cancel', undefined, 'Cancel'), 'secondary');
+  const ok = footerButton(opts.confirmText ?? t('bwc.dialog.save', undefined, 'Save'), 'primary');
+  // Stable hooks for consumers/tests (only one formModal is open at a time). Mirrors the confirm
+  // dialog's stable confirm affordance.
+  cancel.id = 'form-modal-cancel';
+  ok.id = 'form-modal-confirm';
+  modal.appendChild(cancel);
+  modal.appendChild(ok);
+
+  document.body.appendChild(modal);
+  await nextFrame();
+
+  const api = form as unknown as FormModalApi & {
+    setSchema(schema: unknown): void;
+    validate(): FormResult;
+  };
+  api.setSchema(schema);
+
+  // Load async options / dynamic defaults, then apply edit pre-fill on top.
+  if (opts.onLoad) await opts.onLoad(api);
+  if (opts.values) api.setValues(opts.values);
+
+  return new Promise<Record<string, unknown> | null>((resolve) => {
+    let settled = false;
+    let submitting = false;
+    const finish = (value: Record<string, unknown> | null) => {
+      if (settled) return;
+      settled = true;
+      modal.removeEventListener('close', onClose);
+      (modal as unknown as { close(): void }).close();
+      modal.remove();
+      resolve(value);
+    };
+    const onClose = () => { if (!submitting) finish(null); }; // ignore Escape/× while a submit is in flight
+    const submit = async () => {
+      if (submitting) return;
+      const result = api.validate();
+      if (!result.valid) return; // b-form renders the field errors; keep the dialog open
+
+      if (!opts.onSubmit) { finish(result.data); return; }
+
+      submitting = true;
+      ok.setAttribute('loading', '');
+      try {
+        await opts.onSubmit(result.data, api);
+        finish(result.data);
+      } catch (err) {
+        // Keep the modal open; surface a FieldError inline (other errors are assumed already
+        // surfaced by the handler via form.setFieldError, or shown as a toast by the caller).
+        if (err instanceof FieldError) api.setFieldError(err.field, err.message);
+        ok.removeAttribute('loading');
+        submitting = false;
+      }
+    };
+    ok.addEventListener('click', submit);
+    cancel.addEventListener('click', () => finish(null));
+    form.addEventListener('submit', submit); // b-form fires `submit` on Enter
+    modal.addEventListener('close', onClose); // Escape / × close button (backdrop disabled with a form present)
     (modal as unknown as { open(): void }).open();
   });
 }
