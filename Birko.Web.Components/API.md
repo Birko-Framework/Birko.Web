@@ -27,10 +27,16 @@ Slot: default (button label/content).
 | `error` | string (shows error message) |
 | `disabled` | boolean |
 | `required` | boolean |
+| `min` / `max` / `step` | forwarded to the inner `<input>` (native constraint validation; `step` defaults to 1 on `type="number"`) |
+| `inputmode` | forwarded — selects the on-screen keyboard (`numeric`, `decimal`, …) |
+| `autocomplete` | forwarded |
 
 | Event | Detail |
 |-------|--------|
 | `change` | `{ name, value }` |
+
+Not form-associated: the inner `<input>` is in shadow DOM, so a wrapping `<form>` neither validates it nor
+includes it in `FormData`. Validate in the page.
 
 ### `<b-textarea>`
 | Attribute | Values |

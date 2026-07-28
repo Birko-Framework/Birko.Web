@@ -93,10 +93,19 @@ See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full role map, the `fieldAria()
 
 ```html
 <b-input label="Email" type="email" name="email" placeholder="you@example.com" required></b-input>
+
+<!-- numeric entry: min/max/step drive native validation, inputmode picks the phone keyboard -->
+<b-input label="Weight (kg)" type="number" name="weight" min="0" step="0.1" inputmode="decimal"></b-input>
 ```
 
 Attributes: `label`, `type` (text|email|number|password|search|tel|url), `name`, `value`, `placeholder`, `error`, `disabled`, `required`
+Passed through to the inner `<input>`: `min`, `max`, `step`, `inputmode`, `autocomplete` (omitted when unset).
+`step` matters on `type="number"` — it defaults to `1`, so `81.4` is invalid without `step="0.1"`; `inputmode`
+decides which on-screen keyboard a phone opens.
 Emits: `change` → `{ name, value }`
+
+> **Not form-associated.** The real `<input>` lives in shadow DOM, so a wrapping `<form>` does not validate it
+> and `FormData(form)` does not include it. Read values via the component (`el.value`) and validate in the page.
 
 ### b-select
 

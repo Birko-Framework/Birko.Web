@@ -182,9 +182,10 @@ export class BSelect extends BaseComponent {
   }
 
   private _renderNativeOptions(value: string | null): string {
+    // Escaped for the same reason as the searchable dropdown's options: option data is routinely user-authored.
     const hasGroups = this._options.some(o => o.group);
     if (!hasGroups) {
-      return this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('');
+      return this._options.map(o => `<option value="${escapeHtml(o.value)}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('');
     }
     let html = '';
     let lastGroup = '';
@@ -192,10 +193,10 @@ export class BSelect extends BaseComponent {
       const group = o.group ?? '';
       if (group !== lastGroup) {
         if (lastGroup) html += '</optgroup>';
-        if (group) html += `<optgroup label="${group}">`;
+        if (group) html += `<optgroup label="${escapeHtml(group)}">`;
         lastGroup = group;
       }
-      html += `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`;
+      html += `<option value="${escapeHtml(o.value)}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`;
     }
     if (lastGroup) html += '</optgroup>';
     return html;

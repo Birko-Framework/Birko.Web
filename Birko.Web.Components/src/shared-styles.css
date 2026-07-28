@@ -186,6 +186,10 @@ input, select, textarea {
   min-height: var(--b-control-min-height, 2.375rem);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
+  /* Form controls don't inherit the page font by default, and <textarea> defaults to MONOSPACE — so a
+     b-textarea rendered in a different typeface from every field beside it until this was set. font-family
+     only: the size is set below and overridden under a coarse pointer, so `font: inherit` would undo both. */
+  font-family: inherit;
   font-size: var(--b-input-font-size, var(--b-text-base, 0.875rem)); /* base body size — matches labels/buttons/b-select on desktop */
   background: var(--b-bg);
   color: var(--b-text);
