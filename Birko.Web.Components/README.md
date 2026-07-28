@@ -102,6 +102,9 @@ Emits: `change` → `{ name, value }`
 
 ```html
 <b-select label="Status" name="status" placeholder="Select…"></b-select>
+
+<!-- combobox mode: type-to-filter over a long option list -->
+<b-select label="Exercise" name="exercise" searchable label-no-matches="No matches"></b-select>
 ```
 
 ```typescript
@@ -111,7 +114,11 @@ Emits: `change` → `{ name, value }`
 ]);
 ```
 
-Emits: `change` → `{ name, value }`
+Emits: `change` → `{ name, value }`, and `search` → `{ query, name }` in `searchable` mode.
+
+`searchable` filtering is **case- and accent-insensitive** (`foldForSearch`/`matchesSearch` from
+`birko-web-core`): typing `pritahy` finds `Príťahy`, `muller` finds `Müller`. Nobody types diacritics into a
+filter box in a hurry, least of all on a phone keyboard.
 
 ### b-button
 

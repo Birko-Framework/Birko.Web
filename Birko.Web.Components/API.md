@@ -56,7 +56,7 @@ Slot: default (button label/content).
 | `placeholder` | string |
 | `error` | string |
 | `disabled` | boolean |
-| `searchable` | boolean (enables combobox mode with filtering) |
+| `searchable` | boolean (enables combobox mode; filtering is case- and accent-insensitive) |
 
 | Method | Signature |
 |--------|-----------|
