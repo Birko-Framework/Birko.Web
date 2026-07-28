@@ -1,4 +1,4 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, escapeHtml, matchesSearch } from 'birko-web-core';
 import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
 import { renderLabel, renderError, fieldAria } from './label-hint';
 
@@ -182,9 +182,10 @@ export class BSelect extends BaseComponent {
   }
 
   private _renderNativeOptions(value: string | null): string {
+    // Escaped for the same reason as the searchable dropdown's options: option data is routinely user-authored.
     const hasGroups = this._options.some(o => o.group);
     if (!hasGroups) {
-      return this._options.map(o => `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`).join('');
+      return this._options.map(o => `<option value="${escapeHtml(o.value)}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('');
     }
     let html = '';
     let lastGroup = '';
@@ -192,10 +193,10 @@ export class BSelect extends BaseComponent {
       const group = o.group ?? '';
       if (group !== lastGroup) {
         if (lastGroup) html += '</optgroup>';
-        if (group) html += `<optgroup label="${group}">`;
+        if (group) html += `<optgroup label="${escapeHtml(group)}">`;
         lastGroup = group;
       }
-      html += `<option value="${o.value}" ${o.value === value ? 'selected' : ''}>${o.label}</option>`;
+      html += `<option value="${escapeHtml(o.value)}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`;
     }
     if (lastGroup) html += '</optgroup>';
     return html;
@@ -213,8 +214,10 @@ export class BSelect extends BaseComponent {
     const allowFree = this.boolAttr('allow-free-text');
     const selectedLabel = this._options.find(o => o.value === value)?.label ?? (allowFree ? (value ?? '') : '');
 
+    // Accent- and case-insensitive: a user typing `pritahy` must find `Príťahy`. A plain lowercase `includes`
+    // only matches when the typed accents equal the stored ones, which no one manages on a phone keyboard.
     const filtered = this._filter
-      ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
+      ? this._options.filter(o => matchesSearch(o.label, this._filter))
       : this._options;
 
     return `
@@ -222,8 +225,8 @@ export class BSelect extends BaseComponent {
         ${renderLabel(label, hint, this.boolAttr('required'))}
         <div class="combo combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <input class="combo-input" type="text"
-                 value="${this._filter || selectedLabel}"
-                 placeholder="${value ? selectedLabel : placeholder}"
+                 value="${escapeHtml(this._filter || selectedLabel)}"
+                 placeholder="${escapeHtml(value ? selectedLabel : placeholder)}"
                  ${disabled ? 'disabled' : ''}
                  ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
                  autocomplete="off" />
@@ -401,12 +404,18 @@ export class BSelect extends BaseComponent {
 
   private _renderOptionsHtml(options: Option[], selectedValue: string | null): string {
     if (options.length === 0)
-      return `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`;
+      return `<div class="no-results">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
+
+    // Labels and values are escaped: option data routinely comes from user-authored records (a catalogue the
+    // user can rename), where a name like `Bench <b>press</b>` would otherwise render as markup and a quote in
+    // a value would break out of the data-value attribute.
+    const opt = (o: Option): string =>
+      `<div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</div>`;
 
     const hasGroups = options.some(o => o.group);
     if (!hasGroups) {
       return options.map(o => `
-        <div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${o.value}">${o.label}</div>
+        ${opt(o)}
       `).join('');
     }
 
@@ -415,10 +424,10 @@ export class BSelect extends BaseComponent {
     for (const o of options) {
       const group = o.group ?? '';
       if (group !== lastGroup) {
-        if (group) html += `<div class="opt-group-label">${group}</div>`;
+        if (group) html += `<div class="opt-group-label">${escapeHtml(group)}</div>`;
         lastGroup = group;
       }
-      html += `<div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${o.value}">${o.label}</div>`;
+      html += opt(o);
     }
     return html;
   }
@@ -428,8 +437,10 @@ export class BSelect extends BaseComponent {
     if (!dropdown) return;
 
     const value = this.attr('value');
+    // Same fold as the initial render — the two must agree, or re-filtering on keystroke would disagree with
+    // what the first paint showed.
     const filtered = this._filter
-      ? this._options.filter(o => o.label.toLowerCase().includes(this._filter.toLowerCase()))
+      ? this._options.filter(o => matchesSearch(o.label, this._filter))
       : this._options;
 
     dropdown.innerHTML = this._renderOptionsHtml(filtered, value);

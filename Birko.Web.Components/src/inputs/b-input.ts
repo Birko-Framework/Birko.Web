@@ -5,8 +5,27 @@ import { renderLabel, renderError, fieldAria } from './label-hint';
 
 export class BInput extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'type', 'placeholder', 'value', 'name', 'error', 'disabled', 'required', 'hint'];
+    return [
+      'label', 'type', 'placeholder', 'value', 'name', 'error', 'disabled', 'required', 'hint',
+      // Passed straight through to the inner <input> — see PASSTHROUGH.
+      'min', 'max', 'step', 'inputmode', 'autocomplete',
+    ];
   }
+
+  /**
+   * Attributes forwarded verbatim to the inner `<input>`, omitted when unset.
+   *
+   * These are not styling or labelling concerns the component can own — they change what the *browser* does,
+   * and a wrapper that swallows them makes the control unusable for numeric entry:
+   *
+   * - `min` / `max` / `step` drive **native constraint validation**. Without `min="0"` the browser accepts a
+   *   negative weight; without `step="0.1"` it rejects `81.4` in a `type="number"` field, because `step`
+   *   defaults to 1.
+   * - `inputmode` decides **which on-screen keyboard a phone opens** (`numeric` / `decimal`). On a mobile-first
+   *   app that is a primary UX property, not a detail.
+   * - `autocomplete` is the only way to turn browser autofill off for a field that shouldn't have it.
+   */
+  private static readonly PASSTHROUGH = ['min', 'max', 'step', 'inputmode', 'autocomplete'] as const;
 
   static get sharedStyles() {
     return [formFieldSheet, formControlSheet];
@@ -37,6 +56,10 @@ export class BInput extends BaseComponent {
     const hint = this.attr('hint');
     const error = this.attr('error');
     const hasSuggestions = this._suggestions.length > 0;
+    const passthrough = BInput.PASSTHROUGH
+      .filter(a => this.hasAttribute(a))
+      .map(a => `${a}="${escapeAttr(this.attr(a))}"`)
+      .join(' ');
     return `
       <div class="field">
         ${renderLabel(label, hint, this.boolAttr('required'))}
@@ -47,6 +70,7 @@ export class BInput extends BaseComponent {
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
+          ${passthrough}
           ${fieldAria({ uid: this.uid, error })}
           ${hasSuggestions ? `list="${this._datalistId}" autocomplete="off"` : ''}
         />

@@ -1,4 +1,4 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, escapeHtml } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderLabel, renderError, fieldAria } from './label-hint';
 
@@ -33,7 +33,7 @@ export class BTextarea extends BaseComponent {
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${this.boolAttr('required') ? 'required' : ''}
           ${fieldAria({ uid: this.uid, error })}
-        >${this.attr('value')}</textarea>
+        >${escapeHtml(this.attr('value'))}</textarea>
         ${renderError(this.uid, error)}
       </div>
     `;
