@@ -6,6 +6,15 @@ export interface DataPoint {
   x?: string | number;
   y: number;
   label?: string;
+  /**
+   * Colour for **this point only**, overriding the series colour. Honoured in `bar` mode.
+   *
+   * For the case where a bar's meaning depends on its own value rather than on which series it belongs to —
+   * "days I hit my step goal read differently from days I missed", a bar above a budget line turning red. The
+   * alternative, one series per state, is not equivalent: `_renderBar` lays series out **side by side** within
+   * each category, so two states would render as pairs of half-width bars instead of one bar per category.
+   */
+  color?: string;
 }
 
 export interface ChartSeries {
@@ -100,6 +109,8 @@ export class BChart extends BaseComponent {
       .bar-rect:hover { opacity: 0.8; cursor: pointer; }
       .line-path { fill: none; stroke-width: 2; }
       .area-path { opacity: 0.2; }
+      /* Always visible, unlike .data-point: it is the only mark a single-reading series has. */
+      .lone-point { opacity: 1; }
       .data-point { opacity: 0; transition: opacity var(--b-transition, 150ms ease); }
       svg:hover .data-point { opacity: 1; }
       .data-point:hover { r: 5; cursor: pointer; }
@@ -378,6 +389,8 @@ export class BChart extends BaseComponent {
     const barGroupW = cw / n;
     const barW = (barGroupW * 0.7) / seriesCount;
     const barGap = barGroupW * 0.3;
+    // Same rule the line renderer uses: at most ~8 x labels, whatever the category count.
+    const labelStep = Math.max(1, Math.floor(n / 8));
 
     let bars = '';
     let xLabels = '';
@@ -399,16 +412,26 @@ export class BChart extends BaseComponent {
         const point = series[si].data[ci];
         if (!point) continue;
         const barH = ((point.y - minVal) / range) * ch;
+        // Nothing to draw for a missing value or a bar with no height: a zero-height <rect> is invisible, so
+        // emitting one only adds a node that hit-tests, announces itself to AT and inflates the DOM. A category
+        // with no value therefore leaves its slot empty — the bar equivalent of a gap in a line.
+        if (!Number.isFinite(barH) || barH <= 0) continue;
         const x = groupX + si * barW;
         const y = mt + ch - barH;
-        const color = this._color(si, series[si]);
+        // Per-point colour wins over the series colour — see DataPoint.color.
+        const color = point.color ?? this._color(si, series[si]);
 
         bars += `<rect class="bar-rect" x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${color}" rx="2"
           data-series="${series[si].id}" data-index="${ci}" role="listitem"
           aria-label="${series[si].label}: ${point.y}"><title>${categories[ci]}: ${point.y}</title></rect>`;
       }
 
-      xLabels += `<text x="${groupX + barGroupW * 0.35}" y="${vh - 5}" text-anchor="middle" class="axis-label">${categories[ci]}</text>`;
+      // Thinned like the line renderer's x labels: one per category is unreadable past ~10 bars (a 90-day daily
+      // series would print 90 overlapping dates). `labels` still drives WHICH text is shown, this only decides
+      // how many are drawn.
+      if (ci % labelStep === 0) {
+        xLabels += `<text x="${groupX + barGroupW * 0.35}" y="${vh - 5}" text-anchor="middle" class="axis-label">${categories[ci]}</text>`;
+      }
     }
 
     // Threshold lines
@@ -547,6 +570,15 @@ export class BChart extends BaseComponent {
 
       const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
       pathsSvg += `<path class="line-path" d="${linePath}" stroke="${color}" />`;
+
+      // A one-point series has no line to draw — `M x,y` with no `L` paints nothing — and the `.data-point`
+      // markers below are hover-only, which on a touch device means never. So a series holding a single reading
+      // would render as a completely empty chart. Give it a visible marker instead: the reading exists, and "I
+      // have logged this once" is a normal early state, not an error.
+      if (pts.length === 1) {
+        pathsSvg += `<circle class="lone-point" cx="${pts[0].x}" cy="${pts[0].y}" r="3.5" fill="${color}"
+          role="listitem" aria-label="${s.label}: ${s.data[0].y}"><title>${s.data[0].y}</title></circle>`;
+      }
 
       if (fillArea) {
         const areaPath = `${linePath} L${pts[pts.length - 1].x},${mt + ch} L${pts[0].x},${mt + ch} Z`;
