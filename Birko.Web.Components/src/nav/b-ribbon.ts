@@ -116,9 +116,13 @@ export class BRibbon extends BaseComponent {
    * separate flicker bugs in TASK-097 — see the `_tabScroll` note above.
    */
   private _groupSizes: string[] = [];
+  /** Whether collapsed chunks are drawn without their group names — the narrowest row possible. */
+  private _compactChunks = false;
   private _measuring = false;
 
   static get styles() {
+    // NO BACKTICKS anywhere below, comments included: this is a template literal, and a stray pair
+    // terminates it. Costs a build error and a confusing PAGEERROR dumping the stylesheet. Done it 3x.
     return `
       :host { display: block; flex-shrink: 0; z-index: var(--b-z-sticky, 200); position: relative; }
 
@@ -232,6 +236,12 @@ export class BRibbon extends BaseComponent {
       }
       .ribbon-panel-inner::-webkit-scrollbar { display: none; }
 
+      /* Gap tightens as the row does, mirroring the Avalonia panel's EffectiveGap. Not cosmetic: the gap
+         sets the row's hard minimum, so collapsed chunks sitting a full group-gap apart waste exactly the
+         width the collapse just bought. The tightest variant present wins, so the popup rule comes last. */
+      .ribbon-panel-inner:has(> .ribbon-group.size-small) { gap: calc(var(--b-ribbon-group-gap) * 0.5); }
+      .ribbon-panel-inner:has(> .ribbon-group.size-popup) { gap: calc(var(--b-ribbon-group-gap) * 0.25); }
+
       /* ── Groups ── */
       .ribbon-group {
         display: flex; flex-direction: column; gap: var(--b-space-xs, 0.25rem);
@@ -293,6 +303,11 @@ export class BRibbon extends BaseComponent {
       .ribbon-chunk:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-chunk:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .ribbon-chunk-icon { font-size: var(--b-ribbon-icon-small); }
+      /* The extreme: even a row of labelled chunks can be too wide, because a chunk shows its group NAME
+         and a name has a minimum width. Dropping it roughly halves the row's minimum. The name stays in
+         title/aria-label, so no button becomes anonymous -- the same trade the small variant makes. */
+      .ribbon-group.size-popup.compact .ribbon-chunk { min-width: 0; }
+      .ribbon-group.size-popup.compact .ribbon-chunk-name { display: none; }
       .ribbon-group.size-popup { position: relative; }
       .ribbon-flyout {
         position: absolute; top: 100%; left: 0; z-index: var(--b-z-dropdown, 300);
@@ -335,10 +350,11 @@ export class BRibbon extends BaseComponent {
       }
 
       /* ── Group separator ── */
-      .ribbon-group + .ribbon-group {
-        border-left: 1px solid var(--b-border);
-        padding-left: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
-      }
+      /* Separator only — the spacing is owned by the flex gap alone. This used to ALSO add a full
+         --b-ribbon-group-gap of padding-left, so the real inter-group spacing was double the gap while the
+         measure pass (which measures a group with no preceding sibling, so no padding applies) assumed
+         single. That under-count made the pass under-degrade and clip the row. One mechanism, one number. */
+      .ribbon-group + .ribbon-group { border-left: 1px solid var(--b-border); }
 
       /* ── Mobile ── */
       .mobile-hamburger {
@@ -612,14 +628,15 @@ export class BRibbon extends BaseComponent {
     const items = group.items.map(item => this._renderItem(tabId, group.id, item)).join('');
 
     if (size === 'popup') {
+      const compact = this._compactChunks ? ' compact' : '';
       const label = this.label('label-actions', 'bwc.common.actions', 'Actions'); // unused, keeps API stable
       void label;
       return `
-        <div class="ribbon-group size-popup" role="group" aria-label="${group.label}" data-group="${group.id}">
+        <div class="ribbon-group size-popup${compact}" role="group" aria-label="${group.label}" data-group="${group.id}">
           <button class="ribbon-chunk" data-chunk="${group.id}"
             aria-expanded="false" aria-haspopup="true" aria-label="${group.label}" title="${group.label}">
             ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : ''}
-            <span>${group.label} &#9662;</span>
+            <span class="ribbon-chunk-name">${group.label} &#9662;</span>
           </button>
           <div class="ribbon-flyout" role="group" aria-label="${group.label}">
             <div class="ribbon-group-items">${items}</div>
@@ -1013,12 +1030,26 @@ export class BRibbon extends BaseComponent {
 
     probe.remove();
 
-    const gap = parseFloat(getComputedStyle(track).columnGap || '0') || 0;
+    // The FULL token gap, not the live computed one: the rendered gap tightens once groups collapse, and
+    // deciding against the tightened value could under-degrade and clip. Deciding against the larger value
+    // is conservative — the row it picks then fits with room to spare. Same split as the Avalonia panel.
+    const gap = parseFloat(getComputedStyle(this).getPropertyValue('--b-ribbon-group-gap'))
+      || parseFloat(getComputedStyle(track).columnGap || '0') || 0;
     const preferred = (this.attr('preferred-group-size') || 'medium') as never;
     const next = resolveRibbonSizes(metrics, available, preferred, gap);
 
-    if (next.join(',') === this._groupSizes.join(',')) return; // nothing changed — do not re-render
+    // Last resort, below even an all-popup row: drop the group name from every chunk. A rendering choice
+    // rather than a fifth variant, so the shared policy stays at Office's four -- and still a pure function
+    // of the width, so it cannot oscillate.
+    const allPopup = next.every((s) => s === 'popup');
+    const popupRow = allPopup
+      ? next.reduce((sum, _, i) => sum + (metrics[i].widths.popup ?? 0) + (i ? gap : 0), 0)
+      : 0;
+    const compact = allPopup && popupRow > available;
+
+    if (next.join(',') === this._groupSizes.join(',') && compact === this._compactChunks) return;
     this._groupSizes = next;
+    this._compactChunks = compact;
     this._measuring = true;
     try { this._showTabContent(tab.id); } finally { this._measuring = false; }
   }
