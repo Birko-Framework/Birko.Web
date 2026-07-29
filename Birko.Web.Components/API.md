@@ -993,6 +993,11 @@ Slot: `brand`.
 | `active` | string (active tab id) |
 | `expanded` | boolean |
 | `pinned` | boolean |
+| `tabs-only` | boolean (pure tab-strip nav — no panel, no expand/pin controls) |
+| `label-*` | i18n overrides: `label-ribbon`, `label-open-nav`, `label-expand`, `label-collapse`, `label-pin`, `label-unpin`, `label-navigation`, `label-actions`, `label-close`, `label-scroll-tabs-{left,right}`, `label-scroll-groups-{left,right}` |
+
+Both the tab strip and the panel scroll horizontally when they overflow, with chevron buttons as the
+affordance (the scrollbars are hidden so the ribbon's height never changes with the window width).
 
 | Method | Signature |
 |--------|-----------|

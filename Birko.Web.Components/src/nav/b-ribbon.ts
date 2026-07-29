@@ -42,7 +42,9 @@ export interface RibbonItem {
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
-    'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close']; }
+    'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
+    'label-scroll-tabs-left', 'label-scroll-tabs-right',
+    'label-scroll-groups-left', 'label-scroll-groups-right']; }
 
   private _tabs: RibbonTab[] = [];
   private _contextActions: RibbonItem[] = [];
@@ -50,6 +52,9 @@ export class BRibbon extends BaseComponent {
   private _collapseTimer: ReturnType<typeof setTimeout> | null = null;
   private _mobileOpen = false;
   private _hoverTabId: string | null = null;
+  private _scrollSyncs: Array<() => void> = [];
+  private _scrollObserver: ResizeObserver | null = null;
+  private _panelSync: (() => void) | null = null;
 
   static get styles() {
     return `
@@ -132,6 +137,8 @@ export class BRibbon extends BaseComponent {
         background: var(--b-bg-elevated);
         border-bottom: 1px solid var(--b-border);
         transition: max-height var(--b-transition-slow, 300ms ease);
+        /* Flex row so the scroll chevrons can flank the scrolling inner track. */
+        display: flex; align-items: stretch;
       }
       :host([expanded]) .ribbon-panel {
         max-height: var(--b-ribbon-panel-height, 8rem);
@@ -147,6 +154,10 @@ export class BRibbon extends BaseComponent {
         gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         height: var(--b-ribbon-panel-height, 8rem);
+        /* Scrollable but with the bar hidden — the chevrons are the affordance, exactly as on the
+           tab strip. Without them this track scrolled with NO visible cue at all, so overflowing
+           groups were unreachable by mouse (TASK-097). */
+        flex: 1; min-width: 0;
         overflow-x: auto;
         scrollbar-width: none;
       }
@@ -368,7 +379,7 @@ export class BRibbon extends BaseComponent {
           <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.label('label-open-nav', 'bwc.ribbon.openNav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
 
-          <button class="ribbon-scroll-btn" id="scroll-left" aria-label="Scroll left">&#9666;</button>
+          <button class="ribbon-scroll-btn" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
             ${this._tabs.map((tab, i) => {
               const isActive = tab.id === active;
@@ -386,7 +397,7 @@ export class BRibbon extends BaseComponent {
               </button>`;
             }).join('')}
           </div>
-          <button class="ribbon-scroll-btn" id="scroll-right" aria-label="Scroll right">&#9656;</button>
+          <button class="ribbon-scroll-btn" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
@@ -446,9 +457,11 @@ export class BRibbon extends BaseComponent {
     const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
+        <button class="ribbon-scroll-btn" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
         <div class="ribbon-panel-inner">
           ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
+        <button class="ribbon-scroll-btn" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
       </div>
     `;
   }
@@ -482,6 +495,8 @@ export class BRibbon extends BaseComponent {
     if (!panelInner || !tab) return;
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
+    // Different tab, different group widths — the chevrons must re-evaluate against the new content.
+    this._panelSync?.();
   }
 
   private _bindPanelItems() {
@@ -518,8 +533,14 @@ export class BRibbon extends BaseComponent {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   protected onUpdated() {
-    // Scroll buttons for overflowing tabs
-    this._setupTabScroll();
+    // Scroll affordance for the overflowing tab strip AND the overflowing panel. `listen()` is
+    // aborted each update, so the sync list is rebuilt here rather than accumulating stale closures.
+    this._scrollSyncs = [];
+    const tabTrack = this.$<HTMLElement>('.ribbon-tabs');
+    const panelTrack = this.$<HTMLElement>('.ribbon-panel-inner');
+    this._setupScroll(tabTrack, this.$<HTMLElement>('#scroll-left'), this.$<HTMLElement>('#scroll-right'));
+    this._panelSync = this._setupScroll(panelTrack, this.$<HTMLElement>('#panel-scroll-left'), this.$<HTMLElement>('#panel-scroll-right'));
+    this._observeScrollTracks([tabTrack, panelTrack]);
 
     // Tab clicks
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
@@ -678,6 +699,10 @@ export class BRibbon extends BaseComponent {
 
   protected onUnmount() {
     this._clearTimers();
+    this._scrollObserver?.disconnect();
+    this._scrollObserver = null;
+    this._scrollSyncs = [];
+    this._panelSync = null;
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
@@ -695,25 +720,48 @@ export class BRibbon extends BaseComponent {
     this.expand();
   }
 
-  private _setupTabScroll() {
-    const tabs = this.$<HTMLElement>('.ribbon-tabs');
-    const leftBtn = this.$<HTMLElement>('#scroll-left');
-    const rightBtn = this.$<HTMLElement>('#scroll-right');
-    if (!tabs || !leftBtn || !rightBtn) return;
+  /**
+   * Wire chevron scroll buttons to a horizontally overflowing track, and return its sync function.
+   * Shared by the tab strip and the panel — the panel used to be `overflow-x: auto` with the
+   * scrollbar hidden and no buttons, i.e. scrollable with no affordance whatsoever (TASK-097).
+   */
+  private _setupScroll(
+    track: HTMLElement | null,
+    leftBtn: HTMLElement | null,
+    rightBtn: HTMLElement | null,
+  ): (() => void) | null {
+    if (!track || !leftBtn || !rightBtn) return null;
 
-    const updateArrows = () => {
-      const canLeft = tabs.scrollLeft > 1;
-      const canRight = tabs.scrollLeft + tabs.clientWidth < tabs.scrollWidth - 1;
+    const sync = () => {
+      const canLeft = track.scrollLeft > 1;
+      const canRight = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
       leftBtn.classList.toggle('visible', canLeft);
       rightBtn.classList.toggle('visible', canRight);
     };
 
-    this.listen(tabs, 'scroll', updateArrows, { passive: true });
-    this.listen(leftBtn, 'click', () => { tabs.scrollLeft -= tabs.clientWidth * 0.5; });
-    this.listen(rightBtn, 'click', () => { tabs.scrollLeft += tabs.clientWidth * 0.5; });
+    this.listen(track, 'scroll', sync, { passive: true });
+    this.listen(leftBtn, 'click', () => { track.scrollLeft -= track.clientWidth * 0.5; });
+    this.listen(rightBtn, 'click', () => { track.scrollLeft += track.clientWidth * 0.5; });
 
+    this._scrollSyncs.push(sync);
     // Check on next frame (layout may not be ready yet)
-    requestAnimationFrame(updateArrows);
+    requestAnimationFrame(sync);
+    return sync;
+  }
+
+  /**
+   * Re-evaluate the chevrons when a track's box changes size. A resize alters overflow without
+   * firing `scroll` and without re-rendering, so before this the right arrow stayed hidden while
+   * the tabs overflowed — you had to reload the page to see it.
+   *
+   * Re-observed on every update because a re-render can replace the tracked elements.
+   */
+  private _observeScrollTracks(tracks: Array<HTMLElement | null>) {
+    this._scrollObserver?.disconnect();
+    const live = tracks.filter((t): t is HTMLElement => !!t);
+    if (!live.length) return;
+    this._scrollObserver ??= new ResizeObserver(() => this._scrollSyncs.forEach(s => s()));
+    live.forEach(t => this._scrollObserver!.observe(t));
   }
 
   private _clearTimers() {
