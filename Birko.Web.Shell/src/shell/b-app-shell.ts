@@ -409,7 +409,9 @@ export abstract class BAppShell extends BSidebarAppShell {
         padding: 0 var(--b-space-xs, 0.25rem);
         line-height: 1.4;
       }
-      @media (max-width: 768px) { .search-btn-hint { display: none; } }
+      /* 48rem = the old 768px at a default 16px browser (rem in a media query tracks the
+         reader's browser font size). Matches the ribbon's collapse point. */
+      @media (max-width: 48rem) { .search-btn-hint { display: none; } }
 
       .bell-btn {
         background: none; border: none; cursor: pointer;

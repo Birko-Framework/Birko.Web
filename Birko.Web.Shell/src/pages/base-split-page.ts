@@ -136,8 +136,9 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   /** Detail panel CSS width. Default: `'1fr'`. */
   protected detailWidth = '1fr';
 
-  /** Collapse breakpoint in pixels. Default: `'768'`. */
-  protected collapseAt = '768';
+  /** Collapse breakpoint — a CSS length. Default `'48rem'` (= 768px at a default 16px browser,
+   *  but tracks a reader who scaled their text up). A bare number is still read as px. */
+  protected collapseAt = '48rem';
 
   /**
    * Extra row actions on the table.

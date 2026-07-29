@@ -479,7 +479,9 @@ export abstract class BCoreAppShell extends BaseComponent {
       }
       .status-dot.conflict { background: var(--b-color-warning); }
 
-      @media (max-width: 768px) {
+      /* 48rem = the old 768px at a default 16px browser; rem in a media query tracks the
+         reader's browser font size. Matches the ribbon's collapse point. */
+      @media (max-width: 48rem) {
         .user-name { display: none; }
         .app-content-inner { padding: var(--b-space-lg, 1rem); }
       }

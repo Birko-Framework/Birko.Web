@@ -239,6 +239,9 @@ sse.on('_error', () => conn.setState('reconnecting'));
 - `BAppShell.styles` extends via `super.styles + ...` adding ribbon-specific CSS (~80 lines): `.ribbon-empty`, `.tenant-switcher-wrap`, `.tenant-trigger`, `.search-btn`, `.bell-btn`, `.bell-badge`, `.status-sync`
 - Custom subclasses of `BCoreAppShell` (e.g. sidebar shells) follow the same `super.styles + ...` pattern
 - The shell uses design tokens from the Birko.Web.Components token system
+- Width media queries in `rem`, never `px` — `@media (max-width: 48rem)`. In a media query `rem` resolves
+  against the browser default font size (not a `:root` override), so it tracks a reader who scaled their text
+  up. Reuse the Components ladder (30 / 40 / 48 / 64rem); the shells sit at `48rem`, matching `b-ribbon`
 
 ## What NOT to do
 

@@ -746,7 +746,7 @@ define('devices-page', DevicesPage);
 | `pageSize` | `20` | Rows per page |
 | `editEnabled` | `true` | Set `false` to hide Edit row action entirely |
 | `deleteEnabled` | `true` | Set `false` to hide Delete row action entirely |
-| `modalSize` | `undefined` (md) | Modal size: `'sm'`, `'lg'`, `'xl'`, `'xxl'` |
+| `modalSize` | `undefined` (md) | Modal size: `'sm'`, `'lg'`, `'xl'`, `'xxl'`, `'full'` (viewport-filling, both axes — editor-heavy forms) |
 | `createPermission` | `undefined` (always shown) | Permission key controlling Create button visibility |
 | `editPermission` | `undefined` | Permission key controlling Edit row action |
 | `deletePermission` | `undefined` | Permission key controlling Delete row action |
@@ -884,7 +884,7 @@ class PaymentsPage extends BaseSplitPage<Payment> {
 | `formSchema` | `null` (read-only) | Return schema to enable CRUD |
 | `masterWidth` | `'2fr'` | Left panel CSS width |
 | `detailWidth` | `'1fr'` | Right panel CSS width |
-| `collapseAt` | `'768'` | Responsive collapse breakpoint (px) |
+| `collapseAt` | `'48rem'` | Responsive collapse breakpoint — CSS length; `rem`/`em` tracks the reader's browser font size, a bare number is px |
 | `emptyDetailMessage` | `''` | Message when no entity selected |
 | `detailEndpoint(id)` | `${endpoint}/${id}` | Override for nested resources |
 | `onDetailUpdated(entity)` | noop | Wire event listeners inside detail |

@@ -60,8 +60,9 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
   /** Human-readable entity name for titles and toast messages. Default: `'Item'`. */
   protected entityLabel = 'Item';
 
-  /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium). */
-  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
+  /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium).
+   *  `'full'` fills the viewport in both axes — for editor-heavy forms. */
+  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl' | 'full';
 
   /**
    * Map a loaded API entity to form field values for the edit flow.

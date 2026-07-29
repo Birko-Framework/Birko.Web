@@ -103,8 +103,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Show Delete actions. Default: `true`. */
   protected deleteEnabled = true;
 
-  /** Modal size — passed to `<b-modal size="...">`. */
-  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl';
+  /** Modal size — passed to `<b-modal size="...">`. `'full'` fills the viewport in both axes. */
+  protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl' | 'full';
 
   /** Permission key required to see the create button. `undefined` = always visible. */
   protected declare createPermission?: string;
