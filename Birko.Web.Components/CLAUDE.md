@@ -511,6 +511,38 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-ribbon` progressive scaling delivered; the body no longer scrolls (2026-07-29)
+
+Groups now degrade `large → medium → small → popup` as the panel narrows, in author-declared priority
+order, and the panel scroller is **gone** — the ribbon body resizes, it never scrolls. Below even an
+all-popup row the chunk buttons drop their group names (`compact`), with the name kept in
+`title`/`aria-label`. `preferred-group-size` sets the look at full width (default `medium`, unchanged from
+what shipped). `large` did not exist on the web at all before this.
+
+`ribbon-scaling.ts` mirrors `RibbonScaling` from `Birko.Xaml.Core`; the playground's
+`ribbon-scaling-smoke` asserts the **same numeric table** as the C# unit tests, so the forked *rendering*
+cannot let the shared *policy* drift.
+
+Measuring means rendering: each variant goes into an off-screen probe and is measured there. More work
+than a cached number, but the only honest way to know what a variant costs with the consumer's real
+labels, fonts and tokens. Runs on resize, not per frame.
+
+**Two real bugs came out of building it, both worth remembering:**
+
+- **A double group gap.** `.ribbon-group + .ribbon-group` added a full `--b-ribbon-group-gap` of
+  `padding-left` *on top of* the flex `gap`, so actual spacing was twice the gap — while the probe (a group
+  with no preceding sibling) never saw that padding. Six groups meant a ~120px under-estimate, so the pass
+  under-degraded and clipped the row however tight the variants got. The separator now draws only its
+  border and `gap` owns the spacing: **one mechanism, one number.** Lesson for any measure-then-fit code
+  here: if two CSS rules contribute spacing, a probe will see one of them.
+- **Wiring lost on re-render, for the fourth time in this component.** The chunk button stopped opening
+  because its handler was applied in `onUpdated` while the measure pass re-renders the panel. `_hoverTabId`,
+  the chevron `visible` class, the chevron's layout footprint and now this — **anything stamped onto
+  re-rendered DOM must be re-applied on every path that re-renders, or derived in `render()` instead.**
+
+Also: a stray pair of backticks in a CSS comment terminated the `styles` template literal — three times.
+The warning now sits at the top of the block.
+
 ### Ribbon scaling model + the two ribbon tokens that were never defined (2026-07-29)
 
 `RibbonGroup` gained `icon`, `scalingPriority` and `minSize` (`RibbonGroupSize` =
