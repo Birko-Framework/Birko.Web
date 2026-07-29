@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -86,7 +87,8 @@ export class BRibbon extends BaseComponent {
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
-    'label-scroll-groups-left', 'label-scroll-groups-right']; }
+    'label-scroll-groups-left', 'label-scroll-groups-right',
+    'preferred-group-size']; }
 
   private _tabs: RibbonTab[] = [];
   private _contextActions: RibbonItem[] = [];
@@ -108,6 +110,13 @@ export class BRibbon extends BaseComponent {
   private _tabScroll = { left: false, right: false, overflowing: false };
   private _panelScroll = { left: false, right: false, overflowing: false };
   private _syncQueued = false;
+  /**
+   * The variant each group of the shown tab renders at. State, not a class stamped on after the fact:
+   * render() re-emits it, so a morph cannot revert the row for a frame. That mistake produced three
+   * separate flicker bugs in TASK-097 — see the `_tabScroll` note above.
+   */
+  private _groupSizes: string[] = [];
+  private _measuring = false;
 
   static get styles() {
     return `
@@ -214,12 +223,12 @@ export class BRibbon extends BaseComponent {
         gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         height: var(--b-ribbon-panel-height, 8rem);
-        /* Scrollable but with the bar hidden — the chevrons are the affordance, exactly as on the
-           tab strip. Without them this track scrolled with NO visible cue at all, so overflowing
-           groups were unreachable by mouse (TASK-097). */
+        /* The ribbon BODY resizes, it never scrolls (STORY-049): a scroll offset destroys the spatial
+           memory the ribbon exists to provide. Groups degrade instead — down to a single chunk button
+           each — so nothing can be unreachable and no scroller is needed. TASK-097's interim panel
+           scroller is gone; the TAB STRIP keeps scrolling, the deliberate exception. */
         flex: 1; min-width: 0;
-        overflow-x: auto;
-        scrollbar-width: none;
+        overflow: hidden;
       }
       .ribbon-panel-inner::-webkit-scrollbar { display: none; }
 
@@ -241,6 +250,61 @@ export class BRibbon extends BaseComponent {
         display: flex; align-items: center;
         gap: var(--b-ribbon-item-gap, var(--b-space-xs, 0.25rem));
       }
+
+      /* ── Size variants (STORY-049) ────────────────────────────────────────────
+         The group carries the variant as a class and the items restyle from it. Medium and Small stack
+         three per column and flow columns horizontally, as Office does -- that is what makes them
+         NARROWER, not merely smaller. Sizes come from the TASK-098 tokens, never hand-authored here. */
+
+      /* Large: 32px icon above the label, one item per column. */
+      .ribbon-group.size-large .ribbon-group-items { align-items: flex-start; }
+      .ribbon-group.size-large .ribbon-item {
+        flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center;
+      }
+      .ribbon-group.size-large .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
+
+      /* Medium (the default look): 16px icon, label to its right, three per column. */
+      .ribbon-group.size-medium .ribbon-group-items,
+      .ribbon-group.size-small .ribbon-group-items {
+        display: grid; grid-auto-flow: column;
+        grid-template-rows: repeat(3, auto);
+        justify-items: start;
+      }
+      .ribbon-group.size-medium .ribbon-item-icon,
+      .ribbon-group.size-small .ribbon-item-icon { font-size: var(--b-ribbon-icon-small); }
+
+      /* Small: icon only. The label is not rendered, so the title attribute carries the name -- an icon-only
+         command with no accessible name trades "unreachable" for "unnameable". */
+      .ribbon-group.size-small .ribbon-item-label { display: none; }
+      .ribbon-group.size-small .ribbon-item { padding: var(--b-space-xs, 0.25rem); }
+
+      /* Popup: the whole group folded into one chunk button whose flyout holds it at Large. Lossless --
+         the group keeps its identity AND its position, which is what separates this from a flat
+         overflow menu that dumps every leftover command into one list. */
+      .ribbon-chunk {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 0.125rem; min-width: var(--b-ribbon-chunk-width);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border: none; background: none; cursor: pointer;
+        border-radius: var(--b-radius, 0.375rem);
+        color: var(--b-text-secondary); font-size: var(--b-text-xs, 0.6875rem);
+        white-space: nowrap;
+      }
+      .ribbon-chunk:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .ribbon-chunk:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .ribbon-chunk-icon { font-size: var(--b-ribbon-icon-small); }
+      .ribbon-group.size-popup { position: relative; }
+      .ribbon-flyout {
+        position: absolute; top: 100%; left: 0; z-index: var(--b-z-dropdown, 300);
+        display: none;
+        background: var(--b-bg-elevated); border: 1px solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
+        padding: var(--b-space-sm, 0.5rem);
+      }
+      .ribbon-group.size-popup[data-open] .ribbon-flyout { display: block; }
+      .ribbon-flyout .ribbon-group-items { display: flex; align-items: flex-start; }
+      .ribbon-flyout .ribbon-item { flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center; }
+      .ribbon-flyout .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
 
       /* ── Items ── */
       .ribbon-item {
@@ -517,11 +581,9 @@ export class BRibbon extends BaseComponent {
     const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
-        <button class="ribbon-scroll-btn${this._panelScroll.overflowing ? ' reserved' : ''}${this._panelScroll.left ? ' visible' : ''}" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
         <div class="ribbon-panel-inner">
           ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
-        <button class="ribbon-scroll-btn${this._panelScroll.overflowing ? ' reserved' : ''}${this._panelScroll.right ? ' visible' : ''}" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
       </div>
     `;
   }
@@ -530,14 +592,7 @@ export class BRibbon extends BaseComponent {
     const hasContext = this._contextActions.length > 0;
 
     return `
-      ${tab.groups.map(group => `
-        <div class="ribbon-group" role="group" aria-label="${group.label}">
-          <span class="ribbon-group-label">${group.label}</span>
-          <div class="ribbon-group-items">
-            ${group.items.map(item => this._renderItem(tab.id, group.id, item)).join('')}
-          </div>
-        </div>
-      `).join('')}
+      ${tab.groups.map((group, i) => this._renderGroup(tab.id, group, this._groupSizes[i] ?? 'medium')).join('')}
       ${hasContext ? `
         <div class="ribbon-group" role="group" aria-label="${this.label('label-actions', 'bwc.common.actions', 'Actions')}">
           <span class="ribbon-group-label">${this.label('label-actions', 'bwc.common.actions', 'Actions')}</span>
@@ -549,12 +604,43 @@ export class BRibbon extends BaseComponent {
     `;
   }
 
+  /**
+   * One group at one variant. `popup` collapses the whole group into a chunk button whose flyout holds
+   * its items at `large` — lossless, and the group keeps its position in the row.
+   */
+  private _renderGroup(tabId: string, group: RibbonGroup, size: string): string {
+    const items = group.items.map(item => this._renderItem(tabId, group.id, item)).join('');
+
+    if (size === 'popup') {
+      const label = this.label('label-actions', 'bwc.common.actions', 'Actions'); // unused, keeps API stable
+      void label;
+      return `
+        <div class="ribbon-group size-popup" role="group" aria-label="${group.label}" data-group="${group.id}">
+          <button class="ribbon-chunk" data-chunk="${group.id}"
+            aria-expanded="false" aria-haspopup="true" aria-label="${group.label}" title="${group.label}">
+            ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : ''}
+            <span>${group.label} &#9662;</span>
+          </button>
+          <div class="ribbon-flyout" role="group" aria-label="${group.label}">
+            <div class="ribbon-group-items">${items}</div>
+          </div>
+        </div>`;
+    }
+
+    return `
+      <div class="ribbon-group size-${size}" role="group" aria-label="${group.label}" data-group="${group.id}">
+        <span class="ribbon-group-label">${group.label}</span>
+        <div class="ribbon-group-items">${items}</div>
+      </div>`;
+  }
+
   private _showTabContent(tabId: string) {
     const tab = this._tabs.find(t => t.id === tabId);
     const panelInner = this.$<HTMLElement>('.ribbon-panel-inner');
     if (!panelInner || !tab) return;
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
+    this._bindChunks();
     // Different tab, different group widths — the chevrons must re-evaluate against the new content.
     this._panelSync?.();
   }
@@ -584,10 +670,15 @@ export class BRibbon extends BaseComponent {
     const disabled = item.disabled ? 'aria-disabled="true"' : '';
     const data = `data-tab="${tabId}" data-group="${groupId}" data-item="${item.id}"`;
 
+    // `title` matters at the Small variant, where the label is not rendered: an icon-only command with
+    // no accessible name would trade "unreachable" for "unnameable".
+    const named = `title="${item.label}" aria-label="${item.label}"`;
+    const body = `${icon}<span class="ribbon-item-label">${item.label}</span>${badge}`;
+
     if (item.href && !item.action) {
-      return `<a class="${cls}" href="${item.href}" ${disabled} ${data}>${icon}${item.label}${badge}</a>`;
+      return `<a class="${cls}" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`;
     }
-    return `<button class="${cls}" ${disabled} ${data}>${icon}${item.label}${badge}</button>`;
+    return `<button class="${cls}" ${disabled} ${data} ${named}>${body}</button>`;
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -599,8 +690,7 @@ export class BRibbon extends BaseComponent {
     const tabTrack = this.$<HTMLElement>('.ribbon-tabs');
     const panelTrack = this.$<HTMLElement>('.ribbon-panel-inner');
     this._setupScroll(tabTrack, this.$<HTMLElement>('#scroll-left'), this.$<HTMLElement>('#scroll-right'), this._tabScroll);
-    this._panelSync = this._setupScroll(panelTrack, this.$<HTMLElement>('#panel-scroll-left'), this.$<HTMLElement>('#panel-scroll-right'), this._panelScroll);
-    this._observeScrollTracks([tabTrack, panelTrack]);
+    this._observeScrollTracks([tabTrack, panelTrack]); // panel observed for RESIZE, not for scrolling
 
     // Tab clicks
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
@@ -662,6 +752,11 @@ export class BRibbon extends BaseComponent {
 
     // Panel item clicks
     this._bindPanelItems();
+
+    this._bindChunks();
+
+    // First measure once layout exists. requestAnimationFrame, not now: clientWidth is 0 pre-layout.
+    requestAnimationFrame(() => this._measureAndScale());
 
     // Expand/collapse toggle
     const toggleBtn = this.$('#ribbon-toggle');
@@ -842,6 +937,93 @@ export class BRibbon extends BaseComponent {
   }
 
   /**
+   * Wire the collapsed-group chunk buttons and their flyouts.
+   *
+   * Called from onUpdated AND from _showTabContent, because the measure pass re-renders the panel — and
+   * imperative wiring that is only applied in onUpdated silently dies on that re-render. Exactly the
+   * hazard that produced the chevron bugs in TASK-097; here it made the chunk button stop opening.
+   */
+  private _bindChunks() {
+    // Collapsed groups: chunk button toggles its flyout; Escape closes and returns focus. Keyboard
+    // reach matters more here than anywhere else in the ribbon -- with no KeyTips yet, a collapsed
+    // group that only opens on click would remove commands from keyboard users specifically.
+    this.$$<HTMLElement>('.ribbon-chunk').forEach(chunk => {
+      const group = chunk.closest('.ribbon-group') as HTMLElement | null;
+      if (!group) return;
+      this.listen(chunk, 'click', (e: Event) => {
+        e.stopPropagation();
+        const open = group.hasAttribute('data-open');
+        this.$$<HTMLElement>('.ribbon-group.size-popup').forEach(g => g.removeAttribute('data-open'));
+        if (!open) group.setAttribute('data-open', '');
+        chunk.setAttribute('aria-expanded', String(!open));
+      });
+      this.listen(group, 'keydown', (e: Event) => {
+        if ((e as KeyboardEvent).key !== 'Escape') return;
+        e.preventDefault();
+        group.removeAttribute('data-open');
+        chunk.setAttribute('aria-expanded', 'false');
+        chunk.focus();
+      });
+    });
+
+    // Invoking from a flyout dismisses it, as Office does.
+    this.$$<HTMLElement>('.ribbon-flyout .ribbon-item').forEach(el => {
+      this.listen(el, 'click', () => {
+        const group = el.closest('.ribbon-group') as HTMLElement | null;
+        group?.removeAttribute('data-open');
+        group?.querySelector('.ribbon-chunk')?.setAttribute('aria-expanded', 'false');
+      });
+    });
+  }
+
+  /**
+   * Measure each group at each variant and apply what the shared policy picks.
+   *
+   * Measuring means rendering: each variant is written into an off-screen probe, measured, and thrown
+   * away. That is more work than reading a cached number, but it is the only honest way to know what a
+   * variant costs with the consumer's real labels, fonts and tokens — and it runs only on resize, not
+   * per frame.
+   *
+   * The result goes into `_groupSizes`, which `render()` re-emits, so a morph cannot revert the row.
+   */
+  private _measureAndScale() {
+    if (this._measuring) return; // applying the result re-renders; do not recurse
+    const track = this.$<HTMLElement>('.ribbon-panel-inner');
+    const tab = this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')));
+    if (!track || !tab || !tab.groups.length) return;
+
+    const available = track.clientWidth
+      - parseFloat(getComputedStyle(track).paddingLeft || '0')
+      - parseFloat(getComputedStyle(track).paddingRight || '0');
+    if (available <= 0) return;
+
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:0;';
+    track.appendChild(probe);
+
+    const metrics: RibbonGroupMetrics[] = tab.groups.map(group => {
+      const widths: RibbonGroupMetrics['widths'] = {};
+      for (const size of RIBBON_SIZE_LADDER) {
+        probe.innerHTML = this._renderGroup(tab.id, group, size);
+        const measured = probe.firstElementChild as HTMLElement | null;
+        widths[size] = measured ? measured.getBoundingClientRect().width : 0;
+      }
+      return { widths, scalingPriority: group.scalingPriority ?? 0, minSize: group.minSize ?? 'popup' };
+    });
+
+    probe.remove();
+
+    const gap = parseFloat(getComputedStyle(track).columnGap || '0') || 0;
+    const preferred = (this.attr('preferred-group-size') || 'medium') as never;
+    const next = resolveRibbonSizes(metrics, available, preferred, gap);
+
+    if (next.join(',') === this._groupSizes.join(',')) return; // nothing changed — do not re-render
+    this._groupSizes = next;
+    this._measuring = true;
+    try { this._showTabContent(tab.id); } finally { this._measuring = false; }
+  }
+
+  /**
    * Coalesce sync into one animation frame. A ResizeObserver can fire several times per frame
    * (two observed tracks, plus the reflow a class change causes), and each raw callback would
    * be another chance to toggle a class mid-frame — visible as strobing.
@@ -851,6 +1033,7 @@ export class BRibbon extends BaseComponent {
     this._syncQueued = true;
     requestAnimationFrame(() => {
       this._syncQueued = false;
+      this._measureAndScale();
       this._scrollSyncs.forEach(s => s());
     });
   }
