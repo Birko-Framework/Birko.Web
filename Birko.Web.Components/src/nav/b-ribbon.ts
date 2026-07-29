@@ -309,14 +309,19 @@ export class BRibbon extends BaseComponent {
       .ribbon-group.size-popup.compact .ribbon-chunk { min-width: 0; }
       .ribbon-group.size-popup.compact .ribbon-chunk-name { display: none; }
       .ribbon-group.size-popup { position: relative; }
+      /* A POPOVER, not an absolutely-positioned child. The panel clips on both axes -- .ribbon-panel is
+         overflow:hidden for its max-height collapse, and .ribbon-panel-inner became overflow:hidden when the
+         scroller was removed -- and an absolutely-positioned element cannot escape an overflow:hidden
+         ancestor, so a flyout was cut off on the right AND the bottom. The top layer escapes both, and
+         brings Escape + light dismiss with it. Positioned from the chunk rect in _bindChunks. */
       .ribbon-flyout {
-        position: absolute; top: 100%; left: 0; z-index: var(--b-z-dropdown, 300);
-        display: none;
+        position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300);
         background: var(--b-bg-elevated); border: 1px solid var(--b-border);
         border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
         padding: var(--b-space-sm, 0.5rem);
       }
-      .ribbon-group.size-popup[data-open] .ribbon-flyout { display: block; }
+      .ribbon-flyout::backdrop { background: none; }
+      .ribbon-flyout { max-width: min(92vw, 32rem); max-height: 60vh; overflow: auto; }
       .ribbon-flyout .ribbon-group-items { display: flex; align-items: flex-start; }
       .ribbon-flyout .ribbon-item { flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center; }
       .ribbon-flyout .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
@@ -638,7 +643,7 @@ export class BRibbon extends BaseComponent {
             ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : ''}
             <span class="ribbon-chunk-name">${group.label} &#9662;</span>
           </button>
-          <div class="ribbon-flyout" role="group" aria-label="${group.label}">
+          <div class="ribbon-flyout" popover role="group" aria-label="${group.label}">
             <div class="ribbon-group-items">${items}</div>
           </div>
         </div>`;
@@ -966,29 +971,39 @@ export class BRibbon extends BaseComponent {
     // group that only opens on click would remove commands from keyboard users specifically.
     this.$$<HTMLElement>('.ribbon-chunk').forEach(chunk => {
       const group = chunk.closest('.ribbon-group') as HTMLElement | null;
-      if (!group) return;
+      const flyout = group?.querySelector('.ribbon-flyout') as HTMLElement | null;
+      if (!group || !flyout) return;
+
+      // Keep aria in step with whatever opened or closed it — including Escape and light dismiss, which the
+      // popover handles itself, so there is no path that leaves the button lying about its state.
+      this.listen(flyout, 'toggle', (e: Event) => {
+        chunk.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
+      });
+
       this.listen(chunk, 'click', (e: Event) => {
         e.stopPropagation();
-        const open = group.hasAttribute('data-open');
-        this.$$<HTMLElement>('.ribbon-group.size-popup').forEach(g => g.removeAttribute('data-open'));
-        if (!open) group.setAttribute('data-open', '');
-        chunk.setAttribute('aria-expanded', String(!open));
-      });
-      this.listen(group, 'keydown', (e: Event) => {
-        if ((e as KeyboardEvent).key !== 'Escape') return;
-        e.preventDefault();
-        group.removeAttribute('data-open');
-        chunk.setAttribute('aria-expanded', 'false');
-        chunk.focus();
+        if (flyout.matches(':popover-open')) { flyout.hidePopover(); return; }
+
+        // A popover lives in the top layer, so it is positioned against the viewport rather than the group.
+        const rect = chunk.getBoundingClientRect();
+        flyout.style.left = `${rect.left}px`;
+        flyout.style.top = `${rect.bottom + 2}px`;
+        flyout.showPopover();
+
+        // Then pull it back inside the viewport. A collapsed group sits in a narrow ribbon and its
+        // full-size contents are often wider than the space to its right.
+        const box = flyout.getBoundingClientRect();
+        if (box.right > window.innerWidth - 4) {
+          flyout.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
+        }
       });
     });
 
     // Invoking from a flyout dismisses it, as Office does.
     this.$$<HTMLElement>('.ribbon-flyout .ribbon-item').forEach(el => {
       this.listen(el, 'click', () => {
-        const group = el.closest('.ribbon-group') as HTMLElement | null;
-        group?.removeAttribute('data-open');
-        group?.querySelector('.ribbon-chunk')?.setAttribute('aria-expanded', 'false');
+        const flyout = el.closest('.ribbon-flyout') as HTMLElement | null;
+        if (flyout?.matches(':popover-open')) flyout.hidePopover();
       });
     });
   }

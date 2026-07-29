@@ -511,6 +511,30 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-ribbon`'s collapsed-group flyout is a POPOVER — it was being clipped (2026-07-29)
+
+Reported from the playground: opening a collapsed group's ▾ flyout showed it cut off on the right AND
+the bottom.
+
+Cause: the flyout was `position: absolute` inside **two** `overflow: hidden` ancestors —
+`.ribbon-panel` (which has always been `overflow: hidden` for its max-height collapse) and
+`.ribbon-panel-inner` (which *became* `overflow: hidden` in the same change that removed the panel
+scroller). An absolutely-positioned element cannot escape an `overflow: hidden` ancestor. The right-hand
+clipping was self-inflicted; the bottom clipping had been latent since the flyout was added.
+
+Now `popover`, so it lives in the **top layer** — no ancestor can clip it — and Escape plus light
+dismiss come from the platform instead of being hand-rolled. Positioned from the chunk's rect on open
+and pulled back inside the viewport if it would overrun, since a collapsed group sits in a narrow ribbon
+and its full-size contents are usually wider than the space to its right.
+
+**New platform requirement, per the register-on-introduce rule: the Popover API** (Chrome 114+,
+Safari 17+, Firefox 125+). Comparable to the `:has()` the ribbon already relies on.
+
+The gate for this is deliberately **structural** — "the flyout has the `popover` attribute", plus a check
+that the ancestor which would clip it still does. That is not laziness: **clipping does not change
+`getBoundingClientRect()`**, so no rect- or size-based assertion could ever have caught this bug. If you
+find yourself reaching for geometry to test clipping, reach for structure instead.
+
 ### `b-ribbon` progressive scaling delivered; the body no longer scrolls (2026-07-29)
 
 Groups now degrade `large → medium → small → popup` as the panel narrows, in author-declared priority
