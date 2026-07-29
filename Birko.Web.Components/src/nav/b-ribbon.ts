@@ -97,6 +97,16 @@ export class BRibbon extends BaseComponent {
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
+  /**
+   * Which chevrons are currently warranted, per track. This has to be *state*, not just a class
+   * `sync()` toggles: `update()` morphs synchronously and the template's `class` attribute overwrites
+   * an imperatively-added one, so a re-render would blank the chevron until the next animation frame.
+   * On an unpinned ribbon, hover expand/collapse re-renders on nearly every mouse move across the
+   * strip — so the button strobed, the flex row reflowed each time it vanished, and a tab slid under
+   * the cursor and swallowed the click. Same hazard `_hoverTabId` documents below.
+   */
+  private _tabScroll = { left: false, right: false };
+  private _panelScroll = { left: false, right: false };
 
   static get styles() {
     return `
@@ -421,7 +431,7 @@ export class BRibbon extends BaseComponent {
           <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.label('label-open-nav', 'bwc.ribbon.openNav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
 
-          <button class="ribbon-scroll-btn" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
+          <button class="ribbon-scroll-btn${this._tabScroll.left ? ' visible' : ''}" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
             ${this._tabs.map((tab, i) => {
               const isActive = tab.id === active;
@@ -439,7 +449,7 @@ export class BRibbon extends BaseComponent {
               </button>`;
             }).join('')}
           </div>
-          <button class="ribbon-scroll-btn" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
+          <button class="ribbon-scroll-btn${this._tabScroll.right ? ' visible' : ''}" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
@@ -499,11 +509,11 @@ export class BRibbon extends BaseComponent {
     const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
-        <button class="ribbon-scroll-btn" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
+        <button class="ribbon-scroll-btn${this._panelScroll.left ? ' visible' : ''}" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
         <div class="ribbon-panel-inner">
           ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
-        <button class="ribbon-scroll-btn" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
+        <button class="ribbon-scroll-btn${this._panelScroll.right ? ' visible' : ''}" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
       </div>
     `;
   }
@@ -580,8 +590,8 @@ export class BRibbon extends BaseComponent {
     this._scrollSyncs = [];
     const tabTrack = this.$<HTMLElement>('.ribbon-tabs');
     const panelTrack = this.$<HTMLElement>('.ribbon-panel-inner');
-    this._setupScroll(tabTrack, this.$<HTMLElement>('#scroll-left'), this.$<HTMLElement>('#scroll-right'));
-    this._panelSync = this._setupScroll(panelTrack, this.$<HTMLElement>('#panel-scroll-left'), this.$<HTMLElement>('#panel-scroll-right'));
+    this._setupScroll(tabTrack, this.$<HTMLElement>('#scroll-left'), this.$<HTMLElement>('#scroll-right'), this._tabScroll);
+    this._panelSync = this._setupScroll(panelTrack, this.$<HTMLElement>('#panel-scroll-left'), this.$<HTMLElement>('#panel-scroll-right'), this._panelScroll);
     this._observeScrollTracks([tabTrack, panelTrack]);
 
     // Tab clicks
@@ -771,14 +781,17 @@ export class BRibbon extends BaseComponent {
     track: HTMLElement | null,
     leftBtn: HTMLElement | null,
     rightBtn: HTMLElement | null,
+    state: { left: boolean; right: boolean },
   ): (() => void) | null {
     if (!track || !leftBtn || !rightBtn) return null;
 
     const sync = () => {
-      const canLeft = track.scrollLeft > 1;
-      const canRight = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
-      leftBtn.classList.toggle('visible', canLeft);
-      rightBtn.classList.toggle('visible', canRight);
+      // Record into state as well as toggling the class, so render() can re-emit it and a morph
+      // cannot blank the button for a frame.
+      state.left = track.scrollLeft > 1;
+      state.right = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
+      leftBtn.classList.toggle('visible', state.left);
+      rightBtn.classList.toggle('visible', state.right);
     };
 
     this.listen(track, 'scroll', sync, { passive: true });
