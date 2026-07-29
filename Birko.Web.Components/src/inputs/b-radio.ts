@@ -1,7 +1,7 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { formToggleSheet } from '../shared-styles';
 
-export class BRadio extends BaseComponent {
+export class BRadio extends FormControlComponent {
   static get observedAttributes() {
     return ['checked', 'disabled', 'name', 'value', 'label'];
   }
@@ -80,6 +80,9 @@ export class BRadio extends BaseComponent {
         this.removeAttribute('checked');
         const input = this.$<HTMLInputElement>('input');
         if (input) input.checked = false;
+        // This path does NOT re-render, so onUpdated's sync never runs — without this the deselected
+        // member keeps its old `setFormValue`, and the group submits TWO entries under one name.
+        this.syncFormState();
       }
     };
     this.parentElement?.addEventListener('b-radio-change', this._groupListener);
@@ -108,8 +111,34 @@ export class BRadio extends BaseComponent {
           bubbles: false,
         }));
         this.emit('change', { name: this.attr('name'), value: this.attr('value') });
+        this.syncFormState();
       }
     });
+
+    this.syncFormState();
+  }
+
+  /**
+   * Native radio submit semantics: the `value` attribute **only when checked**, nothing when not. Group
+   * members share a `name`, and since only the checked one returns a value, the form receives exactly one
+   * entry per group — no coordinator needed for submission (the existing `b-radio-change` sibling
+   * bookkeeping remains what enforces mutual exclusion, because Shadow DOM breaks native radio grouping).
+   */
+  protected formValue(): string | null {
+    if (!this.checked) return null;
+    return this.getAttribute('value') ?? 'on';
+  }
+
+  /**
+   * `required` on a radio is a property of the **group** — satisfied by any one member being checked —
+   * and cannot be evaluated per element: every unchecked member would report `valueMissing` and the form
+   * would surface one bubble per radio for a single logical field. `required` is therefore **not
+   * supported** on `b-radio`; validate the group in the page (or via `b-form`, which already does).
+   *
+   * Not forwarded to the inner `<input>` either, for the same reason.
+   */
+  protected get supportsRequiredValidation(): boolean {
+    return false;
   }
 
   get checked(): boolean {
@@ -130,6 +159,21 @@ export class BRadio extends BaseComponent {
   /** Unified interface — returns the value attr when checked, empty when not */
   get inputValue(): string { return this.checked ? (this.attr('value') ?? 'true') : ''; }
   set inputValue(v: string) { this.checked = !!v; }
+
+  /**
+   * A reset restores **checkedness**, not `value` — the base default would feed the `value` attribute
+   * through the `value` setter (which reads `'true'`/`'1'`) and so uncheck a `<b-radio value="yes" checked>`.
+   */
+  protected captureInitialState(): unknown {
+    return this.hasAttribute('checked');
+  }
+
+  protected restoreInitialState(state: unknown): void {
+    if (state) this.setAttribute('checked', '');
+    else this.removeAttribute('checked');
+    const input = this.$<HTMLInputElement>('input');
+    if (input) input.checked = !!state;
+  }
 }
 
 define('b-radio', BRadio);

@@ -1,6 +1,6 @@
-import { BaseComponent, define, t } from 'birko-web-core';
+import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 const DAYS_IN_WEEK = 7;
 
@@ -66,7 +66,7 @@ let _globalLocale: {
   today?: string; clear?: string; apply?: string; cancel?: string; presets?: string;
 } = {};
 
-export class BDateRangePicker extends BaseComponent {
+export class BDateRangePicker extends FormControlComponent {
 
   static setLocale(locale: {
     months?: string[]; days?: string[];
@@ -80,7 +80,7 @@ export class BDateRangePicker extends BaseComponent {
             'error', 'disabled', 'required', 'hint',
             'min', 'max', 'min-days', 'max-days',
             'months-visible', 'separator', 'native', 'confirm', 'presets',
-            'label-today', 'label-clear', 'label-apply', 'label-cancel',
+            'label-today', 'label-clear', 'label-apply', 'label-cancel', 'bare', 'description',
             'label-months', 'label-days', 'label-presets'];
   }
 
@@ -384,6 +384,25 @@ export class BDateRangePicker extends BaseComponent {
     this._syncInputs();
   }
 
+  /**
+   * Submits `${name}-start` / `${name}-end` as two ISO dates. Same reasoning as `b-range`'s range mode:
+   * one control, two values, no native equivalent — so two ordinary fields rather than making the server
+   * split the `"start/end"` interval string that `value` returns for back-compat.
+   */
+  protected formValue(): FormData | null {
+    const r = this._currentRange();
+    return this.suffixedFormValue([['start', r?.start ?? ''], ['end', r?.end ?? '']]);
+  }
+
+  /** The `.drp-input-*` boxes hold formatted display text, not the ISO values. */
+  protected validationSource(): undefined {
+    return undefined;
+  }
+
+  protected formAnchor(): HTMLElement | undefined {
+    return this.$<HTMLElement>('.drp-input-start') ?? this.$<HTMLElement>('input') ?? undefined;
+  }
+
   getRange(): RangeValue | null {
     return this._currentRange();
   }
@@ -429,10 +448,18 @@ export class BDateRangePicker extends BaseComponent {
     const disabled = this.boolAttr('disabled');
     const range = this._currentRange();
     const name = this.attr('name') ?? '';
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="drp-wrap">
           <input type="date"
                  class="drp-native-start ${error ? 'has-error' : ''}"
@@ -442,7 +469,7 @@ export class BDateRangePicker extends BaseComponent {
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
                  ${this.boolAttr('required') ? 'required' : ''}
-                 ${fieldAria({ uid: this.uid, error })}
+                 ${fieldAria({ uid: this.uid, error, description, bare, label })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${this.attr('separator') ?? '→'}</span>
           <input type="date"
@@ -453,12 +480,11 @@ export class BDateRangePicker extends BaseComponent {
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
                  ${this.boolAttr('required') ? 'required' : ''}
-                 ${fieldAria({ uid: this.uid, error })}
+                 ${fieldAria({ uid: this.uid, error, description, bare, label })}
                  ${disabled ? 'disabled' : ''} />
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
+
   }
 
   private _renderCustom(): string {
@@ -471,17 +497,28 @@ export class BDateRangePicker extends BaseComponent {
     const sep = this.attr('separator') ?? '→';
     const disabled = this.boolAttr('disabled');
     const months = this._monthsVisible();
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="drp-wrap">
           <input class="drp-input drp-input-start ${error ? 'has-error' : ''}"
                  type="text" readonly
                  value="${formatDisplay(range?.start ?? '')}"
                  placeholder="${phStart}"
                  aria-label="${phStart}"
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${/* No label passed: each endpoint already carries its own aria-label above, and a
+                       second one would be a DUPLICATE attribute (the first wins). The endpoint's own
+                       Start date / End date is the more useful name anyway. */
+                   fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${sep}</span>
           <input class="drp-input drp-input-end ${error ? 'has-error' : ''}"
@@ -489,16 +526,18 @@ export class BDateRangePicker extends BaseComponent {
                  value="${formatDisplay(range?.end ?? '')}"
                  placeholder="${phEnd}"
                  aria-label="${phEnd}"
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${/* No label passed: each endpoint already carries its own aria-label above, and a
+                       second one would be a DUPLICATE attribute (the first wins). The endpoint's own
+                       Start date / End date is the more useful name anyway. */
+                   fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare })}
                  ${disabled ? 'disabled' : ''} />
           ${range && !disabled ? '<button class="drp-clear" type="button" aria-label="Clear">&times;</button>' : ''}
         </div>
         <div class="drp-panel ${this._open ? 'open' : ''}" data-months="${months}">
           ${this._renderPanelBody()}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
+
   }
 
   private _renderPanelBody(): string {
@@ -614,6 +653,10 @@ export class BDateRangePicker extends BaseComponent {
   // ── Wiring ──
 
   protected onUpdated() {
+    // Before the native/custom split and its early returns: presets, panel clicks and `inputValue` all
+    // re-render without necessarily emitting.
+    this.syncFormState();
+
     if (this.boolAttr('native')) {
       this._wireNative();
       return;

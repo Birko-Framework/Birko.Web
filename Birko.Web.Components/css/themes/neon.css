@@ -17,6 +17,8 @@
   --b-color-success-light: #06301a;
   --b-color-warning: #ffaa44;
   --b-color-warning-light: #3a2a10;
+  /* #ff4466 measures 5.36:1 as text on --b-bg-secondary, so no --b-color-danger-text override is needed
+     here — it inherits this value. */
   --b-color-danger: #ff4466;
   --b-color-danger-hover: #ff6680;
   --b-color-danger-light: #551018;

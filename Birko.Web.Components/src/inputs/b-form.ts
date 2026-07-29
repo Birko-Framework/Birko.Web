@@ -36,7 +36,15 @@ export interface FormField {
   type: FieldType;
   label: string;
   placeholder?: string;
+  /** Terse explainer, rendered as a tooltip behind a `?` icon beside the label. */
   hint?: string;
+  /**
+   * Persistent help text rendered under the control and wired into its `aria-describedby` — for a value
+   * or constraint the user needs on screen while typing ("Goal 8000 steps", "Max 20 characters"). Use
+   * {@link FormField.hint} instead for a terse explainer that can live behind a `?` icon. A field may
+   * carry both.
+   */
+  description?: string;
   value?: unknown;
   rows?: number;
   fullWidth?: boolean;
@@ -540,6 +548,7 @@ export class BForm extends BaseComponent {
     }
 
     if (field.hint) parts.push(`hint="${escapeAttr(field.hint)}"`);
+    if (field.description) parts.push(`description="${escapeAttr(field.description)}"`);
     if (field.value !== undefined && field.value !== '') parts.push(`value="${escapeAttr(String(field.value))}"`);
     if (field.placeholder) parts.push(`placeholder="${escapeAttr(field.placeholder)}"`);
     if (error) parts.push(`error="${escapeAttr(error)}"`);

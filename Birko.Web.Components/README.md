@@ -87,7 +87,128 @@ See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full role map, the `fieldAria()
 
 ---
 
+## Form participation
+
+The 15 value-bearing inputs — `b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+`b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
+`b-markdown-editor`, `b-checkbox`, `b-switch`, `b-radio` — are **form-associated custom elements** (`ElementInternals`). Drop them in a plain
+`<form>` and it behaves as if they were native controls:
+
+```html
+<form id="f">
+  <b-input name="email" type="email" required></b-input>
+  <b-input name="weight" type="number" min="0" step="0.1"></b-input>
+  <button type="submit">Save</button>
+</form>
+```
+
+```ts
+const f = document.querySelector('#f') as HTMLFormElement;
+f.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = new FormData(f);       // includes every b-* value, keyed by `name`
+});
+// An empty `required`, a malformed email or a negative weight blocks the submit and shows the
+// browser's own validation bubble anchored to the control — no page-level guard needed.
+```
+
+What you get: values in `FormData`; `required` / `type` / `min` / `max` / `step` / `pattern` enforced;
+`checkValidity()` / `reportValidity()` / `validity` / `validationMessage` on both control and form;
+`form.reset()` restoring initial state; `<fieldset disabled>` propagating in.
+
+**`form.reset()`** returns each control to its **markup-declared** state — the `value` attribute, or
+`checked` for toggles — which is what native controls do (they ignore script-assigned values on reset). A
+control you populate *imperatively* after load (`setOptions()` + `setSelected()`, `setTags()`) has no markup
+to declare, so call `el.resetFormBaseline()` once you have populated it if reset should return there
+instead of to empty.
+
+**Submitted shapes.** Most controls submit one string under `name`. Three don't, and the difference
+matters server-side:
+
+| Control | `FormData` shape | Note |
+|---|---|---|
+| `b-multi-select`, `b-tag-input` | **one entry per value** under `name` | The native `<select multiple>` shape — read with `getAll(name)`; binds to `string[]` in ASP.NET Core, `name[]` in PHP. Unlike the joined `.value`, this is safe for values containing a comma. |
+| `b-range` (`mode="range"`) | `name-from` + `name-to` | Two values, no native equivalent — two ordinary fields beat inventing a delimiter. Single mode submits one plain value under `name`. |
+| `b-date-range-picker` | `name-start` + `name-end` | Same reasoning; both ISO dates. |
+| `b-color-picker` | base hex `#rrggbb` | The alpha byte is dropped even in `alpha` mode. `el.value` still returns `#rrggbbaa`. |
+| `b-markdown-editor` | the markdown **source** | Never the rendered preview HTML. |
+| `b-checkbox`, `b-switch`, `b-radio` | `value` attr (default `on`) **only when checked** | Unchecked contributes nothing — that absence is how a server reads false. |
+
+An **empty** control submits **no entry at all** (not `""`), matching native behaviour — so a server sees
+an absent field, not an empty list.
+
+**Nothing about `el.value` changed**, and `b-form` still collects values programmatically exactly as
+before. Form participation is an additional surface, not a replacement — if you already read values in
+your page, keep doing that.
+
+**Toggles use native checkbox semantics.** `b-checkbox`, `b-switch` and `b-radio` submit their `value`
+attribute (default `on`) **only when checked**, and contribute **nothing** when unchecked — which is how a
+server distinguishes false (`bool` binding reads an absent field as false; a literal `false` string would
+bind as true). Their `.value` still returns `'true'`/`'false'` for JS callers, so read `el.checked` for the
+boolean exactly as before.
+
+`b-radio` members share a `name` and the form receives exactly one entry, from the checked member.
+`required` is **not** supported on `b-radio` — it is a property of the group, not of one button — so
+validate radio groups in your page or via `b-form`.
+
+**Custom controls:** extend `FormControlComponent` (from `birko-web-core`) instead of `BaseComponent`, and
+call `this.syncFormState()` whenever your value changes. See `Birko.Web.Components/CLAUDE.md`
+§ "Form-association convention".
+
+---
+
 ## Inputs
+
+**`hint` vs `description` — two kinds of help, two presentations.** Both are supported on all 14
+stacked-chrome controls (see `bare` below for the list), and a field may carry both:
+
+| Attribute | Renders as | Use for |
+|---|---|---|
+| `hint` | a tooltip behind a `?` icon beside the label | a terse explainer read once — *"Same number = performed back-to-back as a superset"* |
+| `description` | persistent text under the control | a value or constraint needed at a glance while typing — *"Goal 8000 steps"*, *"Max 20 characters"* |
+
+```html
+<b-input label="Steps" type="number" description="Goal 8000 steps"></b-input>
+
+<!-- both: a standing constraint on screen, plus an explainer behind the icon -->
+<b-input label="Superset group" type="number"
+         description="Max 10"
+         hint="Same number = performed back-to-back as a superset"></b-input>
+```
+
+**Use `description` rather than your own sibling element.** The row is wired into the control's
+`aria-describedby`, so a screen reader announces it as that field's description. An element you render
+*outside* the component cannot be — the real control lives in shadow DOM, so nothing outside it can be
+referenced by id. When an error is also present, both are announced (error first) rather than one replacing
+the other.
+
+Escaped on the way in, so text from a schema or an API is safe to pass. Dropped by `bare` (see below),
+where it becomes the control's `title` instead — unless an error has claimed `title`, which wins.
+
+Styled at `--b-text-xs` in `--b-text-secondary` — lighter than the label but chosen to clear WCAG AA
+contrast in the shipped themes, since this is text meant to be read rather than decoration.
+
+**`bare` — drop the stacked chrome.** By default a form control renders a `.field` wrapper with a label
+row above and an error row below. `bare` strips all three and emits the control alone, for toolbars,
+table cells and other inline hosts where that chrome (and its flex gap) adds unwanted vertical space.
+Pairs with `size="sm"`.
+
+```html
+<!-- in a toolbar / table cell: no label row, no error row, no stacked gap -->
+<b-input bare size="sm" label="Quantity" type="number" min="0" inputmode="numeric"></b-input>
+```
+
+Supported by all 14 stacked-chrome controls: `b-input`, `b-select`, `b-textarea`, `b-multi-select`,
+`b-tag-input`, `b-date-picker`, `b-datetime-picker`, `b-time`, `b-date-range-picker`, `b-range`,
+`b-color-picker`, `b-markdown-editor`, `b-file-upload`, `b-option-group`.
+
+Not supported, deliberately: `b-search-input` renders no chrome at all (so it is already bare), and the
+toggles (`b-checkbox` / `b-switch` / `b-radio`) are inline label+control rather than stacked fields.
+
+Keep passing `label`, `description` and `error` — a bare control still honours them, it just has nowhere
+to *print* text: the `has-error` border stays, `label` becomes the control's `aria-label` (so it keeps an
+accessible name without a visible one), and `title` carries the error, or the description when there is no
+error. Your page is responsible for showing the message somewhere if users need to read it.
 
 ### b-input
 
@@ -104,8 +225,11 @@ Passed through to the inner `<input>`: `min`, `max`, `step`, `inputmode`, `autoc
 decides which on-screen keyboard a phone opens.
 Emits: `change` → `{ name, value }`
 
-> **Not form-associated.** The real `<input>` lives in shadow DOM, so a wrapping `<form>` does not validate it
-> and `FormData(form)` does not include it. Read values via the component (`el.value`) and validate in the page.
+> **Form-associated.** Despite the real `<input>` living in shadow DOM, this is an `ElementInternals`-based
+> form-associated custom element: its value is included in `FormData(form)`, `required` / `type` / `min` /
+> `max` / `step` block a native submit, `form.reportValidity()` shows the bubble on the control,
+> `form.reset()` restores it, and `<fieldset disabled>` disables it. `el.value` still works exactly as
+> before — see [Form participation](#form-participation).
 
 ### b-select
 
@@ -859,6 +983,29 @@ Emits: `page-change` → `{ page }`
 ```
 
 Attributes: `type` (bar|line|area|pie|donut|gauge), `height`, `legend`, `animate`
+
+**Per-point colour (bar mode).** A `DataPoint` may carry its own `color`, which wins over the series colour —
+for bars whose meaning depends on their own value rather than on which series they belong to:
+
+```typescript
+(el as BChart).setData({
+  series: [{ id: 'steps', label: 'Steps', data: days.map(d => ({
+    y: d.steps,
+    color: d.steps >= goal ? 'var(--b-color-success)' : 'var(--b-color-primary)',
+  })) }],
+});
+(el as BChart).setOptions({ thresholds: [{ value: goal, label: `goal ${goal}` }] });
+```
+
+Splitting the states into two series is *not* equivalent: bars from different series are laid out side by side
+within each category, so you would get pairs of half-width bars instead of one bar per category.
+
+**Empty slots.** A category whose value is missing or yields no bar height draws nothing rather than an invisible
+zero-height `<rect>` — the bar equivalent of a gap in a line. Useful for a daily series where some days have no
+entry: the slot stays, the bar doesn't.
+
+**x labels are thinned** to ~8 across the axis in both bar and line mode, so a 90-day daily series doesn't print
+90 overlapping labels.
 
 ### b-kanban
 

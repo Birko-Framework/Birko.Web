@@ -1,7 +1,7 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 export interface MultiSelectOption {
   value: string;
@@ -12,10 +12,10 @@ export interface MultiSelectOption {
 /** @deprecated Use MultiSelectOption instead */
 export type Option = MultiSelectOption;
 
-export class BMultiSelect extends BaseComponent {
+export class BMultiSelect extends FormControlComponent {
   static get observedAttributes() {
     return ['label', 'name', 'placeholder', 'error', 'disabled', 'searchable', 'creatable',
-            'label-no-matches', 'label-search', 'label-remove', 'label-create', 'hint'];
+            'label-no-matches', 'label-search', 'label-remove', 'label-create', 'hint', 'description', 'bare'];
   }
 
   private _options: MultiSelectOption[] = [];
@@ -158,6 +158,45 @@ export class BMultiSelect extends BaseComponent {
   get inputValue(): string { return this.getSelected().join(','); }
   set inputValue(v: string) { this.setSelected(v ? v.split(',') : []); }
 
+  /**
+   * One `FormData` entry per selected value, under this control's `name` — the native
+   * `<select multiple>` shape, so a server binds a list (ASP.NET Core `string[]`, PHP `name[]`, …)
+   * instead of having to split a delimited string. Nothing is submitted when the selection is empty,
+   * again matching native.
+   *
+   * `value` / `inputValue` keep returning the comma-joined string: `b-form` and every existing consumer
+   * read that, and form participation is an additional surface, not a replacement. Note the joined form
+   * is lossy for values containing a comma — the multi-entry form is not, which is the other reason to
+   * prefer it here.
+   */
+  protected formValue(): FormData | null {
+    return this.multiFormValue(this.getSelected());
+  }
+
+  /**
+   * There is no `value` attribute on this control — its selection comes from `setSelected()` — so the base
+   * default would reset it by parsing `null` and clearing the list. Snapshot the selection instead.
+   *
+   * Note the baseline is taken at first sync, i.e. before a page's `setOptions()`/`setSelected()` usually
+   * run; call `resetFormBaseline()` after populating if `form.reset()` should return to that state.
+   */
+  protected captureInitialState(): unknown {
+    return this.getSelected();
+  }
+
+  protected restoreInitialState(state: unknown): void {
+    this.setSelected(Array.isArray(state) ? [...state as string[]] : []);
+  }
+
+  /** Div-based combo — no native primitive to mirror; the base's generic `required` check applies. */
+  protected validationSource(): undefined {
+    return undefined;
+  }
+
+  protected formAnchor(): HTMLElement | undefined {
+    return this.$<HTMLElement>('.container') ?? undefined;
+  }
+
 
   render() {
     const label = this.attr('label');
@@ -184,16 +223,26 @@ export class BMultiSelect extends BaseComponent {
     const noMatchesLabel = this.attr('label-no-matches', 'No matches');
     const searchLabel = this.attr('label-search', 'Search...');
 
-    const hint = this.attr('hint');
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      // `.dropdown` is resolved by selector in onUpdated and anchored to `.container` — both stay in
+      // the control so bare mode keeps a working popover.
+      control: `
         <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
              aria-haspopup="true"
              aria-expanded="${this._open}"
              aria-controls="${this.uid}-opts"
-             ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}>
+             ${fieldAria({ uid: this.uid, error, description, required, bare, label })}>
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
         <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this.attr('label-options', 'Options')}">
@@ -205,10 +254,8 @@ export class BMultiSelect extends BaseComponent {
               ${o.label}
             </label>
           `).join('') : `<div class="no-results">${noMatchesLabel}</div>`}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
   }
 
   protected update(): void {
@@ -217,6 +264,10 @@ export class BMultiSelect extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Before the re-wiring guards below: `setSelected()` / `setOptions()` change state and re-render
+    // without emitting, so this is the only place that reliably sees every value change.
+    this.syncFormState();
+
     const container = this.$<HTMLElement>('.container');
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (!container || !dropdown) return;
@@ -330,6 +381,7 @@ export class BMultiSelect extends BaseComponent {
 
   private _emitAndUpdate() {
     this.emit('change', { name: this.attr('name'), values: this.getSelected() });
+    this.syncFormState();
     this._updateChips();
     const dropdown = this.$<HTMLElement>('.dropdown');
     if (dropdown) this._refreshOptions(dropdown);

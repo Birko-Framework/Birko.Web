@@ -42,6 +42,17 @@ css/
 - Always: `color: var(--b-text)`, `padding: var(--b-space-md)`, `border-radius: var(--b-radius-sm)`
 - Full token reference: `css/tokens.css`
 
+### No backticks inside `static get styles()`
+
+The CSS lives in a **template literal**, so a backtick anywhere inside it — including in a comment —
+terminates the string and the rest of the file parses as broken TypeScript. The errors that come out
+(`TS1005: ',' expected`, `Property 'x' does not exist on type '"
+ :host {…"'`) point at a *later* line and
+read as something else entirely, which is what makes it expensive.
+
+Write CSS comments with plain text or double quotes: `/* the .options row */`, not `` /* the `.options` row */ ``.
+Markdown-style backticks are a habit from the doc comments directly above; they do not survive here.
+
 ### Shared stylesheets (MANDATORY — no duplication)
 Before writing CSS, check if a shared sheet covers the pattern:
 
@@ -143,6 +154,142 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 **Always style via `:host([size="sm"])` / `:host([size="lg"])` selectors** — never via class interpolation (`class="${size}"`). The host-attribute pattern keeps `size` as a pure CSS switch (no `observedAttributes` entry needed, no re-render on change) and stays consistent across the library.
 
 `b-chart` is an exception: it uses `height` (SVG pixel layout) not `size` — different concept, documented.
+
+### `hint` vs `description` (form-control help text)
+
+Two attributes, two presentations, one concept each — do not merge them or add a third:
+
+| Attribute | Renders | Helper | For |
+|---|---|---|---|
+| `hint` | tooltip behind a `?` icon beside the label | `renderLabel` | terse explainer read once |
+| `description` | persistent row under the control, `id="${uid}-help"` | `renderHelp` | value/constraint needed while typing |
+
+`.field .help` uses **`--b-text-secondary`, not `--b-text-muted`** — measured across all five shipped
+themes, muted gives 2.03–3.07:1 against the field background (below WCAG AA's 4.5:1 for text at
+`--b-text-xs`), secondary gives 3.77–7.24:1. Text meant to be read while typing has to clear AA; reach for
+muted only for genuinely decorative text.
+
+- **Both, not a mode.** A single attribute with a `tooltip|text` switch was considered and rejected: it makes
+  a field unable to carry a standing constraint *and* a longer explainer at the same time, and any default
+  choice is either wrong or a visible change for every consumer already passing `hint`.
+- **`description` must go to `fieldAria()` as well as `renderField()`** — that is what puts `${uid}-help`
+  into `aria-describedby`. Wiring the row without the ARIA is the whole bug this attribute exists to fix: a
+  consumer's own sibling element cannot be referenced from inside shadow DOM, so a screen reader never
+  announces it as the field's description.
+- **Error and description coexist.** Both ids are described, **error first** (urgency beats reading order);
+  visually the order is control → description → error. That divergence is deliberate and commented.
+- **`renderHelp` escapes its input**; `renderError` does not (callers pre-escape). New helpers should follow
+  `renderHelp` — escape-by-default is the choice that cannot produce an injection, and the caller-escapes
+  convention is what produced three unescaped interpolations in `b-select` / `b-textarea`.
+- **`bare` drops the row** and `title` carries the description — unless an error has claimed `title`, which
+  wins. `title` is one string; concatenating a failure with standing help muddles the important one.
+- `b-form`'s `FormField` carries `description?: string` alongside `hint?: string`, forwarded as an attribute.
+
+### `bare` attribute convention (form controls)
+
+A form control renders stacked chrome by default — the `.field` flex wrapper, a label row above and an
+error-message row below. `bare` strips all three and emits the control alone, for inline hosts
+(toolbars, table cells, editable-table cells, floating action bars) where that chrome and its flex gap
+add unwanted vertical space. Pairs with `size="sm"` for dense layouts.
+
+Supported on **all 14** controls that render the stacked chrome: `b-input`, `b-select` (both native and
+searchable), `b-multi-select`, `b-textarea`, `b-tag-input`, `b-date-picker`, `b-datetime-picker`, `b-time`,
+`b-date-range-picker`, `b-range`, `b-color-picker`, `b-markdown-editor`, `b-file-upload`, `b-option-group`.
+
+`renderField` is the **only** place `.field` is constructed — `grep 'class="field"' src/inputs/*.ts` should
+return `label-hint.ts` and nothing else. If it returns a component, that component is drifting.
+
+Deliberately not supported: `b-search-input` renders no `.field` chrome at all (already bare), and the
+toggles (`b-checkbox` / `b-switch` / `b-radio`) are inline label+control rather than stacked fields.
+
+Rules when adding `bare` to a new form control:
+
+- **Route the render through `renderField()`** (`src/inputs/label-hint.ts`) — never hand-roll the
+  `bare ? … : …` branch. It owns the wrapper/label/error decision for the whole library.
+- **`bare` goes in `observedAttributes`** so toggling it re-renders. Unlike `size` (a pure CSS switch)
+  this one changes the markup, so it cannot be an attribute-selector-only feature.
+- **Everything that is part of the *control* stays inside `control:`** — a `<datalist>`, a `.dropdown`
+  / `.dp-panel` popover, a `.combo` / `.container` wrapper. Only the *chrome* is conditional. Popovers
+  are resolved by selector and positioned against their trigger, so moving them out of the control
+  silently breaks them in bare mode.
+- **Pass `bare` (and `label`) to `fieldAria()`.** Removing the chrome removes both the `<label>` that
+  named the control and the error span that `aria-describedby` pointed at, so the ARIA has to be
+  rebuilt from attributes: `aria-label` from `label`, and the message as `title` instead of a dangling
+  `aria-describedby`. A bare control still *announces* its error — it just has nowhere to print it.
+  The `has-error` border is unaffected.
+
+### Form-association convention (value-bearing controls)
+
+The 15 value-bearing inputs extend **`FormControlComponent`** (from `birko-web-core`) rather than
+`BaseComponent`, which makes them `ElementInternals`-based form-associated custom elements: value in
+`FormData`, native constraint validation, `reportValidity()`, `form.reset()`, `<fieldset disabled>`.
+
+**Do not move this onto `BaseComponent`.** `static formAssociated` is read per class at definition time
+and `attachInternals()` is constructor-only/once, so putting it there would make every component —
+`b-card`, `b-modal`, `b-table` — a submittable listed element, `:invalid`-matchable and
+fieldset-disable-able. Form participation is opt-in by base class.
+
+Converting or writing a value-bearing control:
+
+1. **`extends FormControlComponent`**; no `formAssociated` / `attachInternals()` of your own (the base owns
+   both, and a second `attachInternals()` throws). The base declares **`abstract get/set value(): string`**,
+   so a control that forgets the unified `value` accessor fails to compile rather than at runtime — widen the
+   setter if the control also accepts a richer type (`b-date-range-picker` takes a range object).
+2. **Call `this.syncFormState()` at the end of `onUpdated()`, before any early return** — *not only* where
+   you emit `change`. Imperative setters (`setSelected()`, `setTags()`, `setOptions()`), panel clicks and
+   `inputValue` all mutate state and re-render **without** emitting; miss this and the control silently
+   never registers a value or a validity. Also call it in the `change` path so typing updates immediately.
+3. **Override `formValue()` when the submitted shape isn't "`value` as one string"**:
+   - list of like values → `multiFormValue(values)` — one entry per value under `name` (the native
+     `<select multiple)>` shape). `b-multi-select`, `b-tag-input`.
+   - two distinct values → `suffixedFormValue([['from', a], ['to', b]])` → `name-from` / `name-to`.
+     `b-range` (range mode), `b-date-range-picker` (`-start`/`-end`).
+   - Return `null` for empty so nothing is submitted — native behaviour, and the difference between a
+     server binding an empty list and binding `[""]`.
+4. **Override `validationSource()` to `undefined` unless the inner control's `validity` is genuinely
+   about the value.** Default behaviour mirrors the first inner `input`/`select`/`textarea` verbatim,
+   which is what makes `type="email"`, `min`, `max`, `step` and `pattern` enforceable by the form for
+   free. But it is *wrong* where the inner input holds something else: a formatted display string (the
+   pickers), an option **label** (searchable `b-select`), a typing buffer (`b-tag-input`), or a control
+   that is never empty and never invalid (`type="range"`, `type="color"`). Those get the base's generic
+   `required`-only check instead.
+5. **Override `formAnchor()`** for div-based controls so the validation bubble lands on the control
+   (`.container`, `.drp-input-start`, …) rather than the host's corner.
+6. **Override `captureInitialState()` / `restoreInitialState()` unless the state really is the `value`
+   attribute.** The base default snapshots that attribute and restores by assigning `value` — right for
+   value-backed controls, silently wrong otherwise, because `form.reset()` then feeds the wrong thing
+   through a setter that means something else. A toggle resets its **checkedness** (the default would read
+   `<b-checkbox value="yes" checked>`'s `"yes"` as unchecked); `b-multi-select` / `b-tag-input` snapshot
+   their **list**. The baseline is taken at first sync — i.e. markup-declared state, which is what native
+   does — so a control populated imperatively after mount should have `resetFormBaseline()` called once
+   it is populated, or reset returns it to empty.
+7. **Never write the host's own `disabled` attribute from `formDisabledCallback()`** — the base already
+   handles ancestor-disabled via a separate flag folded into `boolAttr('disabled')`. Reflecting it onto
+   the attribute makes the element *self*-disabled, so re-enabling the fieldset never fires the callback
+   again and the control is stuck disabled permanently.
+
+Precedence for validity is fixed and deliberate: the **`error` attribute wins** (as `customError` with
+that message) over the inner control's native validity, because `error` is what `b-form` and page-level
+validation set — the app's verdict must beat the browser's, and a control showing a message must not
+report itself valid to the form.
+
+**Toggle controls (`b-checkbox`, `b-switch`, `b-radio`) follow native checkbox semantics**, which are not
+the same as their `.value`:
+
+- `formValue()` returns the `value` attribute (default `on`) **only when checked**, `null` otherwise — an
+  unchecked box must be **absent** from `FormData`, because that is how `bool` model binding detects false.
+  Submitting `name=false` would arrive as a present, truthy string and silently mis-bind.
+- `.value` / `.inputValue` still return `'true'`/`'false'` and are deliberately left alone: nothing reads
+  them (`b-form._getFieldValue` and every consumer read `.checked`), so realigning them would be churn. The
+  divergence between the JS surface and the submit surface is intentional — document it, don't "fix" it.
+- `required` is forwarded to the inner input on checkbox/switch, so the browser's own "must be checked"
+  rule applies. On **`b-radio` it is not supported**: `required` there is a property of the *group*, and
+  evaluating it per element marks every unchecked member invalid (one bubble per radio for one logical
+  field). `b-radio` sets `supportsRequiredValidation = false`; validate the group in the page or `b-form`.
+- `b-radio` needs **no submission coordinator**: members share a `name` and only the checked one returns a
+  value, so the form gets exactly one entry per group. But the existing `b-radio-change` sibling listener
+  unchecks the previous member **without re-rendering it**, so that path must call `syncFormState()`
+  explicitly — otherwise the group submits two entries.
 
 ### New component checklist
 1. File: `src/{category}/b-{name}.ts`
@@ -346,6 +493,167 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### Form-associated inputs via ElementInternals (2026-07-29)
+
+STORY-023 / TASK-035. The 15 value-bearing inputs now extend the new **`FormControlComponent`**
+(`Birko.Web.Core/src/base/`) and are form-associated custom elements — value in `FormData`, native
+constraint validation, `reportValidity()`, `form.reset()`, `<fieldset disabled>`. Convention + the six
+rules for converting a control: § "Form-association convention". Consumer docs: README/API
+§ "Form participation".
+
+Additive by construction: `el.value` is unchanged on every control and `b-form` still collects values
+programmatically (asserted). The controls that previously *compensated* for the gap (Reps' per-page
+guards, Presenter's landing-page URL guard) stay correct — they become belt-and-braces again.
+
+The payoff is bigger than "values reach FormData": validity is **borrowed, not reimplemented**. Where the
+inner control's `validity` is genuinely about the value, it is mirrored verbatim, so `type="url"`, `min`,
+`max`, `step` and `pattern` — previously invisible to any wrapping `<form>` — are now enforced by it.
+Where it isn't (formatted display strings in the pickers, an option label in searchable `b-select`, a
+typing buffer in `b-tag-input`, never-invalid `type="range"`/`type="color"`), the control opts out and
+gets a generic `required` check.
+
+Submitted shapes that aren't one plain string: `b-multi-select` / `b-tag-input` → **one entry per value**
+under `name` (native `<select multiple>` shape; also non-lossy for values containing a comma, which the
+joined `.value` is not); `b-range` range mode → `name-from`/`name-to`; `b-date-range-picker` →
+`name-start`/`name-end` (two values in one control has no native analogue, so two ordinary fields beat
+inventing a delimiter); `b-color-picker` → base hex, alpha byte dropped; `b-markdown-editor` → the
+markdown source. Empty submits **no entry** rather than `""`.
+
+**Toggles converted too** (`b-checkbox`, `b-switch`, `b-radio` — 15 controls total) with native checkbox
+semantics: the `value` attribute (default `on`) **only when checked**, absent otherwise, because an
+unchecked box must not appear in `FormData` (`bool` model binding reads absence as false, so `name=false`
+would bind true). Their `.value` keeps returning `'true'`/`'false'` — a deliberate divergence, safe because
+a consumer audit found **every** read path uses `.checked` (`b-form._getFieldValue`, Symbio, gameshow, Reps)
+and none reads `.value`. `b-radio` needs no submission coordinator (shared `name`, only the checked member
+returns a value) but `required` is unsupported there — it is a group property, and per-element evaluation
+would invalidate every unchecked member.
+
+`form.reset()` is baseline-driven rather than value-driven: `captureInitialState()` /
+`restoreInitialState()` snapshot markup-declared state at first sync (native semantics — script-assigned
+values are ignored on reset), overridden by the toggles (checkedness) and the multi-value controls (their
+list), with `resetFormBaseline()` for imperatively-populated controls. The generic value-attribute default
+would have silently *unchecked* a `<b-checkbox value="yes" checked>` on reset; confirmed by reverting the
+override and watching the new checks fail.
+
+Three traps found by the harness, all silent: `formDisabledCallback` must not write the host's own
+`disabled` attribute (an element's disabled state is the union of its own and its ancestors', so that makes
+it self-disabled and re-enabling the fieldset never fires the callback again — stuck disabled forever);
+`syncFormState()` must run in `onUpdated()` before any early return, because imperative setters re-render
+without emitting; and `b-radio`'s sibling-uncheck path re-renders nothing, so it needs its own sync or the
+group submits two entries.
+
+**Consumer impact** (audited): Symbio, DraCode, Latent, gameshow, BardStudio and Affiliate have no native
+`<form>` at all, so this is inert for them. Reps wraps `b-*` in real forms on 7 pages and relied on the
+gap — an invalid control now suppresses the submit event, so its page-level localised messages never
+appear; `novalidate` on those forms is the fix (verified) and is a Reps-side decision.
+
+Coverage: new Playground `form-assoc-smoke` harness (97 checks, all 15 controls) + `bare-smoke` 64 and
+`backport-smoke` 73 unchanged.
+
+### All 14 chrome controls on `renderField`; danger-text token; editable-table benchmark (2026-07-29)
+
+Closing pass on the form-control family:
+
+- **`b-file-upload` and `b-option-group` migrated too** — the last two hand-rolling `.field`. They had no
+  error row at all, so they gained `error` + `required` + `description` + `bare` together. Both are
+  div-based, so the ARIA sits on the focusable wrapper (`.dropzone`, `.options[role=radiogroup]`) and
+  **without** `label`, since each already carries its own `aria-label` — the duplicate-attribute trap that
+  `b-date-range-picker` hit. `has-error` had to paint something or the class would be dead markup: the
+  dropzone tints its dashed border; `.options` has no border of its own, so the signal goes on the option
+  buttons rather than inventing a box the design uses nowhere else.
+  **`grep 'class="field"' src/inputs/*.ts` now returns only `label-hint.ts`** — 14 controls, one owner.
+- **New `--b-color-danger-text`**, so error text can clear WCAG AA without recolouring every danger fill,
+  border and badge. Defaults to `var(--b-color-danger)` (custom-property substitution is lazy, so a theme
+  overriding only the danger colour inherits its own red here). Overridden where measured: dark `#f87171`
+  (was 3.03:1), finstat `#b3391a` (2.65:1), inverse `#fca5a5` (2.13:1). All five themes now clear AA for
+  label, help row **and** error row. `.required-mark` uses it too.
+- **`b-editable-table` stays on raw cells** (TASK-002 decided with numbers). At 500 rows the bare-component
+  variant re-renders in ~830 ms vs ~270 ms — 3 000 shadow roots, structural. At 30 rows both are under
+  60 ms, so the constraint is the unpaged grid, not the components; if virtualisation lands, re-run the
+  harness (`Birko.Web.Playground` → Data → Grid benchmark) at the real visible-row count. The caret risk the
+  task was written around does **not** materialise — `b-input`'s `onUpdated` re-assigns an unchanged value,
+  which does not move the caret.
+
+### Chrome-owning controls consolidated onto `renderField`; finstat + search-input fixes (2026-07-29)
+
+Manual review of the Playground turned up three things, all now fixed:
+
+1. **`b-search-input` put its query text under the search icon at `size="sm"`/`"lg"`.** `formControlSheet`'s
+   size variants set `padding` (the SHORTHAND), which resets the left/right inset the component uses to
+   clear its absolutely-positioned icon and clear button — and `:host([size="sm"]) input` (0,1,1) outranks a
+   bare `input` (0,0,1). The insets are now re-declared per size. **Watch for this whenever a component
+   positions something on top of a native control** — it is a specificity trap, not a one-off.
+2. **`b-time` and `b-date-range-picker` had neither `bare` nor `description`** — and neither did `b-range`,
+   `b-color-picker` or `b-markdown-editor`. All five still hand-rolled the `.field` chrome, because
+   TASK-001's list named only seven controls. Migrated all five onto `renderField`, so the attribute set is
+   now uniform across **twelve** controls. *(Superseded by the entry above: `b-file-upload` and
+   `b-option-group` were migrated too, so it is 14 and nothing hand-rolls `.field` any more.)*
+3. **finstat's `--b-text-secondary` was below WCAG AA** (3.77:1 on `--b-bg-secondary`). Darkened
+   `#807a7a` → `#6e6868`, the smallest step in the same warm grey that clears 4.5:1 on all three surface
+   tokens. A deliberate deviation from the brand palette, taken because the token carries the field label
+   and the help row. All five themes now pass AA for both.
+
+Migrating the five also exposed two ARIA bugs the harness caught immediately: `b-date-range-picker`'s
+endpoints already carry their own `aria-label` ("Start date" / "End date"), so also passing the field label
+emitted a **duplicate `aria-label`** (first one wins) — `fieldAria` is no longer given `label` there; and
+**`b-color-picker` in `swatch-only` mode had no ARIA at all**, because the field's ARIA lived on the `.hex`
+box that mode omits — it now goes on the swatch instead.
+
+### `description` — a visible help-text row on the form controls (2026-07-29)
+
+`hint` only ever rendered as a tooltip behind a `?` icon, so there was no way to put a value or constraint
+on screen under a control. Consumers worked around it with their own sibling element — which
+`aria-describedby` **cannot reach**, because the real control is in shadow DOM, so a screen reader never
+announced it as that field's description. (Reps' `progress-page` does exactly this with a local `.hint`
+span; that can now move onto the component.)
+
+New `description` attribute on the seven `renderField` controls (`b-input`, `b-select`, `b-textarea`,
+`b-multi-select`, `b-tag-input`, `b-date-picker`, `b-datetime-picker`) plus a `description` key on
+`b-form`'s `FormField`. New `renderHelp(uid, description)` helper mirrors `renderError` and mints
+`${uid}-help`, which `fieldAria` adds to `aria-describedby`; `.field .help` sits beside `.field .error` in
+`@sheet formField`, same footprint, muted instead of red. Convention + the naming rationale:
+§ "`hint` vs `description`".
+
+Named `description` rather than `help` (too easily confused with `hint` in review) or a `hint-display` mode
+(a field could then never carry both a standing constraint and a tooltip explainer). Additive and opt-in per
+instance, so no existing layout moves — and `bare`, the dense-inline mode, drops the row entirely.
+
+Colour: `--b-text-secondary` at `--b-text-xs` — same footprint as `.error` so a field's height does not
+jump when an error appears beside it. `--b-text-muted` was measured and rejected (below AA in light / neon /
+finstat).
+
+Coverage: Playground `description-smoke` harness (90 checks — all 14 render the row and reference it,
+none references it when absent, error+description describe both ids in the right order with both resolving,
+`hint` and `description` coexist, markup is escaped, `bare` drops the row and falls back to `title` with the
+error winning, the attribute is reactive, `b-form`'s schema key drives it, and the row is muted rather than
+the error colour). Verified visually in the gallery too.
+
+### `bare` attribute on the form controls (2026-07-28)
+
+STORY-001 / TASK-001. `bare` strips the `.field` wrapper, the label row and the error row from
+`b-input`, `b-select` (native + searchable), `b-multi-select`, `b-textarea`, `b-tag-input`,
+`b-date-picker` and `b-datetime-picker` — for toolbars / table cells where the stacked chrome and its
+flex gap add unwanted vertical space. Additive: unset means today's rendering, verified by the harness.
+`b-search-input` was found to have **no** `.field` chrome at all (only `.search-wrap`, for icon and
+clear-button positioning) so it is already bare and deliberately takes no attribute.
+
+New shared **`renderField()`** in `src/inputs/label-hint.ts` owns the wrapper/label/error decision for
+the whole library, so the seven components no longer each hand-roll it — and everything belonging to
+the *control* (a `<datalist>`, a `.dropdown` / `.dp-panel` popover, a `.combo` / `.container` wrapper)
+stays inside it, because popovers are resolved by selector and positioned against their trigger.
+
+The non-obvious part is accessibility: dropping the chrome drops the `<label>` that named the control
+**and** the error span `aria-describedby` pointed at. So `fieldAria()` gained `bare` + `label` and
+rebuilds both from attributes — `aria-label` from `label`, and the message as `title` rather than a
+dangling `aria-describedby`. A bare control still announces its error state (and keeps its `has-error`
+border); it just has nowhere to print the message. Chromed mode is untouched — no `aria-label`, no
+`title`, still linked to the error span.
+
+Coverage: new Playground `bare-smoke` harness (64 checks — default chrome, bare stripping, error/ARIA
+surfacing, `aria-label` fallback, attribute reactivity, value round-trip, datalist and popover
+survival, and that bare is measurably shorter than chromed). `Birko.Web.Components` ships no unit
+runner, so this runs in a real browser via `Birko.Web.Playground`'s `verify.mjs` (`?smoke=1`).
 
 ### b-data-table auto-detects the server-paged envelope (page-2-empty footgun) (2026-07-20)
 

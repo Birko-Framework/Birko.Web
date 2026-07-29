@@ -1,12 +1,12 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
-export class BTagInput extends BaseComponent {
+export class BTagInput extends FormControlComponent {
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'separators', 'max-count',
-            'allow-duplicates', 'error', 'disabled', 'required', 'hint'];
+            'allow-duplicates', 'error', 'disabled', 'required', 'hint', 'description', 'bare'];
   }
 
   static get sharedStyles() {
@@ -104,6 +104,7 @@ export class BTagInput extends BaseComponent {
   render() {
     const label = this.attr('label');
     const hint = this.attr('hint');
+    const description = this.attr('description');
     const error = this.attr('error');
     const disabled = this.boolAttr('disabled');
     const placeholder = this._tags.length === 0 ? this.attr('placeholder') : '';
@@ -115,20 +116,26 @@ export class BTagInput extends BaseComponent {
       </span>
     `).join('');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      description,
+      error,
+      required,
+      control: `
         <div class="container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           ${chips}
           <input type="text"
                  placeholder="${escapeAttr(placeholder)}"
                  ${disabled ? 'disabled' : ''}
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  value="${escapeAttr(this._buffer)}" />
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
   }
 
   protected onMount() {
@@ -137,6 +144,8 @@ export class BTagInput extends BaseComponent {
 
   protected onUpdated() {
     if (!this._valueInitialized) this._loadFromAttr();
+    // Before the early returns below: `setTags()` / `clear()` re-render without emitting.
+    this.syncFormState();
 
     const container = this.$<HTMLElement>('.container');
     const input = this.$<HTMLInputElement>('input');
@@ -299,6 +308,37 @@ export class BTagInput extends BaseComponent {
 
   private _emitChange() {
     this.emit('change', { name: this.attr('name'), tags: [...this._tags], value: this.inputValue });
+    this.syncFormState();
+  }
+
+  /**
+   * One `FormData` entry per tag, under this control's `name`. There is no native tag control, so the
+   * closest native analogue is a checkbox group / `<select multiple>` — a list, not a delimited string.
+   * See `b-multi-select.formValue()` for the full rationale; `value` still returns the joined string.
+   */
+  protected formValue(): FormData | null {
+    return this.multiFormValue(this._tags);
+  }
+
+  /**
+   * Snapshot the tags rather than the `value` attribute: tags may have arrived via `setTags()`, and the
+   * base default would route a comma-joined string back through the `value` setter.
+   */
+  protected captureInitialState(): unknown {
+    return this.getTags();
+  }
+
+  protected restoreInitialState(state: unknown): void {
+    this.setTags(Array.isArray(state) ? [...state as string[]] : []);
+  }
+
+  /** The inner `<input>` is the tag *buffer*, not the value — its validity would be meaningless. */
+  protected validationSource(): undefined {
+    return undefined;
+  }
+
+  protected formAnchor(): HTMLElement | undefined {
+    return this.$<HTMLElement>('.container') ?? undefined;
   }
 
   private _splitPattern(): RegExp {

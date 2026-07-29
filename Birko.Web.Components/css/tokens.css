@@ -11,6 +11,13 @@
   --b-color-warning: #d97706;
   --b-color-warning-light: #fef3c7;
   --b-color-danger: #dc2626;
+  /* Danger as TEXT, kept separate from the danger used for surfaces/borders/buttons. A red that reads well
+     as a button fill is often too low-contrast as small text on the page background, and darkening the one
+     token would recolour every danger affordance. Defaults to --b-color-danger (custom-property
+     substitution is lazy, so a theme that overrides only --b-color-danger gets its own red here too);
+     themes override it where the measured contrast falls below WCAG AA 4.5:1. Used by `.field .error`
+     and `.required-mark`. */
+  --b-color-danger-text: var(--b-color-danger);
   --b-color-danger-hover: #b91c1c;
   --b-color-danger-light: #fee2e2;
   --b-color-info: #0891b2;

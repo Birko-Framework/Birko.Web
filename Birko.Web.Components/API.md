@@ -4,7 +4,47 @@ Quick reference for all component attributes, methods, and events.
 
 ---
 
+## Form participation
+
+The 15 value-bearing inputs (`b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+`b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
+`b-markdown-editor`, `b-checkbox`, `b-switch`, `b-radio`) are `ElementInternals`-based **form-associated custom elements**: values land in
+`FormData`, constraint validation (`required` / `type` / `min` / `max` / `step` / `pattern`) blocks a
+native submit, `checkValidity()` / `reportValidity()` / `validity` / `validationMessage` work on control
+and form, `form.reset()` restores, and `<fieldset disabled>` propagates in. An empty control submits **no
+entry** (not `""`).
+
+Non-obvious submitted shapes:
+
+| Control | `FormData` | |
+|---|---|---|
+| `b-multi-select`, `b-tag-input` | one entry per value under `name` | read via `getAll(name)` |
+| `b-range` `mode="range"` | `name-from`, `name-to` | single mode → one value under `name` |
+| `b-date-range-picker` | `name-start`, `name-end` | ISO dates |
+| `b-color-picker` | base hex `#rrggbb` | alpha dropped; `.value` keeps it |
+| `b-markdown-editor` | markdown source | not the rendered preview |
+| `b-checkbox`, `b-switch`, `b-radio` | `value` attr (default `on`) only when checked | unchecked → no entry |
+
+`el.value` and `b-form`'s programmatic collection are unchanged — toggles still report `'true'`/`'false'`
+from `.value` and their boolean from `.checked`. `required` is unsupported on `b-radio` (group property).
+
 ## Inputs
+
+> **`description`** — persistent help text rendered under the control and wired into its
+> `aria-describedby`, on all **14** stacked-chrome controls: `b-input`, `b-select`, `b-textarea`,
+> `b-multi-select`, `b-tag-input`, `b-date-picker`, `b-datetime-picker`, `b-time`, `b-date-range-picker`,
+> `b-range`, `b-color-picker`, `b-markdown-editor`, `b-file-upload`, `b-option-group`. Contrast `hint`, which is a tooltip behind a `?` icon;
+> a field may carry both. Escaped on input. `bare` drops the row and falls back to `title`, unless an error claims it.
+> `b-form` exposes it as the `description` key on a field. See [README § Inputs](README.md#inputs).
+
+> **`bare`** — every control that renders stacked chrome (the same 14 as `description` above) accepts
+> `bare` to strip the `.field`
+> wrapper, the label row and the error row, leaving the control alone. For toolbars and table cells where
+> the chrome's flex gap adds unwanted vertical space; pairs with `size="sm"`. The `label` / `error` /
+> `required` attributes are still honoured — the `has-error` border stays, the label becomes `aria-label`
+> and the error message becomes `title` — so a bare control still shows and announces its state; it just
+> has nowhere to print the message. Not supported on `b-search-input` (no chrome to begin with) or
+> `b-file-upload` / `b-option-group` (no error row — adding one is a feature, not a migration).
 
 ### `<b-button>`
 | Attribute | Values |
@@ -30,13 +70,15 @@ Slot: default (button label/content).
 | `min` / `max` / `step` | forwarded to the inner `<input>` (native constraint validation; `step` defaults to 1 on `type="number"`) |
 | `inputmode` | forwarded — selects the on-screen keyboard (`numeric`, `decimal`, …) |
 | `autocomplete` | forwarded |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 | Event | Detail |
 |-------|--------|
 | `change` | `{ name, value }` |
 
-Not form-associated: the inner `<input>` is in shadow DOM, so a wrapping `<form>` neither validates it nor
-includes it in `FormData`. Validate in the page.
+Form-associated (`ElementInternals`): the value lands in `FormData` under `name`, and `required` / `type` /
+`min` / `max` / `step` are enforced by the wrapping `<form>`. See [Form participation](#form-participation).
 
 ### `<b-textarea>`
 | Attribute | Values |
@@ -48,6 +90,8 @@ includes it in `FormData`. Validate in the page.
 | `error` | string |
 | `disabled` | boolean |
 | `rows` | number |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 | Event | Detail |
 |-------|--------|
@@ -63,6 +107,8 @@ includes it in `FormData`. Validate in the page.
 | `error` | string |
 | `disabled` | boolean |
 | `searchable` | boolean (enables combobox mode; filtering is case- and accent-insensitive) |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 | Method | Signature |
 |--------|-----------|
@@ -82,6 +128,8 @@ includes it in `FormData`. Validate in the page.
 | `error` | string |
 | `disabled` | boolean |
 | `searchable` | boolean (enables search filtering in dropdown) |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 | Method | Signature |
 |--------|-----------|
@@ -109,6 +157,8 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 | `disabled` | boolean |
 | `required` | boolean |
 | `hint` | string |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 | Method | Signature |
 |--------|-----------|
@@ -131,6 +181,8 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 | `disabled` | boolean |
 | `name` | string |
 | `label` | string |
+| `value` | string — submitted when checked (default `on`); see [Form participation](#form-participation) |
+| `required` | boolean — must be checked; forwarded to the inner input |
 
 | Event | Detail |
 |-------|--------|
@@ -143,6 +195,8 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 | `disabled` | boolean |
 | `name` | string |
 | `label` | string |
+| `value` | string — submitted when checked (default `on`) |
+| `required` | boolean — must be on; forwarded to the inner input |
 
 | Event | Detail |
 |-------|--------|
@@ -153,9 +207,219 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 |-----------|--------|
 | `checked` | boolean |
 | `disabled` | boolean |
-| `name` | string (shared across group) |
-| `value` | string |
+| `name` | string (shared across group — the form receives one entry from the checked member) |
+| `value` | string — submitted when this member is checked |
 | `label` | string |
+
+`required` is **not** supported (it is a group property, not a per-button one) — validate the group in the
+page or via `b-form`.
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` |
+
+### `<b-date-picker>`
+Calendar picker. Renders its own panel by default; `native` swaps in `<input type="date">`.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | ISO date (`YYYY-MM-DD`) |
+| `placeholder` | string |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string (`?` tooltip) |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+| `min` / `max` | ISO date bounds |
+| `native` | boolean — use the browser's own `<input type="date">` instead of the custom panel |
+| `label-today` / `label-clear` | string (footer buttons) |
+| `label-months` / `label-days` | JSON array of names — per-instance locale override |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — `value` is the ISO date, or `''` when cleared |
+
+Form-associated: submits the **ISO value**, not the formatted text shown in the box. In `native` mode the
+inner `<input type="date">`'s own `min`/`max` validity is mirrored; the custom panel enforces `required` only.
+
+### `<b-datetime-picker>`
+Calendar + time-of-day picker.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | ISO datetime (`YYYY-MM-DDTHH:mm`; a zoned string is converted to local) |
+| `placeholder` | string |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string (`?` tooltip) |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+| `min` / `max` | ISO datetime bounds |
+| `label-today` / `label-clear` | string |
+| `label-months` / `label-days` | JSON array of names |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — ISO datetime |
+
+### `<b-time>`
+Time-of-day picker.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | `HH:mm` |
+| `placeholder` | string |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string |
+| `min` / `max` | `HH:mm` bounds |
+| `step` | number — minute granularity |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — `HH:mm` |
+
+### `<b-date-range-picker>`
+Two-endpoint date range, with optional presets and a confirm step.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | ISO interval `start/end` |
+| `placeholder-start` / `placeholder-end` | string |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string |
+| `min` / `max` | ISO date bounds |
+| `min-days` / `max-days` | number — allowed range length |
+| `months-visible` | `1` \| `2` |
+| `separator` | string between the two boxes (default `→`) |
+| `native` | boolean — two `<input type="date">` instead of the panel |
+| `confirm` | boolean — require Apply rather than committing on the second click |
+| `presets` | JSON array of `{ label, start, end }` |
+| `label-today` / `label-clear` / `label-apply` / `label-cancel` | string |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+
+| Method | Signature |
+|--------|-----------|
+| `setRange` | `({ start, end }) => void` |
+| `getRange` | `() => { start, end } \| null` |
+| `setPresets` | `(presets: { label, start, end }[]) => void` |
+| `clear` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value: { start, end } \| null }` |
+| `range-preview` | `{ start, end }` — hover preview while picking |
+
+Form-associated: submits **`name-start` and `name-end`** as two ISO dates, not the joined interval that
+`value` returns. See [Form participation](#form-participation).
+
+### `<b-color-picker>`
+Hex colour with an optional opacity slider.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | hex — `#rrggbb`, or `#rrggbbaa` in `alpha` mode |
+| `placeholder` | string |
+| `alpha` | boolean — show the opacity slider and keep the alpha byte in `value` |
+| `swatch-only` | boolean — swatch without the hex text box |
+| `compact` | boolean — inline layout (pairs with `swatch-only alpha`) |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — committed colour |
+| `input` | `{ name, value }` — live while dragging |
+
+Form-associated: submits the **base hex** (`#rrggbb`); the alpha byte is dropped even in `alpha` mode, while
+`el.value` keeps it.
+
+### `<b-markdown-editor>`
+Markdown source + rendered preview, with a mode switch.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | markdown source |
+| `placeholder` | string |
+| `error` | string |
+| `disabled` | boolean |
+| `required` | boolean |
+| `hint` | string |
+| `mode` | `split` \| `source` \| `preview` |
+| `readonly` | boolean |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+| `rows` | number |
+
+| Method | Signature |
+|--------|-----------|
+| `setValue` | `(markdown: string) => void` |
+| `getValue` | `() => string` |
+| `focus` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — the markdown source |
+| `blur` | `{ name, value }` |
+
+Form-associated: submits the markdown **source**, never the rendered preview HTML.
+
+### `<b-option-group>`
+Single choice rendered as a list of radio-style options (a labelled group, not `b-radio` buttons).
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `name` | string |
+| `value` | selected option value |
+| `disabled` | boolean |
+| `hint` | string |
+
+| Method | Signature |
+|--------|-----------|
+| `setOptions` | `(options: { value: string; label: string }[]) => void` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` |
+
+### `<b-segmented>`
+Segmented control — a horizontal single-choice switch for 2–4 short options.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string (accessible name for the group) |
+| `name` | string |
+| `value` | selected option value |
+| `disabled` | boolean |
+
+| Method | Signature |
+|--------|-----------|
+| `setOptions` | `(options: { value: string; label: string }[]) => void` |
 
 | Event | Detail |
 |-------|--------|
@@ -233,6 +497,8 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 | Event | Detail |
 |-------|--------|
 | `change` | Single: `{ name, value }` — Range: `{ name, value: { from, to } }` |
+| `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
+| `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
 **Modes:**
 - `single` — one value with slider thumb + number input

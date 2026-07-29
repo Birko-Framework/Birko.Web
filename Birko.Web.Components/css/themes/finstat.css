@@ -25,6 +25,10 @@
   --b-color-warning: #fab921;        /* @clr-yellow */
   --b-color-warning-light: #fdf0cf;  /* derived */
   --b-color-danger: #f26d4f;         /* @clr-red */
+  /* Text-only red, darkened from @clr-red which measures 2.65:1 on --b-bg-secondary — well below AA for
+     small text. #b3391a gives 5.34:1 there and 5.14:1 on --b-bg-tertiary. Same deliberate palette
+     deviation as --b-text-secondary above: the fills keep the brand red. */
+  --b-color-danger-text: #b3391a;
   --b-color-danger-hover: #e05335;   /* derived (darken) */
   --b-color-danger-light: #fcdfd7;   /* derived */
   --b-color-info: #54b9e8;           /* @clr-blue */
@@ -42,7 +46,14 @@
   --b-tooltip-border: #4c4949;       /* @clr-bg-gray-dark */
 
   --b-text: #434040;                 /* @clr-text-dark */
-  --b-text-secondary: #807a7a;       /* @clr-text-dark-dim */
+  /* Darkened from the brand's @clr-text-dark-dim (#807a7a), which measured 3.77:1 on --b-bg-secondary and
+     3.63:1 on --b-bg-tertiary — below WCAG AA's 4.5:1 for the small text that uses it (field labels and the
+     `description` help row). #6e6868 is the smallest step in the same warm grey that clears AA on all three
+     surface tokens: 5.46 on --b-bg, 4.88 on --b-bg-secondary, 4.71 on --b-bg-tertiary. A deliberate
+     deviation from the Finstat palette, taken because the token carries text that must be readable. */
+  --b-text-secondary: #6e6868;       /* @clr-text-dark-dim, darkened for AA */
+  /* @clr-text-gray — 2.4:1 on --b-bg-secondary. Decorative only (icons, placeholders); do NOT use it for
+     text that has to be read. `.field .help` deliberately uses --b-text-secondary instead. */
   --b-text-muted: #b0abab;           /* @clr-text-gray */
   --b-text-inverse: #ffffff;
 
