@@ -511,6 +511,32 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-ribbon`: the overflowing panel had no affordance, and the tab arrows ignored resize (2026-07-29)
+
+Reported from the field — on a narrow window the ribbon showed fewer commands with no way to reach the
+rest. Two separate causes, one of which *looked* like it worked:
+
+- **`.ribbon-panel-inner` was `overflow-x: auto` with `scrollbar-width: none` and no buttons.** Scrollable
+  in theory, invisible in practice: no bar, no chevrons, no cue. A mouse without a horizontal wheel could
+  not reach an overflowing group at all. It now has the same chevron pair as the tab strip, and
+  `.ribbon-panel` became a flex row so they can flank the scrolling track.
+- **`updateArrows` only ran on `scroll` and on re-render.** So narrowing the window left the forward arrow
+  hidden *while the tabs overflowed* — you had to reload to see it. Both tracks are now watched by a
+  `ResizeObserver` (re-observed each update, since a re-render can replace the elements).
+
+`_setupTabScroll` became `_setupScroll(track, left, right)` shared by both tracks — one `updateArrows`, not
+two copies. The four chevrons also gained `label-scroll-{tabs,groups}-{left,right}` i18n overrides; the two
+pre-existing ones had hardcoded English `aria-label`s, and they are the only route to hidden commands.
+
+**This is interim on the panel.** STORY-049 decided the ribbon *body* must scale, not scroll — a scroll
+offset destroys the spatial memory the ribbon exists to provide ("Cut is top-left of Clipboard"), which is
+why Office resizes groups `Large→Medium→Small→Popup` instead. TASK-099 removes the panel scroller again
+when that lands. The **tab strip** keeps scrolling permanently — tabs are the documented exception, as in
+Office Web / Fluent.
+
+Gate: `ribbon-overflow-smoke` in `Birko.Web.Playground` (16 checks, incl. resize-only reveal/retract).
+Verified non-vacuous by disabling the observer + panel wiring — exactly 6 checks fail.
+
 ### Breakpoints swept px → rem, and `b-drawer` stopped using `100vw` (2026-07-29)
 
 Every width media query in the library is now `rem` (new **Critical rules § Breakpoints in `rem`** documents
