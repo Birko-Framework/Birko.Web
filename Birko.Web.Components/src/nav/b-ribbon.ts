@@ -19,10 +19,52 @@ export interface RibbonTab {
   noPanel?: boolean;
 }
 
+/**
+ * How much room a `RibbonGroup` is being given, smallest last. The ribbon picks the largest set of
+ * variants that fits the available width and degrades from there — Office's model, where the ribbon
+ * body **resizes rather than scrolls**, because a scroll offset destroys the spatial memory the
+ * ribbon exists to provide ("Cut is top-left of Clipboard").
+ *
+ * - `large`  — 32px icon, label underneath, one item per column
+ * - `medium` — 16px icon with the label to its right, three items stacked per column
+ * - `small`  — 16px icon only, three per column; the label is not drawn, so `title` carries the name
+ * - `popup`  — the whole group collapses to one button (group icon + label + ▾) whose flyout holds
+ *              its items at `large`. Lossless: the group keeps its identity and its position.
+ *
+ * **Neither skin renders all four yet** — TASK-099/TASK-100 build them. As of TASK-098 `b-ribbon`
+ * renders every item as `medium` while the Avalonia `Ribbon` renders every item as `large` — a
+ * pre-existing parity gap named here so TASK-099 reconciles it deliberately.
+ *
+ * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step.
+ */
+export type RibbonGroupSize = 'large' | 'medium' | 'small' | 'popup';
+
 export interface RibbonGroup {
   id: string;
   label: string;
   items: RibbonItem[];
+  /**
+   * Optional glyph naming the group. Shown on the collapsed chunk button when the group degrades to
+   * `popup`; unused at the roomier sizes.
+   */
+  icon?: string;
+  /**
+   * How important this group is, and therefore how late it degrades: a **lower** value degrades
+   * **first**. Groups sharing a value degrade left-to-right. Default 0, so a ribbon that sets nothing
+   * degrades uniformly — the outcome to avoid, since shrinking every group at the same rate turns the
+   * ribbon into a row of anonymous icons instead of keeping the primary group legible. Give the hero
+   * group (Clipboard, Font) a higher value.
+   *
+   * The direction is **Birko's convention** — priority means importance. Office's RibbonX has its own
+   * `scalingPriority` whose numeric sense is not what is documented here; do not assume they agree.
+   */
+  scalingPriority?: number;
+  /**
+   * The tightest variant this group may degrade to. Defaults to `popup` (fully collapsible). Raise it
+   * to protect a group — `minSize: 'small'` keeps it visible as icons rather than folding into a
+   * flyout, at the cost of another group degrading further.
+   */
+  minSize?: RibbonGroupSize;
 }
 
 export interface RibbonItem {

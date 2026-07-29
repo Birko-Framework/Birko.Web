@@ -511,6 +511,33 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### Ribbon scaling model + the two ribbon tokens that were never defined (2026-07-29)
+
+`RibbonGroup` gained `icon`, `scalingPriority` and `minSize` (`RibbonGroupSize` =
+`'large' | 'medium' | 'small' | 'popup'`), mirroring `RibbonGroupSize` / `RibbonGroup` in
+`Birko.Xaml.Core/Ribbon/RibbonModels.cs`. **Inert today** — TASK-099 adds the degrade pass. They land
+in both models at once on purpose: two independently-grown scaling vocabularies could never be
+reconciled afterwards. Defaults (`scalingPriority: 0`, `minSize: 'popup'`) reproduce today's rendering
+exactly, which is what makes this a safe no-behaviour-change landing.
+
+`scalingPriority` is **importance — lower degrades first**, documented as Birko's own direction in both
+the TSDoc and the XML docs. Office's RibbonX has a `scalingPriority` too and its numeric sense is not
+what we document; the ambiguity is worth one sentence rather than a future reader guessing.
+
+While adding the token set, found **`--b-ribbon-group-gap` and `--b-ribbon-item-gap` used in
+`b-ribbon`'s CSS but defined nowhere** — exactly the `--b-modal-width-xxl` bug from earlier the same day:
+the inline fallback silently applies, so the value looks tokenised but cannot be re-themed. Both now
+exist in `tokens.json` with their shipped fallbacks as values (no visual change), plus three new ones the
+variants need: `--b-ribbon-icon-large` (2rem), `--b-ribbon-icon-small` (1rem), `--b-ribbon-chunk-width`
+(3.5rem). Regenerated, not hand-edited; `verify` clean and the 42 DesignTokens parity tests green.
+
+**Also surfaced, and it reshapes TASK-099:** the two skins do not currently render the same Office
+variant. `.ribbon-item` is `inline-flex; align-items: center` with a 16px icon — that is **Medium**.
+Avalonia's `BuildItem` stacks an 18px icon above a centred wrapping label — that is **Large**. So the web
+side has no Large to degrade *from* and Avalonia has no Medium; TASK-099 has to build the missing
+rendering rather than just choose between existing ones. Recorded in both enums' docs so it is a
+deliberate decision, not a discovery mid-implementation.
+
 ### `b-ribbon`: the overflowing panel had no affordance, and the tab arrows ignored resize (2026-07-29)
 
 Reported from the field — on a narrow window the ribbon showed fewer commands with no way to reach the
