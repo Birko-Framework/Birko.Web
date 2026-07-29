@@ -105,8 +105,9 @@ export class BRibbon extends BaseComponent {
    * strip — so the button strobed, the flex row reflowed each time it vanished, and a tab slid under
    * the cursor and swallowed the click. Same hazard `_hoverTabId` documents below.
    */
-  private _tabScroll = { left: false, right: false };
-  private _panelScroll = { left: false, right: false };
+  private _tabScroll = { left: false, right: false, overflowing: false };
+  private _panelScroll = { left: false, right: false, overflowing: false };
+  private _syncQueued = false;
 
   static get styles() {
     return `
@@ -136,8 +137,15 @@ export class BRibbon extends BaseComponent {
         font-size: 0.75rem; flex-shrink: 0; align-items: center; justify-content: center;
         z-index: 1;
       }
+      /* Once a track overflows at all, BOTH slots are reserved and only their VISIBILITY changes —
+         so scrolling to either end, or a container jittering by a scrollbar's width, never reflows
+         the strip and never moves the click target. Before this, hiding a chevron let a tab slide
+         into its slot and swallow the click. A track that fits reserves nothing.
+         The .visible rule must FOLLOW .reserved — same specificity, so source order decides.
+         (No backticks in here: this comment lives inside a JS template literal.) */
+      .ribbon-scroll-btn.reserved { display: flex; visibility: hidden; }
+      .ribbon-scroll-btn.visible { display: flex; visibility: visible; }
       .ribbon-scroll-btn:hover { color: var(--b-text); background: var(--b-bg-tertiary); }
-      .ribbon-scroll-btn.visible { display: flex; }
 
       .ribbon-tab {
         display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
@@ -431,7 +439,7 @@ export class BRibbon extends BaseComponent {
           <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.label('label-open-nav', 'bwc.ribbon.openNav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
 
-          <button class="ribbon-scroll-btn${this._tabScroll.left ? ' visible' : ''}" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
+          <button class="ribbon-scroll-btn${this._tabScroll.overflowing ? ' reserved' : ''}${this._tabScroll.left ? ' visible' : ''}" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
             ${this._tabs.map((tab, i) => {
               const isActive = tab.id === active;
@@ -449,7 +457,7 @@ export class BRibbon extends BaseComponent {
               </button>`;
             }).join('')}
           </div>
-          <button class="ribbon-scroll-btn${this._tabScroll.right ? ' visible' : ''}" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
+          <button class="ribbon-scroll-btn${this._tabScroll.overflowing ? ' reserved' : ''}${this._tabScroll.right ? ' visible' : ''}" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
@@ -509,11 +517,11 @@ export class BRibbon extends BaseComponent {
     const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
       <div class="ribbon-panel" role="tabpanel" id="ribbon-panel"${labelledBy}>
-        <button class="ribbon-scroll-btn${this._panelScroll.left ? ' visible' : ''}" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
+        <button class="ribbon-scroll-btn${this._panelScroll.overflowing ? ' reserved' : ''}${this._panelScroll.left ? ' visible' : ''}" id="panel-scroll-left" aria-label="${this.label('label-scroll-groups-left', 'bwc.ribbon.scrollGroupsLeft', 'Scroll groups left')}">&#9666;</button>
         <div class="ribbon-panel-inner">
           ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
-        <button class="ribbon-scroll-btn${this._panelScroll.right ? ' visible' : ''}" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
+        <button class="ribbon-scroll-btn${this._panelScroll.overflowing ? ' reserved' : ''}${this._panelScroll.right ? ' visible' : ''}" id="panel-scroll-right" aria-label="${this.label('label-scroll-groups-right', 'bwc.ribbon.scrollGroupsRight', 'Scroll groups right')}">&#9656;</button>
       </div>
     `;
   }
@@ -781,17 +789,31 @@ export class BRibbon extends BaseComponent {
     track: HTMLElement | null,
     leftBtn: HTMLElement | null,
     rightBtn: HTMLElement | null,
-    state: { left: boolean; right: boolean },
+    state: { left: boolean; right: boolean; overflowing: boolean },
   ): (() => void) | null {
     if (!track || !leftBtn || !rightBtn) return null;
 
+    const apply = (btn: HTMLElement, visible: boolean) => {
+      btn.classList.toggle('reserved', state.overflowing);
+      btn.classList.toggle('visible', visible);
+    };
+
     const sync = () => {
-      // Record into state as well as toggling the class, so render() can re-emit it and a morph
-      // cannot blank the button for a frame.
-      state.left = track.scrollLeft > 1;
-      state.right = track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
-      leftBtn.classList.toggle('visible', state.left);
-      rightBtn.classList.toggle('visible', state.right);
+      const over = track.scrollWidth - track.clientWidth;
+      // Hysteresis on "does this track overflow at all", with a dead zone the width of the two
+      // reserved slots. Reserving them shrinks clientWidth, which would otherwise let the slots'
+      // own width decide whether they are needed — a bistable boundary. Now the slots are only
+      // given back once the content fits with MORE room to spare than they occupy, so the decision
+      // cannot flip itself, and a container jittering by a scrollbar's width cannot flip it either.
+      const reserved = state.overflowing ? (leftBtn.offsetWidth + rightBtn.offsetWidth) || 40 : 40;
+      state.overflowing = state.overflowing ? over > -reserved : over > 1;
+
+      // Record into state as well as toggling classes, so render() can re-emit them and a
+      // synchronous morph cannot blank the button for a frame.
+      state.left = state.overflowing && track.scrollLeft > 1;
+      state.right = state.overflowing && track.scrollLeft + track.clientWidth < track.scrollWidth - 1;
+      apply(leftBtn, state.left);
+      apply(rightBtn, state.right);
     };
 
     this.listen(track, 'scroll', sync, { passive: true });
@@ -815,8 +837,22 @@ export class BRibbon extends BaseComponent {
     this._scrollObserver?.disconnect();
     const live = tracks.filter((t): t is HTMLElement => !!t);
     if (!live.length) return;
-    this._scrollObserver ??= new ResizeObserver(() => this._scrollSyncs.forEach(s => s()));
+    this._scrollObserver ??= new ResizeObserver(() => this._queueSync());
     live.forEach(t => this._scrollObserver!.observe(t));
+  }
+
+  /**
+   * Coalesce sync into one animation frame. A ResizeObserver can fire several times per frame
+   * (two observed tracks, plus the reflow a class change causes), and each raw callback would
+   * be another chance to toggle a class mid-frame — visible as strobing.
+   */
+  private _queueSync() {
+    if (this._syncQueued) return;
+    this._syncQueued = true;
+    requestAnimationFrame(() => {
+      this._syncQueued = false;
+      this._scrollSyncs.forEach(s => s());
+    });
   }
 
   private _clearTimers() {
