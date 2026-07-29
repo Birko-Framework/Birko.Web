@@ -116,6 +116,13 @@ export class BRibbon extends BaseComponent {
    * separate flicker bugs in TASK-097 — see the `_tabScroll` note above.
    */
   private _groupSizes: string[] = [];
+  /**
+   * Which tab `_groupSizes` was measured for. Without this, hovering a tab re-rendered the panel with the
+   * PREVIOUS tab's variant decisions — a different group count and different widths — so its groups could
+   * overflow, and since the panel is `overflow: hidden` they were silently clipped and unreachable. A
+   * decision is only valid for the tab it was measured against.
+   */
+  private _groupSizesTab: string | null = null;
   /** Whether collapsed chunks are drawn without their group names — the narrowest row possible. */
   private _compactChunks = false;
   private _measuring = false;
@@ -613,7 +620,15 @@ export class BRibbon extends BaseComponent {
     const hasContext = this._contextActions.length > 0;
 
     return `
-      ${tab.groups.map((group, i) => this._renderGroup(tab.id, group, this._groupSizes[i] ?? 'medium')).join('')}
+      ${(() => {
+        // Only apply a decision measured for THIS tab; otherwise start from the preferred variant and let
+        // the measure pass queued by _showTabContent correct it a frame later.
+        const sizes = this._groupSizesTab === tab.id ? this._groupSizes : [];
+        const preferred = this.attr('preferred-group-size') || 'medium';
+        return tab.groups
+          .map((group, i) => this._renderGroup(tab.id, group, sizes[i] ?? preferred, this._compactChunks))
+          .join('');
+      })()}
       ${hasContext ? `
         <div class="ribbon-group" role="group" aria-label="${this.label('label-actions', 'bwc.common.actions', 'Actions')}">
           <span class="ribbon-group-label">${this.label('label-actions', 'bwc.common.actions', 'Actions')}</span>
@@ -629,11 +644,16 @@ export class BRibbon extends BaseComponent {
    * One group at one variant. `popup` collapses the whole group into a chunk button whose flyout holds
    * its items at `large` — lossless, and the group keeps its position in the row.
    */
-  private _renderGroup(tabId: string, group: RibbonGroup, size: string): string {
+  private _renderGroup(tabId: string, group: RibbonGroup, size: string, compactChunk = false): string {
     const items = group.items.map(item => this._renderItem(tabId, group.id, item)).join('');
 
     if (size === 'popup') {
-      const compact = this._compactChunks ? ' compact' : '';
+      // Explicit argument, NEVER this._compactChunks. The measure pass renders through here, and reading the
+      // applied state made the measurement a function of the current layout: an already-compact row measured
+      // its compact chunks (176px), a labelled row measured labelled ones (362px), so `compact` flipped every
+      // pass and the panel narrowed on some renders and not others. Exactly the feedback loop
+      // RibbonScaling's docs warn about — a decision must depend only on its inputs.
+      const compact = compactChunk ? ' compact' : '';
       const label = this.label('label-actions', 'bwc.common.actions', 'Actions'); // unused, keeps API stable
       void label;
       return `
@@ -663,8 +683,11 @@ export class BRibbon extends BaseComponent {
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
     this._bindChunks();
-    // Different tab, different group widths — the chevrons must re-evaluate against the new content.
+    // Different tab, different group widths — so both the chevrons AND the scaling have to re-evaluate.
+    // Queued rather than immediate: _measureAndScale re-renders, and _queueSync coalesces into one frame
+    // (the _measuring guard stops the nested call recursing).
     this._panelSync?.();
+    this._queueSync();
   }
 
   private _bindPanelItems() {
@@ -1036,7 +1059,9 @@ export class BRibbon extends BaseComponent {
     const metrics: RibbonGroupMetrics[] = tab.groups.map(group => {
       const widths: RibbonGroupMetrics['widths'] = {};
       for (const size of RIBBON_SIZE_LADDER) {
-        probe.innerHTML = this._renderGroup(tab.id, group, size);
+        // compactChunk: false — the popup width this pass compares against is the LABELLED chunk's, so the
+        // measurement stays independent of whether the row is currently compact.
+        probe.innerHTML = this._renderGroup(tab.id, group, size, false);
         const measured = probe.firstElementChild as HTMLElement | null;
         widths[size] = measured ? measured.getBoundingClientRect().width : 0;
       }
@@ -1048,8 +1073,14 @@ export class BRibbon extends BaseComponent {
     // The FULL token gap, not the live computed one: the rendered gap tightens once groups collapse, and
     // deciding against the tightened value could under-degrade and clip. Deciding against the larger value
     // is conservative — the row it picks then fits with room to spare. Same split as the Avalonia panel.
-    const gap = parseFloat(getComputedStyle(this).getPropertyValue('--b-ribbon-group-gap'))
-      || parseFloat(getComputedStyle(track).columnGap || '0') || 0;
+    // SEPARATOR_SLACK is added per gap because the probe measures each group ALONE: it cannot see the 1px
+    // border `.ribbon-group + .ribbon-group` adds to every group after the first, nor the sub-pixel rounding
+    // between getBoundingClientRect and layout. Six groups under-counted by ~14px, which overflowed a 420px
+    // track -- and the panel is overflow:hidden, so the surplus is clipped, not merely untidy. Charged to the
+    // gap rather than deducted from the available width, since that is where the cost actually lives.
+    const SEPARATOR_SLACK = 3;
+    const gap = (parseFloat(getComputedStyle(this).getPropertyValue('--b-ribbon-group-gap'))
+      || parseFloat(getComputedStyle(track).columnGap || '0') || 0) + SEPARATOR_SLACK;
     const preferred = (this.attr('preferred-group-size') || 'medium') as never;
     const next = resolveRibbonSizes(metrics, available, preferred, gap);
 
@@ -1064,6 +1095,7 @@ export class BRibbon extends BaseComponent {
 
     if (next.join(',') === this._groupSizes.join(',') && compact === this._compactChunks) return;
     this._groupSizes = next;
+    this._groupSizesTab = tab.id;
     this._compactChunks = compact;
     this._measuring = true;
     try { this._showTabContent(tab.id); } finally { this._measuring = false; }

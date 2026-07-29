@@ -511,6 +511,40 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-ribbon` scaling: the measurement must not read the applied layout (2026-07-29)
+
+Reported from the playground: toggling `pinned` and hovering the Home tab narrowed the panel on some
+renders and not others, with groups missing. Two distinct causes, both now fixed and both worth knowing.
+
+**1. The measurement read the state it was deciding.** `_measureAndScale` probes each variant by rendering
+through `_renderGroup`, which read `this._compactChunks` — so an already-compact row measured *compact*
+chunks (176px) while a labelled row measured *labelled* ones (362px). `compact` therefore flipped on every
+pass, forever:
+
+```
+pass 1: popupRow = 362 → compact = true
+pass 2: popupRow = 176 → compact = false
+pass 3: popupRow = 362 → compact = true
+```
+
+This is precisely the feedback loop `RibbonScaling`'s own docs warn about, reintroduced one layer up: a
+decision must depend only on its inputs, never on the layout currently applied. `compactChunk` is now an
+explicit argument, and the probe always passes `false` — the popup width the pass compares against is the
+labelled chunk's, by definition. The gate is a **settle check**: run several measure passes and require the
+outcome to stop changing. Mutation-verified.
+
+**2. A decision was applied to the wrong tab.** `_showTabContent` runs on hover-preview and re-rendered the
+panel with `_groupSizes` measured for the *previous* tab — a different group count and different widths — so
+the previewed tab's groups could overflow, and since the panel is `overflow: hidden` they were clipped and
+unreachable. Sizes are now tagged with the tab they were measured for (`_groupSizesTab`); a mismatch falls
+back to the preferred variant, and `_showTabContent` queues a fresh measure.
+
+Also: the probe measures each group **alone**, so it cannot see the 1px separator border
+`.ribbon-group + .ribbon-group` adds to every group after the first, nor sub-pixel rounding. Six groups
+under-counted by ~14px, enough to overflow a 420px track. Charged as `SEPARATOR_SLACK` per gap, where the
+cost actually lives, rather than deducted from the available width — deducting it there broke the compact
+decision instead.
+
 ### `b-ribbon`'s collapsed-group flyout is a POPOVER — it was being clipped (2026-07-29)
 
 Reported from the playground: opening a collapsed group's ▾ flyout showed it cut off on the right AND
