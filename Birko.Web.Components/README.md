@@ -1000,6 +1000,24 @@ for bars whose meaning depends on their own value rather than on which series th
 Splitting the states into two series is *not* equivalent: bars from different series are laid out side by side
 within each category, so you would get pairs of half-width bars instead of one bar per category.
 
+**Overlay bars (`options.overlay`) — target vs actual.** When two series measure the *same* quantity and their
+difference is the reading ("sessions done" against "sessions scheduled"), `overlay` gives both the full
+category width and paints them on top of one another, so the part of the target still showing is the shortfall:
+
+```typescript
+(el as BChart).setData({
+  labels: weeks.map(w => w.label),
+  series: [
+    { id: 'target', label: 'Scheduled', color: 'var(--b-bg-tertiary)', data: weeks.map(w => ({ y: w.scheduled })) },
+    { id: 'done',   label: 'Done',      data: weeks.map(w => ({ y: w.done, color: w.done >= w.scheduled ? 'var(--b-color-success)' : 'var(--b-color-primary)' })) },
+  ],
+});
+(el as BChart).setOptions({ overlay: true });
+```
+
+Series paint in array order, so list the background (target) series **first** and give it a muted colour — an
+opaque background series hides a shorter one in front. Distinct from `stacked`, which would sum the two.
+
 **Empty slots.** A category whose value is missing or yields no bar height draws nothing rather than an invisible
 zero-height `<rect>` — the bar equivalent of a gap in a line. Useful for a daily series where some days have no
 entry: the slot stays, the bar doesn't.

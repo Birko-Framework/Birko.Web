@@ -4,6 +4,17 @@ import { escapeHtml, escapeAttr } from '../dom-utils';
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface CellRenderers {
+  /**
+   * Plain text, escaped, with a placeholder when empty — the safe form of `render: (v) => v || '—'`.
+   *
+   * <p>Exists because a column's `render` return value is inserted as **raw HTML** (`b-table` /
+   * `b-data-table` only escape the *default* cell path). So the moment a consumer adds a callback just to
+   * supply an em-dash for an empty value, it silently loses the escaping the default path gave it for
+   * free — and the columns that most need a callback (`notes`, `description`, `email`, a person's name)
+   * are exactly the free-text ones. Every other renderer here escapes; plain text was the one shape with
+   * no safe primitive, so consumers hand-rolled it unescaped.</p>
+   */
+  text(value: unknown, fallback?: string): string;
   /** Format as locale date — "21.3.2026" */
   date(value: unknown): string;
   /** Format as date + time — "21.3.2026 14:30" */
@@ -51,6 +62,12 @@ export function createCellRenderers(
   t: (key: string, params?: Record<string, string | number>) => string,
 ): CellRenderers {
   return {
+    text(value: unknown, fallback = '—'): string {
+      const s = value == null ? '' : String(value);
+      // The fallback is escaped too — callers pass translated copy here, not only the default em-dash.
+      return s ? escapeHtml(s) : muted(escapeHtml(fallback));
+    },
+
     date(value: unknown): string {
       if (!value) return muted('—');
       return fmt.date(value as string);

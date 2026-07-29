@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 
 export class BTag extends BaseComponent {
   static get observedAttributes() { return ['color', 'removable', 'size']; }
@@ -44,7 +45,10 @@ export class BTag extends BaseComponent {
   render() {
     const color = this.attr('color');
     const removable = this.boolAttr('removable');
-    const dot = color ? `<span class="dot" style="background:${color}"></span>` : '';
+    // `escapeAttr`, not raw: a caller that correctly escaped the value on its way INTO `color="…"` gets it
+    // back from `attr()` already decoded, so re-interpolating it here without escaping re-opens the quote
+    // break-out the caller just closed (`#fff" onmouseover="…`). Measured against a stored tag colour.
+    const dot = color ? `<span class="dot" style="background:${escapeAttr(color)}"></span>` : '';
     const removeBtn = removable ? `<button class="remove" type="button" aria-label="Remove">&times;</button>` : '';
     return `<span class="tag">${dot}<slot></slot>${removeBtn}</span>`;
   }

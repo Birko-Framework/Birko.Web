@@ -681,6 +681,10 @@ Slot: default (badge text).
 |-------|--------|
 | `point-click` | `{ seriesId, index, point }` |
 
+`ChartOptions`: `xAxis`, `yAxis` (`min`/`max` override the computed band), `tooltip`, `stacked`, `overlay`
+(bar mode — superimpose series at full category width for target-vs-actual; background series first),
+`thresholds`, `realTime`.
+
 ### `<b-pre>`
 Preformatted text block. Slot-based content.
 

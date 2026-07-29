@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 
 // ── Types ──
 
@@ -49,6 +50,19 @@ export interface ChartOptions {
   yAxis?: { label?: string; min?: number; max?: number; gridLines?: boolean };
   tooltip?: boolean;
   stacked?: boolean;
+  /**
+   * Bar mode only: draw a category's series **superimposed** at full category width instead of side by side.
+   *
+   * For the target-vs-actual shape — a faint "planned" bar with the "done" bar in front of it, where the two
+   * series measure the *same* quantity and the part of the target still showing IS the shortfall. The default
+   * side-by-side layout can't say that: it halves both bars and leaves the reader comparing two heights
+   * instead of seeing one overrun the other. Not the same as {@link ChartOptions.stacked}, which would sum
+   * them.
+   *
+   * Series paint in array order, so list the background (target) series **first**. Give it a translucent or
+   * muted colour — an opaque background series hides the one in front when the front series is shorter.
+   */
+  overlay?: boolean;
   thresholds?: ThresholdLine[];
   realTime?: RealTimeOptions;
 }
@@ -387,7 +401,10 @@ export class BChart extends BaseComponent {
     const cw = vw - ml - mr;
     const ch = vh - mt - mb;
     const barGroupW = cw / n;
-    const barW = (barGroupW * 0.7) / seriesCount;
+    // Overlay mode gives every series the whole category width and paints them on top of one another
+    // (see ChartOptions.overlay); the default splits that width between them, side by side.
+    const overlay = this._options.overlay === true;
+    const barW = overlay ? barGroupW * 0.7 : (barGroupW * 0.7) / seriesCount;
     const barGap = barGroupW * 0.3;
     // Same rule the line renderer uses: at most ~8 x labels, whatever the category count.
     const labelStep = Math.max(1, Math.floor(n / 8));
@@ -416,7 +433,7 @@ export class BChart extends BaseComponent {
         // emitting one only adds a node that hit-tests, announces itself to AT and inflates the DOM. A category
         // with no value therefore leaves its slot empty — the bar equivalent of a gap in a line.
         if (!Number.isFinite(barH) || barH <= 0) continue;
-        const x = groupX + si * barW;
+        const x = overlay ? groupX : groupX + si * barW;
         const y = mt + ch - barH;
         // Per-point colour wins over the series colour — see DataPoint.color.
         const color = point.color ?? this._color(si, series[si]);
@@ -706,8 +723,10 @@ export class BChart extends BaseComponent {
       ? (this._data.labels ?? []).map((l, i) => ({ label: l, color: this._color(i) }))
       : this._data.series.map((s, i) => ({ label: s.label, color: this._color(i, s) }));
 
+    // Series labels and colours come from caller data, so both positions are escaped — the label is a text
+    // node, the colour lands inside `style="…"` where an unescaped quote breaks out into an attribute.
     return `<div class="legend">${items.map(i =>
-      `<span class="legend-item"><span class="legend-dot" style="background:${i.color}"></span>${i.label}</span>`
+      `<span class="legend-item"><span class="legend-dot" style="background:${escapeAttr(String(i.color ?? ''))}"></span>${escapeHtml(String(i.label ?? ''))}</span>`
     ).join('')}</div>`;
   }
 
