@@ -467,7 +467,7 @@ export class BForm extends BaseComponent {
     return `
       <fieldset class="b-form-group ${isInvalid ? 'b-form-group--invalid' : ''}" data-group="${group.name}">
         ${hasLabel ? `<legend class="b-form-legend ${group.collapsible ? 'b-form-legend--toggle' : ''}"${legendAttrs}>${legendContent}${errHtml}</legend>` : ''}
-        <div class="${bodyClasses}" id="${bodyId}" ${bodyStyle ? `style="${bodyStyle}"` : ''}>
+        <div class="${bodyClasses}" id="${bodyId}" ${bodyStyle ? `style="${escapeAttr(bodyStyle)}"` : ''}>
           ${children}
         </div>
       </fieldset>

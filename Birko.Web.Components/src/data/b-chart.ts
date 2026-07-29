@@ -239,7 +239,7 @@ export class BChart extends BaseComponent {
 
     if (renderer === 'canvas') {
       return `
-        <div class="chart-container" style="height:${height}">
+        <div class="chart-container" style="height:${escapeAttr(height)}">
           <canvas></canvas>
         </div>
         ${showLegend ? this._renderLegend() : ''}
@@ -260,7 +260,7 @@ export class BChart extends BaseComponent {
     const needsLegend = showLegend && type !== 'gauge';
 
     return `
-      <div class="chart-container" style="height:${height}">
+      <div class="chart-container" style="height:${escapeAttr(height)}">
         ${svg}
       </div>
       ${needsLegend ? this._renderLegend() : ''}

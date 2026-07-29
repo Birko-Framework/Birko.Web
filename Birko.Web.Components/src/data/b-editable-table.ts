@@ -237,7 +237,7 @@ export class BEditableTable extends BaseComponent {
     const atMin = this._data.length <= minRows;
 
     const headerCols = columns.map(c =>
-      `<th style="${c.width ? `width:${c.width}` : ''}" class="${c.align ? 'align-' + c.align : ''}">${c.label}</th>`
+      `<th style="${c.width ? `width:${escapeAttr(String(c.width))}` : ''}" class="${c.align ? 'align-' + c.align : ''}">${escapeHtml(String(c.label ?? ''))}</th>`
     ).join('');
 
     const bodyRows = this._data.length === 0

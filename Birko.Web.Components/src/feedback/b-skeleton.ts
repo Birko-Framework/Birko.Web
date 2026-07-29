@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 
 export class BSkeleton extends BaseComponent {
   static get observedAttributes() {
@@ -71,12 +72,12 @@ export class BSkeleton extends BaseComponent {
   private _renderText(): string {
     const width = this.lengthAttr('width', '100%');
     const height = this.lengthAttr('height', '0.875rem');
-    return `<div class="bone" style="width:${width};height:${height}"></div>`;
+    return `<div class="bone" style="width:${escapeAttr(width)};height:${escapeAttr(height)}"></div>`;
   }
 
   private _renderCircle(): string {
     const size = this.lengthAttr('width', '3rem');
-    return `<div class="bone circle" style="width:${size};height:${size}"></div>`;
+    return `<div class="bone circle" style="width:${escapeAttr(size)};height:${escapeAttr(size)}"></div>`;
   }
 
   private _renderTable(): string {

@@ -562,6 +562,30 @@ layouts couldn't express it — grouped halves both bars and makes the reader co
 would sum quantities that are two measurements of the same thing. Per-point `color` still applies, so "met the
 target" can also recolour the front bar.
 
+### Caller data re-escaped inside components: `style="…"` and option labels (2026-07-29)
+
+Symbio TASK-291, the follow-up to the `b-tag` fix below. 21 sites across 7 components:
+`b-multi-select` (option/chip colour, label, value, aria-label, search value — each block exists **twice**, a
+declarative render plus an imperative `insertAdjacentHTML`), `b-kanban` (column/card accent colour),
+`b-table` + `b-editable-table` (`c.width`, `c.key`, `c.label`), `b-skeleton` and `b-split-panel` and `b-chart`
+(`width`/`height`/`gap`).
+
+**The rule this makes concrete: escaping at the CALL SITE does not protect a component's own template.** A
+consumer that correctly writes `color="${escapeHtml(x)}"` gets the value back from `attr()` **already decoded**
+by the browser, so re-interpolating it raw re-opens the break-out the consumer just closed — measured on a
+stored tag colour. Anything reaching `style="…"` therefore needs `escapeAttr` *here*, not there.
+
+Second trap, specific to lengths: `lengthAttr()` → `coerceCssLength` looks like validation but is not — it adds
+`px` to a bare number and otherwise **passes the string through unchanged** (`Birko.Web.Core/src/css/length.ts`),
+so `width="100%\" onmouseover=\"…"` reaches the style attribute intact.
+
+Left raw on purpose, verified: clamped/computed numbers (`b-progress` percent, `b-range` fill, `b-file-upload`
+progress, `cell-renderers` pct) and `b-color-picker`'s `rgb` (browser-normalised from a native colour input).
+
+Guard: Symbio `tests/ui-e2e/xss-escaping-check.spec.ts` § TASK-291 — asserts **inside** the component's shadow
+root (Playwright CSS pierces open roots, which is why a source read missed `b-tag`), and asserts the swatch
+keeps its `background:` so escaping-too-hard fails the same test as escaping-too-little.
+
 ### `cell.text()` — the missing safe primitive for plain-text columns (2026-07-29)
 
 Added `text(value, fallback = '—')` to `createCellRenderers` (`src/data/cell-renderers.ts`). Purely additive.

@@ -231,7 +231,7 @@ export class BKanban extends BaseComponent {
         ? topLevelCards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
         : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`;
 
-      const accent = col.color ? `border-left: 3px solid ${col.color};` : '';
+      const accent = col.color ? `border-left: 3px solid ${escapeAttr(col.color)};` : '';
       return `
         <div class="column" data-column-id="${escapeAttr(col.id)}">
           <div class="column-header" style="${accent}">
@@ -285,7 +285,7 @@ export class BKanban extends BaseComponent {
          </div>`
       : '';
 
-    const colorStyle = card.color ? `border-left: 3px solid ${card.color};` : '';
+    const colorStyle = card.color ? `border-left: 3px solid ${escapeAttr(card.color)};` : '';
 
     return `
       <div class="card"

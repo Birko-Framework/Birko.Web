@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 
 export class BSplitPanel extends BaseComponent {
   static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap']; }
@@ -32,9 +33,9 @@ export class BSplitPanel extends BaseComponent {
     const collapseAt = this.attr('collapse-at');
 
     const vars = [
-      `--_master-w: ${masterWidth}`,
-      `--_detail-w: ${detailWidth}`,
-      gap ? `--_gap: ${gap}` : '',
+      `--_master-w: ${escapeAttr(masterWidth)}`,
+      `--_detail-w: ${escapeAttr(detailWidth)}`,
+      gap ? `--_gap: ${escapeAttr(gap)}` : '',
     ].filter(Boolean).join('; ');
 
     // `collapse-at` takes a CSS length — prefer rem/em (tracks the reader's font size);

@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import '../feedback/b-skeleton.js';
 
 export interface TableColumnOption {
@@ -158,12 +159,12 @@ export class BTable extends BaseComponent {
                 return `<th
                   scope="col"
                   class="${c.sortable ? 'sortable' : ''} ${isSorted ? 'sorted' : ''} ${c.align ? 'align-' + c.align : ''}"
-                  style="${c.width ? 'width:' + c.width : ''}"
-                  data-key="${c.key}"
+                  style="${c.width ? 'width:' + escapeAttr(String(c.width)) : ''}"
+                  data-key="${escapeAttr(String(c.key))}"
                   ${ariaSort}
                 >${c.sortable
-                  ? `<button type="button" class="th-sort-btn">${c.label}<span class="sort-icon" aria-hidden="true">${arrow}</span></button>`
-                  : c.label}</th>`;
+                  ? `<button type="button" class="th-sort-btn">${escapeHtml(String(c.label ?? ''))}<span class="sort-icon" aria-hidden="true">${arrow}</span></button>`
+                  : escapeHtml(String(c.label ?? ''))}</th>`;
               }).join('')}
             </tr>
           </thead>

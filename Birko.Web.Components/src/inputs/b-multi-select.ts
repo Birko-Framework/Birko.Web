@@ -209,9 +209,9 @@ export class BMultiSelect extends FormControlComponent {
       .filter(o => this._selected.has(o.value))
       .map(o => `
         <span class="chip">
-          ${o.color ? `<span class="chip-dot" style="background:${o.color}"></span>` : ''}
-          ${o.label}
-          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
+          ${o.color ? `<span class="chip-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
+          ${escapeHtml(o.label)}
+          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
         </span>
       `).join('');
 
@@ -246,12 +246,12 @@ export class BMultiSelect extends FormControlComponent {
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
         <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this.attr('label-options', 'Options')}">
-          ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${this._filter}" /></div>` : ''}
+          ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${escapeAttr(this._filter)}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
-              <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
-              ${o.color ? `<span class="option-dot" style="background:${o.color}"></span>` : ''}
-              ${o.label}
+              <input type="checkbox" value="${escapeAttr(o.value)}" ${this._selected.has(o.value) ? 'checked' : ''} />
+              ${o.color ? `<span class="option-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
+              ${escapeHtml(o.label)}
             </label>
           `).join('') : `<div class="no-results">${noMatchesLabel}</div>`}
         </div>`,
@@ -409,9 +409,9 @@ export class BMultiSelect extends FormControlComponent {
     } else if (filtered.length > 0) {
       dropdown.insertAdjacentHTML('beforeend', filtered.map(o => `
         <label class="option">
-          <input type="checkbox" value="${o.value}" ${this._selected.has(o.value) ? 'checked' : ''} />
-          ${o.color ? `<span class="option-dot" style="background:${o.color}"></span>` : ''}
-          ${o.label}
+          <input type="checkbox" value="${escapeAttr(o.value)}" ${this._selected.has(o.value) ? 'checked' : ''} />
+          ${o.color ? `<span class="option-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
+          ${escapeHtml(o.label)}
         </label>
       `).join(''));
     }
@@ -471,9 +471,9 @@ export class BMultiSelect extends FormControlComponent {
       .filter(o => this._selected.has(o.value))
       .map(o => `
         <span class="chip">
-          ${o.color ? `<span class="chip-dot" style="background:${o.color}"></span>` : ''}
-          ${o.label}
-          <button class="chip-remove" data-value="${o.value}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${o.label}">&times;</button>
+          ${o.color ? `<span class="chip-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
+          ${escapeHtml(o.label)}
+          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
         </span>
       `).join('');
 
