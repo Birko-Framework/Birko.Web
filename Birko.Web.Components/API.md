@@ -999,6 +999,13 @@ Slot: `brand`.
 Both the tab strip and the panel scroll horizontally when they overflow, with chevron buttons as the
 affordance (the scrollbars are hidden so the ribbon's height never changes with the window width).
 
+**RibbonGroup**: `{ id, label, items: RibbonItem[], icon?, scalingPriority?, minSize? }`
+
+`scalingPriority` (default 0) and `minSize` (default `'popup'`) drive Office-style progressive scaling —
+`RibbonGroupSize` is `'large' | 'medium' | 'small' | 'popup'`, and a **lower** priority degrades **first**
+(priority = importance; this is Birko's direction, not RibbonX's). `icon` is drawn on the collapsed chunk
+button at `'popup'`. The degrade pass itself is not implemented yet — these fields are inert today.
+
 | Method | Signature |
 |--------|-----------|
 | `setTabs` | `(tabs: RibbonTab[]) => void` |

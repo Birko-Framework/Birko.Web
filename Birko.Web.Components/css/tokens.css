@@ -200,6 +200,11 @@
   --b-status-bar-height: 1.75rem;     /* 28px */
   --b-ribbon-tab-height: 2.75rem;     /* 44px */
   --b-ribbon-panel-height: 8rem;      /* 128px */
+  --b-ribbon-group-gap: 1.5rem;       /* 24px — between groups */
+  --b-ribbon-item-gap: 0.25rem;       /* 4px — between items in a group */
+  --b-ribbon-icon-large: 2rem;        /* 32px — Large variant, icon above label */
+  --b-ribbon-icon-small: 1rem;        /* 16px — Medium + Small variants */
+  --b-ribbon-chunk-width: 3.5rem;     /* 56px — collapsed group's Popup button */
 
   /* ── Sidebar (rem — scales with font size) ── */
   --b-sidebar-width: 15rem;      /* 240px */
