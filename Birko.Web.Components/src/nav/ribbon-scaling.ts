@@ -30,7 +30,11 @@ export interface RibbonGroupMetrics {
   widths: Partial<Record<RibbonGroupSize, number>>;
   /** Importance — a **lower** value degrades **first**. */
   scalingPriority?: number;
-  /** The tightest variant this group may reach. */
+  /**
+   * The tightest variant this group should reach. A **preference, not a guarantee**: it is breached
+   * (least-important-first) rather than letting the row overflow, because unreachable commands are worse
+   * than a group being less legible than its author wanted.
+   */
   minSize?: RibbonGroupSize;
 }
 
@@ -56,11 +60,13 @@ function widthOf(group: RibbonGroupMetrics, size: RibbonGroupSize): number {
  * This is the whole point of the pass. Degrading uniformly is easier and worse — it turns the ribbon
  * into a row of anonymous icons instead of keeping the primary group legible.
  */
-function nextToDegrade(groups: RibbonGroupMetrics[], chosen: RibbonGroupSize[]): number {
+function nextToDegrade(
+  groups: RibbonGroupMetrics[], chosen: RibbonGroupSize[], respectFloors: boolean,
+): number {
   let best = -1;
   for (let i = 0; i < groups.length; i++) {
     const floor = groups[i].minSize ?? 'popup';
-    if (rank(chosen[i]) >= rank(floor)) continue;
+    if (respectFloors && rank(chosen[i]) >= rank(floor)) continue;
     if (chosen[i] === 'popup') continue;
     if (best < 0 || (groups[i].scalingPriority ?? 0) < (groups[best].scalingPriority ?? 0)) best = i;
   }
@@ -98,10 +104,22 @@ export function resolveRibbonSizes(
 
   // One step at a time, always taking from the least important group that can still give — so the row
   // gives up the least it can rather than dropping a group straight to its floor.
+  const cap = groups.length * RIBBON_SIZE_LADDER.length;
   let guard = 0;
-  while (total() + gaps > available && guard++ < groups.length * RIBBON_SIZE_LADDER.length) {
-    const victim = nextToDegrade(groups, chosen);
-    if (victim < 0) break; // nothing left to give
+  while (total() + gaps > available && guard++ < cap) {
+    const victim = nextToDegrade(groups, chosen, true);
+    if (victim < 0) break;
+    chosen[victim] = RIBBON_SIZE_LADDER[rank(chosen[victim]) + 1];
+  }
+
+  // Floors are a PREFERENCE, not a guarantee. If honouring every floor leaves the row too wide, the floors
+  // give way rather than the row overflowing — an overflowing row means commands the user cannot see or
+  // click, which is strictly worse than a group being less legible than its author wanted. (Found in
+  // review: a hero group floored at small kept its width and pushed the last group off the edge.)
+  guard = 0;
+  while (total() + gaps > available && guard++ < cap) {
+    const victim = nextToDegrade(groups, chosen, false);
+    if (victim < 0) break; // everything is at popup — the row simply cannot be narrower
     chosen[victim] = RIBBON_SIZE_LADDER[rank(chosen[victim]) + 1];
   }
 
