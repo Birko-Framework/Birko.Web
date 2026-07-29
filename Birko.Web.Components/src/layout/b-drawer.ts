@@ -43,8 +43,16 @@ export class BDrawer extends BaseComponent {
       :host([size="lg"]) .drawer { width: var(--b-drawer-width-lg, 40rem); }
       :host([size="xl"]) .drawer { width: var(--b-drawer-width-xl, 53.75rem); }
       :host([size="xxl"]) .drawer { width: var(--b-drawer-width-xxl, 72.5rem); }
-      @media (max-width: 640px) {
-        .drawer { width: 100vw !important; }
+      /* Full-bleed on phones. 40rem = the old 640px at a default 16px browser; rem in a
+         media query tracks the reader's browser font size (a :root override does not).
+         The box comes from the dialog's own inset rather than "width: 100vw" on .drawer —
+         100vw includes the page scrollbar, which pushed the drawer past the right edge.
+         "width: auto" is required because the UA stylesheet sizes <dialog> as fit-content,
+         which would beat the inset rectangle. The !important keeps this above the
+         higher-specificity ":host([size=…]) .drawer" width rules. */
+      @media (max-width: 40rem) {
+        dialog { inset: 0; width: auto; }
+        .drawer { width: 100% !important; }
       }
       .overlay-footer:empty { display: none; }
     `;

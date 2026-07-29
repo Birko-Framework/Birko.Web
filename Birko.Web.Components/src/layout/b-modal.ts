@@ -30,6 +30,27 @@ export class BModal extends BaseComponent {
       :host([size="lg"]) .modal { max-width: var(--b-modal-width-lg, 45rem); }
       :host([size="xl"]) .modal { max-width: var(--b-modal-width-xl, 60rem); }
       :host([size="xxl"]) .modal { max-width: var(--b-modal-width-xxl, 80rem); }
+      /* full: an editor surface (WYSIWYG, complex form editor) — the viewport minus a
+         gutter, in BOTH axes, so the body gets the full height too. Sized off the fixed
+         dialog rather than 100vw/100dvh: those include the page scrollbar showModal()
+         leaves in place, which would overflow horizontally. */
+      :host([size="full"]) dialog {
+        position: fixed; inset: var(--b-modal-full-inset, 2rem); margin: 0;
+        /* The UA stylesheet sizes <dialog> as fit-content, which wins over the inset
+           rectangle and collapses the box to its content — auto lets the insets resolve. */
+        width: auto; height: auto;
+      }
+      :host([size="full"]) .modal {
+        width: 100%; height: 100%;
+        min-width: 0; max-width: none; max-height: none;
+      }
+      /* 40rem = 640px at a default 16px browser; rem in a media query tracks the reader's
+         browser font size (a :root override does not affect it). */
+      @media (max-width: 40rem) {
+        /* No room for a gutter — go edge to edge and drop the corners. */
+        :host([size="full"]) dialog { inset: 0; }
+        :host([size="full"]) .modal { border-radius: 0; }
+      }
     `;
   }
 

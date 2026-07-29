@@ -42,6 +42,23 @@ css/
 - Always: `color: var(--b-text)`, `padding: var(--b-space-md)`, `border-radius: var(--b-radius-sm)`
 - Full token reference: `css/tokens.css`
 
+### Breakpoints in `rem`, not `px` (MANDATORY)
+
+Width media queries use `rem`: `@media (max-width: 40rem)`, never `640px`. In a media query `rem`
+resolves against the **browser's default font size** — *not* a `:root { font-size }` override — so a
+reader who scales their browser text up gets the narrow layout at the right moment, and a host app that
+sets a 14px root does not shift every breakpoint. The shipped ladder (their px equivalents at a default
+16px browser):
+
+| Breakpoint | = px @16px | Used by |
+|---|---|---|
+| `30rem` | 480 | `b-confirm-dialog` (stacked footer) |
+| `40rem` | 640 | `b-modal` (`full` edge-to-edge), `b-drawer` (full-bleed), `b-form` (grid → 1 col) |
+| `48rem` | 768 | `b-ribbon` (hamburger), `b-split-panel` (default collapse), Shell `b-app-shell` / `b-core-app-shell` |
+| `64rem` | 1024 | `b-ribbon` (tab labels hidden) |
+
+Reuse a rung before inventing one. `prefers-reduced-motion` / `pointer: coarse` queries are unaffected.
+
 ### No backticks inside `static get styles()`
 
 The CSS lives in a **template literal**, so a backtick anywhere inside it — including in a comment —
@@ -147,7 +164,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 |---|---|---|---|
 | **Vertical footprint** | `min-height` of the chrome | `--b-control-min-height-sm/-md/-lg` | form inputs (via `formControlSheet` + `comboControlSheet`), `b-tag-input` |
 | **Text scale** | inner `font-size` only | `--b-text-xs / -sm / -base` | `b-pre`, `b-code-block`, `b-object-tree`, `b-json-viewer`, `b-xml-viewer`, `b-definition-list` |
-| **Width** | `max-width` / `width` of the panel | `--b-{modal,drawer}-width-{sm,md,lg,xl,xxl}` | `b-modal`, `b-drawer` (extend to `xl`/`xxl`) |
+| **Width** | `max-width` / `width` of the panel | `--b-{modal,drawer}-width-{sm,md,lg,xl,xxl}` | `b-modal`, `b-drawer` (extend to `xl`/`xxl`; `b-modal` adds `full` — viewport minus `--b-modal-full-inset` in both axes) |
 | **Shape weight** | diameter / track thickness | component-specific | `b-spinner` (diameter), `b-progress` (linear: track height; circular: ring diameter) |
 | **Inline chip / button** | `padding` + `font-size` | `--b-space-*` + `--b-text-*` | `b-button`, `b-badge`, `b-tag` |
 
@@ -338,8 +355,8 @@ the same as their `.value`:
 | `<b-accordion>` | BAccordion | `setItems([{id,header,open?,disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()` | `multiple` (allow several open), `size` (sm\|md\|lg — header footprint); body via `slot="{id}"`; event `toggle` `{id,open}` |
 | `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |
 | `<b-toolbar>` | BToolbar | — | `label` (aria-label); default slot (clusters, gap + wrap) + `end` slot (pushed to far edge) |
-| `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl) |
-| `<b-drawer>` | BDrawer | `open()`, `close()` | `title`, `size`, `modal` |
+| `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl = `max-width`; `full` = viewport minus `--b-modal-full-inset`, both axes — editor surfaces) |
+| `<b-drawer>` | BDrawer | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl — no `full`), `modal` |
 | `<b-tabs>` | BTabs | `setTabs([{id,label}])` | `active` |
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
@@ -493,6 +510,70 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### Breakpoints swept px → rem, and `b-drawer` stopped using `100vw` (2026-07-29)
+
+Every width media query in the library is now `rem` (new **Critical rules § Breakpoints in `rem`** documents
+the 30/40/48/64rem ladder). Same px at a default-16px browser, so no visual change there — but a `rem` media
+query resolves against the *browser default*, so a reader who scales their text up now gets the narrow layout,
+and a host app with a 14px `:root` no longer shifts every breakpoint. Converted: `b-ribbon` (768/1024),
+`b-drawer` + `b-form` (640), `b-split-panel` (768), Shell `b-app-shell` / `b-core-app-shell` (768).
+`b-confirm-dialog` was already `30rem`.
+
+`b-split-panel`'s `collapse-at` only understood px (a bare number, or a string containing "px"), so
+`collapse-at="48rem"` fell through to `48rempx` and the query never applied. It now takes any `px`/`rem`/`em`
+length, keeps bare numbers as px for back-compat, and — since the value is interpolated into a `<style>` in the
+shadow root — **falls back to the default `48rem` for anything else** instead of injecting it (a value like
+`red;}body{display:none` used to land in the stylesheet verbatim).
+
+`b-drawer`'s phone rule was `.drawer { width: 100vw !important }`. `100vw` includes the page scrollbar, so with
+a space-reserving scrollbar the drawer ran past the content edge by its width (measured: 500px viewport →
+480px content area → a 500px drawer). Now the `<dialog>` carries `inset: 0; width: auto` and the panel is
+`width: 100%`, so the box is the content area exactly. `width: auto` matters for the same reason as in
+`b-modal size="full"`: the UA stylesheet's `fit-content` sizing beats the inset rectangle.
+
+### `b-modal size="full"` + the two missing `xxl` width tokens (2026-07-29)
+
+`b-modal`/`b-drawer` styled `:host([size="xxl"])` against `--b-modal-width-xxl` / `--b-drawer-width-xxl`,
+neither of which existed in `css/tokens.css` — so `xxl` silently used the inline fallback (80rem / 72.5rem) and,
+unlike every other size, could not be re-themed by overriding the token. Both tokens added with the shipped
+fallbacks as their values (no visual change).
+
+New **`size="full"`** on `b-modal` for editor surfaces (WYSIWYG / markdown editor, complex form editors):
+the viewport minus `--b-modal-full-inset` (2rem) on all four sides, in **both** axes — the other sizes cap
+`max-width` only and leave `max-height: 85vh`, which is the wrong shape for an editor that wants vertical room.
+Implemented by making the `<dialog>` `position: fixed; inset: <gutter>` and the `.modal` `100%`/`100%` inside it,
+rather than `100vw`/`100dvh` on `.modal`: `showModal()` leaves the page scrollbar in place, so viewport units
+overflow horizontally by its width. **The dialog also needs `width: auto; height: auto`** — the UA stylesheet
+sizes `<dialog>` as `fit-content`, which beats the inset rectangle and collapsed the box to its content (caught
+in review: a "full" modal measured 102×142px). `min-width` is reset to 0 (the default `min(25rem, 95vw)` can
+exceed the inset box on narrow screens) and below 640px the gutter drops to 0 with square corners. Not added to `b-drawer` —
+a viewport-wide drawer *is* a modal. Shell's `modalSize` accepts `'full'` (`base-form-modal`, `base-crud-page`).
+
+### `b-chart` overlay bars — the target-vs-actual shape (2026-07-29)
+
+Added `ChartOptions.overlay` (bar mode): a category's series are superimposed at full category width instead of
+laid out side by side, so a faint "target" bar behind a "done" bar reads as *the shortfall is what still shows*.
+Purely additive — omitted or `false` keeps the existing grouped layout. Series paint in array order, so the
+background series goes first.
+
+From Reps TASK-083 (a weekly adherence rollup: sessions done against sessions scheduled). The two existing bar
+layouts couldn't express it — grouped halves both bars and makes the reader compare two heights, and `stacked`
+would sum quantities that are two measurements of the same thing. Per-point `color` still applies, so "met the
+target" can also recolour the front bar.
+
+### `cell.text()` — the missing safe primitive for plain-text columns (2026-07-29)
+
+Added `text(value, fallback = '—')` to `createCellRenderers` (`src/data/cell-renderers.ts`). Purely additive.
+
+Motivated by a consumer sweep (Symbio TASK-286): a column's `render` return value is inserted as **raw
+HTML** — `b-table.ts` and `b-data-table.ts` escape only the *default* cell path (`col.render ? col.render(…)
+: escapeValue(val)`). Every other renderer here escapes, but plain text had no primitive, so consumers wrote
+`render: (v) => v || '—'` purely to supply the em-dash — and thereby *removed* the escaping the default path
+had given them. Measured in one consumer: **66 columns**, on exactly the free-text fields that matter
+(`notes`, `description`, `email`, driver/guest names). The library shipped the footgun, so the fix belongs
+here: `cell.text(v)` is now the shortest correct spelling, and `cell.text(v, t('x.draft'))` covers the
+translated-placeholder variant. Empty values render `muted(fallback)`, matching `date`/`number`/`currency`.
 
 ### Form-associated inputs via ElementInternals (2026-07-29)
 

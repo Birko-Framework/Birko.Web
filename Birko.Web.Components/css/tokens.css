@@ -173,10 +173,13 @@
   --b-modal-width: 32.5rem;      /* 520px */
   --b-modal-width-lg: 45rem;     /* 720px */
   --b-modal-width-xl: 60rem;     /* 960px */
+  --b-modal-width-xxl: 80rem;    /* 1280px */
+  --b-modal-full-inset: 2rem;    /* size="full" gutter — viewport minus this on all four sides */
   --b-drawer-width-sm: 22.5rem;  /* 360px */
   --b-drawer-width: 30rem;       /* 480px */
   --b-drawer-width-lg: 40rem;    /* 640px */
   --b-drawer-width-xl: 53.75rem; /* 860px */
+  --b-drawer-width-xxl: 72.5rem; /* 1160px */
 
   /* ── Spinner (rem — scales with font size) ── */
   --b-spinner-size-sm: 1rem;     /* 16px */

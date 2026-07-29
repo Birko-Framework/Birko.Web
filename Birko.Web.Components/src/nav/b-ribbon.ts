@@ -266,7 +266,10 @@ export class BRibbon extends BaseComponent {
       }
       .mobile-item:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
 
-      @media (max-width: 768px) {
+      /* rem breakpoints (48rem/64rem = the old 768px/1024px at a default 16px browser) —
+         in a media query rem resolves against the browser default, not a :root override,
+         so the ribbon collapses earlier for a reader who scaled their font up. */
+      @media (max-width: 48rem) {
         .ribbon-tabs { display: none; }
         .ribbon-panel { display: none; }
         .ribbon-ctrl { display: none; }
@@ -274,7 +277,7 @@ export class BRibbon extends BaseComponent {
         .mobile-hamburger { display: flex; }
         .mobile-active-label { display: block; flex: 1; min-width: 0; }
       }
-      @media (max-width: 1024px) {
+      @media (max-width: 64rem) {
         .ribbon-tab-icon + .ribbon-tab-label { display: none; }
       }
     `;

@@ -616,10 +616,22 @@ Slots: default; `b-toolbar` adds `end`
 (document.querySelector('#my-modal') as BModal).open();
 ```
 
-Attributes: `title`, `size` (sm|md|lg|xl|xxl)
+Attributes: `title`, `size` (sm|md|lg|xl|xxl|full)
 Slots: default (body), `footer`
 Methods: `open()`, `close()`
 Emits: `close`
+
+`sm`–`xxl` cap `max-width` (380 / 520 / 720 / 960 / 1280px via `--b-modal-width{,-sm,-lg,-xl,-xxl}`); the modal stays 90% wide and at most `85vh` tall. `full` is the editor size — the viewport minus `--b-modal-full-inset` (2rem) on all four sides, in **both** axes, so a WYSIWYG field or a complex form editor gets the full height instead of a 85vh cap. Below 640px it goes edge to edge with square corners.
+
+```html
+<b-modal id="editor-modal" title="Edit article" size="full">
+  <b-markdown-editor id="body"></b-markdown-editor>
+  <footer slot="footer">
+    <b-button variant="secondary" id="cancel">Cancel</b-button>
+    <b-button variant="primary" id="save">Save</b-button>
+  </footer>
+</b-modal>
+```
 
 ### b-drawer
 
@@ -629,7 +641,7 @@ Emits: `close`
 </b-drawer>
 ```
 
-Same API as `b-modal`. Use for panels where the user needs to see the background content.
+Same API as `b-modal`, except `size` is `sm|md|lg|xl|xxl` (360 / 480 / 640 / 860 / 1160px via `--b-drawer-width{,-sm,-lg,-xl,-xxl}`) — no `full`: a viewport-wide drawer is a modal, so use `<b-modal size="full">` for that. Always full height, and full width below 640px. Use for panels where the user needs to see the background content.
 
 ### b-tabs
 
@@ -706,6 +718,8 @@ Master-detail split layout with responsive collapse.
 
 Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`
 Slots: `master`, `detail`
+
+`collapse-at` takes a CSS length — prefer `rem`/`em` (`collapse-at="48rem"`), which tracks the reader's browser font size; a bare number (`collapse-at="800"`) is still read as px. Omitted or unparseable, the panel collapses at the default `48rem`.
 
 ### b-chat
 

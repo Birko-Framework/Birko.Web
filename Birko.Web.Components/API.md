@@ -844,7 +844,7 @@ Slots: default (button groups / buttons, laid out with gap + wrap), `end` (pushe
 | Attribute | Values |
 |-----------|--------|
 | `title` | string |
-| `size` | `sm` \| (default) \| `lg` |
+| `size` | `sm` \| (default = md) \| `lg` \| `xl` \| `xxl` \| `full` (viewport minus `--b-modal-full-inset`, both axes — editor surfaces) |
 
 | Method | Signature |
 |--------|-----------|
@@ -861,7 +861,7 @@ Slots: default (body), `footer` (action buttons).
 | Attribute | Values |
 |-----------|--------|
 | `title` | string |
-| `size` | `sm` \| (default) \| `lg` |
+| `size` | `sm` \| (default = md) \| `lg` \| `xl` \| `xxl` |
 | `modal` | boolean |
 
 | Method | Signature |
@@ -929,7 +929,7 @@ Slots: one per section, named after its `id` (e.g. `slot="general"`).
 |-----------|--------|
 | `master-width` | CSS value (e.g. `18rem`, `2fr`) |
 | `detail-width` | CSS value |
-| `collapse-at` | number (px breakpoint) |
+| `collapse-at` | CSS length breakpoint — `48rem` (preferred, tracks browser font size), `800px`, or a bare number read as px. Omitted or unparseable → `48rem` |
 | `gap` | CSS value |
 
 Slots: `master`, `detail`.

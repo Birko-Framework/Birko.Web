@@ -242,7 +242,9 @@ export class BForm extends BaseComponent {
         font-size: var(--b-text-sm, 0.8125rem);
         pointer-events: none;
       }
-      @media (max-width: 640px) {
+      /* 40rem = the old 640px at a default 16px browser; rem in a media query tracks the
+         reader's browser font size (a :root override does not affect it). */
+      @media (max-width: 40rem) {
         .b-form-group--grid { grid-template-columns: 1fr; }
       }
     `;
