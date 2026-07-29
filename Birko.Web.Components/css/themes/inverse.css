@@ -12,6 +12,10 @@
    (Custom properties cross the Shadow DOM boundary, so the nested components
    inherit these surface tokens while keeping the page theme's brand color.) ── */
 [data-theme="inverse"] {
+  /* Text-only red. This theme inherits danger from the page theme, so the error row was #dc2626 on a dark
+     surface — 2.13:1. #fca5a5 gives 5.41:1 on --b-bg-secondary and 7.62:1 on --b-bg. */
+  --b-color-danger-text: #fca5a5;
+
   --b-bg: #2b2929;
   --b-bg-secondary: #434040;
   --b-bg-tertiary: #4c4949;

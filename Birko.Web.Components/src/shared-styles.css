@@ -152,7 +152,7 @@ dialog:not([open]) {
 }
 .field .label-row label { margin: 0; }
 .field .required-mark {
-  color: var(--b-color-danger);
+  color: var(--b-color-danger-text, var(--b-color-danger));
   margin-left: 0.125rem;
 }
 .field .label-row b-tooltip { line-height: 1; }
@@ -173,7 +173,21 @@ dialog:not([open]) {
 }
 .field .error {
   font-size: var(--b-text-xs, 0.6875rem);
-  color: var(--b-color-danger);
+  /* --b-color-danger-TEXT, not --b-color-danger: measured, the surface red fails WCAG AA as small text on
+     dark (3.03:1), finstat (2.65:1) and inverse (2.13:1). See tokens.css. */
+  color: var(--b-color-danger-text, var(--b-color-danger));
+}
+/* Persistent help text (the `description` attribute) — same footprint as .error so a field's height does
+   not jump when an error appears beside it.
+   `--b-text-secondary`, NOT `--b-text-muted`: measured against every shipped theme, muted gives
+   2.03–3.07:1 on the field background (failing WCAG AA's 4.5:1 for text this size in light / neon /
+   finstat), while secondary gives 3.77–7.24:1 — AA in four of five. This text exists to be *read while
+   typing*, so legibility beats the extra subtlety of a lighter grey. It is still lighter than the label,
+   which is bolder and larger. All five shipped themes now clear AA for this row (finstat's
+   --b-text-secondary was darkened for exactly this reason). */
+.field .help {
+  font-size: var(--b-text-xs, 0.6875rem);
+  color: var(--b-text-secondary);
 }
 
 

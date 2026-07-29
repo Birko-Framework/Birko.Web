@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 import { rovingIndex } from '../dom-utils';
 
 interface Option {
@@ -24,7 +24,7 @@ interface Option {
  */
 export class BOptionGroup extends BaseComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'disabled', 'hint'];
+    return ['label', 'name', 'value', 'disabled', 'hint', 'error', 'required', 'description', 'bare'];
   }
 
   private _options: Option[] = [];
@@ -54,6 +54,9 @@ export class BOptionGroup extends BaseComponent {
         font-family: inherit;
         white-space: nowrap;
       }
+      /* Error state. The .options row has no border of its own, so the signal goes on the buttons —
+         drawing a box around the group would invent chrome that appears nowhere else. */
+      .options.has-error .opt-btn { border-color: var(--b-color-danger); }
       .opt-btn:hover:not(.active):not(:disabled) {
         border-color: var(--b-color-primary);
         color: var(--b-text);
@@ -92,12 +95,25 @@ export class BOptionGroup extends BaseComponent {
         ${disabled ? 'disabled' : ''}>${icon}${o.label}</button>`;
     }).join('');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint)}
-        <div class="options" role="radiogroup"${label ? ` aria-label="${label}"` : ''}>${buttons}</div>
-      </div>
-    `;
+    const error = this.attr('error');
+    const required = this.boolAttr('required');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required,
+      description,
+      // The radiogroup is the focusable widget, so the ARIA goes on it. `label` is not passed to
+      // fieldAria: the group already sets its own aria-label just below, and a second one on the same
+      // element would be a duplicate attribute.
+      control: `
+        <div class="options ${error ? 'has-error' : ''}" role="radiogroup"${label ? ` aria-label="${label}"` : ''}
+             ${fieldAria({ uid: this.uid, error, required, description, bare })}>${buttons}</div>`,
+    });
   }
 
   setOptions(options: Option[]) {

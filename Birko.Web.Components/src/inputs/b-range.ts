@@ -1,11 +1,12 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
-export class BRange extends BaseComponent {
+export class BRange extends FormControlComponent {
   static get observedAttributes() {
     return ['label', 'hint', 'error', 'disabled', 'required', 'name',
-            'min', 'max', 'step', 'mode', 'display', 'value-type', 'value', 'orientation'];
+            'min', 'max', 'step', 'mode', 'display', 'value-type', 'value', 'orientation',
+            'bare', 'description'];
   }
 
   static get sharedStyles() {
@@ -291,6 +292,11 @@ export class BRange extends BaseComponent {
     const label = this.attr('label');
     const hint = this.attr('hint');
     const error = this.attr('error');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
+    // A range is ONE field with up to two editable parts — describe both, so the help row is announced
+    // whichever thumb / number box has focus.
+    const aria = fieldAria({ uid: this.uid, error, description, bare, label });
     const disabled = this.boolAttr('disabled') ? 'disabled' : '';
     const min = this._min;
     const max = this._max;
@@ -306,9 +312,9 @@ export class BRange extends BaseComponent {
           <div class="range-slider range-slider--dual">
             <div class="range-track"></div>
             <div class="range-track-fill" style="${this._fillStyle(fromPct, toPct)}"></div>
-            <input type="range" class="slider-from" min="${min}" max="${max}" step="${step}"
+            <input type="range" class="slider-from" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} aria-label="From" />
-            <input type="range" class="slider-to" min="${min}" max="${max}" step="${step}"
+            <input type="range" class="slider-to" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._to}" ${disabled} aria-label="To"
                    style="z-index:3" />
           </div>`;
@@ -318,7 +324,7 @@ export class BRange extends BaseComponent {
           <div class="range-slider">
             <div class="range-track"></div>
             <div class="range-track-fill" style="${this._fillStyle(0, fromPct)}"></div>
-            <input type="range" class="slider-single" min="${min}" max="${max}" step="${step}"
+            <input type="range" class="slider-single" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} />
           </div>`;
       }
@@ -329,33 +335,38 @@ export class BRange extends BaseComponent {
       if (this._isRange) {
         inputHtml = `
           <div class="range-inputs">
-            <input type="number" class="range-input input-from" min="${min}" max="${max}" step="${step}"
+            <input type="number" class="range-input input-from" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} aria-label="From" />
             <span class="range-sep" aria-hidden="true">&ndash;</span>
-            <input type="number" class="range-input input-to" min="${min}" max="${max}" step="${step}"
+            <input type="number" class="range-input input-to" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._to}" ${disabled} aria-label="To" />
             ${isPercent ? '<span class="range-unit" aria-hidden="true">%</span>' : ''}
           </div>`;
       } else {
         inputHtml = `
           <div class="range-inputs">
-            <input type="number" class="range-input input-single" min="${min}" max="${max}" step="${step}"
+            <input type="number" class="range-input input-single" ${aria} min="${min}" max="${max}" step="${step}"
                    value="${this._from}" ${disabled} />
             ${isPercent ? '<span class="range-unit" aria-hidden="true">%</span>' : ''}
           </div>`;
       }
     }
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="range-wrap">
           ${sliderHtml}
           ${inputHtml}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
+
   }
 
   // ── Events ──
@@ -366,6 +377,29 @@ export class BRange extends BaseComponent {
     } else {
       this._wireSingle();
     }
+    this.syncFormState();
+  }
+
+  /**
+   * Single mode submits one plain value under `name`. **Range mode submits `${name}-from` /
+   * `${name}-to`** — two values in one control has no native analogue to imitate, so rather than invent
+   * a delimiter (today's `value` is a JSON blob, which no server form-binder reads) it submits two
+   * ordinary fields. `value` / `inputValue` keep returning the JSON string for back-compat.
+   */
+  protected formValue(): string | FormData | null {
+    if (!this._isRange) {
+      const v = String(this._from);
+      return v === '' ? null : v;
+    }
+    return this.suffixedFormValue([['from', String(this._from)], ['to', String(this._to)]]);
+  }
+
+  /**
+   * The sliders are `<input type="range">`, which is never empty and never invalid — mirroring their
+   * validity would report "valid" regardless. `min`/`max`/`step` are already enforced by clamping.
+   */
+  protected validationSource(): undefined {
+    return undefined;
   }
 
   private _wireSingle() {
@@ -463,8 +497,10 @@ export class BRange extends BaseComponent {
   private _emitChange() {
     if (this._isRange) {
       this.emit('change', { name: this.attr('name'), value: { from: this._from, to: this._to } });
+      this.syncFormState();
     } else {
       this.emit('change', { name: this.attr('name'), value: this._from });
+      this.syncFormState();
     }
   }
 

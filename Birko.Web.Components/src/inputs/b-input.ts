@@ -1,12 +1,12 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
-export class BInput extends BaseComponent {
+export class BInput extends FormControlComponent {
   static get observedAttributes() {
     return [
-      'label', 'type', 'placeholder', 'value', 'name', 'error', 'disabled', 'required', 'hint',
+      'label', 'type', 'placeholder', 'value', 'name', 'error', 'disabled', 'required', 'hint', 'description', 'bare',
       // Passed straight through to the inner <input> — see PASSTHROUGH.
       'min', 'max', 'step', 'inputmode', 'autocomplete',
     ];
@@ -53,33 +53,41 @@ export class BInput extends BaseComponent {
 
   render() {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
     const hasSuggestions = this._suggestions.length > 0;
     const passthrough = BInput.PASSTHROUGH
       .filter(a => this.hasAttribute(a))
       .map(a => `${a}="${escapeAttr(this.attr(a))}"`)
       .join(' ');
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      // The <datalist> is part of the control, not the chrome — it must stay with the <input> in
+      // bare mode too, or `list=` dangles and suggestions silently stop working.
+      control: `
         <input
           type="${this.attr('type', 'text')}"
           name="${this.attr('name')}"
           placeholder="${this.attr('placeholder')}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
-          ${this.boolAttr('required') ? 'required' : ''}
+          ${required ? 'required' : ''}
           ${passthrough}
-          ${fieldAria({ uid: this.uid, error })}
+          ${fieldAria({ uid: this.uid, error, description, bare, label })}
           ${hasSuggestions ? `list="${this._datalistId}" autocomplete="off"` : ''}
         />
         ${hasSuggestions ? `<datalist id="${this._datalistId}">${
           this._suggestions.map(s => `<option value="${escapeAttr(s)}"></option>`).join('')
-        }</datalist>` : ''}
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        }</datalist>` : ''}`,
+    });
   }
 
   protected onUpdated() {
@@ -92,7 +100,12 @@ export class BInput extends BaseComponent {
     this.listen(input, 'input', (e: Event) => {
       this._value = (e.target as HTMLInputElement).value;
       this.emit('change', { name: this.attr('name'), value: this._value });
+      this.syncFormState();
     });
+
+    // Re-sync after every render, not just on input: the value may have been restored above, and the
+    // `error` / `required` / `min` / `step` attributes that drive validity can change between renders.
+    this.syncFormState();
   }
 
   get value(): string { return this.inputValue; }
@@ -106,6 +119,7 @@ export class BInput extends BaseComponent {
     this._value = v;
     const input = this.$<HTMLInputElement>('input');
     if (input) input.value = v;
+    this.syncFormState();
   }
 }
 

@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { formFieldSheet } from '../shared-styles';
-import { renderLabel } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 import { isActivationKey } from '../dom-utils';
 
 export interface UploadFile {
@@ -27,7 +27,8 @@ export class BFileUpload extends BaseComponent {
   static get observedAttributes() {
     return ['accept', 'multiple', 'max-size', 'max-files', 'disabled', 'label', 'endpoint',
             'label-drop', 'label-drop-more', 'label-drop-empty', 'label-max', 'label-pending',
-            'label-error', 'label-too-large', 'label-upload-failed', 'label-network-error', 'label-remove', 'hint'];
+            'label-error', 'label-too-large', 'label-upload-failed', 'label-network-error', 'label-remove', 'hint',
+            'error', 'required', 'description', 'bare'];
   }
 
   private _files: UploadFile[] = [];
@@ -53,6 +54,9 @@ export class BFileUpload extends BaseComponent {
         cursor: pointer;
         transition: border-color var(--b-transition, 150ms ease), background var(--b-transition, 150ms ease);
       }
+      /* Error state, to match the other controls: the class is set whenever the error attribute is, so it
+         has to paint something or it is dead markup. */
+      .dropzone.has-error { border-color: var(--b-color-danger); }
       .dropzone:focus-visible {
         outline: none;
         border-color: var(--b-color-primary);
@@ -170,11 +174,24 @@ export class BFileUpload extends BaseComponent {
     const lDropEmpty = this.label('label-drop-empty', 'bwc.fileUpload.dropEmpty', 'Drop files here or click to browse');
 
     const fieldHint = this.attr('hint');
-    return `
-      <div class="field">
-        ${renderLabel(label, fieldHint, this.boolAttr('required'))}
-        <div class="dropzone ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}"
+    const error = this.attr('error');
+    const required = this.boolAttr('required');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: fieldHint,
+      error,
+      required,
+      description,
+      // ARIA on the dropzone — it is the focusable widget. No `label` passed: the dropzone already
+      // carries its own aria-label ("Choose files") on the next line.
+      control: `
+        <div class="dropzone ${error ? 'has-error' : ''} ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}"
              role="button" tabindex="${disabled ? '-1' : '0'}"
+             ${fieldAria({ uid: this.uid, error, required, description, bare })}
              aria-label="${this.label('label-browse', 'bwc.fileUpload.browse', 'Choose files')}">
           <input type="file"
                  ${accept !== '*' ? `accept="${accept}"` : ''}
@@ -189,9 +206,8 @@ export class BFileUpload extends BaseComponent {
                  <span class="dz-hint">${sizeHint}</span>`
           }
         </div>
-        ${hasFiles ? `<div class="file-list">${this._files.map(f => this._renderFile(f)).join('')}</div>` : ''}
-      </div>
-    `;
+        ${hasFiles ? `<div class="file-list">${this._files.map(f => this._renderFile(f)).join('')}</div>` : ''}`,
+    });
   }
 
   private _renderFile(f: UploadFile): string {

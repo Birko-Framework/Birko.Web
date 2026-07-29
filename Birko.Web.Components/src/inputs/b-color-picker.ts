@@ -1,6 +1,6 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 const DEFAULT_RGB = '#000000';
 
@@ -32,9 +32,9 @@ const DEFAULT_RGB = '#000000';
  *               canonical. Bad hex typed into the text field snaps back on commit.
  * Both carry `{ name, value }` with `value` normalized to lowercase hex.
  */
-export class BColorPicker extends BaseComponent {
+export class BColorPicker extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'alpha', 'swatch-only', 'compact', 'error', 'hint', 'required', 'disabled'];
+    return ['label', 'name', 'value', 'placeholder', 'alpha', 'swatch-only', 'compact', 'error', 'hint', 'required', 'disabled', 'bare', 'description'];
   }
 
   static get sharedStyles() {
@@ -175,19 +175,31 @@ export class BColorPicker extends BaseComponent {
     const { rgb, a } = this._currentParts();
     const value = this._format(rgb, a);
     const placeholder = this.label('placeholder', 'bwc.colorPicker.placeholder', this._alpha ? '#RRGGBBAA' : '#RRGGBB');
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="color-control">
           <input class="swatch" type="color" value="${rgb}"
             ${swatchOnly ? `name="${this.attr('name')}"` : ''}
             ${disabled ? 'disabled' : ''}
-            aria-label="${this.label('label-swatch', 'bwc.colorPicker.swatch', 'Pick a color')}" />
+            aria-label="${this.label('label-swatch', 'bwc.colorPicker.swatch', 'Pick a color')}"
+            ${/* swatch-only mode omits the .hex box below, which is where the field's ARIA normally lives —
+                  without this the control would have no error state, description or invalid flag at all.
+                  No `label`: the swatch already has its own aria-label just above. */
+              swatchOnly ? fieldAria({ uid: this.uid, error, description, bare }) : ''} />
           ${swatchOnly ? '' : `<input type="text" inputmode="text" spellcheck="false" autocomplete="off"
             class="hex ${error ? 'has-error' : ''}"
             name="${this.attr('name')}" value="${value}" placeholder="${placeholder}"
             ${disabled ? 'disabled' : ''} ${this.boolAttr('required') ? 'required' : ''}
-            ${fieldAria({ uid: this.uid, error })} />`}
+            ${fieldAria({ uid: this.uid, error, description, bare, label })} />`}
         </div>
         ${this._alpha ? `
         <div class="alpha-control" style="--b-cp-rgb:${rgb}">
@@ -195,10 +207,9 @@ export class BColorPicker extends BaseComponent {
             ${disabled ? 'disabled' : ''}
             aria-label="${this.label('label-alpha', 'bwc.colorPicker.alpha', 'Opacity')}" />
           <output class="alpha-out">${this._pct(a)}%</output>
-        </div>` : ''}
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>` : ''}`,
+    });
+
   }
 
   // ── Hex parsing / formatting ──
@@ -281,6 +292,8 @@ export class BColorPicker extends BaseComponent {
   }
 
   protected onUpdated() {
+    this.syncFormState();
+
     const swatch = this.$<HTMLInputElement>('.swatch');
     const hex = this.$<HTMLInputElement>('.hex');
     const alpha = this.$<HTMLInputElement>('.alpha');
@@ -336,6 +349,22 @@ export class BColorPicker extends BaseComponent {
       });
       this.listen(alpha, 'change', e => { contain(e); this._commit(this._compose()); });
     }
+  }
+
+  /**
+   * Submits the **base hex** (`#rrggbb`) — the alpha byte is dropped even in `alpha` mode. `value` still
+   * returns the full `#rrggbbaa` so nothing on the JS side changes; this only decides what a native form
+   * post carries, and a bare 6-digit hex is what colour columns and CSS consumers expect. Read
+   * `el.value` when the opacity matters.
+   */
+  protected formValue(): string | null {
+    const { rgb } = this._currentParts();
+    return rgb === '' ? null : rgb;
+  }
+
+  /** The `.swatch` is `<input type="color">` — never empty, never invalid, so its validity says nothing. */
+  protected validationSource(): undefined {
+    return undefined;
   }
 
   get value(): string { return this._current(); }

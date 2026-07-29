@@ -1,6 +1,6 @@
-import { BaseComponent, define, t } from 'birko-web-core';
+import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 const DAYS_IN_WEEK = 7;
 
@@ -41,7 +41,7 @@ const DAY_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 /** Global locale defaults — set once via BDatePicker.setLocale(). */
 let _globalLocale: { months?: string[]; days?: string[]; today?: string; clear?: string } = {};
 
-export class BDatePicker extends BaseComponent {
+export class BDatePicker extends FormControlComponent {
 
   /** Set global locale for all date pickers (call once on app init). */
   static setLocale(locale: { months?: string[]; days?: string[]; today?: string; clear?: string }) {
@@ -49,7 +49,7 @@ export class BDatePicker extends BaseComponent {
   }
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'required', 'hint',
-            'min', 'max', 'native',
+            'min', 'max', 'native', 'bare', 'description',
             'label-today', 'label-clear', 'label-months', 'label-days'];
   }
 
@@ -243,55 +243,69 @@ export class BDatePicker extends BaseComponent {
 
   private _renderNative(): string {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const disabled = this.boolAttr('disabled');
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      control: `
         <input type="date"
                name="${this.attr('name')}"
                class="${error ? 'has-error' : ''}"
                value="${value ?? ''}"
                ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
-               ${this.boolAttr('required') ? 'required' : ''}
-               ${fieldAria({ uid: this.uid, error })}
-               ${disabled ? 'disabled' : ''} />
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+               ${required ? 'required' : ''}
+               ${fieldAria({ uid: this.uid, error, description, bare, label })}
+               ${disabled ? 'disabled' : ''} />`,
+    });
   }
 
   private _renderCustom(): string {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.label('placeholder', 'bwc.date.placeholder', 'YYYY-MM-DD');
     const disabled = this.boolAttr('disabled');
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      // `.dp-panel` is the calendar popover, resolved by selector and positioned against `.dp-wrap` —
+      // part of the control, so it survives bare mode.
+      control: `
         <div class="dp-wrap">
           <input class="dp-input ${error ? 'has-error' : ''}"
                  type="text" readonly
                  name="${this.attr('name')}"
                  value="${this._formatDisplay(value ?? '')}"
                  placeholder="${placeholder}"
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  ${disabled ? 'disabled' : ''} />
           ${value && !disabled ? '<button class="dp-clear" type="button">&times;</button>' : ''}
         </div>
         <div class="dp-panel ${this._open ? 'open' : ''}">
           ${this._monthPicker ? this._renderMonthPicker() : this._renderCalendar()}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
   }
 
   private _renderCalendar(): string {
@@ -381,6 +395,10 @@ export class BDatePicker extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Before the native/custom split and its early returns: the value lives in the `value` attribute
+    // and is changed by panel clicks and `inputValue`, all of which re-render.
+    this.syncFormState();
+
     if (this.boolAttr('native')) {
       this._wireNative();
       return;
@@ -576,6 +594,17 @@ export class BDatePicker extends BaseComponent {
     const parsed = parseDate(iso);
     if (!parsed) return iso;
     return `${pad(parsed.day)}.${pad(parsed.month + 1)}.${parsed.year}`;
+  }
+
+  /**
+   * The inner `.dp-input` is a read-only *display* input holding a formatted string (`YYYY-MM-DD as shown to the user`), not the
+   * ISO value the control submits — mirroring its native validity would report on the wrong text. The
+   * base's generic `required` check reads {@link formValue} instead.
+   */
+  protected validationSource(): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined {
+    // `native` mode renders a real <input type="date"> — its min/max/required validity is the browser's
+    // and worth mirroring. Only the custom panel needs the fallback.
+    return this.boolAttr('native') ? super.validationSource() : undefined;
   }
 }
 

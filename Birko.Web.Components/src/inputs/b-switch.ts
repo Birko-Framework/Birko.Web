@@ -1,9 +1,9 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { formToggleSheet } from '../shared-styles';
 
-export class BSwitch extends BaseComponent {
+export class BSwitch extends FormControlComponent {
   static get observedAttributes() {
-    return ['checked', 'disabled', 'name', 'label', 'hint'];
+    return ['checked', 'disabled', 'name', 'label', 'hint', 'value', 'required'];
   }
 
   static get sharedStyles() {
@@ -68,6 +68,7 @@ export class BSwitch extends BaseComponent {
         <input type="checkbox" role="switch"
                ${checked ? 'checked' : ''}
                ${disabled ? 'disabled' : ''}
+               ${this.boolAttr('required') ? 'required' : ''}
                name="${this.attr('name')}"
                ${label ? `aria-label="${label}"` : ''} />
         <span class="track"><span class="thumb"></span></span>
@@ -95,8 +96,29 @@ export class BSwitch extends BaseComponent {
         this.removeAttribute('checked');
       }
       this.emit('change', { name: this.attr('name'), checked: inp.checked });
+      this.syncFormState();
     });
+
+    this.syncFormState();
   }
+
+  /**
+   * Native checkbox submit semantics: the `value` attribute (defaulting to `on`) **only when checked**,
+   * and no `FormData` entry at all when unchecked.
+   *
+   * Deliberately different from `value` / `inputValue`, which keep returning `'true'` / `'false'`. Nothing
+   * in the framework or any consumer reads `.value` on a toggle — `b-form._getFieldValue` and every
+   * consumer read `.checked` — so realigning it would be churn with no benefit, while submitting
+   * `name=false` for an unchecked switch would silently mis-bind on the server (an unchecked box must be
+   * *absent*, which is how `bool` model binding detects false).
+   *
+   * `required` is forwarded to the inner input, so the browser's own "must be checked" rule applies.
+   */
+  protected formValue(): string | null {
+    if (!this.checked) return null;
+    return this.getAttribute('value') ?? 'on';
+  }
+
 
   get checked(): boolean {
     return this.boolAttr('checked');
@@ -116,6 +138,21 @@ export class BSwitch extends BaseComponent {
   /** Unified interface — returns 'true'/'false' string */
   get inputValue(): string { return String(this.checked); }
   set inputValue(v: string) { this.checked = v === 'true' || v === '1'; }
+
+  /**
+   * A reset restores **checkedness**, not `value` — the base default would feed the `value` attribute
+   * through the `value` setter (which reads `'true'`/`'1'`) and so uncheck a `<b-switch value="yes" checked>`.
+   */
+  protected captureInitialState(): unknown {
+    return this.hasAttribute('checked');
+  }
+
+  protected restoreInitialState(state: unknown): void {
+    if (state) this.setAttribute('checked', '');
+    else this.removeAttribute('checked');
+    const input = this.$<HTMLInputElement>('input');
+    if (input) input.checked = !!state;
+  }
 }
 
 define('b-switch', BSwitch);

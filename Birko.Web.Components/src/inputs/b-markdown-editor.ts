@@ -1,14 +1,14 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { FormControlComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 export type MarkdownRenderer = (markdown: string) => string;
 
-export class BMarkdownEditor extends BaseComponent {
+export class BMarkdownEditor extends FormControlComponent {
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'required', 'hint',
-            'mode', 'readonly', 'rows'];
+            'mode', 'readonly', 'rows', 'bare', 'description'];
   }
 
   static get sharedStyles() {
@@ -208,10 +208,20 @@ export class BMarkdownEditor extends BaseComponent {
     const lSplit = this.label('label-split', 'bwc.markdown.split', 'Split');
     const lSource = this.label('label-source', 'bwc.markdown.source', 'Source');
     const lPreview = this.label('label-preview', 'bwc.markdown.preview', 'Preview');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      // Pre-escaped: renderError does not escape, and this component's error text has always been
+      // escaped at the call site. renderField forwards it verbatim, so keep doing that here.
+      error: error ? escapeHtml(error) : error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="editor-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <div class="toolbar" ${readonly ? 'style="display:none"' : ''}>
             <div class="toolbar-group">
@@ -263,16 +273,15 @@ export class BMarkdownEditor extends BaseComponent {
                       rows="${rows}"
                       ${disabled ? 'disabled' : ''}
                       ${readonly ? 'readonly' : ''}
-                      ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                      ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label })}
             >${escapeHtml(this._source)}</textarea>
             <div class="preview">
               <div class="preview-content">${rendered}</div>
             </div>
           </div>
-        </div>
-        ${renderError(this.uid, error ? escapeHtml(error) : error)}
-      </div>
-    `;
+        </div>`,
+    });
+
   }
 
   protected onMount() {
@@ -281,6 +290,10 @@ export class BMarkdownEditor extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Submits the markdown SOURCE, never the rendered preview HTML — `formValue()`'s default reads
+    // `value`, which is `_source`. Synced here so preview/source mode switches keep it current.
+    this.syncFormState();
+
     const textarea = this.$<HTMLTextAreaElement>('textarea.source');
     const previewDiv = this.$<HTMLElement>('.preview-content');
     const disabled = this.boolAttr('disabled');
@@ -294,6 +307,7 @@ export class BMarkdownEditor extends BaseComponent {
         this._source = textarea.value;
         if (previewDiv) previewDiv.innerHTML = this._renderMarkdown(this._source);
         this.emit('change', { name: this.attr('name'), value: this._source });
+        this.syncFormState();
       });
 
       this.listen(textarea, 'blur', () => {

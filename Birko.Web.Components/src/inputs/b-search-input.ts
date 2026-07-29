@@ -37,7 +37,16 @@ export class BSearchInput extends BaseComponent {
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      input {
+      /* The icon and the clear button are absolutely positioned ON TOP of the input, so the input needs a
+         left/right inset to keep the query text clear of them.
+         Repeated per size on purpose: formControlSheet's size variants set "padding" (the SHORTHAND),
+         which resets padding-left/right, and :host([size="sm"]) input (0,1,1) outranks a bare
+         "input" (0,0,1) — so without these the inset collapses to the shorthand's 0.5rem and the text
+         runs under the search icon. Reported from the Playground at size="sm".
+         NOTE: no backticks in here — this block lives inside a template literal. */
+      input,
+      :host([size="sm"]) input,
+      :host([size="lg"]) input {
         padding-left: var(--b-space-xl, 1.5rem);
         padding-right: var(--b-space-xl, 1.5rem);
       }

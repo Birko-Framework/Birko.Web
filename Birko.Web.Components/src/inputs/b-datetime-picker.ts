@@ -1,6 +1,6 @@
-import { BaseComponent, define, t } from 'birko-web-core';
+import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 const DAYS_IN_WEEK = 7;
 
@@ -53,7 +53,7 @@ const DAY_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
 let _globalLocale: { months?: string[]; days?: string[]; today?: string; clear?: string; now?: string } = {};
 
-export class BDatetimePicker extends BaseComponent {
+export class BDatetimePicker extends FormControlComponent {
 
   static setLocale(locale: { months?: string[]; days?: string[]; today?: string; clear?: string; now?: string }) {
     _globalLocale = locale;
@@ -61,7 +61,7 @@ export class BDatetimePicker extends BaseComponent {
 
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'required', 'hint',
-            'min', 'max', 'label-today', 'label-clear', 'label-months', 'label-days'];
+            'min', 'max', 'bare', 'description', 'label-today', 'label-clear', 'label-months', 'label-days'];
   }
 
   static get sharedStyles() {
@@ -273,31 +273,39 @@ export class BDatetimePicker extends BaseComponent {
 
   render() {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.label('placeholder', 'bwc.datetime.placeholder', 'YYYY-MM-DD HH:mm');
     const disabled = this.boolAttr('disabled');
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      // `.dp-panel` is the calendar popover, resolved by selector and positioned against `.dp-wrap` —
+      // part of the control, so it survives bare mode.
+      control: `
         <div class="dp-wrap">
           <input class="dp-input ${error ? 'has-error' : ''}"
                  type="text" readonly
                  name="${this.attr('name')}"
                  value="${this._formatDisplay(value ?? '')}"
                  placeholder="${placeholder}"
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  ${disabled ? 'disabled' : ''} />
           ${value && !disabled ? '<button class="dp-clear" type="button">&times;</button>' : ''}
         </div>
         <div class="dp-panel ${this._open ? 'open' : ''}">
           ${this._monthPicker ? this._renderMonthPicker() : this._renderCalendar()}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
   }
 
   private _renderCalendar(): string {
@@ -387,6 +395,10 @@ export class BDatetimePicker extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Before the early returns below: the value lives in the `value` attribute and every change
+    // (panel click, clear button, `inputValue`) re-renders.
+    this.syncFormState();
+
     const input = this.$<HTMLInputElement>('.dp-input');
     const panel = this.$<HTMLElement>('.dp-panel');
     if (!input || !panel) return;
@@ -615,6 +627,15 @@ export class BDatetimePicker extends BaseComponent {
     const parsed = parseDateTime(iso);
     if (!parsed) return iso;
     return `${pad(parsed.day)}.${pad(parsed.month + 1)}.${parsed.year} ${pad(parsed.hour)}:${pad(parsed.minute)}`;
+  }
+
+  /**
+   * The inner `.dp-input` is a read-only *display* input holding a formatted string (`YYYY-MM-DD HH:mm`), not the
+   * ISO value the control submits — mirroring its native validity would report on the wrong text. The
+   * base's generic `required` check reads {@link formValue} instead.
+   */
+  protected validationSource(): undefined {
+    return undefined;
   }
 }
 

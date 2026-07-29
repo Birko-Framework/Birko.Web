@@ -1,10 +1,10 @@
-import { BaseComponent, define, escapeHtml } from 'birko-web-core';
+import { FormControlComponent, define, escapeHtml } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
-export class BTextarea extends BaseComponent {
+export class BTextarea extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'rows', 'hint'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'rows', 'hint', 'description', 'bare'];
   }
 
   static get sharedStyles() {
@@ -20,23 +20,29 @@ export class BTextarea extends BaseComponent {
 
   render() {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      control: `
         <textarea
           name="${this.attr('name')}"
           placeholder="${this.attr('placeholder')}"
           rows="${this.numAttr('rows', 4)}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
-          ${this.boolAttr('required') ? 'required' : ''}
-          ${fieldAria({ uid: this.uid, error })}
-        >${escapeHtml(this.attr('value'))}</textarea>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+          ${required ? 'required' : ''}
+          ${fieldAria({ uid: this.uid, error, description, bare, label })}
+        >${escapeHtml(this.attr('value'))}</textarea>`,
+    });
   }
 
   protected onUpdated() {
@@ -44,7 +50,9 @@ export class BTextarea extends BaseComponent {
     if (textarea) this.listen(textarea, 'input', (e: Event) => {
       const value = (e.target as HTMLTextAreaElement).value;
       this.emit('change', { name: this.attr('name'), value });
+      this.syncFormState();
     });
+    this.syncFormState();
   }
 
   get value(): string { return this.inputValue; }
@@ -57,6 +65,7 @@ export class BTextarea extends BaseComponent {
   set inputValue(v: string) {
     const textarea = this.$<HTMLTextAreaElement>('textarea');
     if (textarea) textarea.value = v;
+    this.syncFormState();
   }
 }
 

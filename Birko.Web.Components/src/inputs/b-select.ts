@@ -1,6 +1,6 @@
-import { BaseComponent, define, escapeHtml, matchesSearch } from 'birko-web-core';
+import { FormControlComponent, define, escapeHtml, matchesSearch } from 'birko-web-core';
 import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 interface Option {
   value: string;
@@ -8,9 +8,9 @@ interface Option {
   group?: string;
 }
 
-export class BSelect extends BaseComponent {
+export class BSelect extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'allow-free-text', 'label-no-matches', 'hint'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'allow-free-text', 'label-no-matches', 'hint', 'description', 'bare'];
   }
 
   private _options: Option[] = [];
@@ -141,6 +141,17 @@ export class BSelect extends BaseComponent {
     } else {
       this._wireNative();
     }
+    this.syncFormState();
+  }
+
+  /**
+   * In searchable mode the inner `.combo-input` holds the selected option's **label**, not the value —
+   * mirroring its native validity would report on the wrong string (and it is never `required`). Fall
+   * back to the base's generic `required` check, which reads {@link formValue}.
+   */
+  protected validationSource(): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined {
+    if (this.boolAttr('searchable')) return undefined;
+    return super.validationSource();
   }
 
   protected update(): void {
@@ -153,21 +164,27 @@ export class BSelect extends BaseComponent {
 
   private _renderNative(): string {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.attr('placeholder');
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      control: `
         <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}
-                ${this.boolAttr('required') ? 'required' : ''} ${fieldAria({ uid: this.uid, error })}>
+                ${required ? 'required' : ''} ${fieldAria({ uid: this.uid, error, description, bare, label })}>
           ${placeholder ? `<option value="" disabled ${!value ? 'selected' : ''}>${placeholder}</option>` : ''}
           ${this._renderNativeOptions(value)}
-        </select>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </select>`,
+    });
   }
 
   private _wireNative() {
@@ -177,6 +194,7 @@ export class BSelect extends BaseComponent {
         const value = (e.target as HTMLSelectElement).value;
         this.setAttribute('value', value);
         this.emit('change', { name: this.attr('name'), value });
+        this.syncFormState();
       });
     }
   }
@@ -206,7 +224,6 @@ export class BSelect extends BaseComponent {
 
   private _renderSearchable(): string {
     const label = this.attr('label');
-    const hint = this.attr('hint');
     const error = this.attr('error');
     const value = this.attr('value');
     const placeholder = this.attr('placeholder', 'Select...');
@@ -220,25 +237,34 @@ export class BSelect extends BaseComponent {
       ? this._options.filter(o => matchesSearch(o.label, this._filter))
       : this._options;
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    const description = this.attr('description');
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint: this.attr('hint'),
+      description,
+      error,
+      required,
+      // The `.dropdown` popover belongs to the control, not the chrome — `_openDropdown` resolves it
+      // by selector, so it must remain a sibling of `.combo` in bare mode.
+      control: `
         <div class="combo combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <input class="combo-input" type="text"
                  value="${escapeHtml(this._filter || selectedLabel)}"
                  placeholder="${escapeHtml(value ? selectedLabel : placeholder)}"
                  ${disabled ? 'disabled' : ''}
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  autocomplete="off" />
           ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
         <div class="dropdown" popover="manual">
           ${this._renderOptionsHtml(filtered, value)}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
   }
 
   private _wireSearchable() {
@@ -398,6 +424,7 @@ export class BSelect extends BaseComponent {
     this._skipNextUpdate = false;
 
     this.emit('change', { name: this.attr('name'), value: val });
+    this.syncFormState();
   }
 
   // ── Options rendering ──

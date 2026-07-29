@@ -1,6 +1,6 @@
-import { BaseComponent, define, t } from 'birko-web-core';
+import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
-import { renderLabel, renderError, fieldAria } from './label-hint';
+import { renderField, fieldAria } from './label-hint';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -18,7 +18,7 @@ function parseTime(s: string): { hour: number; minute: number } | null {
 
 let _globalLocale: { now?: string; clear?: string } = {};
 
-export class BTime extends BaseComponent {
+export class BTime extends FormControlComponent {
 
   static setLocale(locale: { now?: string; clear?: string }) {
     _globalLocale = locale;
@@ -26,7 +26,7 @@ export class BTime extends BaseComponent {
 
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'required', 'hint',
-            'min', 'max', 'step'];
+            'min', 'max', 'step', 'bare', 'description'];
   }
 
   static get sharedStyles() {
@@ -166,26 +166,33 @@ export class BTime extends BaseComponent {
     const value = this.attr('value');
     const placeholder = this.label('placeholder', 'bwc.time.placeholder', 'HH:mm');
     const disabled = this.boolAttr('disabled');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
 
-    return `
-      <div class="field">
-        ${renderLabel(label, hint, this.boolAttr('required'))}
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
         <div class="tp-wrap">
           <input class="tp-input ${error ? 'has-error' : ''}"
                  type="text" readonly
                  name="${this.attr('name')}"
                  value="${value ?? ''}"
                  placeholder="${placeholder}"
-                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required') })}
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label })}
                  ${disabled ? 'disabled' : ''} />
           ${value && !disabled ? '<button class="tp-clear" type="button">&times;</button>' : ''}
         </div>
         <div class="tp-panel ${this._open ? 'open' : ''}">
           ${this._renderPanel()}
-        </div>
-        ${renderError(this.uid, error)}
-      </div>
-    `;
+        </div>`,
+    });
+
   }
 
   private _renderPanel(): string {
@@ -212,6 +219,10 @@ export class BTime extends BaseComponent {
   }
 
   protected onUpdated() {
+    // Before the early returns below: the value lives in the `value` attribute and every change
+    // (panel click, clear button, `inputValue`) re-renders.
+    this.syncFormState();
+
     const input = this.$<HTMLInputElement>('.tp-input');
     const panel = this.$<HTMLElement>('.tp-panel');
     if (!input || !panel) return;
@@ -401,6 +412,15 @@ export class BTime extends BaseComponent {
     if (!el) return;
     el.innerHTML = this._renderPanel();
     this._wirePanel(el);
+  }
+
+  /**
+   * The inner `.tp-input` is a read-only *display* input holding a formatted string (`HH:mm`), not the
+   * ISO value the control submits — mirroring its native validity would report on the wrong text. The
+   * base's generic `required` check reads {@link formValue} instead.
+   */
+  protected validationSource(): undefined {
+    return undefined;
   }
 }
 
