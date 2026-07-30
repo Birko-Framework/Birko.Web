@@ -351,7 +351,7 @@ the same as their `.value`:
 ### Layout (13)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
-| `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|lg\|xl) |
+| `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|md\|lg\|xl) |
 | `<b-accordion>` | BAccordion | `setItems([{id,header,open?,disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()` | `multiple` (allow several open), `size` (sm\|md\|lg — header footprint); body via `slot="{id}"`; event `toggle` `{id,open}` |
 | `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |
 | `<b-toolbar>` | BToolbar | — | `label` (aria-label); default slot (clusters, gap + wrap) + `end` slot (pushed to far edge) |
@@ -692,6 +692,86 @@ sizes `<dialog>` as `fit-content`, which beats the inset rectangle and collapsed
 in review: a "full" modal measured 102×142px). `min-width` is reset to 0 (the default `min(25rem, 95vw)` can
 exceed the inset box on narrow screens) and below 640px the gutter drops to 0 with square corners. Not added to `b-drawer` —
 a viewport-wide drawer *is* a modal. Shell's `modalSize` accepts `'full'` (`base-form-modal`, `base-crud-page`).
+
+### `b-card`: the missing `md` rung, elevation as a token — and a layout attribute deliberately not added (2026-07-30)
+
+From Reps TASK-089 (framework `TASK-105`). Two additive changes, both backwards compatible:
+`padding="md"` (the scale was `none / sm / lg / xl` while `--b-space-md` existed and this very component
+already padded its *header* with it, so a card wanting the 12px rung had to round up), and
+**`--b-card-shadow`**, defaulting to `var(--b-shadow-sm)`. The component already exposed
+`--b-card-header-bg` / `--b-card-header-text`, so it had already decided consumers may retint parts of it;
+fixing the elevation while exposing the header colour was an inconsistent line to draw, and the only
+alternative open to a consumer — overriding `--b-shadow-sm` — flattens every other component in scope.
+
+**The more useful record is what was refused.** Slotted children land in a plain padded body (`b-card`'s
+flex container is inside its shadow root), so every consumer wanting a stacked card writes a light-DOM
+wrapper for the gap. `layout="column" gap="md"` was rejected: **a card is chrome — background, border,
+radius, elevation — and how its contents stack is the contents' business.** A card that can be column or
+row with any gap is a styled `div`, and the attribute surface has no natural end (`align-items` next, then
+a row-gap that differs from the column-gap). The need is also **not card-specific** — Reps wants the same
+stack in a transparent hero, in settings blocks and in list rows, none of which are cards — so a
+card-scoped answer fixes one context and leaves the other three hand-rolling. The workaround is one line of
+flexbox; measured against the backports that earned their place (safe-area insets, diacritic folding, the
+windowed offline mirror, the iOS focus-zoom floor — all things a consumer got *wrong* or would rediscover
+the hard way), a flex column is neither. If revisited, the question is whether the catalogue wants a
+**stack/cluster primitive**, not whether `b-card` wants an attribute.
+
+That rejection leaves a real question standing, filed as framework `TASK-106` rather than answered here:
+the general form is "I cannot style into a component's shadow root", whose platform answer is **`::part`**
+— which currently appears in exactly one component (`b-sidebar`'s `part="brand"`), i.e. it is a one-off,
+not a convention. Whether the catalogue commits to it is an API-surface decision (every exposed part is a
+selector consumers write, so it cannot be renamed later without breaking them silently at runtime), and it
+should not be settled as a side effect of a card tweak. **No parts were added to `b-card`.**
+
+Also worth keeping: the smoke checks were **proven to fail** by removing the two changes and re-running —
+126/131, and exactly the five fix-dependent checks broke while the five back-compat ones stayed green.
+That split is what makes the back-compat checks meaningful rather than restatements of the fix.
+
+### `b-chart` y axis: density follows the height, values are round, the band is not hostage to either (2026-07-30)
+
+From Reps TASK-092 (framework TASK-104). `b-chart` was tuned for a 300px canvas — `const yTicks = 5` written
+out twice, plus raw band fractions for labels — and the Progress surface it was adopted on is made entirely of
+90–150px cards. Six labels stacked in 78px, reading `0, 2271, 4543, 6814, 9086, 11357`.
+
+Three things now vary where one number used to be hard-coded. `tickIntervalsForHeight(plotPx)` derives the
+count (~one gridline per 50px, **capped at 5** so a full-size chart keeps the axis it always had, and a taller
+one does not suddenly grow a denser one); `yAxis.ticks` overrides it with a target *label* count; `niceScale()`
+snaps the values to 1/2/2.5/5×10ⁿ. All three are exported — the maths is assertable without a DOM, which is
+what the playground smoke leans on.
+
+Two decisions inside `niceScale` that are the whole reason it behaves:
+
+- **The band is rounded at a fixed density, not the height-derived one.** Tie them together and a short chart
+  pays for its sparse axis in plot area: an 11 357 peak asked for one interval rounds up to 20 000, and the
+  bars stop at 57% of an empty plot. Decoupled, every height shares the 0–12 000 band and only the labels thin
+  out — which also means a 90px copy of a chart stays comparable with its 300px one.
+- **A bound the caller passed is never extended.** `yAxis: { min, max }` is drawn exactly as given and the
+  round ticks land *inside* it. Reps' body charts pass a deliberately tight band; rounding 79.7–81.8 out to
+  78–82 shows half the movement the chart exists to show. Only bounds b-chart derived itself may move.
+
+Step choice is **smallest-that-fits**, not nearest-to-target — "nearest" picks a 10 000 step for an 11 357 peak
+asked for two intervals: exactly two intervals, three quarters of the plot empty. So the count is a target, not
+a promise; expect ±1.
+
+Also in the same pass: `showLatestValue` is a top-level option (the bold last-value label previously could only
+be suppressed by passing a `realTime` block — opting into a different, canvas-windowed mode to turn off a
+label; the old spelling still works and the new one wins); bar charts include **threshold values in their auto
+range**, as the line renderer already did, so a goal line above every bar stops being drawn at a negative y and
+painted on the card by the `overflow: visible` SVG.
+
+**The threshold-label defect was paint order, and only a screenshot of the real surface found it.** The report
+reads as a placement complaint ("the label sits at `x = ml + 4` and overlaps the leftmost bars"), and a halo
+shipped first on that reading. The capture showed `cieľ 10000` with a bar running between the `cie` and the
+`ľ`: the label was emitted *with* its line, before the bars, so every bar that reached the threshold painted
+over its own label — and over the halo with it. `_thresholdSvg` now returns lines and labels **separately**
+and they sit on opposite sides of the data: the line behind (it is a level the series is measured against),
+the label in front (it is chrome and has to stay readable). The canvas renderer had the same bug and defers
+its labels the same way. The halo stays, and now does its job. **The general rule: a "label overlaps X"
+report is a z-order question before it is a coordinates question** — and it is invisible in a test that only
+asserts the label exists, so two smoke checks assert the DOM order instead.
+
+Default behaviour changes for **every** chart, deliberately: tick values are now rounded and an auto band is
+extended to the rounded bound. `yAxis: { nice: false }` restores the raw equal-split axis.
 
 ### `b-chart` overlay bars — the target-vs-actual shape (2026-07-29)
 

@@ -681,9 +681,19 @@ Slot: default (badge text).
 |-------|--------|
 | `point-click` | `{ seriesId, index, point }` |
 
-`ChartOptions`: `xAxis`, `yAxis` (`min`/`max` override the computed band), `tooltip`, `stacked`, `overlay`
-(bar mode — superimpose series at full category width for target-vs-actual; background series first),
-`thresholds`, `realTime`.
+`ChartOptions`: `xAxis`, `yAxis`, `tooltip`, `stacked`, `overlay` (bar mode — superimpose series at full
+category width for target-vs-actual; background series first), `thresholds`, `showLatestValue` (bold last
+value beside each series' final point — default `true`; the `realTime.showLatestValue` spelling still works
+and this one wins over it), `realTime`.
+
+`yAxis`: `label`, `min`/`max` (pin the band — a pinned bound is drawn exactly as given and never rounded
+outwards), `gridLines`, `ticks` (target label count; omit and it is derived from the plot height — 6 at 300px,
+2 at 90px), `nice` (round tick values to 1/2/2.5/5×10ⁿ and extend an auto-derived bound onto one — default
+`true`; `false` restores the raw equal-split band).
+
+The axis maths is exported for consumers that need to align their own scale to a chart's:
+`niceScale(min, max, targetIntervals, { extendMin?, extendMax? }) => AxisScale`,
+`tickIntervalsForHeight(plotHeightPx) => number`, `formatTick(value, decimals) => string`.
 
 ### `<b-pre>`
 Preformatted text block. Slot-based content.
@@ -822,9 +832,17 @@ Collapsible XML tree via DOMParser.
 | Attribute | Values |
 |-----------|--------|
 | `header` | string (card title) |
-| `padding` | `none` \| (default) |
+| `padding` | `none` \| `sm` \| `md` \| (default `lg`) \| `xl` — one rung each of the `--b-space-*` scale |
 
-Slots: default (body), `header` (custom header).
+Slots: default (body), `header` (custom header), `actions` (header right), `footer`.
+
+CSS custom properties: `--b-card-header-bg`, `--b-card-header-text`, `--b-card-shadow` (elevation;
+defaults to `var(--b-shadow-sm)` — set `none` for a flat card without neutralising `--b-shadow-sm` for
+everything else in scope).
+
+The card is **chrome** — background, border, radius, elevation. How its contents stack is the contents'
+business: there is deliberately no `layout` / `gap` / `direction` attribute, so a card whose children need a
+column with a gap wraps them in one element of its own. See `TASK-105` for why.
 
 ### `<b-button-group>`
 | Attribute | Values |

@@ -24,6 +24,7 @@ export { BKanban, type KanbanColumn, type KanbanCard, type KanbanConfig } from '
 export { createCellRenderers, type CellRenderers } from './cell-renderers.js';
 export {
   BChart,
+  niceScale, tickIntervalsForHeight, formatTick,
   type ChartData, type ChartSeries, type DataPoint, type ChartOptions,
-  type RealTimeOptions, type ThresholdLine,
+  type RealTimeOptions, type ThresholdLine, type AxisScale,
 } from './b-chart.js';

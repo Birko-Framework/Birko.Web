@@ -554,8 +554,28 @@ form.setSchema({
 </b-card>
 ```
 
-Attributes: `header`, `padding` (none|sm|lg|xl)
-Slots: default (body), `actions` (header right)
+Attributes: `header`, `padding` (none|sm|md|lg|xl — one rung each of the `--b-space-*` scale)
+Slots: default (body), `actions` (header right), `footer`
+
+**Elevation is a token.** `--b-card-shadow` defaults to `var(--b-shadow-sm)`; set it per instance (or on an
+ancestor) for a flat card, without neutralising `--b-shadow-sm` for every other component in scope:
+
+```html
+<b-card style="--b-card-shadow: none" padding="md">Flat, tighter card</b-card>
+```
+
+**No layout attribute, deliberately.** `b-card` is chrome — background, border, radius, elevation — and how its
+contents stack is the contents' business. Slotted children land in a plain padded body, so a card whose children
+need a column with a gap wraps them in one element of its own:
+
+```html
+<b-card padding="md">
+  <div class="card-stack"><!-- display:flex; flex-direction:column; gap:… --> … </div>
+</b-card>
+```
+
+That is one line of flexbox, it is not card-specific (the same stack is wanted in heroes, settings blocks and
+list rows that are not cards), and a card that can be column or row with any gap is a styled `div`.
 
 ### b-accordion
 
@@ -1039,6 +1059,25 @@ entry: the slot stays, the bar doesn't.
 **x labels are thinned** to ~8 across the axis in both bar and line mode, so a 90-day daily series doesn't print
 90 overlapping labels.
 
+**The y axis scales to the chart, and its values are round.** The tick count is derived from the plot height —
+6 labels on the default 300px chart, 3 at 130px, 2 at 90px — so a mini-chart on a phone-width card stops
+stacking six labels in 78px. Tick values snap to 1/2/2.5/5×10ⁿ and an **auto-derived** bound is extended onto
+one, so a steps series peaking at 11 357 reads `0 … 12000` instead of `0, 2271, 4543, 6814, 9086, 11357`.
+
+```typescript
+(el as BChart).setOptions({
+  yAxis: { ticks: 3 },          // target label count; omit to derive it from the height
+  yAxis: { nice: false },       // opt out — raw equal-split band, as before
+  showLatestValue: false,       // drop the bold last-value label (no realTime block needed)
+});
+```
+
+A bound you pass yourself is **never** rounded outwards — `yAxis: { min, max }` is drawn exactly as given, and
+the round tick values are placed *inside* it. That keeps a deliberately tight trend band tight: a 79.9→81.6 kg
+weight line widened to a 78–82 axis would show half the movement it exists to show. The band is also chosen at
+a fixed density rather than the height-derived one, so the same data lands on the same band at every height and
+a 90px copy of a chart stays comparable with its 300px one.
+
 ### b-kanban
 
 Kanban board with columns, drag-and-drop between cards/columns, keyboard navigation, and **recursive card nesting** (sub-tasks, three-zone drop targets, expand/collapse, depth-aware rendering).
@@ -1481,7 +1520,7 @@ For shell chrome (ribbon/header/footer) the shell renders for you, use the `head
 | Radius | `--b-radius-sm` (4px) → `--b-radius-xl` (16px), `--b-radius-full` (9999px) |
 | Typography | `--b-text-xs` (11px) → `--b-text-3xl` (30px), `--b-font` (body), `--b-font-heading` (titles — card/modal/drawer headers; defaults to `--b-font`), `--b-font-weight-medium/bold` |
 | Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows), `--b-table-row-height` (uniform header+body band height; defaults to `--b-control-min-height` = 38px) |
-| Card | `--b-card-header-bg`, `--b-card-header-text` (override per instance for an accent header band) |
+| Card | `--b-card-header-bg`, `--b-card-header-text` (override per instance for an accent header band), `--b-card-shadow` (elevation; defaults to `--b-shadow-sm`, set `none` for a flat card) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
 | Z-index | `--b-z-sticky` (200), `--b-z-dropdown` (220 — overlays sticky bars), `--b-z-modal` (400), `--b-z-toast` (500) |
 

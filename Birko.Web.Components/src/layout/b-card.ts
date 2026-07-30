@@ -8,7 +8,15 @@ export class BCard extends BaseComponent {
       :host { display: block; }
       .card {
         background: var(--b-bg-elevated); border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius-lg, 0.625rem); box-shadow: var(--b-shadow-sm);
+        border-radius: var(--b-radius-lg, 0.625rem);
+        /*
+         * Elevation is a per-instance axis (flat vs raised), so it is a card token rather than a baked-in
+         * value — the component already lets a consumer retint --b-card-header-bg / --b-card-header-text, and
+         * fixing the shadow while exposing the header colour is an inconsistent line to draw. The alternative,
+         * overriding --b-shadow-sm to flatten one card, silently flattens every other component in scope.
+         * Defaults to --b-shadow-sm, so an existing card is unchanged.
+         */
+        box-shadow: var(--b-card-shadow, var(--b-shadow-sm));
         overflow: hidden; display: flex; flex-direction: column;
       }
       .card-header {
@@ -21,9 +29,12 @@ export class BCard extends BaseComponent {
         display: flex; align-items: center; justify-content: space-between;
         flex-shrink: 0;
       }
+      /* none | sm | md | lg (default) | xl — the --b-space-* scale, one rung each. md was missing from an
+         otherwise complete ladder, so a card wanting the 12px rung had to round up to lg. */
       .card-body { padding: var(--b-space-lg, 1rem); flex: 1; }
       :host([padding="none"]) .card-body { padding: 0; }
       :host([padding="sm"]) .card-body { padding: var(--b-space-sm, 0.5rem); }
+      :host([padding="md"]) .card-body { padding: var(--b-space-md, 0.75rem); }
       :host([padding="xl"]) .card-body { padding: var(--b-space-xl, 1.5rem); }
       .card-footer {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
