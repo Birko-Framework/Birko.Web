@@ -401,7 +401,13 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   }
 
   protected override async _afterSaveComplete(entity: T, isEdit: boolean): Promise<void> {
-    this.reload();
+    // Awaited, not fire-and-forget. `reload()` starts an async table fetch; re-selecting the detail
+    // panel below starts another and calls `table.setActiveRow(...)` on the way. Left un-awaited the two
+    // interleave, so which rows the table ends up rendering depends on request ordering — the shape that
+    // makes a list row look "stale" only under load (Symbio TASK-298: the assertion failed in 2 of 4
+    // full-suite runs and never in isolation, and could not be reproduced on demand).
+    await this.reload();
+
     // Re-select the entity to refresh the detail panel
     if (isEdit && this._selectedId) {
       await this._selectEntity(this._selectedId);

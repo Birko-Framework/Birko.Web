@@ -954,11 +954,17 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    * caller; a plain `void` override (the common case) remains valid.
    */
   protected _afterSaveComplete(_entity: T, _isEdit: boolean): void | Promise<void> {
-    this.reload();
+    return this.reload();
   }
 
-  /** Reload the data table. */
-  protected reload(): void {
-    this.$<BDataTable>('#table')?.load();
+  /**
+   * Reload the data table. Returns the table's in-flight `load()` so callers can await the refreshed
+   * rows — `BDataTable.load()` is `async`, and dropping its promise made every reload fire-and-forget:
+   * an override that then awaited something else (see `base-split-page._afterSaveComplete`, which
+   * re-selects the detail panel) raced its own table refresh instead of sequencing after it. Resolves
+   * immediately when there is no table yet.
+   */
+  protected reload(): Promise<void> {
+    return this.$<BDataTable>('#table')?.load() ?? Promise.resolve();
   }
 }
