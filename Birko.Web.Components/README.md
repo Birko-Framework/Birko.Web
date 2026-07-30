@@ -263,7 +263,38 @@ filter box in a hurry, least of all on a phone keyboard.
 <b-button variant="primary" loading>Saving…</b-button>
 ```
 
-Attributes: `variant`, `size` (sm|md|lg), `disabled`, `loading`
+Attributes: `variant`, `size` (sm|lg), `type` (button|submit|reset), `disabled`, `loading`
+
+**Submitting a form.** The inner `<button>` lives in the shadow root, where it has no form owner — so a
+`b-button` does nothing to a surrounding `<form>` unless you say what it is. Opt in with `type`:
+
+```html
+<form id="edit">
+  <b-input name="name" required></b-input>
+  <b-button type="submit" variant="primary">Save</b-button>
+  <b-button type="reset">Revert</b-button>
+  <b-button>Cancel</b-button>          <!-- default: your click handler is the whole behaviour -->
+</form>
+```
+
+`type="submit"` calls `form.requestSubmit()`, so the form's constraint validation runs and the `submit`
+event is cancellable, exactly as with a native submit button. The default is **`button`**, unlike native
+`<button>` — `b-button` has never submitted anything, so existing consumers wired click handlers, and some
+have `b-button`s inside a form that also listens for `submit`; a native default would fire both on one tap.
+
+**Tap targets.** The default button is ~32px tall — below the ~44px mobile guidance. `--b-button-padding-y`
+raises it without touching the horizontal padding, and applies to every `size`, so one rule covers every call
+site rather than an attribute per button:
+
+```css
+/* mechanism in the framework, policy in the app */
+@media (pointer: coarse) { b-button { --b-button-padding-y: var(--b-space-lg); } }
+```
+
+Measured at the default font scale: `--b-space-sm` (default) 32px, `--b-space-md` 39px, `--b-space-lg` 46px.
+`b-button` fixes its font at `--b-text-sm` with a tight line-height, so it reaches less height than the same
+padding on a `font: inherit` button — check the number rather than assuming a rung. `size="lg"` (which also
+raises the font) composes with the token.
 
 ### b-checkbox / b-switch / b-radio
 

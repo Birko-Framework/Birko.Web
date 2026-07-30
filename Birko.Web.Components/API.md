@@ -51,10 +51,21 @@ from `.value` and their boolean from `.checked`. `required` is unsupported on `b
 |-----------|--------|
 | `variant` | `primary` \| `secondary` \| `ghost` \| `danger` |
 | `size` | `sm` \| (default) \| `lg` |
+| `type` | `button` (default) \| `submit` \| `reset` — acts on the owning `<form>` |
 | `disabled` | boolean |
 | `loading` | boolean (shows spinner, disables click) |
 
 Slot: default (button label/content).
+
+CSS custom properties: `--b-button-padding-y`, `--b-button-padding-x` (per-axis padding; each `size` keeps
+its own default, so one rule raises the tap target at every call site).
+
+**`type` defaults to `button`, not to native's `submit`.** `b-button` never submitted anything, so consumers
+wrote click handlers instead — and a shipped consumer has `b-button`s inside a `<form>` that *also* listens
+for `submit` and does something else with it, which a native-faithful default would fire on the same tap.
+`type="submit"` is opt-in and calls `form.requestSubmit()`, so constraint validation still runs. A
+`b-button` contributes no `FormData` entry: native `name`/`value` submitter semantics can't cross a shadow
+boundary (`requestSubmit(submitter)` only accepts a native submit button belonging to the form).
 
 ### `<b-input>`
 | Attribute | Values |

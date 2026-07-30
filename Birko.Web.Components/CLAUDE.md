@@ -327,7 +327,7 @@ the same as their `.value`:
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
 | `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled` |
-| `<b-button>` | BButton | — | `variant`, `size`, `disabled`, `loading` |
+| `<b-button>` | BButton | — | `variant`, `size`, `type`, `disabled`, `loading` |
 | `<b-checkbox>` | BCheckbox | — | `checked`, `indeterminate`, `disabled`, `name`, `label` |
 | `<b-switch>` | BSwitch | — | `checked`, `disabled`, `name`, `label` |
 | `<b-radio>` | BRadio | — | `checked`, `disabled`, `name`, `value`, `label` |
@@ -692,6 +692,53 @@ sizes `<dialog>` as `fit-content`, which beats the inset rectangle and collapsed
 in review: a "full" modal measured 102×142px). `min-width` is reset to 0 (the default `min(25rem, 95vw)` can
 exceed the inset box on narrow screens) and below 640px the gutter drops to 0 with square corners. Not added to `b-drawer` —
 a viewport-wide drawer *is* a modal. Shell's `modalSize` accepts `'full'` (`base-form-modal`, `base-crud-page`).
+
+### `b-button` joins the form-control family, and gets a tap-target knob (2026-07-30)
+
+From Reps TASK-102 (framework `TASK-107`), which stopped **before** converting 69 buttons because reading the
+component turned up two silent regressions. Both are now fixed, and the fix for the second one was already
+decided — it just had not been applied here.
+
+**`b-button` was the last member of the form-control family still on `BaseComponent`.** The other 15 controls
+have extended `FormControlComponent` (`static formAssociated = true` + `attachInternals()`) since 2026-07-29.
+So the "decide the form story" question this arrived as was **already answered**: the answer is
+`ElementInternals`, and `b-button` was simply left out — reasonably, since that base class is built around a
+`value` and a button does not have one. It now extends it, with `formValue()` returning `null` (a button
+contributes no `FormData` entry — native `name`/`value` submitter semantics cannot cross a shadow boundary,
+because `requestSubmit(submitter)` only accepts a native submit button belonging to the form). It also picks
+up `<fieldset disabled>` propagation for free, which it never had.
+
+**`type` defaults to `button`, not to native's `submit` — and that was decided by evidence, not taste.** From
+first principles `submit` is right: a component called `b-button` inside a `<form>` should behave like a
+`<button>`, and defaulting to `button` preserves the very class of silent-nothing-happens bug that raised the
+ticket. The grep says otherwise. **Presenter's landing page has `b-button`s inside a `<form>` whose `submit`
+listener calls `_openAdHoc()`, while `#save`'s own click calls `_save()`** — a native default would make one
+tap run both. Symbio has 102 files using `b-button` and **not one `<form>` in the whole app**, so it is
+unaffected either way. Opt-in it is; `type="submit"` calls `requestSubmit()` so constraint validation still
+runs.
+
+**Tap targets are a token, not a new size rung.** No size reached ~44px — default 8px vertical, `sm` 4px,
+`lg` still 8px (it only widens) — and a consumer could not fix it from outside, because overriding
+`--b-space-sm` on the host also hijacks the button's own `gap`. `--b-button-padding-y` / `--b-button-padding-x`
+now thread through all three size rules with today's values as defaults, so **one rule raises every call
+site** instead of an attribute per button. Deliberately **not** a `pointer: coarse` media query inside the
+component: that re-renders every existing consumer with no opt-in (a desktop back-office on a touch-capable
+laptop reports coarse), and it makes a component's size depend on the input device rather than its design.
+The knob is the framework's, the policy is the app's — a phone-first consumer writes the media query itself.
+
+Two things worth keeping:
+
+- **Measure, don't inherit an assumption.** The origin task said Reps' `.btn` uses `--b-space-md` and lands at
+  ~44px, so the same padding should fix `b-button`. It does not: measured 32px default → **39px** at
+  `--b-space-md` → **46px** at `--b-space-lg`. `b-button` fixes its font at `--b-text-sm` with a tight
+  line-height while Reps' `.btn` is `font: inherit`, so equal padding buys less height. The numbers are in the
+  check names, not just in a pass/fail, because a bare assertion on a magic 44 tells you nothing when it fails
+  and the answer depends on the consumer's font scale.
+- **Bind listeners in `onUpdated`, never in `onMount`.** `BaseComponent._afterRender()` aborts and replaces
+  its listener `AbortController` on every render, so anything registered during `onMount` is detached by the
+  first re-render. The first version of the click handler was bound in `onMount`; every *positive* submit
+  assertion failed while every negative one passed — which is exactly the signature of a dead listener, and
+  the reason the smoke asserts both directions.
 
 ### `b-card`: the missing `md` rung, elevation as a token — and a layout attribute deliberately not added (2026-07-30)
 
