@@ -511,6 +511,38 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-ribbon` panel clipped its own content by exactly its padding (2026-07-30)
+
+`.ribbon-panel-inner` set `height: var(--b-ribbon-panel-height)` under the default `box-sizing: content-box`,
+while its parent `.ribbon-panel` capped `max-height` with the **same** token. So the inner's outer height was
+always `token + 14px` vertical padding inside a box capped at `token`, and since `.ribbon-panel` is
+`overflow: hidden` (it needs that for the max-height collapse) the excess was **clipped and unreachable** —
+not scrollable, not merely cropped. Now `box-sizing: border-box`.
+
+The overflow was a **constant 14px at every token value** — measured at 4.5rem, 8rem, 12rem and 20rem alike —
+which is why it presented as a content/wrapping problem rather than arithmetic. Two notes for anyone
+re-testing this: the styles arrive via `adoptedStyleSheets`, so an override injected as an appended `<style>`
+silently loses the cascade and makes the fix look ineffective; and `.ribbon-panel` transitions `max-height`
+over 300ms, so measuring right after changing the token catches the box mid-transition and reads as a clip.
+
+Two smaller ribbon fixes rode along: the panel is now **content-sized** (the token caps `max-height` rather
+than fixing the height, so a one-row `large` layout no longer sits in a panel sized for a degraded
+three-row `medium`), and `.ribbon-group-label` now pads with `--b-space-sm` to **match `.ribbon-item`** —
+it used `--b-space-xs`, so the label's ink started 3.5px from the group edge against the items' 7px+ and
+read as stuck to the group separator. Keep those two padding values equal.
+
+Still open, noted rather than fixed: `.ribbon-group + .ribbon-group` puts its `border-left` flush against
+the group that follows it while the flex `gap` sits between the boxes, so the separator is a full gap from
+one neighbour and zero from the other. Centring it means splitting the gap between a smaller `gap` and a
+new `padding-left`, and the `:has(> .ribbon-group.size-small)` multipliers need the same treatment — a
+ribbon-wide spacing change, so it wants its own review.
+
+Consumer-visible consequence worth repeating: **`--b-ribbon-panel-height` must be sized for the tallest group
+variant the ribbon can REACH, not the one it prefers.** `large` is one row (~70px) but the width ladder can
+degrade to `medium`/`small`, which are three-row grids (~107px). A consumer that sized the token for `large`
+clipped commands as soon as a group degraded. Symbio hit exactly this; guard:
+`tests/ui-e2e/ribbon-clipping-check.spec.ts` in that repo sweeps tabs, token values **and widths**.
+
 ### `b-ribbon` scaling: the measurement must not read the applied layout (2026-07-29)
 
 Reported from the playground: toggling `pinned` and hovering the Home tab narrowed the panel on some

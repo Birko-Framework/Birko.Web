@@ -233,7 +233,22 @@ export class BRibbon extends BaseComponent {
         display: flex; align-items: flex-start;
         gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
-        height: var(--b-ribbon-panel-height, 8rem);
+        /* CONTENT-SIZED, with --b-ribbon-panel-height acting as a CEILING on .ribbon-panel rather than
+           as this element's height. The panel then fits whichever variant is currently rendered: a
+           one-row large layout is ~70px, a degraded three-row medium is ~107px, and neither leaves dead
+           space nor clips.
+
+           It used to set height to that token, which was wrong twice over:
+           - it forced the panel to the token height regardless of content, so an app preferring the
+             large variant showed ~42px of empty panel, because the token has to be big enough for a
+             degraded medium; and
+           - combined with the default content-box, its OUTER height became token + vertical padding —
+             always taller than the parent capped at token — so it clipped by exactly the padding at
+             EVERY token value (measured 14px at 4.5rem, 8rem, 12rem and 20rem alike), which read as a
+             content problem while being pure arithmetic.
+           box-sizing stays border-box so padding can never re-open that gap if a height is ever
+           reintroduced here. */
+        box-sizing: border-box;
         /* The ribbon BODY resizes, it never scrolls (STORY-049): a scroll offset destroys the spatial
            memory the ribbon exists to provide. Groups degrade instead — down to a single chunk button
            each — so nothing can be unreachable and no scroller is needed. TASK-097's interim panel
@@ -261,7 +276,13 @@ export class BRibbon extends BaseComponent {
         letter-spacing: var(--b-letter-spacing-caps, 0.03125rem);
         font-weight: var(--b-font-weight-semibold, 600);
         line-height: 1;
-        padding: 0 var(--b-space-xs, 0.25rem);
+        /* Horizontal padding MATCHES .ribbon-item's, so the group label lines up with the commands it
+           names instead of sitting further left than all of them. It used to be --b-space-xs against the
+           items' --b-space-sm: measured, the label's ink started 3.5px from the group edge while the
+           items' started 7px+, so the label read as stuck to the group separator (a border-left on
+           .ribbon-group + .ribbon-group) while the buttons sat comfortably inset. Keep these two values
+           equal — if the item padding changes, this changes with it. */
+        padding: 0 var(--b-space-sm, 0.5rem);
       }
       .ribbon-group-items {
         display: flex; align-items: center;
