@@ -86,16 +86,26 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    * Whether the API returns a flat array the table paginates client-side (`true`), or a server-paged
    * envelope `{ items, totalCount, page, pageSize }` the table pages server-side (`false`).
    *
-   * This stays `true` (client-side) as the historical default, but `b-data-table` now AUTO-CORRECTS:
-   * when an endpoint returns a CAPPED page envelope (`items.length < totalCount`, as the TASK-195..200
-   * server-paged lists do), the table detects it and switches that table to server paging on its own —
-   * so the old "page 2+ renders empty" trap is gone even with this default. What is NOT auto-fixed and
-   * remains a CONSUMER concern: list SORT. Server paging shows the server's page order, so a list must
-   * sort newest-first for a freshly-created row to land on page 1, and create→delete E2E specs that
-   * assume the new row is on page 1 must search for it. Set this explicitly (`true`/`false`) only to
-   * override the auto-detection.
+   * **UNSET by default — auto-detect from the response shape**, which is what `b-data-table`'s own
+   * documentation recommends. A bare array is client-paged; an `{ items, totalCount }` envelope is
+   * server-paged. Set explicitly (`true`/`false`) only to override that.
+   *
+   * It used to default to `true` as "the historical default", on the grounds that the table
+   * auto-corrects a CAPPED envelope to server paging. It does — but only the *mode*, and only *after*
+   * the first response, which was already too late to be correct. With `true`, `b-data-table.load()`
+   * suppresses the `page`/`pageSize` query params on that first request, so the SERVER applied its own
+   * default page size (`ListQuery.Normalize` → 20) while the table computed `totalPages` from the
+   * CLIENT's page size. The two agreed only by coincidence — whenever the user's page-size preference
+   * was not 20, every list page in the app showed a first page of the wrong length above a pager with
+   * the wrong page count. Measured with 260 rows and a stored page size of 5: page 1 rendered 20 rows
+   * under a "52 pages" pager, then page 2 rendered 5. Leaving it unset sends the params from the first
+   * request, so the server and the pager never disagree.
+   *
+   * What is NOT auto-fixed and remains a CONSUMER concern: list SORT. Server paging shows the server's
+   * page order, so a list must sort newest-first for a freshly-created row to land on page 1, and
+   * create→delete E2E specs that assume the new row is on page 1 must search for it.
    */
-  protected flatArray = true;
+  protected flatArray?: boolean;
 
   /** Show Edit actions. Default: `true`. */
   protected editEnabled = true;
