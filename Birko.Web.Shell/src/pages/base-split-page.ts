@@ -4,10 +4,31 @@ import type { FormSchema } from 'birko-web-components/inputs';
 import type { BForm } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
+import { visibleBounds } from 'birko-web-core';
 import { toast } from 'birko-web-components/feedback';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
 import { entityUrl } from './endpoint-utils.js';
+
+/**
+ * How much of the detail card has to be inside the scrolling pane for a selection to count as
+ * "visible" — measured against as much of the card as COULD be shown, so a card taller than the pane
+ * is judged on its visible slice rather than being permanently under target.
+ *
+ * Not 1: a card cut off by a few pixels does not justify moving the page under the reader's cursor.
+ * Not 0.5 either — measured at that setting, clicking the last row of a 20-row list left the detail
+ * 69% visible, so the reveal declined and the card stayed cut off at the fold. The point of the
+ * feature is that a click lands somewhere you can read.
+ */
+const DETAIL_VISIBLE_ENOUGH = 0.85;
+
+/** How long the reveal keeps re-checking as the detail card settles. Long enough to cover the
+ *  sub-entity fetches an `onDetailUpdated` override fires, short enough that it is over before a
+ *  reader would think to scroll. */
+const DETAIL_SETTLE_MS = 1200;
+
+/** Reader gestures that end the reveal watch early — they reach `window` from inside the shadow DOM. */
+const REVEAL_CANCEL_EVENTS = ['wheel', 'touchmove', 'keydown'] as const;
 
 /** Options for {@link renderDetailCardScaffold}. */
 export interface DetailCardOptions {
@@ -110,6 +131,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   // selection and the action buttons target the wrong record. Each _selectEntity call takes the
   // next token and discards its response if a newer selection has since started (latest-wins).
   private _selectToken = 0;
+  /** Active detail-reveal watch (see `_revealDetail`), or null when nothing is being watched. */
+  private _detailReveal: { ro: ResizeObserver; cancel: () => void; timer: number } | null = null;
 
   // ── Required ──────────────────────────────────────────────────────────────
 
@@ -190,6 +213,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   protected deselectEntity(): void {
     this._selectedEntity = null;
     this._selectedId = null;
+    this._endDetailReveal();
     // Invalidate any in-flight detail fetch so it can't re-open the panel after a deselect.
     this._selectToken++;
     const card = this.$<HTMLElement>('#detail-card');
@@ -306,6 +330,11 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     this._wireSplitEvents();
   }
 
+  protected override onUnmount(): void {
+    super.onUnmount();
+    this._endDetailReveal();
+  }
+
   // ── Private event wiring ──────────────────────────────────────────────────
 
   private _wireSplitEvents(): void {
@@ -374,6 +403,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     const body = this.$('#detail-body');
     if (body) body.innerHTML = detailHtml + actionButtons;
 
+    this._revealDetail();
+
     // Re-wire detail buttons (they were just created via innerHTML)
     const editBtn = this.$<HTMLElement>('#btn-detail-edit');
     const deleteBtn = this.$<HTMLElement>('#btn-detail-delete');
@@ -381,6 +412,68 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     if (deleteBtn) deleteBtn.addEventListener('click', () => this._confirmDeleteSelected());
 
     this.onDetailUpdated(resp.data);
+  }
+
+  /**
+   * Bring the detail card into view when a selection would otherwise land off-screen.
+   *
+   * Side by side this is a no-op: `b-split-panel` sticks the detail column to the top of the
+   * scrolling pane, so it is already beside the row that was clicked. It earns its keep in the
+   * COLLAPSED layout, where the panel is one column and the detail is stacked BELOW the master —
+   * clicking row 87 of a 100-row table renders the detail an entire table below the fold, so
+   * nothing on screen changes and the click reads as dead.
+   *
+   * Driven by a ResizeObserver rather than a single measurement, because **the card's height is not
+   * known when the click lands**. The panel un-hides the detail column from a MutationObserver, and
+   * `onDetailUpdated` overrides then fetch sub-entities that keep growing the card for a few hundred
+   * milliseconds. Measured once up front, the check sees a card that is briefly short enough to fit
+   * on screen, declines to scroll, and the card then grows straight back under the fold — a race that
+   * reproduced in Playwright and NOT in a hand-driven browser, which is the worst way to find it.
+   * Observing the card instead makes the first callback the un-hide and each later one a growth step;
+   * `scrollIntoView` is idempotent once the card is anchored, so the sequence converges rather than
+   * jittering.
+   *
+   * Two further choices worth keeping:
+   * - Measured against the SCROLLING PANE (`visibleBounds`), never `innerHeight`. In the app shell
+   *   the pane starts below the header/ribbon and ends above the status bar; viewport maths scores
+   *   pixels hidden behind that chrome as visible and under-reports what is actually cut off.
+   * - Aligned to the card's TOP, not the nearest edge. Anchored to the bottom edge, later growth
+   *   pushes the card back under the fold (measured: 49% visible); anchored to the top it grows
+   *   downwards from a header that stays put — which is where reading starts anyway.
+   */
+  private _revealDetail(): void {
+    const card = this.$<HTMLElement>('#detail-card');
+    if (!card) return;
+    this._endDetailReveal();
+
+    const check = (): void => {
+      if (!card.isConnected || card.hidden) return;
+      const rect = card.getBoundingClientRect();
+      const pane = visibleBounds(card);
+      const shown = Math.min(rect.bottom, pane.bottom) - Math.max(rect.top, pane.top);
+      const showable = Math.min(rect.height, pane.bottom - pane.top);
+      if (showable === 0 || shown >= showable * DETAIL_VISIBLE_ENOUGH) return;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      card.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    };
+
+    // Scrolling is the reader's prerogative: the moment they move the page themselves, this stops
+    // correcting it. Without that, a settle window that outlives their first flick would fight them.
+    const cancel = (): void => this._endDetailReveal();
+    const ro = new ResizeObserver(check);
+    this._detailReveal = { ro, cancel, timer: window.setTimeout(cancel, DETAIL_SETTLE_MS) };
+    ro.observe(card);
+    for (const evt of REVEAL_CANCEL_EVENTS) window.addEventListener(evt, cancel, { passive: true });
+  }
+
+  /** Tear down the reveal watch — settled, superseded, cancelled by the reader, or page unmounted. */
+  private _endDetailReveal(): void {
+    const watch = this._detailReveal;
+    if (!watch) return;
+    this._detailReveal = null;
+    watch.ro.disconnect();
+    clearTimeout(watch.timer);
+    for (const evt of REVEAL_CANCEL_EVENTS) window.removeEventListener(evt, watch.cancel);
   }
 
   // ── Split-specific CRUD ───────────────────────────────────────────────────

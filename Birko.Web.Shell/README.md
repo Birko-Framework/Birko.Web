@@ -898,6 +898,13 @@ All BaseListPage hooks also available: `onFormReady`, `renderModalBody`, `editEn
 
 Built-in CSS classes for detail content: `.info-grid`, `.info-label`, `.info-value`, `.detail-subtitle`, `.detail-actions`.
 
+**Selecting a row always leaves the detail on screen.** Side by side, `b-split-panel` keeps the detail
+column stuck to the top of the scrolling pane, so a row clicked far down a long master opens its detail
+beside that row rather than off screen above. Collapsed to one column — where the detail stacks below the
+whole master — the page scrolls it into view instead, and stops correcting the moment the reader scrolls,
+taps or types. Nothing to opt into; override `renderDetailCard()` only if you replace the scaffold, and
+keep the card's id (`detail-card`) if you do.
+
 ---
 
 ### BaseDetailPage\<T\>

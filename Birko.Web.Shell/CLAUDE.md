@@ -232,6 +232,30 @@ sse.on('_error', () => conn.setState('reconnecting'));
 
 `hasPermission()` and `getVisibleOptions()` treat the `'*'` permission as a superadmin wildcard — if the module's permissions array includes `'*'`, all checks return `true` and all options are visible.
 
+### Master-detail: the click must land somewhere the reader can see
+
+`BaseSplitPage` selection is only useful if the detail ends up ON SCREEN. Two layouts, two mechanisms —
+know which one you are in before changing either:
+
+- **Side by side** — `b-split-panel` sticks the detail COLUMN to the top of the scrolling pane, so it
+  stays beside the row that opened it however far down the master the reader has scrolled. Nothing here
+  in the Shell; see the Components CLAUDE.md entry for how it earns its travel room.
+- **Collapsed** — one column, detail stacked BELOW the whole master, so sticky has nowhere to go.
+  `_revealDetail()` scrolls it into view, and its shape is the lesson: **it re-checks with a
+  ResizeObserver rather than measuring once.** The card's height is NOT known when the click lands — the
+  panel un-hides the column from a MutationObserver, then `onDetailUpdated` overrides fetch sub-entities
+  that grow it for a few hundred ms. A single up-front measurement sees a card that briefly fits, skips
+  the scroll, and the card grows straight back under the fold. That raced: it reproduced in Playwright
+  and not in a hand-driven browser.
+
+Three constants encode judgement, not arbitrary numbers, and are worth reading before tuning:
+`DETAIL_VISIBLE_ENOUGH` (0.85 — at 0.5 a real case sat 69% visible and the reveal declined),
+`DETAIL_SETTLE_MS`, and the reader gestures that cancel the watch (scrolling is theirs, not ours).
+
+Measure against the **scrolling pane** (`visibleBounds` from `birko-web-core/dom`), never
+`window.innerHeight`: the pane starts below the header/ribbon and ends above the status bar, and
+viewport maths scores pixels hidden behind that chrome as visible.
+
 ## Styles rules
 
 - All values via `--b-*` CSS custom properties — never hardcode `#hex`, `px`, or `rem`
