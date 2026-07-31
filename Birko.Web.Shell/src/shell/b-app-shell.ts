@@ -25,6 +25,45 @@ import { BSidebarAppShell } from './b-sidebar-app-shell.js';
  */
 export abstract class BAppShell extends BSidebarAppShell {
   private _ribbonEventsBound = false;
+  /**
+   * Ribbon pin preference, as STATE that render() emits — not an attribute set once after mount.
+   *
+   * It has to be state for the same reason `b-ribbon`'s own `_tabScroll` / `_hoverTabId` do:
+   * `update()` morphs synchronously, so the template's attribute set overwrites anything applied
+   * imperatively to the element. This used to be restored with a bare `ribbon.pin()` in `onMount`
+   * while render() emitted no `pinned` attribute, so **every** re-render silently unpinned the ribbon —
+   * a locale switch, a tenant switch, a notification-count change — and a reload appeared to "fix" it
+   * because `onMount` ran again (TASK-310).
+   *
+   * `null` = not yet read from storage; resolved lazily because `storagePrefix` is a subclass getter.
+   */
+  private _ribbonPinned: boolean | null = null;
+  /**
+   * Whether the ribbon panel is open — STATE that render() emits, for the same morph reason as
+   * `_ribbonPinned`. (`active` needs no field: render() reads `getActiveTabId()`, already the source of
+   * truth, so emitting it there is enough.)
+   *
+   * `expanded` was the subtler half of TASK-310. It was never rendered, so a morph erased it, and the
+   * repair in `refreshRibbon` could not work either: it read `prevActive` from the attribute that had
+   * *just* been erased, so `prevActive === nextActive` ("we are on the same tab, keep the panel open")
+   * was false on every re-render and the panel collapsed. Rendering both attributes makes the panel
+   * survive a morph and removes the need for that comparison entirely.
+   *
+   * PERSISTED, like the pin. The first cut treated "which panel is open" as transient and dropped it on
+   * reload; that was wrong — to a user who left the ribbon open, coming back to it closed is the same
+   * lost-state complaint as the unpinning was, just one keystroke later (reported against Ctrl+F5).
+   *
+   * Only meaningful while pinned, in practice: on an UNPINNED ribbon the panel is a hover flyout, so a
+   * restored-open panel closes again on the first mouse-out. Restoring it anyway is the honest reading of
+   * "it was open when I left" and costs nothing, so the state is not conditioned on `pinned`.
+   *
+   * Hover expand/collapse updates this field without calling `update()`, so tracking it cannot cause a
+   * render storm on mouse movement — but it DOES write localStorage per toggle, which is why the setter
+   * below skips the write when the value has not actually changed.
+   *
+   * `null` = not yet read from storage; resolved lazily because `storagePrefix` is a subclass getter.
+   */
+  private _ribbonExpanded: boolean | null = null;
   private _previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── REQUIRED — subclass must implement (in addition to base 4) ────────────
@@ -98,14 +137,16 @@ export abstract class BAppShell extends BSidebarAppShell {
   refreshRibbon(): void {
     const ribbon = this.$<BRibbon>('#ribbon');
     if (!ribbon) return;
-    const prevActive = ribbon.getAttribute('active');
     ribbon.setTabs(this.getRibbonTabs());
-    const nextActive = this.getActiveTabId() ?? '';
-    ribbon.setAttribute('active', nextActive);
-    // Keep panel expanded when staying in the same tab (e.g. switching modules within a category)
-    if (prevActive === nextActive && nextActive) {
-      ribbon.expand();
-    }
+    // render() emits `active` too, so this is belt-and-braces for the setTabs() path rather than the
+    // thing that keeps the attribute alive across a morph.
+    ribbon.setAttribute('active', this.getActiveTabId() ?? '');
+    // NOTE: there used to be a `prevActive === nextActive → ribbon.expand()` line here, to keep the
+    // panel open when navigating within a category. It is gone because `expanded` is now rendered
+    // (see `_ribbonExpanded`), which preserves the panel across a morph directly.
+    //
+    // Re-adding it would be actively harmful now: on a pinned ribbon the user can close the panel, and
+    // this method runs on every re-render — so it would re-open the panel the user just closed.
   }
 
   refreshStatusBar(): void {
@@ -196,7 +237,7 @@ export abstract class BAppShell extends BSidebarAppShell {
     const showBell = previewTag !== null || drawerTag !== null;
 
     return `
-      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}>
+      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}${this.ribbonGroupSize ? ` preferred-group-size="${this.ribbonGroupSize}"` : ''}${this.isRibbonPinned ? ' pinned' : ''}${this.isRibbonExpanded ? ' expanded' : ''} active="${this.getActiveTabId() ?? ''}">
         <div slot="before-tabs" class="app-brand">
           ${this.renderBrand()}
         </div>
@@ -256,11 +297,9 @@ export abstract class BAppShell extends BSidebarAppShell {
   protected onMount() {
     super.onMount();
 
-    const prefix = this.storagePrefix;
-
-    // Ribbon pin preference
-    const pinned = localStorage.getItem(`${prefix}-ribbon-pinned`) === 'true';
-    if (pinned) this.$<BRibbon>('#ribbon')?.pin();
+    // NOTE: the ribbon pin preference is deliberately NOT restored here with `ribbon.pin()`. It is
+    // rendered from `isRibbonPinned` instead — see `_ribbonPinned` for why an imperative restore here
+    // was erased by every subsequent re-render (TASK-310).
 
     // Context actions from pages
     this.addEventListener('ribbon-actions', ((e: CustomEvent<{ items: unknown[] }>) => {
@@ -300,9 +339,43 @@ export abstract class BAppShell extends BSidebarAppShell {
       this.onItemClick(e.detail.tabId, e.detail.groupId, e.detail.itemId);
     }) as EventListener);
 
+    // b-ribbon emits `expand` for BOTH directions (`{ expanded: true|false }`), including hover
+    // expand/collapse on an unpinned ribbon. Store only — no update() — so this cannot cause a render
+    // storm on mouse movement across the tab strip.
+    ribbon?.addEventListener('expand', ((e: CustomEvent<{ expanded: boolean }>) => {
+      if (this._ribbonExpanded === e.detail.expanded) return;   // hover fires this a lot
+      this._ribbonExpanded = e.detail.expanded;
+      localStorage.setItem(`${prefix}-ribbon-expanded`, String(e.detail.expanded));
+    }) as EventListener);
+
     ribbon?.addEventListener('pin', ((e: CustomEvent<{ pinned: boolean }>) => {
+      // Track state as well as storage: render() reads the state, so updating only localStorage would
+      // leave the next morph re-asserting the stale value and fighting the user.
+      this._ribbonPinned = e.detail.pinned;
       localStorage.setItem(`${prefix}-ribbon-pinned`, String(e.detail.pinned));
     }) as EventListener);
+  }
+
+  /**
+   * Whether the ribbon panel is open. Read from storage on first use, then kept in sync by the ribbon's
+   * `expand` event (which fires for both directions).
+   */
+  protected get isRibbonExpanded(): boolean {
+    if (this._ribbonExpanded === null) {
+      this._ribbonExpanded = localStorage.getItem(`${this.storagePrefix}-ribbon-expanded`) === 'true';
+    }
+    return this._ribbonExpanded;
+  }
+
+  /**
+   * Whether the ribbon is pinned. Read from storage on first use, then kept in sync by the ribbon's
+   * `pin` event. Exposed as protected so a subclass can seed or override the preference.
+   */
+  protected get isRibbonPinned(): boolean {
+    if (this._ribbonPinned === null) {
+      this._ribbonPinned = localStorage.getItem(`${this.storagePrefix}-ribbon-pinned`) === 'true';
+    }
+    return this._ribbonPinned;
   }
 
   private _setupTenantSwitcher(): void {

@@ -88,6 +88,20 @@ export abstract class BCoreAppShell extends BaseComponent {
   protected get ribbonAccent(): string { return ''; }
   protected get footerAccent(): string { return ''; }
 
+  /**
+   * Which `b-ribbon` group variant the app prefers before scaling degrades it —
+   * `'large' | 'medium' | 'small' | 'popup'`, or `''` to take the component's own
+   * default (`medium`). Forwarded to `preferred-group-size` by `BAppShell`.
+   *
+   * This is a **layout** choice, not a cosmetic one, and it changes the panel's
+   * required HEIGHT: `large` lays each item out as a standalone tile (icon above
+   * label) on ONE row, while `medium`/`small` use a three-row grid. An app that
+   * picks a variant must size `--b-ribbon-panel-height` to match it — too small a
+   * token clips the panel, and because the panel is `overflow: hidden` the clipped
+   * commands are unreachable rather than merely cropped.
+   */
+  protected get ribbonGroupSize(): string { return ''; }
+
   /** Resolve a region accent to an inline `style="…"` attribute (or ''). */
   protected accentAttr(accent: string): string {
     if (!accent) return '';
