@@ -960,8 +960,16 @@ Slots: one per section, named after its `id` (e.g. `slot="general"`).
 | `detail-width` | CSS value |
 | `collapse-at` | CSS length breakpoint — `48rem` (preferred, tracks browser font size), `800px`, or a bare number read as px. Omitted or unparseable → `48rem` |
 | `gap` | CSS value |
+| `static-detail` | present = opt out of the sticky detail column (see below) |
 
 Slots: `master`, `detail`.
+
+Side by side, the detail column is **sticky**: it follows the reader down a master taller than the
+screen, so a row clicked at the bottom of a long list opens its detail beside that row instead of off
+screen above. It is capped at the height of the scrolling pane (measured, not `100dvh`) and scrolls
+inside itself beyond that. `--b-split-detail-sticky-top` sets the gap above it, and doubles as its
+bottom inset. Collapsed to one column the detail is stacked below the master and stickiness is switched
+off — there is no room to travel and the page already scrolls.
 
 ### `<b-dropdown-menu>`
 | Attribute | Values |

@@ -767,8 +767,14 @@ Master-detail split layout with responsive collapse.
 </b-split-panel>
 ```
 
-Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`
+Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`
 Slots: `master`, `detail`
+
+Side by side, the detail column sticks to the top of the scrolling pane, so a row clicked far down a long
+master opens its detail next to that row rather than off screen above. It is capped at the pane's height
+and scrolls inside itself beyond that; `--b-split-detail-sticky-top` sets the gap above (and below) it.
+Add `static-detail` to opt a panel out. Collapsed to one column the detail stacks below the master and
+stickiness turns itself off.
 
 `collapse-at` takes a CSS length — prefer `rem`/`em` (`collapse-at="48rem"`), which tracks the reader's browser font size; a bare number (`collapse-at="800"`) is still read as px. Omitted or unparseable, the panel collapses at the default `48rem`.
 

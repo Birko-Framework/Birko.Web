@@ -361,7 +361,7 @@ the same as their `.value`:
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
-| `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap` |
+| `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail` (opt out of the sticky detail column) |
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 | `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
 
@@ -510,6 +510,39 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### `b-split-panel`: the detail column is STICKY, and it is measured, not guessed (2026-07-31)
+
+Reported as: on a master-detail page whose table ran to ~100 rows, clicking a row near the bottom opened
+the detail **off screen above** — the reader had to scroll back up to see what they had just clicked. The
+detail is a grid SIBLING pinned to the top of the row, so the further down the list you work, the further
+the detail sits from the row that produced it. Now `.detail` is `position: sticky` and rides along
+(opt out per instance with `static-detail`).
+
+Three things make it work, and each one is load-bearing:
+
+- **The travel room comes from the grid area, not from any ancestor's height.** A grid item's containing
+  block is its grid AREA — the row height, i.e. the tall master — while `align-items: start` keeps the
+  card content-sized. That pairing is why this needed no height constraint on the page, the shell, or
+  anything between; nothing above the panel had to change.
+- **The `max-height` is MEASURED (`--_scrollport-h`), not `100dvh`.** The scrollport is the shell's
+  content pane, which starts below the header/ribbon — a dvh cap lets a tall detail card run past the
+  fold, and while stuck its lower half is then unreachable rather than merely cropped. `findScrollParent`
+  (new, `birko-web-core/dom`) walks the **flattened** tree: a page component is a light-DOM child of the
+  shell but RENDERS inside a `<slot>` in the shell's shadow root, so the pane is not on its `parentNode`
+  chain at all. Measured: the naive `parentNode` walk sailed past `.app-content` and returned
+  `documentElement` — a box a whole header taller, that never scrolls. Use `assignedSlot ?? parentNode`
+  for anything that reasons about rendered ancestry.
+- **Collapsed, it is switched OFF.** Stacked, the detail's grid area is exactly its own height, so sticky
+  has nowhere to go and the `max-height` would only nest a second scroller inside a page that already
+  scrolls. The reset is emitted into both the default breakpoint and the `collapse-at` override from one
+  helper, so the two cannot drift.
+
+The stacked layout is handled a level up, in `BaseSplitPage._revealDetail` (Shell) — see that repo's
+CLAUDE.md for why a single measurement is the wrong shape there.
+
+Guard: `tests/ui-e2e/split-detail-visibility-check.spec.ts` in Symbio asserts a fraction-visible figure
+in both layouts, and was checked against a stashed fix: **27%** visible side by side, **~0%** collapsed.
 
 ### `b-ribbon` panel clipped its own content by exactly its padding (2026-07-30)
 

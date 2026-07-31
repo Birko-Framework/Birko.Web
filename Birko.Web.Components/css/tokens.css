@@ -206,6 +206,11 @@
   --b-ribbon-icon-small: 1rem;        /* 16px — Medium + Small variants */
   --b-ribbon-chunk-width: 3.5rem;     /* 56px — collapsed group's Popup button */
 
+  /* ── Split panel (rem — scales with font size) ── */
+  /* Gap between the sticky detail column and the top of the scrolling pane. Also its bottom
+     inset — the card is capped at the pane height minus this twice. */
+  --b-split-detail-sticky-top: 0.75rem;
+
   /* ── Sidebar (rem — scales with font size) ── */
   --b-sidebar-width: 15rem;      /* 240px */
   --b-sidebar-collapsed-width: 3.5rem; /* 56px */
