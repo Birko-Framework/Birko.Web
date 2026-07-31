@@ -94,13 +94,17 @@ export abstract class BaseDashboardWidget<
   static get styles(): string {
     return `
       :host { display: block; height: 100%; }
+      /* No card chrome (background / border / radius) here on purpose — the CONTAINER that places the
+         widget owns the cell's chrome, so a widget must not paint a second one. Symbio's
+         s-dashboard-grid gives every cell a bg-elevated fill, a 1px border and a radius-lg corner;
+         this class used to repeat all three, and because the container has no padding the two 1px
+         rings sat flush and rendered as one 2px border on every widget of every dashboard. If a
+         widget is ever mounted standalone (no grid), give it chrome from the host page — do not
+         re-add it here. */
       .widget {
         display: flex;
         flex-direction: column;
         height: 100%;
-        background: var(--b-bg-elevated);
-        border: 1px solid var(--b-border);
-        border-radius: var(--b-radius-lg, 0.625rem);
         overflow: hidden;
       }
       .widget-header {
