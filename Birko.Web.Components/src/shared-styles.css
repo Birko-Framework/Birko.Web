@@ -48,6 +48,12 @@ dialog {
   max-height: unset;
   background: transparent;
   overflow: visible;
+  /* The UA stylesheet sets `color: CanvasText` on <dialog>, which resolves from the SYSTEM colour
+     scheme and therefore ignores an app-level dark theme (`[data-theme="dark"]` + dark.css tokens).
+     Because the declaration lands on the dialog itself it also beats inheritance from the host, so
+     every uncoloured descendant — the .overlay-header title above all — rendered near-black inside a
+     dark modal. Re-assert the themed text colour so the token wins. */
+  color: var(--b-text);
 }
 /* showModal() moves focus to the <dialog>; suppress the UA focus ring on the
    container itself (Safari paints it blue around the whole modal). The dialog is
