@@ -71,14 +71,14 @@ boundary (`requestSubmit(submitter)` only accepts a native submit button belongi
 | Attribute | Values |
 |-----------|--------|
 | `label` | string |
-| `type` | `text` \| `email` \| `password` \| `number` \| `tel` \| `url` |
+| `type` | `text` \| `email` \| `password` \| `number` \| `tel` \| `url` \| **`decimal`** (component-level, see below) |
 | `placeholder` | string |
 | `value` | string |
 | `name` | string |
 | `error` | string (shows error message) |
 | `disabled` | boolean |
 | `required` | boolean |
-| `min` / `max` / `step` | forwarded to the inner `<input>` (native constraint validation; `step` defaults to 1 on `type="number"`) |
+| `min` / `max` / `step` | forwarded to the inner `<input>` (native constraint validation; `step` defaults to 1 on `type="number"`). On `type="decimal"` they are **not** forwarded — the component enforces them itself |
 | `inputmode` | forwarded — selects the on-screen keyboard (`numeric`, `decimal`, …) |
 | `autocomplete` | forwarded |
 | `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
@@ -90,6 +90,37 @@ boundary (`requestSubmit(submitter)` only accepts a native submit button belongi
 
 Form-associated (`ElementInternals`): the value lands in `FormData` under `name`, and `required` / `type` /
 `min` / `max` / `step` are enforced by the wrapping `<form>`. See [Form participation](#form-participation).
+
+#### `type="decimal"` — comma-locale decimal entry
+
+**Not an HTML input type.** It renders the inner control as `type="text" inputmode="decimal"`.
+
+Use it for **any** field that accepts a decimal. `type="number"` looks like the right answer and is not: its
+"valid floating-point number" grammar accepts only `.`, so on a keyboard whose decimal key is a **comma**
+(Slovak, Czech, German, French, Spanish, …) WebKit **refuses to insert the character at all**. Typing `81,8`
+leaves the field holding `818` — which parses cleanly and stores a hundredfold-wrong value with no error
+anywhere. That shipped: an 81.8 kg weigh-in recorded as 818 kg.
+
+| Member | Behaviour |
+|--------|-----------|
+| `numericValue` | `number \| null` — accepts either separator. Stricter than `parseFloat`: trailing junk (`12abc`), two separators and a lone separator give `null`, not a plausible wrong number |
+| `min` / `max` | enforced **by the component** as `rangeUnderflow` / `rangeOverflow` |
+| `step` | enforced as `stepMismatch`, against a base of `min` (or 0) |
+| unparseable input | `badInput` |
+| blank | left to `required` |
+| `error` attribute | still wins over all of the above, as everywhere else |
+
+The component must own this because the inner control is `type="text"`, which has **no** native numeric
+constraints — and since `b-input` is form-associated, mirroring that control's validity would make the field
+report itself *valid* for an out-of-range value. Silence would be worse than absence.
+
+> **`step` is a constraint, not a stepper increment.** `step="0.5"` really does make `81.8` invalid — which is
+> the exact value this type exists to allow. A control whose ± buttons move by 0.5 but which still accepts a
+> freely typed value must keep that increment locally and **leave `step` unset**. No `step` means no step
+> constraint, which is the common case.
+
+The parser is exported on its own as `parseDecimal` from `birko-web-core`, for hand-rolled controls that
+cannot use a shadow-DOM component.
 
 ### `<b-textarea>`
 | Attribute | Values |
@@ -546,6 +577,20 @@ Segmented control — a horizontal single-choice switch for 2–4 short options.
 |-------|--------|
 | `change` | `{ path, value, data }` |
 | `group-toggle` | `{ group, collapsed }` |
+
+**`type: 'decimal'` in a schema** maps to `b-input type="decimal"` (see its section above) and is what you
+want for any field accepting a decimal — `'number'` and `'percent'` both render a native `type="number"`,
+which cannot accept a comma. `min` / `max` / `step` are forwarded to the **host** element rather than the
+inner control, because `b-input` enforces them itself in this mode.
+
+Two caveats specific to it:
+
+- `getValues()` returns the **raw string** (`'81,8'`), as it does for `'number'` — the form does not coerce.
+  Read `numericValue` off the field element, or pass the string through `parseDecimal` from
+  `birko-web-core`. `Number('81,8')` is `NaN` and `parseFloat('81,8')` is `81`.
+- A `min`/`max`/`range` **rule** and a `min`/`max` **attribute** are separate mechanisms; both are honoured
+  on a comma value, but the rule reports through `validate()` while the attribute reports through native
+  constraint validation.
 
 ---
 

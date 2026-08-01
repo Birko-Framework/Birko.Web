@@ -1,4 +1,4 @@
-import { BaseComponent, define, t as globalT } from 'birko-web-core';
+import { BaseComponent, define, t as globalT, parseDecimal } from 'birko-web-core';
 import { isActivationKey, escapeAttr } from '../dom-utils';
 
 // ── Types ──
@@ -6,7 +6,7 @@ import { isActivationKey, escapeAttr } from '../dom-utils';
 // `(string & {})` hints the known literals via IntelliSense while still accepting
 // plain `string` from inline object literals (where TS widens `type: 'text'`).
 export type FieldType =
-  | 'text' | 'password' | 'email' | 'number' | 'percent'
+  | 'text' | 'password' | 'email' | 'number' | 'percent' | 'decimal'
   | 'textarea' | 'markdown' | 'select' | 'multi-select' | 'tags'
   | 'checkbox' | 'switch' | 'radio' | 'search'
   | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'date-range' | 'time' | 'custom'
@@ -566,6 +566,23 @@ export class BForm extends BaseComponent {
       case 'percent':
         parts.push('type="number"');
         break;
+      // `decimal` is a b-input component mode, not an HTML input type, so the attribute has to be
+      // forwarded for it to engage at all — without this case the switch emitted no `type`, b-input
+      // defaulted to `text`, and the whole mode silently vanished: no `inputmode="decimal"` (so a
+      // comma-locale keypad never appeared), no range/step check, no badInput. The field looked fine
+      // and accepted anything, which is the exact hundredfold-wrong-value failure the mode exists to
+      // prevent.
+      //
+      // min/max/step go on the HOST, unlike every other numeric field here. b-input deliberately does
+      // NOT forward them to its inner control in this mode (a `type="text"` input ignores them, and
+      // advertising an unenforced constraint is worse than none) and enforces them itself in
+      // syncFormState by reading them off the host. So the host is where they have to land.
+      case 'decimal':
+        parts.push('type="decimal"');
+        if (field.min !== undefined) parts.push(`min="${escapeAttr(String(field.min))}"`);
+        if (field.max !== undefined) parts.push(`max="${escapeAttr(String(field.max))}"`);
+        if (field.step !== undefined) parts.push(`step="${escapeAttr(String(field.step))}"`);
+        break;
       case 'textarea':
         if (field.rows) parts.push(`rows="${field.rows}"`);
         break;
@@ -799,7 +816,16 @@ export class BForm extends BaseComponent {
 
   private _checkRule(rule: ValidationRule, field: FormField, value: unknown, allData: Record<string, unknown>): string | null {
     const str = String(value ?? '');
-    const num = Number(value);
+    // `decimal` fields hold a user-typed string that may use a comma, and `_getFieldValue` returns it
+    // raw — so `Number('81,8')` is NaN, and every numeric comparison below silently answers false:
+    // a `min`/`max`/`range` RULE would never fire on a comma value. Now that the `min`/`max`
+    // attributes are enforced by b-input for this type, leaving the rules fail-open would mean the
+    // two spellings of the same constraint disagree.
+    //
+    // A null parse (blank, or unparseable) deliberately stays NaN, so the numeric rules keep passing
+    // and the existing owners of those cases still report them exactly once — `required` for blank,
+    // b-input's own `badInput` for junk.
+    const num = field.type === 'decimal' ? (parseDecimal(str) ?? NaN) : Number(value);
 
     switch (rule.type) {
       case 'minLength':
