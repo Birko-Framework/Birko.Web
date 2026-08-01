@@ -148,6 +148,7 @@
     "range": "{label} must be between {min} and {max}",
     "invalidFormat": "{label} format is invalid",
     "invalidEmail": "Invalid email address",
+    "invalidValue": "{label} is invalid",
     "mustMatch": "{label} must match {value}"
   }
 }

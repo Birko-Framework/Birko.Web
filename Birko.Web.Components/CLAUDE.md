@@ -511,6 +511,50 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-form.validate()` now asks the control, but only about things the schema cannot say (2026-08-01)
+
+`b-input type="decimal"` was added to report `badInput`, and nothing consumed it: `validate()` ran schema
+rules only (`grep checkValidity src/inputs/b-form.ts` → zero hits), while every consumer reads exactly that
+path — the Shell base pages all do `const { valid, data } = form.validate()` and nothing else. So `abc` in a
+percent field returned `{ valid: true, data: { percentage: 'abc' } }`. Measured in Symbio: create 400s, and
+**edit reports success while keeping the old value** (`NaN` → `null`, nullable DTO field, service guards on
+`HasValue`) — worse than the mis-validation it replaced, because the form says saved and nothing changed.
+
+The interesting part is what was *not* adopted, and the rule it establishes:
+
+- **A blanket `checkValidity()` gate is a breaking change dressed as a bug fix.** `12.5` in a plain
+  `type="number"` field is ALREADY natively invalid — `step` defaults to 1, so the browser reports
+  `stepMismatch` with "the two nearest valid values are 12 and 13" — and `b-form` has always ignored it.
+  Adopting the whole `ValidityState` would newly reject fractional input in every consumer `number` field
+  (Symbio alone: four `*Percent` fields). So the adopted set is a **fixed whitelist**, justified flag by
+  flag in the code: `badInput` always, plus `rangeUnderflow`/`rangeOverflow`/`stepMismatch` **only** for the
+  decimal-mode types, where those flags are `b-input`'s own and carry none of `type="number"`'s legacy.
+- **Order settles the duplicate-reporting question, so no rule needs a special case.** A `max` RULE and a
+  `max` ATTRIBUTE are two spellings of one constraint; the control is consulted only *after* the rules, so
+  one field reports one message (the rule's) and every existing message wording is untouched.
+- **An exclusion is a decision and needs a falsifiable check.** Adopting `valueMissing` looked like a
+  no-op — `required` returns before the control is consulted — until the check for it went in: an unchecked
+  **required checkbox** reports `valueMissing` while `b-form`'s emptiness test counts `false` as filled, so
+  adopting it would silently start blocking forms that have always submitted. That gap is now pinned as a
+  known gap rather than closed in passing.
+
+Two things fell out that were not the reported bug:
+
+- **`b-input` resurrected a cleared field's value.** It restored `this._value || this.attr('value')`, so `''`
+  fell through to the schema-declared value, and re-renders arrive from ordinary things — dropping the
+  `error` attribute among them. The old text sprang back into the box, `required` did not fire, and the form
+  saved the value the user had just deleted. `_value` is now `string | null`: `''` is a value, "unset" is not.
+- **A stale `error` attribute MASKS the control's own flags.** Both `FormControlComponent._syncValidity` and
+  `b-input.syncFormState` return early on that attribute, so the second Save click on unchanged junk found a
+  masked control and passed the form. `validate()` therefore clears errors *before* reading validity — and
+  collects values *before* clearing, since clearing re-renders.
+
+Also fixed in the playground harness, which had been hiding results rather than reporting them: `verify.mjs`
+slept a fixed 1s, so when the suite grew past it backport-smoke **stopped reporting entirely** — and a suite
+that never ran leaves no FAIL lines to grep, so it read as green. It now waits for every suite's summary AND
+its per-check lines (the per-check lines arrive *after* the summary, which made a first attempt report
+"0 failing" over a 223/224 suite), takes the verdict from the summary counts, and exits non-zero.
+
 ### `b-split-panel`: the detail column is STICKY, and it is measured, not guessed (2026-07-31)
 
 Reported as: on a master-detail page whose table ran to ~100 rows, clicking a row near the bottom opened

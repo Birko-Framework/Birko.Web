@@ -49,7 +49,16 @@ export class BInput extends FormControlComponent {
     `;
   }
 
-  private _value = '';
+  /**
+   * The live value, or `null` for "never set" — the distinction matters, and `''` cannot carry it.
+   *
+   * `onUpdated` restores the inner input from this after every re-render. While the empty string doubled
+   * as "unset", clearing a field that had a `value` attribute (a schema-declared default, an entity being
+   * edited) sprang the OLD text back into the box on the next re-render — and re-renders come from
+   * ordinary things: `b-form` dropping the `error` attribute, a locale switch, a parent morph. The field
+   * then read as filled, `required` did not fire, and the form saved the value the user had just deleted.
+   */
+  private _value: string | null = null;
   private _suggestions: string[] = [];
   private _datalistId = `b-input-dl-${Math.random().toString(36).slice(2, 10)}`;
 
@@ -115,8 +124,9 @@ export class BInput extends FormControlComponent {
     const input = this.$<HTMLInputElement>('input');
     if (!input) return;
 
-    // Restore value after re-render (attribute value or last typed value)
-    input.value = this._value || this.attr('value');
+    // Restore value after re-render: the last typed/assigned value if there has been one at all,
+    // otherwise the attribute. `??`, not `||` — see the _value docs.
+    input.value = this._value ?? this.attr('value');
 
     this.listen(input, 'input', (e: Event) => {
       this._value = (e.target as HTMLInputElement).value;
@@ -213,7 +223,7 @@ export class BInput extends FormControlComponent {
   set value(v: string) { this.inputValue = v; }
 
   get inputValue(): string {
-    return this.$<HTMLInputElement>('input')?.value ?? this._value;
+    return this.$<HTMLInputElement>('input')?.value ?? this._value ?? this.attr('value');
   }
 
   set inputValue(v: string) {

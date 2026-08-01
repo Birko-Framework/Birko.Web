@@ -122,6 +122,15 @@ report itself *valid* for an out-of-range value. Silence would be worse than abs
 The parser is exported on its own as `parseDecimal` from `birko-web-core`, for hand-rolled controls that
 cannot use a shadow-DOM component.
 
+Every verdict above is visible to `b-form.validate()` — see [its section](#b-form) for exactly which flags
+the schema path adopts and which it deliberately ignores.
+
+> **A cleared field stays cleared.** The inner control is restored from the last typed/assigned value after
+> every re-render, and `''` is a value, not "unset". Before that distinction existed, clearing a field that
+> had a `value` attribute (a schema default, an entity being edited) sprang the old text back into the box on
+> the next re-render — and re-renders come from ordinary things, `b-form` dropping the `error` attribute among
+> them — so `required` did not fire and the form saved the value the user had just deleted.
+
 ### `<b-textarea>`
 | Attribute | Values |
 |-----------|--------|
@@ -565,7 +574,7 @@ Segmented control — a horizontal single-choice switch for 2–4 short options.
 | `setValue` | `(name: string, value: unknown) => void` | Set a single field value |
 | `setValues` | `(values: Record<string, unknown>) => void` | Set multiple field values |
 | `getValues` | `() => Record<string, unknown>` | Get all field values |
-| `validate` | `() => { valid, data, errors, groupErrors }` | Validate all fields |
+| `validate` | `() => { valid, data, errors, groupErrors }` | Validate all fields — schema rules **and** each control's own verdict (see below) |
 | `validateGroup` | `(groupName: string) => FormResult` | Validate a specific group |
 | `clearErrors` | `() => void` | Clear all validation errors |
 | `reset` | `() => void` | Reset all fields to defaults |
@@ -595,9 +604,44 @@ Two caveats specific to it:
 - `getValues()` returns the **raw string** (`'81,8'`), as it does for `'number'` — the form does not coerce.
   Read `numericValue` off the field element, or pass the string through `parseDecimal` from
   `birko-web-core`. `Number('81,8')` is `NaN` and `parseFloat('81,8')` is `81`.
-- A `min`/`max`/`range` **rule** and a `min`/`max` **attribute** are separate mechanisms; both are honoured
-  on a comma value, but the rule reports through `validate()` while the attribute reports through native
-  constraint validation.
+- A `min`/`max`/`range` **rule** and a `min`/`max` **attribute** are separate mechanisms with separate
+  messages, but both now report through `validate()`. When a field carries both, the **rule** wins: the
+  control is consulted only after the rules have had their say, so one field reports one message.
+
+#### What `validate()` takes from the controls themselves
+
+`validate()` runs the schema rules and then, for a field the rules had nothing to say about, adopts a
+**narrow, fixed set** of the control's own validity flags. It is not a `checkValidity()` gate:
+
+| Flag | Adopted | Why |
+|---|---|---|
+| `badInput` | **always** | "This text is not a number at all." No schema rule can express it, because the value never reaches the form — a native `number` input hands out `''` for junk, which reads as merely empty |
+| `rangeUnderflow` / `rangeOverflow` / `stepMismatch` | **only** on `type: 'decimal'` / `'percent'` | There they are `b-input`'s own, set from the `min`/`max`/`step` the schema asked for. On `type: 'number'` they are the browser's, and carry its implicit `step=1` |
+| everything else | no | `valueMissing` is `required`'s; `customError` is this form's own `error` from the previous run; `typeMismatch` / `patternMismatch` / `tooLong` / `tooShort` each have a schema rule that says the same thing |
+
+The exclusions are the point. **`12.5` in a plain `type: 'number'` field is already natively invalid** —
+`step` defaults to 1, so the browser reports `stepMismatch` ("the two nearest valid values are 12 and 13") —
+and `b-form` has always ignored it. A blanket `checkValidity()` gate would newly reject fractional input in
+every `number` field that has ever worked: a silent breaking change dressed as a bug fix. Adopting any of the
+remaining flags is that same trap one field type at a time, and belongs in its own change.
+
+A field disabled by `readonly` / `disabled` / `field.disabled` is skipped, matching native constraint
+validation. Localise the messages by overriding `rangeUnderflowMessage()` / `rangeOverflowMessage()` /
+`stepMismatchMessage()` / `badDecimalMessage()` on `b-input`; `common.invalidValue` is the fallback for a
+control that reports a flag with no message.
+
+**Known gap, deliberately left open:** an unchecked `required` checkbox still passes. The form's emptiness
+test counts `false` as a filled value, so its `required` rule passes and the control is never consulted.
+Closing it would start blocking forms that have always submitted.
+
+#### `data` on failure
+
+Check `valid` before reading `data`. For a rejected field `data` still carries what was collected — a
+`'12,5'` that failed a `max` rule is still `0.125` — because a consumer echoing the value back needs it. The
+one exception is a field whose control reported **`badInput`**: there is no number there, so the entry is
+`null` rather than the raw typed string. That does not make ignoring `valid` safe; it removes the case where
+the payload was a *string* impersonating a number (`Number('abc')` → `NaN` → serialized `null`, which a
+nullable API field with a `HasValue` guard turns into a save that reports success and changes nothing).
 
 ---
 

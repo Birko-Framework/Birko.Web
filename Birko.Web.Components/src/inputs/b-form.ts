@@ -35,6 +35,17 @@ function coerceTypedNumber(raw: unknown): number | null {
   return parseDecimal(String(raw ?? ''));
 }
 
+/**
+ * The native form-control surface `validate()` reads off a field element. Every value-bearing Birko
+ * input exposes it (they extend `FormControlComponent`); `b-search-input` and `type: 'custom'` slots do
+ * not, hence the partial shape and the null guards in `_controlVerdict`.
+ */
+interface ValidityReporting {
+  validity: ValidityState;
+  validationMessage: string;
+  willValidate: boolean;
+}
+
 export type ValidatorFn = (value: unknown, data: Record<string, unknown>) => string | null;
 
 export interface ValidationRule {
@@ -113,6 +124,21 @@ export interface FormSchema extends FormGroupDef {
 
 export interface FormResult {
   valid: boolean;
+  /**
+   * The collected values, in storage form (percent as 0-1).
+   *
+   * **Check `valid` before reading this.** For a field the form rejected, `data` still carries whatever
+   * was collected — a `'12,5'` that failed a `max` rule is still `0.125`, a too-short string is still
+   * that string — because a consumer echoing the value back into the form needs it.
+   *
+   * The one exception is a field whose own control reported **`badInput`**: the text there is not a
+   * number at all, so there is no value to carry and the entry is `null`. Before that, `validate()`
+   * returned the raw typed string, and a consumer that read `data` without checking `valid` shipped
+   * `'abc'` to its API — where `Number('abc')` is `NaN`, serializes to `null`, and a nullable field with
+   * a `HasValue` guard on the server side then reports a successful save that changed nothing. Nulling
+   * it does not make ignoring `valid` safe; it just removes the only case where the payload was a
+   * *string* pretending to be a number.
+   */
   data: Record<string, unknown>;
   errors: Record<string, string>;
   groupErrors: Record<string, string[]>;
@@ -163,6 +189,8 @@ export class BForm extends BaseComponent {
   private _fieldCallbacks?: Map<string, ((value: unknown, data: Record<string, unknown>) => void)[]>;
   private _settingValues = false;
   private _groupErrors = new Map<string, string[]>(); // group name → errors
+  /** Paths whose control reported `badInput` — nulled in the returned `data`. See {@link FormResult.data}. */
+  private _badInput = new Set<string>();
 
   static get styles() {
     return `
@@ -306,16 +334,32 @@ export class BForm extends BaseComponent {
 
   validate(): FormResult {
     if (!this._schema) return { valid: true, data: {}, errors: {}, groupErrors: {} };
+
+    // Clear the errors BEFORE validating, and collect BEFORE clearing them.
+    //
+    // Clearing first is load-bearing: it is what lets `_controlVerdict` see anything at all. An `error`
+    // attribute left over from the previous run makes the control report `customError` and MASK its own
+    // flags — both `FormControlComponent._syncValidity` and `b-input.syncFormState` return early on that
+    // attribute — so without this, a second Save click on unchanged junk found a masked control and
+    // passed the form.
+    //
+    // Collecting first is defensive: dropping those attributes re-renders the controls, and a control
+    // that rebuilt its value wrongly across a re-render would be collected wrongly. `b-input` did
+    // exactly that (`this._value || this.attr('value')` resurrected a cleared field's old value, fixed
+    // in the same change), and reading the values before touching any attribute costs nothing.
+    const displayData = this._getGroupValues(this._schema, '');
     this._errors.clear();
     this._groupErrors.clear();
+    this._badInput.clear();
+    this._applyErrors();
 
     // Validate against display values (percent as 0-100) so rules/messages make sense
-    const displayData = this._getGroupValues(this._schema, '');
     this._validateGroup(this._schema, displayData, '', true);
 
     // Convert percent fields to storage values (0-1) for output
     const data = { ...displayData };
     this._convertPercent(this._schema, data, true);
+    for (const path of this._badInput) this._nullPath(data, path);
 
     const errors: Record<string, string> = {};
     for (const [k, v] of this._errors) errors[k] = v;
@@ -341,16 +385,23 @@ export class BForm extends BaseComponent {
     });
     if (!target) return { valid: true, data: this.getValues(), errors: {}, groupErrors: {} };
 
+    // Same collect-then-clear order as validate(), and for the same two reasons.
+    const data = this.getValues();
+
     // Clear only this group's errors
     const pfx = prefix ? prefix + '.' : '';
     for (const k of this._errors.keys()) {
       if (k.startsWith(pfx)) this._errors.delete(k);
     }
+    for (const k of this._badInput) {
+      if (k.startsWith(pfx)) this._badInput.delete(k);
+    }
     this._groupErrors.delete(groupName);
+    this._applyErrors();
 
-    const data = this.getValues();
     const groupData = prefix ? this._getNestedValue(data, prefix) as Record<string, unknown> : data;
     this._validateGroup(target, groupData ?? {}, prefix);
+    for (const path of this._badInput) this._nullPath(data, path);
 
     this._applyErrors();
 
@@ -365,6 +416,7 @@ export class BForm extends BaseComponent {
   clearErrors() {
     this._errors.clear();
     this._groupErrors.clear();
+    this._badInput.clear();
     this._applyErrors();
   }
 
@@ -372,6 +424,7 @@ export class BForm extends BaseComponent {
     if (!this._schema) return;
     this._errors.clear();
     this._groupErrors.clear();
+    this._badInput.clear();
     this._resetGroup(this._schema, '');
     this._applyErrors();
   }
@@ -742,6 +795,7 @@ export class BForm extends BaseComponent {
       const eventName = child.type === 'search' ? 'search' : 'change';
       this.listen(el, eventName, ((e: CustomEvent) => {
         // Clear field error on change
+        this._badInput.delete(fieldPath);
         if (this._errors.has(fieldPath)) {
           this._errors.delete(fieldPath);
           this._applyErrors();
@@ -823,12 +877,10 @@ export class BForm extends BaseComponent {
       }
     }
 
-    if (!field.rules) return;
-
     // Skip other rules on empty optional fields — no point validating format of blank value
     const isEmpty = value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
 
-    for (const rule of field.rules) {
+    for (const rule of field.rules ?? []) {
       if (rule.type === 'required') continue; // Already handled above
       if (isEmpty) continue; // Don't validate format/length/etc. of blank optional fields
 
@@ -838,6 +890,77 @@ export class BForm extends BaseComponent {
         return; // Stop on first error
       }
     }
+
+    // The schema had nothing to say — now ask the control itself. Deliberately LAST, which is what makes
+    // a `max` rule and a `max` attribute on the same field report once (the rule's message) instead of
+    // twice, and keeps every existing schema message wording untouched.
+    const verdict = this._controlVerdict(field, path);
+    if (!verdict) return;
+    this._errors.set(path, verdict.message);
+    if (verdict.badInput) this._badInput.add(path);
+  }
+
+  /**
+   * The field control's own verdict on its value, for the narrow set of validity it can see and the
+   * schema cannot.
+   *
+   * `validate()` used to run schema rules only — `grep checkValidity` over this file returned nothing —
+   * so a control that correctly reported itself invalid was invisible to the form. `b-input` in
+   * `decimal` mode flags `badInput` for `abc`, and `validate()` still answered
+   * `{ valid: true, data: { rate: 'abc' } }`. Since every consumer goes through the schema path (the
+   * Shell base pages all do `const { valid, data } = form.validate()` and nothing else), the validity
+   * that mode was added to produce reached nobody.
+   *
+   * **A blanket `host.checkValidity()` gate is not the fix**, and this is the trap worth knowing:
+   * `12.5` typed into a plain `type="number"` field is ALREADY natively invalid — `step` defaults to 1,
+   * so the browser reports `stepMismatch` ("the two nearest valid values are 12 and 13") — and `b-form`
+   * has always ignored it. Adopting the whole `ValidityState` would newly reject fractional input in
+   * every consumer `number` field that has worked since the day it was written: a silent breaking change
+   * dressed as a bug fix. So the set is narrow, and justified flag by flag:
+   *
+   * - **`badInput` — for every field type.** It means "the text in this control is not a number at all".
+   *   No schema rule can express it, because the value never reaches the form: a native number input
+   *   hands out `''` for junk, which then reads as merely empty. And nothing can be relying on it
+   *   passing — a form that accepted it was storing junk or silently saving nothing.
+   * - **`rangeUnderflow` / `rangeOverflow` / `stepMismatch` — only for the decimal-mode types.** There
+   *   the flags are `b-input`'s own, set from `min`/`max`/`step` on the host, so they carry none of
+   *   `type="number"`'s implicit-`step=1` legacy: a flag is set only because the schema asked for that
+   *   constraint. Leaving them out would keep the two spellings of one constraint disagreeing — a `max`
+   *   RULE reported through `validate()` while a `max` ATTRIBUTE only ever reached native submission.
+   * - **Everything else is ignored, on purpose.** `valueMissing` belongs to `required`, which is handled
+   *   above and returns before this runs — so adopting it would be a no-op almost everywhere, and in the
+   *   one place the two disagree it would be a silent breaking change: an unchecked **required checkbox**
+   *   reports `valueMissing`, while this form's emptiness test counts `false` as a filled value and lets
+   *   it pass. That gap is real and pre-existing; closing it starts blocking forms that have always
+   *   submitted, so it is its own change with its own consumer sweep, not a side effect of this one.
+   *   `customError` is the `error` attribute — this form's own verdict from the
+   *   previous run — so adopting it would make a corrected field stay broken forever. `typeMismatch`
+   *   (a `type: 'email'` field), `patternMismatch` and `tooLong` / `tooShort` are real browser opinions
+   *   that `b-form` has never surfaced and that each have a schema rule saying the same thing; turning
+   *   any of them on is the `stepMismatch` trap again, one field type at a time. Worth doing as its own
+   *   change with its own consumer sweep, not as a side effect of this one.
+   *
+   * `willValidate` is honoured rather than second-guessed: a disabled field is barred from constraint
+   * validation natively, and `b-form` disables fields for `readonly` / `disabled` / `field.disabled`.
+   */
+  private _controlVerdict(field: FormField, path: string): { message: string; badInput: boolean } | null {
+    const el = this._getFieldElement(path) as (HTMLElement & Partial<ValidityReporting>) | null;
+    const v = el?.validity;
+    // No native form-control surface at all: `b-search-input` extends BaseComponent, and a
+    // `type: 'custom'` field is a slot with no `[data-path]` element to find.
+    if (!el || !v) return null;
+    if (el.willValidate === false) return null;
+
+    const ownsNumericRange = COMMA_TYPED_TYPES.has(field.type);
+    const flagged = v.badInput
+      || (ownsNumericRange && (v.rangeUnderflow || v.rangeOverflow || v.stepMismatch));
+    if (!flagged) return null;
+
+    // The control's own message is preferred: it is specific ("Value must be 0 or less."), and it is
+    // where localisation already belongs — `b-input` exposes each one as an overridable method.
+    const message = el.validationMessage
+      || fmt('common.invalidValue', { label: field.label }, '{label} is invalid');
+    return { message, badInput: v.badInput };
   }
 
   private _checkRule(rule: ValidationRule, field: FormField, value: unknown, allData: Record<string, unknown>): string | null {
@@ -1101,6 +1224,19 @@ export class BForm extends BaseComponent {
   private _getNestedValue(data: Record<string, unknown>, path: string): unknown {
     return path.split('.').reduce<unknown>((obj, key) =>
       (obj as Record<string, unknown>)?.[key], data);
+  }
+
+  /** Null a dot-path in the collected data, leaving a missing branch alone. See {@link FormResult.data}. */
+  private _nullPath(data: Record<string, unknown>, path: string) {
+    const keys = path.split('.');
+    const leaf = keys.pop()!;
+    let obj: Record<string, unknown> | undefined = data;
+    for (const key of keys) {
+      const next = obj?.[key];
+      if (!next || typeof next !== 'object') return;
+      obj = next as Record<string, unknown>;
+    }
+    if (obj && leaf in obj) obj[leaf] = null;
   }
 
   private _walkGroups(group: FormGroupDef, fn: (g: FormGroupDef, prefix: string) => void, prefix = '') {
