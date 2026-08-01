@@ -156,12 +156,17 @@ export function renderField(opts: RenderFieldOptions): string {
  * {@link fieldAria}'s `aria-describedby`. `role="alert"` makes screen readers
  * announce the message as soon as it appears. Returns `''` when there is no error.
  *
- * Pass an already-escaped message if the source is untrusted (this helper does
- * not escape, matching the existing per-component behavior).
+ * **Escapes its input**, like {@link renderLabel} and {@link renderHelp}. It used to require the caller to
+ * pre-escape, which was the odd one out of the four field rows and did not hold in practice: 13 of the 14
+ * controls passed `this.attr('error')` straight through, and an attribute read back with `attr()` comes back
+ * **already decoded** by the browser — so a consumer escaping at the call site (`b-form` does, via
+ * `escapeAttr`) had its work undone here. `b-form.setFieldError()` takes an arbitrary string, which is where a
+ * server-echoed validation message enters, so this was the same unescaped-interpolation class as the `b-select`
+ * / `b-textarea` fixes. Callers must **not** pre-escape now, or the entities show through as text.
  */
 export function renderError(uid: string, error: string | null | undefined): string {
   if (!error) return '';
-  return `<span class="error" id="${uid}-error" role="alert">${error}</span>`;
+  return `<span class="error" id="${uid}-error" role="alert">${escapeHtml(error)}</span>`;
 }
 
 /**

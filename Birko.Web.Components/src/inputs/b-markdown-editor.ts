@@ -216,9 +216,9 @@ export class BMarkdownEditor extends FormControlComponent {
       uid: this.uid,
       label,
       hint,
-      // Pre-escaped: renderError does not escape, and this component's error text has always been
-      // escaped at the call site. renderField forwards it verbatim, so keep doing that here.
-      error: error ? escapeHtml(error) : error,
+      // Not pre-escaped: `renderError` escapes now (it was the only field row that didn't), so escaping
+      // here too would double-encode and show the entities as text.
+      error,
       required: this.boolAttr('required'),
       description,
       control: `
