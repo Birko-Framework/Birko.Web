@@ -20,9 +20,13 @@ export class BModal extends BaseComponent {
   static get styles() {
     return `
       :host { display: contents; }
+      /* Viewport-relative width, not 90% — the <dialog> parent is UA-sized as fit-content, so a percentage
+         resolves against a box derived from this very child and the card lands narrower than the dialog
+         around it (see the same fix in b-confirm-dialog). Here it also fought min-width, so the card could
+         come out WIDER than its <dialog> and slotted controls overhung the modal edge. */
       .modal {
         background: var(--b-bg-elevated); border-radius: var(--b-radius-xl);
-        box-shadow: var(--b-shadow-xl); width: 90%; min-width: min(25rem, 95vw);
+        box-shadow: var(--b-shadow-xl); width: 90vw; min-width: min(25rem, 95vw);
         max-width: var(--b-modal-width, 32.5rem);
         max-height: 85vh; display: flex; flex-direction: column;
       }

@@ -16,9 +16,18 @@ export class BConfirmDialog extends BaseComponent {
   static get styles() {
     return `
       :host { display: contents; }
+      /* Width is measured against the VIEWPORT, not the parent. The parent is the <dialog>, which the UA
+         sizes as fit-content — so a percentage there resolves against a box whose width is itself derived
+         from this child, and .dialog settled at 90% of its own content width. The visible card then sat 10%
+         narrower than the <dialog> it lives in, pinned to the left of it: with the footer's
+         justify-content:flex-end the buttons ended ~39px short of the dialog's right edge while starting 3px
+         from its left, which reads as "the buttons are shifted left". Found on the Reps device pass
+         2026-08-01, measured at 183px dialog / 165px card.
+         vw does include a classic desktop scrollbar, but max-width caps this card well below 90vw on any
+         screen wide enough to have one, so the difference is never visible. */
       .dialog {
         background: var(--b-bg-elevated); border-radius: var(--b-radius-xl);
-        box-shadow: var(--b-shadow-xl); width: 90%; max-width: var(--b-modal-width-sm, 23.75rem);
+        box-shadow: var(--b-shadow-xl); width: 90vw; max-width: var(--b-modal-width-sm, 23.75rem);
         display: flex; flex-direction: column;
       }
       .dialog-header {
