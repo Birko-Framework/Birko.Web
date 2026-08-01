@@ -156,11 +156,30 @@ export class BInput extends FormControlComponent {
     return parseDecimal(this.inputValue);
   }
 
-  /** Overridable for localisation, matching `requiredMessage()`'s style in the base class. */
-  protected rangeUnderflowMessage(min: number): string { return `Value must be ${min} or more.`; }
-  protected rangeOverflowMessage(max: number): string { return `Value must be ${max} or less.`; }
-  protected stepMismatchMessage(step: number): string { return `Value must be a multiple of ${step}.`; }
-  protected badDecimalMessage(): string { return 'Enter a number.'; }
+  /**
+   * The decimal-mode constraint messages, resolved the same way every other user-facing string in the
+   * library is: per-instance `label-*` attribute > global i18n (`common.*`) > the English fallback.
+   *
+   * These became user-visible when `b-form.validate()` started consulting the control's verdict, so a
+   * hardcoded English string here sits in a form whose rule messages are translated — one field reporting
+   * `Enter a number.` next to `Sadzba je povinná`. They share `b-form`'s **unprefixed `common.*`**
+   * namespace rather than the components' `bwc.*` one, because they are validation messages that appear
+   * side by side with `common.required` and friends; see CLAUDE.md § i18n for the rule.
+   *
+   * Still `protected` — a subclass overriding one of these wins outright, as before.
+   */
+  protected rangeUnderflowMessage(min: number): string {
+    return this.label('label-range-underflow', 'common.rangeUnderflow', 'Value must be {min} or more.', { min });
+  }
+  protected rangeOverflowMessage(max: number): string {
+    return this.label('label-range-overflow', 'common.rangeOverflow', 'Value must be {max} or less.', { max });
+  }
+  protected stepMismatchMessage(step: number): string {
+    return this.label('label-step-mismatch', 'common.stepMismatch', 'Value must be a multiple of {step}.', { step });
+  }
+  protected badDecimalMessage(): string {
+    return this.label('label-bad-decimal', 'common.badDecimal', 'Enter a number.');
+  }
 
   /**
    * Layer the numeric constraints on top of the base sync.

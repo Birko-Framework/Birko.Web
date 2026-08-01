@@ -492,9 +492,41 @@ Every user-visible string in a component goes through `this.label(attrName, i18n
 
 Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.close`) > English fallback.
 
-**Key namespace:** use `bwc.*` prefixed keys (`bwc.common.*`, `bwc.palette.*`, `bwc.pagination.*`, etc.) so app bundles don't collide. The canonical English key set is shipped at `locales/en.json` — copy it as a starter for other locales.
+**Key namespace — the rule, and where the split falls:**
 
-**BForm validation messages** still use `common.*` keys (`common.required`, `common.minLength`, etc.) and fall back to English via `globalT()`. `BForm.setTranslate(fn)` is kept as a deprecated backward-compat shim — new code should populate messages via the global singleton instead.
+| What | Namespace | Looked up by |
+|---|---|---|
+| Component **labels** and chrome text (`Close`, `Next page`, `No results found`) | `bwc.*` (`bwc.common.*`, `bwc.palette.*`, …) | `this.label(attrName, key, fallback, params?)` |
+| **Validation messages** — anything shown to a user as "this field is wrong" | **unprefixed `common.*`** | `b-form`'s `fmt()`, or `this.label()` from a control |
+
+`bwc.*` exists so app bundles can't collide with component chrome. Validation messages are the deliberate
+exception: they are the one class of string where the app and the library **write into the same form**, and a
+consumer who has already translated `common.required` must not have to learn a second namespace to translate
+the message that renders one line below it. So a control-side message reuses `b-form`'s key wherever it means
+the same thing — `FormControlComponent.requiredMessage()` resolves `common.required`, the *same* key as
+`b-form`'s `required` rule, so one registration translates both layers and they cannot disagree.
+**New validation messages go in `common.*`; everything else goes in `bwc.*`.**
+
+The canonical English key set is shipped at `locales/en.json` — copy it as a starter for other locales.
+
+**Control-side validation messages are i18n'd, not just overridable.** `b-input`'s decimal-mode messages
+(`common.badDecimal` / `.rangeUnderflow` / `.rangeOverflow` / `.stepMismatch`) and
+`FormControlComponent.requiredMessage()` (`common.required` / `common.requiredNoLabel`, in **Birko.Web.Core**)
+became user-visible when `b-form.validate()` started consulting the control's verdict. They resolve through
+the standard priority — per-instance `label-*` attribute > global i18n > English fallback — because the
+`protected`-method override is not a real escape hatch: the reference consumers define no `b-*` subclass at
+all, so "override to localise" reads as "not localisable". The methods stay `protected` and an override still
+wins; i18n is an added layer. Guarded by `i18n-message-smoke.ts` in the playground, which asserts both halves
+— the English path byte-identical, and a registered translation actually winning.
+
+> The two layers' English fallbacks differ by a trailing period (`{label} is required.` from the control,
+> `{label} is required` from `b-form`). Left alone deliberately: the fallbacks are the observable behaviour
+> for a consumer with no i18n configured and are asserted downstream. Because both resolve `common.required`,
+> registering anything under that key makes them identical — which is the actual fix.
+
+**BForm validation messages** use the same `common.*` keys (`common.required`, `common.minLength`, etc.) and
+fall back to English via `globalT()`. `BForm.setTranslate(fn)` is kept as a deprecated backward-compat shim —
+new code should populate messages via the global singleton instead.
 
 **Date/time locale labels** (months, weekday headers) can be set via `BDatePicker.setLocale({months, days, today, clear})` / `BDatetimePicker.setLocale(...)` / `BTime.setLocale(...)`. These are deprecated shims that win over global i18n but are still honoured for back-compat.
 
@@ -510,6 +542,45 @@ Priority: explicit `label-close` attribute > global i18n lookup (`bwc.common.clo
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### The control's own validation messages are translatable, and they live in `b-form`'s key tree (2026-08-01)
+
+Direct follow-up to the entry below: making `validate()` consult the control's verdict made
+`validationMessage` user-visible for the first time, and those messages were hardcoded English. Measured in
+Symbio (Slovak UI, three `type: 'percent'` fields): typing `abc` produced `Enter a number.` in a form whose
+other errors were Slovak — and since `_controlVerdict` prefers `el.validationMessage`, a native
+`type="number"` field contributes the **browser's** locale, so one form could show three languages at once.
+
+`b-input`'s four decimal messages and `FormControlComponent.requiredMessage()` now route through
+`this.label(attr, key, fallback, params)` — the same attribute > i18n > fallback path as every other string.
+
+- **`protected` is not an escape hatch when nobody subclasses.** The methods were overridable, which reads
+  like an answer; Symbio, the reference consumer, defines no `b-*` subclass at all, so in practice
+  "override to localise" meant "not localisable". They are still `protected` and an override still wins —
+  i18n is a layer underneath, not a replacement — and the `label-*` attribute falls out as a per-instance
+  hatch for free.
+- **The namespace was a real fork, and it is now written down.** Component chrome is `bwc.*`; validation
+  messages are unprefixed `common.*`. Validation is the one class of string where the app and the library
+  write into the *same form*, so a consumer who already translated `common.required` should not learn a
+  second tree for the line rendered below it. See § i18n for the rule; new validation messages go in
+  `common.*`.
+- **One condition, one key.** `requiredMessage()` reuses `b-form`'s own `common.required` rather than
+  minting a parallel key, so a single registration translates both layers and they cannot disagree. That
+  also disposes of the trailing-period divergence between them (`… is required.` vs `… is required`)
+  without touching either fallback — the fallbacks are the observable behaviour for a consumer with no
+  i18n and are asserted downstream, so they stay byte-identical; the divergence now exists only on the
+  untranslated path.
+- **The check that would have been forgotten is the one in the other repo.** `requiredMessage()` is in
+  **Birko.Web.Core**, so a components-only test would have shipped half the fix. `i18n-message-smoke.ts`
+  exercises it through `b-tag-input` (whose `validationSource()` is `undefined` — the case that message
+  exists for). Mutation-verified: reverting both files takes the suite to **8/17**, with exactly the nine
+  fix-dependent checks failing and all six English back-compat ones green.
+
+Two harness notes: the new suite registers on the **global** i18n singleton, which `addMessages` cannot
+undo and which would rewrite the English strings backport-smoke asserts, so it waits on a completion flag
+rather than racing — a global-state test has to say when it runs. And `verify.mjs`'s summary regex was
+`[a-z-]+`, so a **digit** in a suite name made a fully green suite report as *never having run*; now
+`[a-z0-9-]+`.
 
 ### `b-form.validate()` now asks the control, but only about things the schema cannot say (2026-08-01)
 

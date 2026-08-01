@@ -141,6 +141,11 @@
   },
   "common": {
     "required": "{label} is required",
+    "requiredNoLabel": "Please fill out this field.",
+    "badDecimal": "Enter a number.",
+    "rangeUnderflow": "Value must be {min} or more.",
+    "rangeOverflow": "Value must be {max} or less.",
+    "stepMismatch": "Value must be a multiple of {step}.",
     "minLength": "{label} must be at least {value} characters",
     "maxLength": "{label} must be at most {value} characters",
     "min": "{label} must be at least {value}",

@@ -28,6 +28,39 @@ Non-obvious submitted shapes:
 `el.value` and `b-form`'s programmatic collection are unchanged — toggles still report `'true'`/`'false'`
 from `.value` and their boolean from `.checked`. `required` is unsupported on `b-radio` (group property).
 
+### Validation messages are translatable
+
+A control produces some messages **itself** — the ones no schema rule can express — and `b-form.validate()`
+surfaces them to the user. They resolve like every other string in the library: **per-instance `label-*`
+attribute > global i18n > English fallback**, so they translate alongside `b-form`'s rule messages instead of
+being the one English line in a localised form.
+
+| Message | Key | Override attribute | English fallback |
+|---|---|---|---|
+| `required` on a control with no native primitive, **with** a `label` | `common.required` | `label-required` | `{label} is required.` |
+| …**without** a `label` | `common.requiredNoLabel` | `label-required` | `Please fill out this field.` |
+| `b-input type="decimal"` unparseable input | `common.badDecimal` | `label-bad-decimal` | `Enter a number.` |
+| `b-input type="decimal"` below `min` | `common.rangeUnderflow` | `label-range-underflow` | `Value must be {min} or more.` |
+| `b-input type="decimal"` above `max` | `common.rangeOverflow` | `label-range-overflow` | `Value must be {max} or less.` |
+| `b-input type="decimal"` off `step` | `common.stepMismatch` | `label-step-mismatch` | `Value must be a multiple of {step}.` |
+
+Keys live in the **unprefixed `common.*`** tree — `b-form`'s namespace, not the components' `bwc.*` one —
+because these render next to `common.required` / `common.minLength` and a consumer should translate one tree,
+not two. The `required` message deliberately **reuses `b-form`'s own `common.required` key**: one condition,
+one key, so a single registration covers both layers and they cannot disagree about the same field. (Their
+English *fallbacks* still differ by a trailing period; that is untranslated-path-only and left alone because
+it is asserted downstream.)
+
+Register them like any other messages:
+
+```ts
+getI18n().addMessages('sk', { common: { badDecimal: 'Zadajte číslo.', required: '{label} je povinné' } });
+```
+
+The `protected` methods behind each (`requiredMessage()` on `FormControlComponent`, `badDecimalMessage()` /
+`rangeUnderflowMessage()` / `rangeOverflowMessage()` / `stepMismatchMessage()` on `b-input`) still work as
+subclass overrides and still win — i18n is an added layer, not a replacement.
+
 ## Inputs
 
 > **`description`** — persistent help text rendered under the control and wired into its
@@ -109,6 +142,7 @@ anywhere. That shipped: an 81.8 kg weigh-in recorded as 818 kg.
 | unparseable input | `badInput` |
 | blank | left to `required` |
 | `error` attribute | still wins over all of the above, as everywhere else |
+| their messages | translatable — `common.badDecimal` / `.rangeUnderflow` / `.rangeOverflow` / `.stepMismatch`, or per-instance `label-bad-decimal` / `label-range-underflow` / `label-range-overflow` / `label-step-mismatch`. See [Validation messages are translatable](#validation-messages-are-translatable) |
 
 The component must own this because the inner control is `type="text"`, which has **no** native numeric
 constraints — and since `b-input` is form-associated, mirroring that control's validity would make the field
