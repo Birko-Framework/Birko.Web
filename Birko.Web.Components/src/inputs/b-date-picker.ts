@@ -62,6 +62,20 @@ export class BDatePicker extends FormControlComponent {
       :host { display: block; position: relative; }
 
       .dp-wrap { position: relative; }
+      /* native mode on iOS: Safari gives input[type=date] its own platform control metrics, and that
+         intrinsic width survives the width:100% / box-sizing:border-box that formControlSheet sets — so
+         inside a narrow container (a size="sm" b-modal) the field renders wider than its card and spills
+         past the border. Reported on the Reps device pass 2026-08-01 in the mark-exception sheet.
+         Dropping the native appearance removes the UA metrics and lets the declared width win. Scoped to
+         coarse pointers so desktop keeps its calendar affordance, which -webkit-appearance:none would
+         otherwise strip. NOT reproducible in Playwright's WebKit: form controls are platform-rendered, so
+         desktop WebKit is not a proxy for iOS here — this needs a device to confirm. */
+      @media (pointer: coarse) {
+        input[type="date"] {
+          -webkit-appearance: none; appearance: none;
+          min-width: 0; max-width: 100%;
+        }
+      }
       .dp-input {
         cursor: pointer;
         caret-color: transparent;
