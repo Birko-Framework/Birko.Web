@@ -579,9 +579,16 @@ Segmented control — a horizontal single-choice switch for 2–4 short options.
 | `group-toggle` | `{ group, collapsed }` |
 
 **`type: 'decimal'` in a schema** maps to `b-input type="decimal"` (see its section above) and is what you
-want for any field accepting a decimal — `'number'` and `'percent'` both render a native `type="number"`,
-which cannot accept a comma. `min` / `max` / `step` are forwarded to the **host** element rather than the
-inner control, because `b-input` enforces them itself in this mode.
+want for any field accepting a decimal — `'number'` renders a native `type="number"`, which cannot accept a
+comma. `min` / `max` / `step` are forwarded to the **host** element rather than the inner control, because
+`b-input` enforces them itself in this mode.
+
+**`type: 'percent'` renders through that same mode**, since a percent is a decimal by definition and `12,5 %`
+is an ordinary thing to type. Its `%` suffix and its 0-100 ⇄ 0-1 storage conversion are keyed on the schema
+type and are unchanged; `getValues()` / `validate().data` still return the storage form (`0.125`) as a
+**number**. The visible tradeoff is that a text-based control has no native spinner arrows.
+
+No implicit `min`/`max` is applied to a percent field — set them explicitly if you want 0-100 enforced.
 
 Two caveats specific to it:
 

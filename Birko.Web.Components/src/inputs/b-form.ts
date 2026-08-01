@@ -18,6 +18,23 @@ export type RuleType =
   | 'pattern' | 'email' | 'match' | 'custom'
   | (string & {});
 
+/**
+ * Field types whose collected value is a **user-typed string that may use a comma** as its decimal
+ * separator, because they render through `b-input`'s `decimal` mode. Any numeric coercion of such a
+ * value must go through `parseDecimal`, never `Number()` — `Number('12,5')` is `NaN`, and NaN makes
+ * every comparison false, so a range check silently passes and a unit conversion silently skips.
+ */
+const COMMA_TYPED_TYPES: ReadonlySet<string> = new Set(['decimal', 'percent']);
+
+/**
+ * Coerces a collected field value that may be either an already-numeric storage value or a
+ * user-typed string with either separator. Returns null when it is not usable as a number.
+ */
+function coerceTypedNumber(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  return parseDecimal(String(raw ?? ''));
+}
+
 export type ValidatorFn = (value: unknown, data: Record<string, unknown>) => string | null;
 
 export interface ValidationRule {
@@ -563,8 +580,17 @@ export class BForm extends BaseComponent {
       case 'password': case 'email': case 'number':
         parts.push(`type="${field.type}"`);
         break;
+      // `percent` is a decimal by definition — 12,5 % is an ordinary thing to type — so it renders
+      // through the same mode rather than `type="number"`, which cannot accept a comma at all. The `%`
+      // suffix and the 0-100 ⇄ 0-1 conversion are keyed on the SCHEMA type and so are unaffected.
+      //
+      // The visible tradeoff: a text-based control has no native spinner arrows. Being able to type the
+      // separator at all wins — a percent field that silently turned 12,5 into 125 was storing 1.25.
       case 'percent':
-        parts.push('type="number"');
+        parts.push('type="decimal"');
+        if (field.min !== undefined) parts.push(`min="${escapeAttr(String(field.min))}"`);
+        if (field.max !== undefined) parts.push(`max="${escapeAttr(String(field.max))}"`);
+        if (field.step !== undefined) parts.push(`step="${escapeAttr(String(field.step))}"`);
         break;
       // `decimal` is a b-input component mode, not an HTML input type, so the attribute has to be
       // forwarded for it to engage at all — without this case the switch emitted no `type`, b-input
@@ -825,7 +851,7 @@ export class BForm extends BaseComponent {
     // A null parse (blank, or unparseable) deliberately stays NaN, so the numeric rules keep passing
     // and the existing owners of those cases still report them exactly once — `required` for blank,
     // b-input's own `badInput` for junk.
-    const num = field.type === 'decimal' ? (parseDecimal(str) ?? NaN) : Number(value);
+    const num = COMMA_TYPED_TYPES.has(field.type) ? (parseDecimal(str) ?? NaN) : Number(value);
 
     switch (rule.type) {
       case 'minLength':
@@ -1039,8 +1065,13 @@ export class BForm extends BaseComponent {
           this._convertPercent(child, nested as Record<string, unknown>, toStorage);
         }
       } else if ((child as FormField).type === 'percent' && child.name in data) {
-        const n = Number(data[child.name]);
-        if (!isNaN(n)) {
+        // Runs in BOTH directions, so the input is a user-typed display string on the way to storage
+        // and an already-numeric storage value on the way back — coerceTypedNumber handles both.
+        // `Number()` here was the more damaging half of the percent bug: for '12,5' it returned NaN,
+        // the `!isNaN` guard skipped the branch, and the RAW STRING '12,5' was handed out as the
+        // stored value instead of 0.125. Silent, and it corrupts rather than merely mis-validates.
+        const n = coerceTypedNumber(data[child.name]);
+        if (n !== null) {
           data[child.name] = toStorage ? n / 100 : n * 100;
         }
       } else if ((child as FormField).type === 'range' && (child as FormField).valueType === 'percent' && child.name in data) {
