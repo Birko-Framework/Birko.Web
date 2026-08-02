@@ -1,4 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* hidden means hidden. The UA's [hidden] rule and a class selector share specificity (0,1,0), so any author
+   `display` rule silently un-hides the element while the code believes it is gone — a defect that has shipped
+   (a four-week date range recorded as one day, because a field was on screen that the form thought was not).
+   !important because a specificity bump only outranks the selectors that exist today. The shadow-DOM half of
+   this lives in BasePage.styles; both trees need it, since neither sheet reaches the other. */
+[hidden] { display: none !important; }
 html { font-family: var(--b-font); font-size: var(--b-text-base); line-height: var(--b-line-height); color: var(--b-text); background: var(--b-bg); -webkit-font-smoothing: antialiased; }
 body { min-height: 100vh; }
 a { color: var(--b-color-primary); text-decoration: none; }
