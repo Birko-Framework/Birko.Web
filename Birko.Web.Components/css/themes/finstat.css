@@ -84,11 +84,16 @@
   --b-row-hover-bg: rgba(253, 222, 129, 0.3); /* @clr-hover */
 
   /* Shadows — panels are flat in Finstat; depth comes from @box-shadow
-     (0 5px 10px) and the strong dropdown shadow (0 20px 70px -25px). */
+     (0 5px 10px) and the strong dropdown shadow (0 20px 70px -25px).
+     lg no longer maps 1:1 to @box-shadow-preset (0 5px 15px -5px / 0.15). That value measured
+     WEAKER than md on both depth and spread, so the scale ran sm < base < md > lg < xl and a
+     consumer reaching for the next rung up got a shallower shadow. --b-shadow-* is a monotonic
+     depth ladder before it is a brand mapping; where the two conflict the ladder wins. md and xl
+     still map 1:1 — xl only looked weak against a peak-pixel measure, being wide and diffuse. */
   --b-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
   --b-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
   --b-shadow-md: 0 5px 10px rgba(0, 0, 0, 0.2);        /* @box-shadow */
-  --b-shadow-lg: 0 5px 15px -5px rgba(0, 0, 0, 0.15);  /* @box-shadow-preset */
+  --b-shadow-lg: 0 10px 24px -6px rgba(0, 0, 0, 0.22);  /* was @box-shadow-preset — see note */
   --b-shadow-xl: 0 20px 70px -25px rgba(0, 0, 0, 0.3); /* @box-shadow-dropdown */
 
   /* Blue focus glow (Finstat focuses inputs with @clr-bg-blue) */
