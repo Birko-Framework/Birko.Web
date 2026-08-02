@@ -71,6 +71,20 @@ export abstract class BasePage extends BaseComponent {
   static get styles(): string {
     return `
       :host { display: block; height: 100%; }
+      /* hidden means hidden — an invariant, not a default.
+
+         The user-agent's [hidden] { display: none } and a class selector have IDENTICAL specificity (0,1,0),
+         and a page's own styles are concatenated AFTER these, so \`.field { display: flex }\` silently wins and
+         the element stays on screen while the code believes it is gone. That is not theoretical: it shipped a
+         four-week absence recorded as a single day, with a success message, because an end-date field was
+         visible while the form thought it was not — and every automated test stayed green, since they set the
+         value directly and never asked whether the field should have been on screen at all.
+
+         !important rather than a specificity bump, because a bump only outranks what exists today: :host
+         [hidden] (0,2,0) beats \`.field\` but loses again to \`.field.active\`. A page that genuinely needs to
+         animate something away should drive that from its own class or from visibility, not by out-ranking
+         the attribute that says the thing is gone. */
+      [hidden] { display: none !important; }
       .page-header {
         display: flex; align-items: center; justify-content: space-between;
         flex-wrap: wrap; gap: var(--b-space-sm, 0.5rem);
