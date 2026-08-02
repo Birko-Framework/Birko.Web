@@ -399,6 +399,53 @@ transaction — the merge counterpart to `replaceAll`, and what makes a windowed
 refresh cost 1 IndexedDB transaction instead of one per row), `replaceAll`
 (clear + bulk put, for a whole-collection refresh), `evict`, `clear`.
 
+### Classified collection reads — telling "nothing yet" from "never synced"
+
+`readAllThrough` returns `T[]`. So a device that has never synced and an account
+that genuinely has nothing both answer `[]` — and any surface that *says something
+to the user about emptiness* then tells one of them something false. "You have
+logged nothing" and "this device has never connected" are opposite claims.
+
+**Reach for the classified read when a screen reports emptiness in words.** Where
+an empty list just renders as an empty list, `readAllThrough` is simpler and stays
+correct — this is not a blanket replacement.
+
+```typescript
+import { createListMirror, readAllClassifiedThrough, peekList } from 'birko-web-core';
+
+const historyMirror = createListMirror<Entry>({ dbName: 'app_history', storeName: 'entries' });
+
+const read = await readAllClassifiedThrough({
+  fetch:  () => api.get<Entry[]>('history'),
+  mirror: historyMirror,
+});
+
+if (read.state === 'unavailable') showConnectOnce();
+else render(read.items, { stale: read.source === 'mirror' });
+```
+
+The mirror factory is not a convenience — it is **half of the primitive**. An
+entity-keyed `MirrorStore` has nowhere to record that a fetch succeeded and
+returned nothing, so an empty store and an absent one are indistinguishable and
+`unavailable` cannot be detected at all. `createListMirror` therefore caches the
+list as **one wrapper row under a fixed key**: a missing row means "never synced",
+a present row holding `[]` means "synced, nothing there". Callers never name that
+key; `readAllClassifiedThrough` is the only thing that writes it.
+
+Two more things worth knowing:
+
+- **`peekList(mirror)`** reads the cached list without touching the network, or
+  `undefined` when nothing was ever cached. For a *second* reader that fetches its
+  own narrower query but wants the cached whole as an offline fallback — it exists
+  so that reader does not have to know the row key either.
+- **A transient failure is not "never synced".** A 500, or a thrown fetch, with a
+  cached row present returns `loaded` from the mirror. `unavailable` means
+  precisely "nothing has ever been cached here", and nothing else.
+- **`key` on `createListMirror` is for adopting an existing cache only.** Pointing
+  a new mirror at a different key is how you keep a store that already holds a row
+  under another name; changing it on a live store would make every device that had
+  synced read as one that never had.
+
 ### Windowed reads — a dated collection behind a range switch
 
 `readAllThrough` is **wrong** for a history read one rolling range at a time (a

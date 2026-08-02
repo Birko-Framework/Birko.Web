@@ -146,6 +146,120 @@ export async function readAllThrough<T>(params: {
   return res.data;
 }
 
+// ── Classified collection reads: telling "nothing recorded" apart from "never synced" ────────────
+//
+// `readAllThrough` returns `T[]`, falling back to `mirror.readAll()`. So a device that has never
+// synced and an account that genuinely has nothing both answer `[]` — and any surface that says
+// something to the user about emptiness then says the wrong thing to one of them. "You have logged
+// nothing" and "this device has never connected" are opposite claims, and only one screen can be
+// right.
+//
+// The reason `readAllThrough` *cannot* be fixed in place is worth stating, because it looks like an
+// oversight and is not: an entity-keyed mirror has nowhere to record that a fetch succeeded and
+// returned nothing. An empty store is indistinguishable from an absent one. So the fix is not a
+// different return type over the same cache — it is a different cache shape, and that is why the two
+// ship together below rather than leaving the caller to discover the dependency.
+//
+// The cache is therefore **one wrapper row under a fixed key**: a missing row means "never synced",
+// a present row holding an empty list means "synced, nothing there". `createListMirror` bakes in the
+// key path so no caller has to know that, and `readAllClassifiedThrough` is the only thing that
+// writes it.
+
+/** The single wrapper row {@link createListMirror} stores. Callers never construct one directly. */
+export interface CachedList<T> {
+  key: string;
+  items: T[];
+}
+
+/**
+ * A collection read that can miss: `loaded` carries the items and where they came from, `unavailable`
+ * says this device cannot answer at all. Deliberately not an empty array — see the note above.
+ */
+export type ClassifiedListRead<T> =
+  | { state: 'loaded'; items: T[]; source: 'server' | 'mirror' }
+  | { state: 'unavailable' };
+
+/** The default key of the wrapper row. Internal — the shape is the primitive's business, not a caller's. */
+const LIST_KEY = 'all';
+
+/** The key a given list mirror stores its row under, remembered so callers never have to name it. */
+const listKeys = new WeakMap<MirrorStore<CachedList<unknown>>, string>();
+
+/**
+ * The mirror {@link readAllClassifiedThrough} needs: one row holding the whole list.
+ *
+ * Use this rather than a plain {@link MirrorStore} for any collection whose *emptiness* the UI reports,
+ * and give it its **own** store name. Two readers of one resource with different staleness rules want two
+ * mirrors, not one — sharing them makes the stricter reader's cache invalidate the looser one's.
+ */
+export function createListMirror<T>(
+  options: {
+    dbName?: string;
+    storeName?: string;
+    /**
+     * Override the wrapper row's key. **Only for adopting an existing cache**, where a store already holds a
+     * row under a different name: changing it would make every device that had synced read as one that never
+     * had, and show "connect once" until its next online read. Leave it unset for anything new — the key is an
+     * internal detail and naming it is not a decision a caller should be making.
+     */
+    key?: string;
+  } = {},
+): MirrorStore<CachedList<T>> {
+  const { key = LIST_KEY, ...rest } = options;
+  const mirror = new MirrorStore<CachedList<T>>({ ...rest, keyPath: 'key' });
+  listKeys.set(mirror as MirrorStore<CachedList<unknown>>, key);
+  return mirror;
+}
+
+/**
+ * The cached list **without touching the network**, or `undefined` when nothing has ever been cached.
+ *
+ * For a *second* reader of a list some other read owns — one that fetches its own narrower query but wants the
+ * cached whole as an offline fallback. It exists so that reader does not have to know the row's key, which is
+ * the one thing {@link createListMirror} is hiding.
+ */
+export async function peekList<T>(mirror: MirrorStore<CachedList<T>>): Promise<T[] | undefined> {
+  const key = listKeys.get(mirror as MirrorStore<CachedList<unknown>>) ?? LIST_KEY;
+  return (await mirror.get(key))?.items;
+}
+
+/**
+ * Network-first read of a whole collection that **reports when it cannot answer** — the classified
+ * counterpart to {@link readAllThrough}.
+ *
+ * Reach for this instead of `readAllThrough` when the surface says something to the user about
+ * emptiness ("nothing logged in this range", "no measurements yet"). Where an empty list just renders
+ * as an empty list, `readAllThrough` is simpler and stays correct.
+ *
+ * A non-ok response with a cached row is `loaded` from the mirror, not `unavailable`: a transient 500
+ * must not make a device claim it has never synced. `unavailable` means precisely "nothing has ever
+ * been cached here".
+ */
+export async function readAllClassifiedThrough<T>(params: {
+  fetch: () => Promise<ReadThroughResponse<T[]>>;
+  mirror: MirrorStore<CachedList<T>>;
+}): Promise<ClassifiedListRead<T>> {
+  const { fetch, mirror } = params;
+
+  let res: ReadThroughResponse<T[]> | null = null;
+  try {
+    res = await fetch();
+  } catch {
+    res = null; // hard offline — fall through to the mirror
+  }
+
+  const key = listKeys.get(mirror as MirrorStore<CachedList<unknown>>) ?? LIST_KEY;
+
+  if (res && res.ok && res.status !== 0 && res.data != null) {
+    await mirror.upsert({ key, items: res.data });
+    return { state: 'loaded', items: res.data, source: 'server' };
+  }
+
+  const cached = await mirror.get(key);
+  if (!cached) return { state: 'unavailable' };
+  return { state: 'loaded', items: cached.items, source: 'mirror' };
+}
+
 // ── Windowed reads: a dated collection fetched one rolling range at a time ───────────────────────
 //
 // `readThrough` covers one entity and `readAllThrough` a whole collection. Neither fits a **dated
