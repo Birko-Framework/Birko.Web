@@ -6,7 +6,24 @@
    this lives in BasePage.styles; both trees need it, since neither sheet reaches the other. */
 [hidden] { display: none !important; }
 html { font-family: var(--b-font); font-size: var(--b-text-base); line-height: var(--b-line-height); color: var(--b-text); background: var(--b-bg); -webkit-font-smoothing: antialiased; }
-body { min-height: 100vh; }
+/* Size the body in the SAME unit the app shell sizes itself in (BCoreAppShell's :host is
+   height:100vh then height:100dvh). vh is the *large* viewport — as if mobile browser chrome were
+   retracted — so a vh body under a dvh shell is taller than the shell by exactly the URL-bar height:
+   measured at 56px on Android 10 / Chrome 150, which gave a full-viewport app 56px of dead scroll and
+   dragged its bottom nav behind the system navigation bar (WorkoutTracker TASK-129 — the task IDs here
+   are in the WorkoutTracker/Reps consumer repo, NOT this framework tree, where both numbers are taken by
+   unrelated work). The defect is not reproducible headlessly — with no retractable chrome vh == dvh — so
+   Birko.Web.Playground's backport-smoke.ts guards the *declaration* instead: it asserts this rule still
+   carries a dvh min-height, which catches an edit reverting the line but is not a reproduction. vh stays
+   first as the fallback for no-dvh browsers.
+   NOTE the installed-PWA case is a separate and worse defect that this does NOT fix: there Chrome
+   resolves dvh itself against the edge-to-edge viewport after an in-place reload and never invalidates
+   the styles, hiding the bottom nav behind the system bar (WorkoutTracker TASK-130 — open, P1). Three
+   attempts at substituting a JS-measured height for dvh here were reverted: each fixed Android and broke
+   iPhone rotation, because a measured pixel value only tracks the viewport as well as the code
+   maintaining it, and iOS reports pre-rotation metrics for longer than any timer or observer we tried
+   caught. Do not re-try that shape without reading WorkoutTracker TASK-130 first. */
+body { min-height: 100vh; min-height: 100dvh; }
 a { color: var(--b-color-primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
 img, svg { display: block; max-width: 100%; }
