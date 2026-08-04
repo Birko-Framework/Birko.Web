@@ -543,6 +543,43 @@ new code should populate messages via the global singleton instead.
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
+### `b-segmented`'s touch floor was half a floor — and its test could not fail (2026-08-04)
+
+The coarse-pointer floor added for Reps' TASK-149 raised pill **height** to `max(--b-control-min-height-lg,
+44px)` and the label to 14px, citing a 44 × 44 target. Width was never floored, so the shipped Progress range
+switch rendered its `All` pill at **36.6 × 44** (38.9px in WebKit) at every phone width from 320 up. Now
+`min-width` on the same rule. Also removed a `padding-inline` no-op from that block — the base rule already
+sets `--b-space-md` on that axis, measured identically under both pointers.
+
+Three things worth carrying past this component:
+
+- **A regression test that cannot fail is worth nothing, and locale is what decided it here.** Reps' family E
+  gained a width assertion and **all three tests still passed with the floor reverted**: the suite runs the
+  `sk` locale, where "30 dní / 90 dní / Všetko" all clear 44px from padding alone. Only `en` — a real
+  user-selectable locale, not a fallback artefact — contains a label short enough to fail. The new test sets
+  `reps-locale` via `addInitScript` and asserts the English label is present *before* measuring, so it cannot
+  pass vacuously in Slovak. Red-verified at 38.9px.
+- **A shared component's regression test belongs in the framework, not only in the consumer that reported
+  it.** For two months this fix's only coverage lived in Reps, which is why a Slovak-only suite was able to
+  bless a half-fix. `device-fix-check.mjs` now has a § 6 group measuring `b-segmented` directly with a
+  deliberately short label (66 checks, up from 63) — including the inverse, that a **fine** pointer stays
+  dense at 19px, since a fix that floored every pointer type would pass the other two and silently resize
+  every consumer. All three verified to fail by reverting.
+- **Absolute px inside `max()` is not "absolute sizing".** The floors read `max(2.75rem, 44px)`, which raises
+  when the user's font scale raises and only ever raises — the right shape for a tap target, where 44px is a
+  finger rather than a font. The bare token would not do: `--b-control-min-height-lg` resolves to **38.5px**,
+  because `reset.css` sets `html { font-size: var(--b-text-base) }` = 14px and the whole `rem` scale resolves
+  against a 14px root. That is a separate defect; the floor holds either way.
+
+Open question this did **not** settle: `b-button` explicitly refuses a `pointer: coarse` query inside a
+component and ships a knob instead, while `b-segmented` applies one and exposes no knob — and it is a filter
+chip in `Birko.Web.Shell`'s `base-crud-page`, so every Shell back-office inherits the rule. Filed as
+**TASK-139** in the aggregator's `tasks/_loose/`; no knobs added pending that call.
+
+Measuring note: the first round of measurements read 26px labels, from a leftover `font-size: 26px; /*
+RED-VERIFY the fit half */` probe in an untracked playground bundle. **Rebuild before measuring** — a stale
+bundle here fails by inventing a defect, not by hiding one.
+
 ### The control's own validation messages are translatable, and they live in `b-form`'s key tree (2026-08-01)
 
 Direct follow-up to the entry below: making `validate()` consult the control's verdict made

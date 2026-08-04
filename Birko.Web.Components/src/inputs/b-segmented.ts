@@ -51,6 +51,37 @@ export class BSegmented extends BaseComponent {
         outline: none;
         box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
       }
+      /* Touch floor. The pills were sized entirely by font-size + padding, which measured **19.0px** tall — 43% of
+         the 44 × 44 target Apple's Human Interface Guidelines ask for (and WCAG 2.1 SC 2.5.5 Target Size
+         (Enhanced), AAA — *not* SC 2.5.8 Target Size (Minimum), which is 24 × 24 at AA; an earlier version of this
+         note cited 2.5.8 for the 44, which would tell a reader AA demands it) — in every engine, so this was never
+         a WebKit quirk but a missing rule. Consumers cannot fix it: the group lives in this shadow root and
+         exposes no CSS part.
+
+         Coarse pointer only, unlike b-button (see its note): a segmented control is legitimately dense in a desktop
+         toolbar, and inflating it there would move every existing consumer's layout for no benefit. max(token,
+         44px) rather than the bare token because the token itself resolves to 38.5px under the shipped reset's
+         14px root — that is its own defect and its own task; this floor must hold either way.
+
+         **Both axes, because the criterion has two.** The first version of this rule floored height alone, and a
+         44 × 44 target was the stated reason for it — so Reps' shipped 30/90/all range switch went on rendering
+         its "All" pill at **36.6 × 44** at every phone width from 320 up, under a green suite: the regression test
+         asserted the box's height and nothing looks wrong in a screenshot. min-width is what a short label needs
+         and padding cannot give it — padding is proportional to nothing here, so "All" and "Vsetko" are floored by
+         different amounts by the same declaration, whereas a floor is the same 44px for both. (The padding-inline
+         declaration this replaces was a no-op: the base rule above already sets --b-space-md on that axis, and it
+         measured 10.5px identically under both pointers.)
+
+         The label size is raised in the same pass deliberately: a 44px box around 11.4px text is a tappable
+         control that still cannot be read at arm's length, which is half a fix. No 16px iOS concern here — the
+         focus-zoom floor applies to focusable *inputs*, and these are buttons. */
+      @media (pointer: coarse) {
+        .segmented button {
+          min-height: max(var(--b-control-min-height-lg, 2.75rem), 44px);
+          min-width: max(var(--b-control-min-height-lg, 2.75rem), 44px);
+          font-size: max(var(--b-text-base, 0.875rem), 14px);
+        }
+      }
       .segmented button:disabled {
         opacity: var(--b-disabled-opacity, 0.5);
         cursor: not-allowed;
