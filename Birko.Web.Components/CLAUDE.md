@@ -580,6 +580,54 @@ Measuring note: the first round of measurements read 26px labels, from a leftove
 RED-VERIFY the fit half */` probe in an untracked playground bundle. **Rebuild before measuring** — a stale
 bundle here fails by inventing a defect, not by hiding one.
 
+### `reset.css` sizes the body in `dvh`, the unit the app shell already sizes itself in (2026-08-03)
+
+`BCoreAppShell`'s `:host` declares `height: 100vh` then `height: 100dvh`; `reset.css` never followed and kept
+`body { min-height: 100vh }`. On Android Chrome **in a tab**, `vh` is the *large* viewport — the height as if
+the URL bar were retracted — so the body was taller than the shell by exactly the URL-bar height (56px
+measured on Android 10 / Chrome 150). A full-viewport app got 56px of dead scroll, and scrolling it dragged
+the bottom nav out of sight behind the system navigation bar. Now `min-height: 100vh; min-height: 100dvh` —
+`vh` stays **first**, because a browser without `dvh` support drops the second declaration and reversing them
+would leave it with no body height at all.
+
+Two things worth carrying past this rule:
+
+- **The defect is not reproducible headlessly, so the guard asserts the declaration and says so.** With no
+  retractable browser chrome `vh == dvh` and the overflow is zero whether or not the bug is present — which
+  is also why an installed PWA looked clean through every earlier device pass, while a user meets the app in
+  a tab first. `backport-smoke.ts` asserts the rule still carries a `dvh` min-height *and* the `vh` fallback
+  ahead of it. That catches an edit reverting the line; it is not a reproduction, and the comment in
+  `reset.css` labels it as such.
+- **A JS-measured height is not a substitute, and the comment records the three attempts.** Each fixed
+  Android and broke iPhone rotation: a measured pixel value only tracks the viewport as well as the code
+  maintaining it, and iOS reports pre-rotation metrics for longer than any timer or observer tried caught.
+  The installed-PWA case is a separate, worse, still-open defect (Chrome resolves `dvh` against the
+  edge-to-edge viewport after an in-place reload and never invalidates the styles) — tracked in the
+  WorkoutTracker consumer repo, not here. Task IDs in that comment are qualified with the repo they live in,
+  because both numbers are taken by unrelated work in the framework's own tree and an unresolvable pointer
+  defeats the warning it exists to be.
+
+### `hidden` means hidden — in both trees, and it took `!important` (2026-08-02)
+
+`reset.css` gained `[hidden] { display: none !important }`, paired with the same rule in
+`Birko.Web.Shell`'s `BasePage.styles`. **Two rules, not one, because neither sheet reaches the other** —
+`BasePage.styles` is adopted into a shadow root, `reset.css` styles the document.
+
+The UA's `[hidden] { display: none }` and a class selector share specificity (0,1,0), so any author `display`
+declaration silently un-hides an element the code believes is gone, with no error and no warning. Not
+theoretical: it shipped a four-week date range recorded as **one day**, because an end-date field was on
+screen while the form thought it was not, and the save path read the option rather than the field — with a
+success message. Every automated test stayed green, since they set values directly and never asked whether
+the field should have been visible at all. It had also been hand-worked-around in two separate consumer
+pages independently, which is what made it the base's problem rather than a page's.
+
+`!important` rather than a specificity bump: a bump only outranks the selectors that exist **today**
+(`:host [hidden]` beats `.field` and loses again to `.field.active`), and hidden is an invariant, not a
+default. Scoped deliberately to `[hidden]` alone — a reset that starts winning arguments it was not asked to
+join is its own problem. Consumers wanting a fade-out drive it from their own class or from `visibility`.
+Guarded in the playground against **computed** style: an attribute assertion was green throughout the
+original defect, which is exactly how it survived to a device.
+
 ### The control's own validation messages are translatable, and they live in `b-form`'s key tree (2026-08-01)
 
 Direct follow-up to the entry below: making `validate()` consult the control's verdict made
