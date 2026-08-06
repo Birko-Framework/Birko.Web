@@ -266,6 +266,15 @@ viewport maths scores pixels hidden behind that chrome as visible.
 - Width media queries in `rem`, never `px` — `@media (max-width: 48rem)`. In a media query `rem` resolves
   against the browser default font size (not a `:root` override), so it tracks a reader who scaled their text
   up. Reuse the Components ladder (30 / 40 / 48 / 64rem); the shells sit at `48rem`, matching `b-ribbon`
+- **`BasePage.styles` declares `[hidden] { display: none !important }`, and a page must not fight it.** The
+  UA's `[hidden]` rule and a class selector have identical specificity (0,1,0) and a page's styles are
+  concatenated *after* `super.styles`, so `.field { display: flex }` silently un-hid an element the code
+  believed was gone — which shipped a four-week date range recorded as one day, under a green suite that set
+  values directly and never asked whether the field was on screen. `!important` rather than a specificity
+  bump because a bump only outranks the selectors that exist today (`:host [hidden]` beats `.field` and
+  loses again to `.field.active`). To animate something away, drive it from your own class or from
+  `visibility` — never by out-ranking the attribute that says the element is gone. `reset.css` in
+  Birko.Web.Components carries the light-DOM half; neither sheet reaches the other tree, so both are needed
 
 ## What NOT to do
 
