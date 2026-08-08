@@ -191,6 +191,12 @@ export class BDatetimePicker extends FormControlComponent {
         color: var(--b-text);
         background: var(--b-bg);
       }
+      /* iOS 16px focus-zoom floor (TASK-126 sweep). A class selector, so the shared formControl rule cannot
+         reach it; measured at 11.38px, i.e. tapping the hour box zoomed the whole page. The box is 3rem wide
+         and centres two digits, which still fits at 16px. Coarse-only — desktop keeps the dense spinner. */
+      @media (pointer: coarse) {
+        .dp-time-input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+      }
       .dp-time-input:focus {
         outline: none;
         border-color: var(--b-border-focus);

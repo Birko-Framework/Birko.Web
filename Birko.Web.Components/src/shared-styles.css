@@ -256,6 +256,24 @@ input.has-error:focus, select.has-error:focus {
   padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
   font-size: var(--b-text-lg, 1rem);
 }
+/* The iOS floor again, and it has to be repeated here rather than relying on the rule above (TASK-126).
+   That rule is a bare element selector at (0,0,1); these size variants name the host and so outrank it
+   INSIDE the media query too — which silently opted every sized control out of the floor. Measured before
+   this block: size="sm" = 11.38px, and size="lg" = 14px, i.e. even the COMFORTABLE variant zoomed on iOS.
+   Nothing unusual was done to break it: writing an ordinary size rule is enough, which is why the floor is
+   swept in Playground's device-fix-check rather than trusted to review. */
+@media (pointer: coarse) {
+  :host([size="sm"]) input,
+  :host([size="sm"]) select,
+  :host([size="sm"]) textarea {
+    font-size: max(16px, var(--b-text-sm, 0.8125rem));
+  }
+  :host([size="lg"]) input,
+  :host([size="lg"]) select,
+  :host([size="lg"]) textarea {
+    font-size: max(16px, var(--b-text-lg, 1rem));
+  }
+}
 
 
 /* @sheet dropdownPanel

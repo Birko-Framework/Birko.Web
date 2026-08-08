@@ -142,6 +142,12 @@ export class BMarkdownEditor extends FormControlComponent {
         padding: var(--b-space-md, 0.75rem);
         tab-size: 2;
       }
+      /* iOS 16px focus-zoom floor (TASK-126 sweep). Measured at 11.38px — the worst case in the catalogue,
+         and on the one control a user types PROSE into rather than a value. Coarse-only, so a desktop editor
+         keeps the compact monospace source view. */
+      @media (pointer: coarse) {
+        textarea.source { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+      }
       textarea.source:focus { box-shadow: none; }
       .preview {
         padding: var(--b-space-md, 0.75rem);

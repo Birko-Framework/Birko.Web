@@ -30,10 +30,17 @@ export class BSelect extends FormControlComponent {
 
       /* ── Searchable mode ── */
       .combo { padding: 0; }
+      /* No font-size here on purpose (TASK-126). The formControl sheet already sizes every input in this
+         shadow root — including a bump to max(16px, ...) under @media (pointer: coarse), because iOS Safari
+         zooms the page when it focuses a control under 16px. A local .combo-input rule is a CLASS selector and
+         so outranks the sheet's bare element rule *inside that media query too*, which silently opted the
+         combobox out of the floor: it measured 12.25px on an iPhone 13 and zoomed the page on every tap, while
+         the plain b-input beside it sat correctly at 16px. The chrome below is stripped because the .combo
+         container carries the border and background — the TEXT is not this component's to size. */
       .combo-input {
         flex: 1; border: none; outline: none; background: transparent;
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        font-size: var(--b-text-base, 0.875rem); color: var(--b-text);
+        color: var(--b-text);
         min-width: 0;
       }
       .combo-input::placeholder { color: var(--b-text-muted); }

@@ -94,6 +94,16 @@ export class BTagInput extends FormControlComponent {
       }
       :host([size="lg"]) input { font-size: var(--b-text-lg, 1rem); }
       :host([size="lg"]) .chip { font-size: var(--b-text-base, 0.875rem); padding: var(--b-space-2xs, 0.125rem) var(--b-space-md, 0.75rem); }
+
+      /* The iOS 16px focus-zoom floor (TASK-126). formControlSheet carries this rule already, but a
+         component's OWN stylesheet is adopted after the shared ones, so the bare rule above wins at equal
+         specificity — and the size variants outrank it outright. Measured before this block: 12.25px at the
+         default size and 11.38px at size=sm, so tapping a tag field zoomed the page on every phone. */
+      @media (pointer: coarse) {
+        input { font-size: max(16px, var(--b-input-font-size, var(--b-text-base, 0.875rem))); }
+        :host([size="sm"]) input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+        :host([size="lg"]) input { font-size: max(16px, var(--b-text-lg, 1rem)); }
+      }
     `;
   }
 

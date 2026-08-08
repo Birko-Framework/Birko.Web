@@ -113,6 +113,13 @@ export class BMultiSelect extends FormControlComponent {
         padding: var(--b-space-xs, 0.25rem) 0;
       }
       .search-wrap input::placeholder { color: var(--b-text-muted); }
+      /* iOS 16px focus-zoom floor (TASK-126 sweep). Measured at 11.38px. The class selector outranks
+         formControlSheet's bare rule, exactly as b-select's .combo-input did — same component shape, same
+         escape, and it survived the first pass of the sweep only because the field is rendered lazily
+         (searchable + panel open), so the harness had to learn to ask for it before it could be measured. */
+      @media (pointer: coarse) {
+        .search-wrap input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+      }
       .no-results {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
         color: var(--b-text-muted); font-size: var(--b-text-sm, 0.8125rem);

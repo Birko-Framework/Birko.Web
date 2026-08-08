@@ -172,6 +172,38 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 
 `b-chart` is an exception: it uses `height` (SVG pixel layout) not `size` — different concept, documented.
 
+### Never set `font-size` on a text-entry control without the iOS floor (MANDATORY)
+
+iOS Safari zooms the whole page when it focuses an `input` / `textarea` / `select` computing under **16px**.
+`formControlSheet` already handles this — `font-size: max(16px, …)` under `@media (pointer: coarse)` — but that
+rule is a **bare element selector at (0,0,1)**, and two ordinary things silently outrank it *inside the media
+query too*:
+
+- any rule naming a class or the host (`.combo-input`, `:host([size="sm"]) input`);
+- **any** rule in the component's own `static get styles()`, even at equal specificity — a component's sheet is
+  adopted after the shared ones, so it wins on order.
+
+So an author opts out of the floor by writing a perfectly normal size rule. That is how it escaped **twelve**
+times across nine components before anyone measured (TASK-126): the searchable combobox at 12.25px, every
+`size="sm"` control at 11.38px, and `size="lg"` — the *comfortable* variant — at 14px.
+
+**The rule:** on any element that can receive typed text, either set no `font-size` at all and let
+`formControlSheet` own it (preferred — see `b-select`'s `.combo-input`), or wrap it:
+
+```css
+@media (pointer: coarse) {
+  .my-field { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+}
+```
+
+Never floor it unconditionally: the rule is coarse-only, and a desktop toolbar must stay dense.
+
+**The guard is a sweep, not review.** `Birko.Web.Playground/device-fix-check.mjs` § 7 instantiates every
+text-entry-bearing component (size variants included), prints all 25 computed sizes on every run, and fails on
+any under 16. A new component with a field belongs in `TEXT_ENTRY_CASES`; one deliberately excluded belongs in
+the comment above it, with the reason. A case that renders no field scores `0px` and fails — "measured nothing"
+must never read as "measured and fine".
+
 ### `hint` vs `description` (form-control help text)
 
 Two attributes, two presentations, one concept each — do not merge them or add a third:
@@ -542,6 +574,28 @@ new code should populate messages via the global singleton instead.
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### The iOS 16px input floor was escaped by twelve controls across nine components (2026-08-08)
+
+Reported as one defect — a Reps device pass found the searchable `b-select` combobox zooming the page at
+**12.25px**. Sweeping the catalogue found eleven more, all through the same door: `formControlSheet`'s
+coarse-pointer floor is a bare element selector, so a class rule, a `:host([size])` rule, or *any* rule in the
+component's own sheet outranks it. Casualties included every `size="sm"` control at 11.38px, `size="lg"` — the
+comfortable variant — at **14px**, `b-tag-input` at its default size, `b-time` and `b-datetime-picker`'s number
+boxes, `b-markdown-editor`'s source textarea, and `b-multi-select`'s search field.
+
+Fixed at each site (`b-select` by **deleting** its rule, the rest by `max(16px, …)` under `pointer: coarse`), and
+the rule is now written down under § *Never set `font-size` on a text-entry control without the iOS floor*.
+
+Three things worth carrying past these components:
+
+- **A shared low-specificity rule is a default, not a guarantee.** If a policy must hold library-wide, it needs a
+  test that measures the rendered result — reviewing diffs cannot see specificity or sheet order.
+- **Fix the class, not the report.** The one-line patch would have been green in every suite and left eleven live
+  instances, one of them on the control users type prose into.
+- **A harness that measures nothing must fail.** `b-multi-select` first reported *no field rendered* (its search
+  box needs `searchable` **and** an open panel); scored as `0px` it failed loudly, and asking correctly exposed a
+  real twelfth instance. Had it been skipped, the sweep would have reported the catalogue clean.
 
 ### `b-segmented`'s touch floor was half a floor — and its test could not fail (2026-08-04)
 

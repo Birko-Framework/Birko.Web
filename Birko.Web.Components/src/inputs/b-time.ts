@@ -98,6 +98,12 @@ export class BTime extends FormControlComponent {
         background: var(--b-bg);
         -moz-appearance: textfield;
       }
+      /* iOS 16px focus-zoom floor (TASK-126 sweep). A class selector, so the shared formControl rule cannot
+         reach it; measured at 12.25px. The box is 3rem wide around two centred digits, which still fits.
+         Coarse-only — a desktop time field stays dense. */
+      @media (pointer: coarse) {
+        .tp-num-input { font-size: max(16px, var(--b-text-base, 0.875rem)); }
+      }
       .tp-num-input::-webkit-inner-spin-button,
       .tp-num-input::-webkit-outer-spin-button {
         -webkit-appearance: none;
