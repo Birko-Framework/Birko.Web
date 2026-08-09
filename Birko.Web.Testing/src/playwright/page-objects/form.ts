@@ -34,6 +34,27 @@ export class FormPO {
     const input = this.field(name).first();
     // Idempotent: read the live checked state from the native <input> (works even when it is
     // visually hidden, as in b-switch). If it is already in the desired state, do nothing.
+    // WAIT FOR THE CONTROL TO BE ENABLED FIRST.
+    //
+    // The label-click path below is the problem this guards: clicking a <label> whose input is
+    // DISABLED is a no-op natively, and the label itself is always actionable — so Playwright's
+    // actionability check passes, the click "succeeds", and the value silently does not change.
+    // `fill()` and `selectOption()` do not have this hole because they act on the control directly
+    // and wait for it to be enabled.
+    //
+    // This became reachable when `BaseCrudPage._openEdit` started disabling the form until its
+    // pre-fill lands (Symbio TASK-368 — an edit modal must not accept input it is about to
+    // discard). A spec that toggles a switch immediately after opening the edit modal now races
+    // that window: measured on `fleet.more.spec.ts:579`, the toggle was dropped and the save wrote
+    // the unchanged value, so the test failed on the badge that never flipped — with no indication
+    // that the click had done nothing.
+    await input.waitFor({ state: 'attached' }).catch(() => { /* caller's assertions will report */ });
+    for (let waited = 0; waited < 10_000; waited += 50) {
+      const disabled = await input.evaluate((el) => (el as HTMLInputElement).disabled).catch(() => false);
+      if (!disabled) break;
+      await this.page.waitForTimeout(50);
+    }
+
     const current = await input.evaluate((el) => (el as HTMLInputElement).checked).catch(() => undefined);
     if (current === checked) return;
     // b-switch hides its native <input> (1px-clipped, non-actionable) and both b-switch and
