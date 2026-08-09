@@ -42,7 +42,19 @@ export interface RealTimeOptions {
   maxPoints?: number;         // max points per series before decimation (default: 300)
   refreshMs?: number;         // rAF throttle interval in ms (default: 100 = 10fps)
   showLatestValue?: boolean;  // overlay current value per series (default: true)
-  timeFormat?: 'HH:mm' | 'HH:mm:ss' | 'mm:ss';  // X axis time labels (default: 'HH:mm:ss')
+  /**
+   * X axis tick format. **Default is now chosen from the data's SPAN**, not fixed to `'HH:mm:ss'`.
+   *
+   * This option was designed for streaming charts, where `windowMs` defaults to 5 minutes and a
+   * time-of-day label is exactly right. The same axis is reused by any series with timestamp x
+   * values, and there a fixed time-of-day format is unreadable: a month of daily samples rendered
+   * as `02:00:00 · 16:25:13 · 06:50:26 …`, which not only omits the date but WRAPS, so the labels
+   * do not even read as increasing. Measured on Symbio's stock-history chart (TASK-301), whose
+   * production cadence is one sample per day — so on real data that axis was always wrong.
+   *
+   * Set explicitly to override; streaming callers that want `'HH:mm:ss'` keep it by saying so.
+   */
+  timeFormat?: 'HH:mm' | 'HH:mm:ss' | 'mm:ss' | 'date' | 'datetime' | 'month';
 }
 
 export interface ChartOptions {
@@ -817,7 +829,8 @@ export class BChart extends BaseComponent {
 
     // ── X labels ──
     if (isTimeAxis) {
-      const timeFmt = rt?.timeFormat ?? 'HH:mm:ss';
+      // Span-aware default (see `_timeFormatFor`); an explicit `timeFormat` still wins.
+      const timeFmt = rt?.timeFormat ?? this._timeFormatFor(xRange);
       const xTicks = 6;
       for (let i = 0; i <= xTicks; i++) {
         const t = xMin + (i / xTicks) * xRange;
@@ -870,7 +883,10 @@ export class BChart extends BaseComponent {
       }
 
       for (let i = 0; i < pts.length; i++) {
-        const label = isTimeAxis ? this._formatTime(s.data[i].x as number, 'HH:mm:ss') : (cats[i] ?? String(i));
+        // The point's own tooltip: on a multi-day series a bare clock time is ambiguous (which day?),
+        // so upgrade to date+time there. A tooltip can afford the precision the axis cannot.
+        const pointFmt = this._timeFormatFor(xRange) === 'date' ? 'datetime' : this._timeFormatFor(xRange);
+        const label = isTimeAxis ? this._formatTime(s.data[i].x as number, pointFmt) : (cats[i] ?? String(i));
         pointsSvg += `<circle class="data-point" cx="${pts[i].x}" cy="${pts[i].y}" r="3.5" fill="${color}"
           data-series="${s.id}" data-index="${i}" role="listitem"
           aria-label="${s.label}: ${s.data[i].y}"><title>${label}: ${s.data[i].y}</title></circle>`;
@@ -1016,7 +1032,8 @@ export class BChart extends BaseComponent {
 
     const rt = this._options.realTime;
     const showValue = this._showLatestValue();
-    const timeFmt = rt?.timeFormat ?? 'HH:mm:ss';
+    // NOTE: `timeFmt` is resolved AFTER the X range is computed below — the span-aware default needs
+    // it, and this is the canvas path where the range is derived further down.
     const colors = this._resolvedColors.length ? this._resolvedColors : ['#2563eb'];
 
     // Resolve border/text colors
@@ -1053,6 +1070,8 @@ export class BChart extends BaseComponent {
       xMin = 0; xMax = 1;
     }
     const xRange = xMax - xMin || 1;
+    // Span-aware default (see `_timeFormatFor`); an explicit `timeFormat` still wins.
+    const timeFmt = rt?.timeFormat ?? this._timeFormatFor(xRange);
 
     const toX = (v: number) => ml + ((v - xMin) / xRange) * cw;
     const toY = (v: number) => mt + ch - ((v - minVal) / range) * ch;
@@ -1175,6 +1194,28 @@ export class BChart extends BaseComponent {
     ctx.restore();
   }
 
+  /**
+   * Pick a tick format from the SPAN the axis covers.
+   *
+   * A time axis is not always a clock: the same code path renders a 5-minute streaming window and a
+   * year of daily samples. Choosing by span is what makes both readable, and it is why the caller
+   * does not have to know — a consumer that simply plots timestamps gets sensible labels.
+   */
+  private _timeFormatFor(spanMs: number): string {
+    if (!Number.isFinite(spanMs) || spanMs <= 0) return 'HH:mm:ss';
+    const MIN = 60_000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+    if (spanMs < HOUR) return 'HH:mm:ss';   // seconds matter only at this zoom
+    if (spanMs < DAY) return 'HH:mm';       // within a day, the clock is the useful axis
+    if (spanMs < 400 * DAY) return 'date';  // days..a year: the DATE is the useful axis
+    return 'month';                          // multi-year: months, or the labels collide
+  }
+
+  /** The app's active locale (`<html lang>`), or the browser default when it is unset. */
+  private _locale(): string | undefined {
+    const lang = document.documentElement.getAttribute('lang');
+    return lang || undefined;
+  }
+
   private _formatTime(ms: number, fmt: string): string {
     if (ms <= 0) return '';
     const d = new Date(ms);
@@ -1184,6 +1225,19 @@ export class BChart extends BaseComponent {
     switch (fmt) {
       case 'HH:mm': return `${hh}:${mm}`;
       case 'mm:ss': return `${mm}:${ss}`;
+      // Locale-aware, and specifically the APP's locale rather than the browser's: `getI18n()` sets
+      // `<html lang>` on every locale change, so reading it keeps the axis in step with the app even
+      // when the browser is set to something else.
+      //
+      // ⚠ It does NOT match `b-date-picker` today, and that is a separate defect rather than a
+      // reason to hard-code a format here. Measured in Symbio with the app locale = `en`: this axis
+      // renders `07/19` (correct for en) while the range picker directly above it renders
+      // `10.07.2026` — because `BDatePicker.setLocale` only supplies month/day NAMES and button
+      // labels, never the date FORMAT, so the picker is fixed to d.M.yyyy regardless of locale.
+      // Matching the picker here would spread that bug rather than fix it.
+      case 'date': return d.toLocaleDateString(this._locale(), { day: '2-digit', month: '2-digit' });
+      case 'datetime': return `${d.toLocaleDateString(this._locale(), { day: '2-digit', month: '2-digit' })} ${hh}:${mm}`;
+      case 'month': return d.toLocaleDateString(this._locale(), { month: '2-digit', year: 'numeric' });
       default: return `${hh}:${mm}:${ss}`;
     }
   }
