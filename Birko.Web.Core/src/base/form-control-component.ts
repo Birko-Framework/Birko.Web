@@ -267,6 +267,18 @@ export abstract class FormControlComponent extends BaseComponent {
       this._internals.setValidity({}, '', anchor);
       return;
     }
+    // A control barred from constraint validation — `disabled`, or inside a disabled fieldset —
+    // KEEPS its `validity` flags but reports an EMPTY `validationMessage`. Mirroring that pair into
+    // `setValidity` throws: "The second argument should not be empty if one or more flags in the
+    // first argument are true." So a required, currently-disabled control (the exact shape produced
+    // by `b-form`'s `disabled` attribute over a `required` field) crashed the render.
+    //
+    // Honour `willValidate` rather than second-guessing the flags — the same rule this file's
+    // callers already assume: a barred control has nothing to say about validity, so report clean.
+    if (!src.willValidate) {
+      this._internals.setValidity({}, '', anchor);
+      return;
+    }
     // Mirror the inner control's own validity verbatim — `type`, `min`/`max`/`step`, `pattern` and
     // `required` are the browser's job, not ours. ValidityState is a live object, not a flags dict, so
     // it has to be copied field by field.
