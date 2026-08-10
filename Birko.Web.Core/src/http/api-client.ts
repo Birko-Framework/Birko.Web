@@ -2,6 +2,21 @@
  * Minimal fetch-based HTTP client with interceptors and auth support.
  */
 
+/**
+ * How long a single request may take before it is aborted (ms).
+ *
+ * `fetch` has **no timeout of its own**: a connection that dies without sending a reset — a phone whose
+ * screen sleeps, a tunnel that drops, a captive network that black-holes the packet — leaves the promise
+ * pending for the life of the page. That is not a theoretical failure. It cost a fully-performed workout on
+ * the 2026-08-10 Reps device pass: the write never reached the server, was never queued (queueing keys off a
+ * *rejected* fetch), and every caller awaiting it stayed wedged — an `await` on a never-settling promise does
+ * not continue, not even into a `finally`.
+ *
+ * Generous rather than tight, because the cost of firing early is low and well-handled: an aborted request is
+ * reported exactly like a network error, so a write goes to the outbox and a read falls back to its mirror.
+ */
+export const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+
 /** Metadata for offline-queueable write actions. */
 export interface ActionMeta {
   moduleId: string;
@@ -31,6 +46,11 @@ export interface ApiClientOptions {
     body: unknown,
     meta: ActionMeta,
   ) => Promise<string>;
+  /**
+   * Abort a request that has not completed within this many ms.
+   * Defaults to {@link DEFAULT_REQUEST_TIMEOUT_MS}. Set `0` to disable (not recommended — see that constant).
+   */
+  timeoutMs?: number;
 }
 
 export interface ApiResponse<T = unknown> {
@@ -126,7 +146,32 @@ export class ApiClient {
     return { ok: true, status: 0, data: null as T, headers: new Headers(), queued: true, queueId };
   }
 
+  /**
+   * Run a request under a timeout, so a stalled connection fails instead of hanging forever.
+   *
+   * The abort deliberately surfaces as the **same `{ ok: false, status: 0 }` envelope a network error already
+   * produces** (`_send`'s catch treats them alike). That is the whole design: a timeout is folded into a
+   * failure mode the stack already handles end-to-end — `_sendWrite` diverts the write to the outbox and
+   * `SyncManager` retries it; a read falls back to its mirror. No new failure mode reaches callers.
+   *
+   * The timer spans the **body read as well as the response**, which is why it is cleared here rather than
+   * around the `fetch` call alone: a response whose headers arrive and whose body then stalls hangs just as
+   * completely, and `await response.json()` is where that would land.
+   */
   private async _fetch<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
+    const timeoutMs = this._options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    if (timeoutMs <= 0) return this._send<T>(path, init);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await this._send<T>(path, { ...init, signal: controller.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async _send<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
     const url = this._options.baseUrl.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
 
     const headers = new Headers(init.headers);
@@ -145,8 +190,14 @@ export class ApiClient {
     try {
       response = await fetch(url, { ...init, headers });
     } catch (err) {
-      // Network error (server unreachable, DNS failure, CORS, etc.)
-      console.error(`[ApiClient] Network error: ${init.method ?? 'GET'} ${path}`, err);
+      // Network error (server unreachable, DNS failure, CORS, …) OR our own timeout abort. Both are
+      // reported as status 0 on purpose — see `_fetch`. Only the log distinguishes them, because when a
+      // request stalls the difference between "refused" and "never answered" is the first thing you want.
+      const timedOut = (err as Error)?.name === 'AbortError';
+      console.error(
+        `[ApiClient] ${timedOut ? 'Timed out' : 'Network error'}: ${init.method ?? 'GET'} ${path}`,
+        err,
+      );
       return { ok: false, status: 0, data: null as T, headers: new Headers() };
     }
 
@@ -191,7 +242,23 @@ export class ApiClient {
         const text = await response.text();
         data = text as unknown as T;
       }
-    } catch {
+    } catch (err) {
+      // A TIMEOUT here is not a malformed body, and the difference decides whether the caller's data
+      // survives. The abort can land on the body read as easily as on the response — headers arrive, the
+      // body stalls — and this catch used to swallow that as `data = null`, returning the response's own
+      // `ok: true, status: 200`. A write would then be reported as SUCCEEDED and never queued to the
+      // outbox, and a read would render empty instead of falling back to its mirror: the fix's own
+      // failure mode, moved from "hangs forever" to "silently reports the wrong answer".
+      //
+      // Must be re-checked here rather than only in the fetch catch above, because a stalled body throws
+      // from `response.json()`, not from `fetch`.
+      if ((err as Error)?.name === 'AbortError') {
+        console.error(
+          `[ApiClient] Timed out reading body: ${init.method ?? 'GET'} ${path}`,
+          err,
+        );
+        return { ok: false, status: 0, data: null as T, headers: new Headers() };
+      }
       // Malformed response body
       data = null as T;
     }
