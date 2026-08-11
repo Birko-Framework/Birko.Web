@@ -1,6 +1,7 @@
 /**
  * Minimal fetch-based HTTP client with interceptors and auth support.
  */
+import { appendQuery } from './http-utils.js';
 
 /**
  * How long a single request may take before it is aborted (ms).
@@ -23,6 +24,12 @@ export interface ActionMeta {
   description: string;
   entityType?: string;
   entityId?: string;
+  /**
+   * This write names its own target id, so a replay cannot create a second entity — set it on a `POST`
+   * whose body carries a client-minted id. See `ActionMetadata.idPinned` in `offline/action-queue.ts` for
+   * the full contract, including when **not** to set it.
+   */
+  idPinned?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -81,18 +88,10 @@ export class ApiClient {
   }
 
   async get<T = unknown>(path: string, params?: Record<string, string>): Promise<ApiResponse<T>> {
-    let url = path;
-    if (params) {
-      const qs = new URLSearchParams(params).toString();
-      // Join with '&' when the caller's path ALREADY carries a query string. This used to append '?'
-      // unconditionally, which silently corrupted such calls: a caller passing
-      // `api/warehouse/stock?warehouseConfigId=<id>` plus paging params produced
-      // `...?warehouseConfigId=<id>?page=1&pageSize=20`, so the server parsed the id as
-      // `<id>?page=1` and the list came back EMPTY rather than erroring. Latent for as long as no
-      // caller combined the two; it surfaced the moment b-data-table began sending page/pageSize on
-      // a first load (endpoints with an inline query string are a normal pattern for scoped lists).
-      if (qs) url += (path.includes('?') ? '&' : '?') + qs;
-    }
+    // `appendQuery` picks '&' when the caller's path ALREADY carries a query string. This used to append
+    // '?' unconditionally, which silently corrupted such calls — see that helper for the failure it caused
+    // and for why it now lives in http-utils rather than here.
+    const url = params ? appendQuery(path, new URLSearchParams(params).toString()) : path;
     return this._fetch<T>(url, { method: 'GET' });
   }
 
@@ -214,13 +213,24 @@ export class ApiClient {
         headers.set('Authorization', `Bearer ${newToken}`);
         try {
           response = await fetch(url, { ...init, headers });
-        } catch {
+        } catch (err) {
           // Deliberate: a network error on the post-refresh retry is NOT an auth
           // failure. The refresh itself succeeded (newToken is truthy), so this is
           // a transient connectivity blip on an otherwise-authenticated session.
           // Return status 0 (same shape as the first-fetch network path above) and
           // do NOT call onUnauthorized — logging the user out over a network hiccup
           // would be wrong. onUnauthorized is reserved for an explicit 401.
+          //
+          // Logged for the same reason the other two catches are: this arm shares one timeout budget with
+          // the first fetch AND the refresh call, so it is the arm most likely to be the one that aborts —
+          // and it used to return the status-0 envelope with no log at all, making a timed-out retry the
+          // single completely silent failure in this client.
+          const timedOut = (err as Error)?.name === 'AbortError';
+          console.error(
+            `[ApiClient] ${timedOut ? 'Timed out' : 'Network error'} on post-refresh retry: ` +
+            `${init.method ?? 'GET'} ${path}`,
+            err,
+          );
           return { ok: false, status: 0, data: null as T, headers: new Headers() };
         }
       }

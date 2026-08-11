@@ -20,6 +20,21 @@ export interface ActionMetadata {
   description: string;
   entityType?: string;
   entityId?: string;
+  /**
+   * This write names its own target id, so re-sending it cannot create a second entity.
+   *
+   * Set it on a `POST` whose **body carries a client-minted id** (`crypto.randomUUID()` at the call site,
+   * not a server-assigned one). `SyncManager` then reads a conflict on the replay as *already applied* and
+   * drains the entry, instead of raising a conflict against a write that in fact succeeded.
+   *
+   * **Do not set it** when the same endpoint can reject the POST with the conflict status for a reason a
+   * retry could not fix — a uniqueness rule on some other column, say. That rejection would be drained as
+   * a success and the write silently discarded. The declaration is about the endpoint's conflict having
+   * exactly one meaning, not merely about an id being present in the body.
+   *
+   * Irrelevant on `PUT`/`DELETE`, which are addressed by id and idempotent already.
+   */
+  idPinned?: boolean;
 }
 
 export interface SyncResult {
