@@ -135,3 +135,21 @@ export function apiErrorMessage(
 
   return fallback;
 }
+
+/**
+ * Append a query string to a URL, choosing the separator by what the URL already carries.
+ *
+ * Extracted because all three clients in this folder need it and only two of them got it right:
+ * `ApiClient.get` appended '?' unconditionally, so an endpoint that already had a query string came out as
+ * `...?scopeId=X?page=1&pageSize=20`. The server then read `scopeId` as `X?page=1` and answered with an
+ * EMPTY list — no error, no failing request, just a screen that says "no data" while the API has rows.
+ * `SseClient` and `WsClient` had been picking the separator correctly all along, three lines apart.
+ *
+ * `query` is taken already-encoded (a `URLSearchParams.toString()`, or a hand-built `k=v`), because the
+ * two token callers build a single pair and the paging caller builds many. An empty `query` returns `url`
+ * untouched, so a caller need not guard.
+ */
+export function appendQuery(url: string, query: string): string {
+  if (!query) return url;
+  return url + (url.includes('?') ? '&' : '?') + query;
+}

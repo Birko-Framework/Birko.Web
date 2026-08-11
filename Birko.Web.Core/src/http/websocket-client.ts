@@ -1,6 +1,7 @@
 /**
  * Typed WebSocket client with auto-reconnect, heartbeat, and JSON message dispatch.
  */
+import { appendQuery } from './http-utils.js';
 
 export type WsReadyState = 'connecting' | 'open' | 'closing' | 'closed';
 
@@ -55,8 +56,7 @@ export class WsClient {
     let url = this._options.url;
     const token = this._options.getToken?.();
     if (token) {
-      const sep = url.includes('?') ? '&' : '?';
-      url += `${sep}token=${encodeURIComponent(token)}`;
+      url = appendQuery(url, `token=${encodeURIComponent(token)}`);
     }
 
     this._socket = new WebSocket(url);

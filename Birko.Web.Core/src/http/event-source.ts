@@ -6,6 +6,8 @@
  * - `_error`     — connection error (before reconnect attempt)
  * - `_reconnect` — successfully reconnected after a drop
  */
+import { appendQuery } from './http-utils.js';
+
 export interface SseOptions {
   url: string;
   getToken?: () => string | null;
@@ -33,8 +35,7 @@ export class SseClient {
     let url = this._options.url;
     const token = this._options.getToken?.();
     if (token) {
-      const sep = url.includes('?') ? '&' : '?';
-      url += `${sep}token=${encodeURIComponent(token)}`;
+      url = appendQuery(url, `token=${encodeURIComponent(token)}`);
     }
 
     this._source = new EventSource(url);
