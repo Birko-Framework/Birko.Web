@@ -107,6 +107,23 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
 - All methods return `ApiResponse<T>` — always check `resp.ok` before using `resp.data`
 - If `meta` is provided and the device is offline, the request is queued via `onQueueAction`
 - Never throw from a response handler — API errors are in `resp.data?.error?.message`
+- **Append a query param with `appendQuery`, never `'?' + qs`.** `ApiClient.get` appended `'?'`
+  unconditionally, so an endpoint that already carried a query string came out as
+  `...?scopeId=X?page=1&pageSize=20`; the server read `scopeId` as `X?page=1` and answered with an **empty
+  list** — no error, no failing request, just a screen saying "no data" while the API has rows. `SseClient`
+  and `WsClient` had been choosing the separator correctly the whole time, three lines apart in the same
+  folder, which is why the idiom now has one home
+- **A replayed write is not a first attempt, and `applied` is a third outcome beside `conflict` and
+  `failed`.** `SyncManager._classifyReplay` owns the reading. A `DELETE` → 404 means the row is gone, which
+  is what the action wanted (previously `failed`, and `getPending()` includes `failed`, so it was re-sent on
+  **every sync forever**). A `POST` → conflict means *this create already landed* **only** where the caller
+  set `metadata.idPinned`. That flag asserts something stronger than "an id is in the body": that **this
+  endpoint's conflict status has exactly one meaning**. It is opt-in per write because the two consumers
+  differ irreconcilably — Reps mints guids client-side and its server clashes on them, Symbio mints none and
+  its 409s are business rules only, so draining them would discard a rejected write and report success.
+  `PUT` is excluded even when pinned: it is addressed by id already, so its conflict is about the entity's
+  *state*. Never infer `idPinned` from the body — Reps' own suite has a `POST` that carries a client guid and
+  can *also* 409 on a uniqueness rule
 
 ### Router rules
 - Hash-based (`#/path`): `window.location.hash = '#/path'` to navigate
