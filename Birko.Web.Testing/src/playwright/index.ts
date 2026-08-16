@@ -12,6 +12,7 @@ export {
 } from './fixtures.js';
 export { runSmoke, type SmokeOptions } from './smoke.js';
 export { runManifestSmoke, type ManifestSmokeOptions } from './manifest-smoke.js';
+export { bButtonControl } from './page-objects/button.js';
 export { DataTablePO } from './page-objects/data-table.js';
 export { FormPO } from './page-objects/form.js';
 export { NavPO } from './page-objects/nav.js';
