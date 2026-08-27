@@ -93,7 +93,12 @@ export function buildAuthSnapshot(
   return {
     token,
     refreshToken: opts.refreshToken ?? null,
-    userId: opts.userId ?? null,
+    // Same `?? payload.sub` fallback as auth-store.ts setAuth(), and for the same reason: a harness that
+    // mis-populates `userId` makes every spec written against it lie. Measured on Symbio — the login DTO's
+    // field was renamed, `data.userId` went undefined, and this snapshot handed the browser `userId: null`,
+    // which is exactly what the app itself was doing, so the repro looked faithful while both were broken.
+    // Keep this line in step with the shell's; the whole point of this function is to mirror it.
+    userId: opts.userId ?? payload.sub ?? null,
     userName: payload[claims.userName] ?? payload.sub ?? null,
     email: payload[claims.email] ?? null,
     tenantId: payload[claims.tenantId] ?? null,
