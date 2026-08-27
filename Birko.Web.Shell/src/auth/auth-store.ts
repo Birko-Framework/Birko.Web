@@ -64,7 +64,17 @@ export function createAuthStore(config?: AuthStoreConfig) {
 
     store.set('token', jwt);
     store.set('refreshToken', data.refreshToken ?? null);
-    store.set('userId', data.userId ?? null);
+    // `sub` is the fallback, and it is the AUTHORITATIVE one — the body field is merely convenient.
+    // Reading the id only out of `data.userId` binds this store to one spelling of a field name in a
+    // consumer's login DTO, and that spelling moves: measured on Symbio, a rename of `AuthResponse.UserId`
+    // to `UserGuid` left `userId` null for every signed-in user for four days, with no error anywhere —
+    // leave approval silently unreachable and chat attributing every message to the wrong person.
+    // The token cannot drift that way: `sub` is the JWT subject, i.e. the principal the server actually
+    // validated. It also fixes the callers that never had a body to read — `switchTenant` and the refresh
+    // path call setAuth with a fresh token and no `userId`, so before this they NULLED an id that was
+    // already correct. (`userName` below has always had this fallback; the field `sub` literally names
+    // did not.)
+    store.set('userId', data.userId ?? payload.sub ?? null);
     store.set('challengeId', null);
     store.set('twoFactorPending', false);
     store.set('userName', payload[claims.userName] ?? payload.sub);
