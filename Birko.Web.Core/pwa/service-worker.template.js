@@ -20,7 +20,14 @@ const PRECACHE = __PRECACHE__;
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(PRECACHE);
+    // Fill the new cache from the NETWORK, never from the HTTP cache. A bare `addAll(PRECACHE)` issues
+    // ordinary fetches, so on a host that sends no `Cache-Control` (see `registerServiceWorker`'s
+    // `updateViaCache` note) a heuristically-fresh copy can satisfy them — and the freshly-created
+    // cache is then filled with the PREVIOUS build's assets. That failure is invisible from outside:
+    // a new cache name appears, `activate` prunes the old one, everything looks like it updated, and
+    // the app still serves old code. Hardening rather than a known-live bug — Chrome was measured
+    // filling correctly (WorkoutTracker TASK-035/179) — but it costs one request flag.
+    await cache.addAll(PRECACHE.map((u) => new Request(u, { cache: 'reload' })));
     await self.skipWaiting();
   })());
 });
