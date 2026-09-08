@@ -30,6 +30,21 @@ export interface AudioCue {
  * created lazily and reused (never closed) so it does not revert to a suspended state on iOS. All
  * effects are best-effort — unsupported APIs (no Web Audio, no Vibration) degrade silently.
  */
+/**
+ * True when the page is running as an installed app rather than in browser chrome. Checks the standard
+ * media query and iOS's legacy `navigator.standalone`, because Safari shipped the latter years before it
+ * shipped the former and an old iOS would otherwise read as a tab.
+ */
+function isStandalone(): boolean {
+  try {
+    if (typeof navigator !== 'undefined'
+      && (navigator as unknown as { standalone?: boolean }).standalone === true) return true;
+    return typeof matchMedia === 'function' && matchMedia('(display-mode: standalone)').matches;
+  } catch {
+    return false; // treat an unknown context as a tab — the pre-2026-09-08 behaviour
+  }
+}
+
 export function createAudioCue(): AudioCue {
   let ctx: AudioContext | null = null;
 
@@ -46,8 +61,26 @@ export function createAudioCue(): AudioCue {
       try {
         const c = getCtx();
         if (c && c.state === 'suspended') void c.resume();
+        // Opt into the `playback` audio session so the cue is audible with the ring/silent switch on —
+        // **but only outside an installed (standalone) app.** In standalone iOS, `playback` selects a session
+        // the app does not hold and the tone is silenced **entirely**, on ring as well as on silent.
+        //
+        // Measured on device 2026-09-08 (WorkoutTracker TASK-178), installed app, one variable at a time:
+        //
+        //   | `playback` set | ring   | silent |
+        //   |----------------|--------|--------|
+        //   | yes            | SILENT | SILENT |
+        //   | no             | beeps  | silent |
+        //
+        // So the line that buys silent-switch override in a browser tab costs the cue *altogether* once the
+        // app is installed — which is the context the app actually ships in. Hence the guard, and hence the
+        // trade it records: an installed app beeps on ring and not on silent. That is a limitation of the API
+        // rather than of this code — `playback` is the only session type that ignores the silent switch
+        // (`ambient` and `transient` respect it by design), so "audible on silent while installed" is not
+        // reachable this way. If it is ever needed, the next thing to try is an `<audio>` element with a
+        // data-URI rather than Web Audio, which routes differently.
         const session = (navigator as unknown as { audioSession?: { type?: string } }).audioSession;
-        if (session && 'type' in session) session.type = 'playback';
+        if (session && 'type' in session && !isStandalone()) session.type = 'playback';
       } catch {
         /* audio unsupported / blocked — degrade silently */
       }
