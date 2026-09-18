@@ -1,0 +1,47 @@
+# Token parity gate — the CSS side.
+#
+# tokens.json lives in the framework repo (Birko.DesignTokens) and generates this repo's
+# Birko.Web.Components/css/. The comparison suite (Birko.DesignTokens.Tests) also lives there.
+# This workflow exists so an edit made to the GENERATED css/ is caught here, where the framework
+# repo's own gate would never see it — the failure that actually happened, twice.
+#
+# NOTE: Actions only reads .github/workflows/ from the REPOSITORY ROOT. The former copy at
+# Birko.Web.Components/.github/ became inert when that repo became a directory here.
+
+name: token-parity
+
+on:
+  push:
+    paths:
+      - 'Birko.Web.Components/css/**'
+      - '.github/workflows/token-parity.yml'
+  pull_request:
+    paths:
+      - 'Birko.Web.Components/css/**'
+      - '.github/workflows/token-parity.yml'
+  workflow_dispatch:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repo (the change under test)
+        uses: actions/checkout@v4
+        with:
+          path: birko/Web
+
+      - name: Check out the framework (token source + parity suite)
+        uses: actions/checkout@v4
+        with:
+          repository: Birko-Framework/Birko.Framework
+          path: birko/Framework
+          token: ${{ secrets.BIRKO_CI_TOKEN || github.token }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Generated CSS and AXAML must match tokens.json
+        env:
+          BIRKO_SRC: ${{ github.workspace }}/birko/Framework
+        run: dotnet test birko/Framework/tests/Birko.DesignTokens.Tests --nologo
