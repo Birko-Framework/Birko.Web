@@ -1,0 +1,234 @@
+# Birko.Web.Core — AI Instructions
+
+## What this project is
+
+Minimal Web Component framework — Shadow DOM base class, reactive state (Signal/Store), fetch-based HTTP client, SSE client, and hash router. No dependencies. Used by `Birko.Web.Components` and all Symbio UI pages.
+
+## Directory structure
+
+```
+src/
+├── base/
+│   ├── base-component.ts   # BaseComponent + define()
+│   └── form-control-component.ts  # FormControlComponent — form-associated (ElementInternals) base
+├── state/
+│   ├── signal.ts            # Signal<T>, computed(), signal()
+│   └── store.ts             # Store<T>
+├── http/
+│   ├── api-client.ts        # ApiClient, ApiResponse<T>
+│   └── event-source.ts      # SseClient
+├── i18n/
+│   ├── i18n.ts              # I18n class (locale switching, JSON bundles, plurals)
+│   ├── fmt.ts               # createFormatter — date/time/number/currency
+│   └── global.ts            # Global singleton: i18n, t(), useI18n(), onI18nChange()
+├── storage/
+│   ├── idb.ts               # Low-level promisified IndexedDB helpers (openDatabase, idbRequest, txComplete, deleteDatabase)
+│   ├── idb-store.ts         # IndexedDbStore<T> — generic object store
+│   └── cache-store.ts       # CacheStore — Cache API wrapper (cache-first fetch, JSON put/get)
+├── dom/
+│   ├── html.ts              # escapeHtml(), safeHref() — interpolation safety
+│   ├── search-text.ts       # foldForSearch(), matchesSearch() — diacritics-insensitive matching
+│   └── scroll.ts            # findScrollParent(), visibleBounds() — FLATTENED-tree walk (assignedSlot),
+│                            #   so slotted page content finds the shell's pane, not documentElement
+├── offline/
+│   ├── action-queue.ts      # ActionQueue — offline mutation queue (built on storage/idb)
+│   └── sync-manager.ts      # SyncManager — drains the queue when back online
+└── router/
+    └── router.ts            # Router, Route, link()
+```
+
+## Key rules
+
+### BaseComponent lifecycle order
+```
+connectedCallback → _applyStyles → render → onMount
+update()          →              → render → onUpdated
+disconnectedCallback             →          onUnmount
+```
+
+- `render()` returns a raw HTML string — NOT virtual DOM, NOT JSX
+- `onMount()` — one-time setup (event listeners, async fetch, subscriptions)
+- `onUpdated()` — re-bind after every `update()` call (listeners detach on re-render)
+- `onUnmount()` — teardown subscriptions, observers, global listeners
+
+### FormControlComponent (form-associated controls)
+
+`FormControlComponent extends BaseComponent` is the opt-in base for components that should participate in
+a native `<form>` — value in `FormData`, constraint validation, `reportValidity()`, `form.reset()`,
+`<fieldset disabled>`. It declares `static formAssociated = true`, calls `attachInternals()` in its
+constructor, and forwards the native surface (`form`, `labels`, `validity`, `validationMessage`,
+`willValidate`, `checkValidity()`, `reportValidity()`).
+
+**This must not be folded into `BaseComponent`.** `formAssociated` is read per class at definition time
+and `attachInternals()` is constructor-only/once, so every component would become a submittable listed
+element, `:invalid`-matchable and fieldset-disable-able. Keep it opt-in.
+
+Subclass contract: implement `value` (declared `abstract get/set value(): string`, so the requirement is
+compile-time — the base reads it in `formValue()` and writes it in `restoreInitialState()`); call
+`syncFormState()` whenever the value changes **and** at the end of `onUpdated()`
+before any early return (imperative setters re-render without emitting); override `formValue()` for
+non-string shapes (`multiFormValue()` for lists → N entries under one name, `suffixedFormValue()` for
+two-value controls → `name-from`/`name-to`); override `validationSource()` → `undefined` when the inner
+native control's `validity` is not about the value; override `formAnchor()` so the validation bubble lands
+on the control; override `captureInitialState()`/`restoreInitialState()` when the reset baseline is not the
+`value` attribute (checkedness for toggles, the list for multi-value controls), and call
+`resetFormBaseline()` after populating a control imperatively. Validity precedence: the `error` attribute (→ `customError`) beats mirrored native
+validity. `requiredMessage()` — the message for the generic `required` check on controls with no native
+primitive — is **translated**, not just overridable: `label-required` attribute > `common.required` /
+`common.requiredNoLabel` > English fallback. It is user-visible via `b-form.validate()`, and the
+`protected`-override escape hatch is theoretical (no consumer subclasses `b-*`). Do **not** write the host's own `disabled` attribute from `formDisabledCallback()` — the base
+holds ancestor-disabled separately and folds it into `boolAttr('disabled')`, because writing the attribute
+makes the element self-disabled and permanently stuck.
+
+Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that project's CLAUDE.md
+§ "Form-association convention".
+
+### Rendering rules
+- Never manipulate `shadowRoot.innerHTML` directly — call `this.update()` instead
+- Never use `document.querySelector` — use `this.$('#id')` (queries inside Shadow DOM)
+- Escape user data in templates: `str.replace(/&/g,'&amp;').replace(/</g,'&lt;')`
+- Use `aria-hidden="true"` on decorative elements (icons, dots)
+- Use semantic HTML: `<header>`, `<footer>`, `<section>`, `<article>`, `<time>`, `<p>` — not `<div>` for everything
+
+### Styles rules
+- `static get styles()` — component-specific CSS as a string
+- `static get sharedStyles()` — array of pre-parsed `CSSStyleSheet` objects from Birko.Web.Components
+- All values via `--b-*` CSS custom properties — never hardcode `#hex`, `px`, or `rem` literals
+- `BaseComponent._applyStyles()` sets `shadowRoot.adoptedStyleSheets`; styles load in order: shared → component (component wins)
+
+### State rules
+- `Signal<T>` — single reactive value; `subscribe()` for immediate emit, `onChange()` without
+- `Store<T>` — key-value where every key is a Signal; `store.on('key', fn)` / `store.onChange('key', fn)`
+- Always call `unsub()` in `onUnmount()` — memory leaks if skipped
+- `computed(fn, deps)` — derived Signal, auto-updates when deps change
+
+### HTTP rules
+- `ApiClient` adds `Authorization: Bearer` and `X-Tenant-Id` headers automatically
+- All methods return `ApiResponse<T>` — always check `resp.ok` before using `resp.data`
+- If `meta` is provided and the device is offline, the request is queued via `onQueueAction`
+- Never throw from a response handler — API errors are in `resp.data?.error?.message`
+- **Append a query param with `appendQuery`, never `'?' + qs`.** `ApiClient.get` appended `'?'`
+  unconditionally, so an endpoint that already carried a query string came out as
+  `...?scopeId=X?page=1&pageSize=20`; the server read `scopeId` as `X?page=1` and answered with an **empty
+  list** — no error, no failing request, just a screen saying "no data" while the API has rows. `SseClient`
+  and `WsClient` had been choosing the separator correctly the whole time, three lines apart in the same
+  folder, which is why the idiom now has one home
+- **A replayed write is not a first attempt, and `applied` is a third outcome beside `conflict` and
+  `failed`.** `SyncManager._classifyReplay` owns the reading. A `DELETE` → 404 means the row is gone, which
+  is what the action wanted (previously `failed`, and `getPending()` includes `failed`, so it was re-sent on
+  **every sync forever**). A `POST` → conflict means *this create already landed* **only** where the caller
+  set `metadata.idPinned`. That flag asserts something stronger than "an id is in the body": that **this
+  endpoint's conflict status has exactly one meaning**. It is opt-in per write because the two consumers
+  differ irreconcilably — Reps mints guids client-side and its server clashes on them, Symbio mints none and
+  its 409s are business rules only, so draining them would discard a rejected write and report success.
+  `PUT` is excluded even when pinned: it is addressed by id already, so its conflict is about the entity's
+  *state*. Never infer `idPinned` from the body — Reps' own suite has a `POST` that carries a client guid and
+  can *also* 409 on a uniqueness rule
+
+### Router rules
+- Hash-based (`#/path`): `window.location.hash = '#/path'` to navigate
+- `guard?: () => boolean | string` — return `true` to allow, return a path string to redirect
+- `:param` segments extracted to `match.params`
+- `router.onNavigate()` fires on every route change — clean up on `onUnmount()`
+
+### i18n rules
+- A blank `I18n` instance is created at module load — components pick it up via `t(key, params?, fallback?)`
+- Apps that own their own `I18n` instance swap it in with `useI18n(instance)` once at bootstrap
+- `t(key)` returns the key itself when missing (standard i18n convention); pass `fallback` to get an English string back instead
+- `BaseComponent` subscribes to `onI18nChange` at module load → all mounted components re-render on `setLocale()`
+- Components emit user-facing text via `this.label(attrName, i18nKey, fallback, params?)` — explicit attribute wins > global i18n > English fallback
+- **Namespace split:** component labels/chrome → `bwc.*`; **validation messages → unprefixed `common.*`**, the same tree `b-form` uses, so one registration translates the app's and the library's verdict on the same field. `FormControlComponent.requiredMessage()` therefore resolves `common.required` (labelled) / `common.requiredNoLabel` (unlabelled), overridable per instance via `label-required`
+
+### SseClient rules
+- Token is appended as a query param (SSE cannot send headers)
+- Subscribe per event type: `const unsub = sse.on('device-update', handler)`
+- Call `sse.disconnect()` in `onUnmount()`
+
+### Storage rules
+- Pick the backend by data shape: small flags/preferences → `localStorage` (`persistSet`/`persistGet`, `Signal({ persist })`); transient per-tab state → `sessionStorage` (`sessionSet`/`sessionGet`); keyed structured collections → `IndexedDbStore`; HTTP responses / assets → `CacheStore` (Cache API)
+- `persist.ts` exposes both Web Storage backends through one shared internal (`writeTo`/`readFrom`/`removeFrom` over a `Storage` getter) — add a backend there, don't copy the JSON-safe try/catch a third time. Reactive persistence (`Signal`/`Store` `persist`) is localStorage-only by design
+- One `IndexedDbStore` = one database with one object store; the db name defaults to `birko_${storeName}` so distinct stores never collide on version. Only pass an explicit `dbName` to deliberately co-locate object stores
+- Create object stores / indexes **only** inside the `versionchange` transaction (the `openDatabase` upgrade callback) — never afterwards; bump `version` to add an index
+- All IndexedDB code goes through `storage/idb.ts` (`openDatabase`, `idbRequest`, `txComplete`, `deleteDatabase`) — do not re-promisify the raw API per consumer (`ActionQueue` reuses these)
+- `forEach` cursor callbacks are synchronous — the read transaction auto-commits between microtasks, so collect keys inside and do async work after
+- `CacheStore` needs a secure context — guard optional caching with `CacheStore.isSupported()`; `Cache.put` is GET-only, so `fetch()` skips non-GET responses. Use generation-suffixed cache names (`api-v1`) to invalidate in bulk
+
+### PWA / service-worker rules
+- **A service worker is only as updatable as the headers on its script.** `registerServiceWorker` always sends `updateViaCache: 'none'`, and the host must serve the worker script with `Cache-Control: no-cache`. Both, deliberately: the spec default `'imports'` is *supposed* to bypass the HTTP cache for the top-level script, but a host that sends **no** `Cache-Control` (the ASP.NET `UseStaticFiles()` default, and most static hosts) leaves it *heuristically* cacheable — and WebKit will then answer the update check from its own cache, compare the stale script against itself, find no change, and keep the old worker serving cache-first forever. Measured on a consumer (WorkoutTracker TASK-179): a new build reached an iPhone only in a private tab or after deleting the installed app — both of which start with an empty HTTP cache — while an ordinary tab stayed stale across repeated reloads and Chrome updated correctly over the same origin, because Chrome honours `updateViaCache`. Either measure alone fixes it; keep both so neither a header regression nor an engine gap can silently freeze a deploy
+- **Precache from the network, not from the HTTP cache** — `cache.addAll(PRECACHE.map((u) => new Request(u, { cache: 'reload' })))`. A bare `addAll` issues ordinary fetches, so on a no-header host the *freshly created* cache can be filled with the *previous* build's assets, and nothing about that is observable from outside: a new cache name appears, `activate` prunes the old one, everything looks like it updated, and the app serves old code
+- **`no header` is not `no cache`.** It delegates freshness to each engine's heuristic, which is a different policy per browser and therefore a source of defects that reproduce on one engine only. State a policy for anything a deploy must be able to replace
+- The generated worker never touches `/api/*` — offline writes belong to `ActionQueue`, and caching API responses would defeat it. Only same-origin GETs are handled
+
+## Adding a new module
+
+1. Create `src/{module}/{name}.ts` — no barrel re-export needed, each consumer imports directly
+2. Export from `src/{module}/index.ts`
+3. Re-export from `src/index.ts`
+
+## Modern HTML & JavaScript
+
+### Use native modern HTML elements
+
+Do not default to `<div>` and `<span>`. Use the element that matches the content:
+
+| Element | Use for |
+|---------|---------|
+| `<header>` | Title row of a component or page section |
+| `<footer>` | Action row / bottom bar of a component, `slot="footer"` content |
+| `<main>` | Primary content area (once per page, in app-shell) |
+| `<section>` | Named content region — always add `aria-label` |
+| `<article>` | Self-contained item (notification row, feed card, list item) |
+| `<nav>` | Navigation container |
+| `<aside>` | Secondary content (sidebars, supplemental panels) |
+| `<dialog>` | Modal / confirmation dialogs |
+| `<p>` | Text paragraphs — add `margin: 0` in CSS to override browser default |
+| `<h2>`–`<h6>` | Headings inside components — add `margin: 0` in CSS |
+| `<time datetime="ISO">` | All dates and timestamps |
+| `<output>` | Live values (counters, metric readings, calculation results) |
+| `<kbd>` | Keyboard shortcut display |
+| `<picture>` | Responsive images (multiple sources / densities) |
+| `<figure>` + `<figcaption>` | Charts, diagrams, screenshots with captions |
+| `<details>` + `<summary>` | Expand/collapse sections (instead of custom accordion divs) |
+| `<mark>` | Highlighted text (search matches) |
+| `<meter>` | Scalar gauge (battery, storage fill) |
+| `<progress>` | Task completion |
+
+**Margin reset rule:** switching from `<div>` to `<p>`, `<h*>`, or `<ul>` introduces browser-default margins. Always add `margin: 0` (or the correct override) to those selectors in the component's CSS.
+
+**Decorative elements:** add `aria-hidden="true"` to icons, dots, and visual-only decorations.
+
+### Use modern JavaScript — no polyfills or legacy patterns
+
+| Pattern | Use |
+|---------|-----|
+| Optional chaining | `obj?.prop?.value` instead of `obj && obj.prop && obj.prop.value` |
+| Nullish coalescing | `value ?? 'default'` instead of `value !== null && value !== undefined ? value : 'default'` |
+| Logical assignment | `x ??= 'default'`, `x ||= fallback`, `x &&= transform(x)` |
+| Destructuring | `const { ok, data } = resp` |
+| Array methods | `items.at(-1)`, `items.flatMap()`, `items.findLast()`, `Object.fromEntries()` |
+| Async/await | Always over `.then()` chains |
+| `structuredClone()` | Deep clone instead of `JSON.parse(JSON.stringify(...))` |
+| `AbortController` | Cancel fetch requests (pass `signal` to fetch) |
+| `queueMicrotask()` | Defer work within the current task without `setTimeout(fn, 0)` |
+| `globalThis` | Instead of `window` or `self` for cross-context code |
+| Class fields | `private _state = {}` instead of constructor assignments |
+| `#privateField` | Private class fields when encapsulation matters more than reflection |
+| `crypto.randomUUID()` | Generate IDs instead of custom UUID functions |
+| Template literals | Always over string concatenation |
+
+**Avoid:**
+- `var` — use `const` / `let`
+- `arguments` — use rest params `...args`
+- `function` declarations inside methods — use arrow functions
+- Manual deep clone — use `structuredClone()`
+- `new Promise(resolve => setTimeout(resolve, 0))` — use `queueMicrotask()`
+- `for...in` on arrays — use `for...of` or array methods
+- `===` / `!==` comparisons to `null` AND `undefined` separately — use `?? null` checks
+
+## What NOT to do
+
+- Do not add external dependencies — this project has none by design
+- Do not use `document.` APIs — always scope to `shadowRoot` / `this.$`
+- Do not store DOM references across renders — DOM is rebuilt on every `update()`
+- Do not call `update()` in a loop — batching is the consumer's responsibility
+- Do not use `innerHTML` on the shadow root — use `render()` return value
