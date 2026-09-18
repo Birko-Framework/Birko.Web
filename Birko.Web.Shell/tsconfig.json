@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "paths": {
+      "birko-web-core": ["../Birko.Web.Core/src/index.ts"],
+      "birko-web-core/*": ["../Birko.Web.Core/src/*/index.ts"],
+      "birko-web-components": ["../Birko.Web.Components/src/index.ts"],
+      "birko-web-components/*": ["../Birko.Web.Components/src/*/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
