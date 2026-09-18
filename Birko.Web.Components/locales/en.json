@@ -1,0 +1,159 @@
+{
+  "bwc": {
+    "common": {
+      "close": "Close",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "remove": "Remove",
+      "dismiss": "Dismiss",
+      "clear": "Clear",
+      "loading": "Loading",
+      "search": "Search",
+      "actions": "Actions",
+      "empty": "Nothing here yet",
+      "noData": "No data",
+      "error": "Error",
+      "pending": "Pending"
+    },
+    "stat": {
+      "up": "increased",
+      "down": "decreased",
+      "flat": "unchanged"
+    },
+    "tour": {
+      "next": "Next",
+      "back": "Back",
+      "skip": "Skip",
+      "done": "Done"
+    },
+    "palette": {
+      "title": "Command palette",
+      "placeholder": "Search commands, pages, actions…",
+      "escClose": "to close",
+      "searching": "Searching…",
+      "noResults": "No results found",
+      "typeToSearch": "Type to search…",
+      "navigate": "Navigate",
+      "select": "Select",
+      "resultsCount": "{count} results"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb"
+    },
+    "confirm": {
+      "title": "Confirm",
+      "confirmText": "Confirm",
+      "cancelText": "Cancel"
+    },
+    "dialog": {
+      "confirmTitle": "Confirm",
+      "noticeTitle": "Notice",
+      "promptTitle": "Prompt",
+      "chooseTitle": "Choose",
+      "formTitle": "Details",
+      "ok": "OK",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "save": "Save",
+      "required": "This field is required"
+    },
+    "pagination": {
+      "title": "Pagination",
+      "items": "items",
+      "page": "Page",
+      "of": "of",
+      "perPage": "/ page",
+      "prev": "Previous page",
+      "next": "Next page",
+      "pageSize": "Page size"
+    },
+    "ribbon": {
+      "title": "Module ribbon",
+      "openNav": "Open navigation menu",
+      "expand": "Expand ribbon",
+      "collapse": "Collapse ribbon",
+      "pin": "Pin ribbon open",
+      "unpin": "Unpin ribbon",
+      "navigation": "Navigation"
+    },
+    "sidebar": {
+      "title": "Main navigation",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar"
+    },
+    "fileUpload": {
+      "max": "Max",
+      "drop": "Drop to upload",
+      "dropMore": "Drop more files or click to browse",
+      "dropEmpty": "Drop files here or click to browse",
+      "browse": "Choose files",
+      "tooLarge": "File too large",
+      "uploadFailed": "Upload failed",
+      "networkError": "Network error"
+    },
+    "markdown": {
+      "split": "Split",
+      "source": "Source",
+      "preview": "Preview"
+    },
+    "search": {
+      "placeholder": "Search...",
+      "clear": "Clear search"
+    },
+    "date": {
+      "placeholder": "YYYY-MM-DD"
+    },
+    "datetime": {
+      "placeholder": "YYYY-MM-DD HH:mm",
+      "today": "Today",
+      "now": "Now"
+    },
+    "time": {
+      "placeholder": "HH:mm"
+    },
+    "colorPicker": {
+      "swatch": "Pick a color",
+      "placeholder": "#RRGGBB",
+      "alpha": "Opacity"
+    },
+    "daterange": {
+      "placeholderStart": "Start date",
+      "placeholderEnd": "End date",
+      "apply": "Apply",
+      "presets": "Presets",
+      "nightsCount": "{count} nights",
+      "daysCount": "{count} days",
+      "preset": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last7days": "Last 7 days",
+        "last30days": "Last 30 days",
+        "thisWeek": "This week",
+        "thisMonth": "This month",
+        "lastMonth": "Last month",
+        "thisYear": "This year"
+      }
+    }
+  },
+  "common": {
+    "required": "{label} is required",
+    "requiredNoLabel": "Please fill out this field.",
+    "badDecimal": "Enter a number.",
+    "rangeUnderflow": "Value must be {min} or more.",
+    "rangeOverflow": "Value must be {max} or less.",
+    "stepMismatch": "Value must be a multiple of {step}.",
+    "minLength": "{label} must be at least {value} characters",
+    "maxLength": "{label} must be at most {value} characters",
+    "min": "{label} must be at least {value}",
+    "max": "{label} must be at most {value}",
+    "range": "{label} must be between {min} and {max}",
+    "invalidFormat": "{label} format is invalid",
+    "invalidEmail": "Invalid email address",
+    "invalidValue": "{label} is invalid",
+    "mustMatch": "{label} must match {value}"
+  }
+}

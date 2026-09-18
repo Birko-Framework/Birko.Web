@@ -1,0 +1,362 @@
+import { FormControlComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
+import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { renderField, fieldAria } from './label-hint';
+
+export class BTagInput extends FormControlComponent {
+  static get observedAttributes() {
+    return ['label', 'name', 'value', 'placeholder', 'separators', 'max-count',
+            'allow-duplicates', 'error', 'disabled', 'required', 'hint', 'description', 'bare'];
+  }
+
+  static get sharedStyles() {
+    return [formFieldSheet, formControlSheet];
+  }
+
+  static get styles() {
+    return `
+      :host { display: block; }
+      .container {
+        box-sizing: border-box;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        background: var(--b-bg);
+        border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem);
+        min-height: var(--b-control-min-height, 2.375rem);
+        cursor: text;
+        transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
+      }
+      .container:focus-within {
+        border-color: var(--b-border-focus);
+        box-shadow: var(--b-focus-ring);
+      }
+      .container.has-error { border-color: var(--b-color-danger); }
+      .container.has-error:focus-within { box-shadow: var(--b-focus-ring-danger); }
+      .container.disabled {
+        cursor: not-allowed;
+        opacity: var(--b-disabled-opacity, 0.5);
+        pointer-events: none;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+        padding: 0.0625rem var(--b-space-sm, 0.5rem);
+        border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-bg-tertiary);
+        font-size: var(--b-text-sm, 0.8125rem);
+        color: var(--b-text);
+        white-space: nowrap;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .chip-text { overflow: hidden; text-overflow: ellipsis; }
+      .chip-remove {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        color: var(--b-text-muted);
+        font-size: var(--b-text-sm, 0.8125rem);
+        line-height: 1;
+      }
+      .chip-remove:hover { color: var(--b-text); }
+      .chip-remove:focus-visible { box-shadow: var(--b-focus-ring); outline: none; border-radius: var(--b-radius-sm, 0.25rem); }
+      input {
+        flex: 1;
+        min-width: 6rem;
+        border: none;
+        outline: none;
+        background: transparent;
+        font: inherit;
+        font-size: var(--b-text-base, 0.875rem);
+        color: var(--b-text);
+        padding: 0.125rem 0;
+      }
+      input::placeholder { color: var(--b-text-muted); }
+      input:disabled { cursor: not-allowed; }
+
+      /* Size variants — match formControlSheet / comboControlSheet pattern */
+      :host([size="sm"]) .container {
+        min-height: var(--b-control-min-height-sm, 1.75rem);
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs, 0.25rem);
+      }
+      :host([size="sm"]) input { font-size: var(--b-text-sm, 0.8125rem); }
+      :host([size="sm"]) .chip { font-size: var(--b-text-xs, 0.6875rem); padding: 0 var(--b-space-xs, 0.25rem); }
+      :host([size="lg"]) .container {
+        min-height: var(--b-control-min-height-lg, 2.75rem);
+        padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+      }
+      :host([size="lg"]) input { font-size: var(--b-text-lg, 1rem); }
+      :host([size="lg"]) .chip { font-size: var(--b-text-base, 0.875rem); padding: var(--b-space-2xs, 0.125rem) var(--b-space-md, 0.75rem); }
+
+      /* The iOS 16px focus-zoom floor (TASK-126). formControlSheet carries this rule already, but a
+         component's OWN stylesheet is adopted after the shared ones, so the bare rule above wins at equal
+         specificity — and the size variants outrank it outright. Measured before this block: 12.25px at the
+         default size and 11.38px at size=sm, so tapping a tag field zoomed the page on every phone. */
+      @media (pointer: coarse) {
+        input { font-size: max(16px, var(--b-input-font-size, var(--b-text-base, 0.875rem))); }
+        :host([size="sm"]) input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
+        :host([size="lg"]) input { font-size: max(16px, var(--b-text-lg, 1rem)); }
+      }
+    `;
+  }
+
+  private _tags: string[] = [];
+  private _buffer = '';
+  private _valueInitialized = false;
+
+  render() {
+    const label = this.attr('label');
+    const hint = this.attr('hint');
+    const description = this.attr('description');
+    const error = this.attr('error');
+    const disabled = this.boolAttr('disabled');
+    const placeholder = this._tags.length === 0 ? this.attr('placeholder') : '';
+
+    const chips = this._tags.map((t, i) => `
+      <span class="chip">
+        <span class="chip-text">${escapeHtml(t)}</span>
+        <button class="chip-remove" data-index="${i}" type="button" aria-label="Remove ${escapeAttr(t)}" ${disabled ? 'disabled' : ''}>&times;</button>
+      </span>
+    `).join('');
+
+    const bare = this.boolAttr('bare');
+    const required = this.boolAttr('required');
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      description,
+      error,
+      required,
+      control: `
+        <div class="container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
+          ${chips}
+          <input type="text"
+                 placeholder="${escapeAttr(placeholder)}"
+                 ${disabled ? 'disabled' : ''}
+                 ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
+                 value="${escapeAttr(this._buffer)}" />
+        </div>`,
+    });
+  }
+
+  protected onMount() {
+    this._loadFromAttr();
+  }
+
+  protected onUpdated() {
+    if (!this._valueInitialized) this._loadFromAttr();
+    // Before the early returns below: `setTags()` / `clear()` re-render without emitting.
+    this.syncFormState();
+
+    const container = this.$<HTMLElement>('.container');
+    const input = this.$<HTMLInputElement>('input');
+    if (!container || !input) return;
+
+    // Keep cursor position when re-rendered
+    input.value = this._buffer;
+
+    this.listen(container, 'mousedown', (e) => {
+      if ((e.target as HTMLElement).closest('.chip-remove')) return;
+      if ((e.target as HTMLElement).tagName !== 'INPUT') {
+        e.preventDefault();
+        input.focus();
+      }
+    });
+
+    this.listen(input, 'input', () => {
+      this._buffer = input.value;
+      this._processBuffer(false);
+    });
+
+    this.listen(input, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Enter') {
+        ke.preventDefault();
+        this._commitBuffer();
+      } else if (ke.key === 'Backspace' && this._buffer === '' && this._tags.length > 0) {
+        ke.preventDefault();
+        this._removeTagAt(this._tags.length - 1);
+      } else if (ke.key === 'Tab' && this._buffer.trim() !== '') {
+        ke.preventDefault();
+        this._commitBuffer();
+      }
+    });
+
+    this.listen(input, 'blur', () => {
+      if (this._buffer.trim() !== '') this._commitBuffer();
+    });
+
+    this.listen(input, 'paste', (e: Event) => {
+      const pe = e as ClipboardEvent;
+      const text = pe.clipboardData?.getData('text') ?? '';
+      if (!text) return;
+      if (this._splitPattern().test(text)) {
+        pe.preventDefault();
+        const parts = text.split(this._splitPattern()).map(p => p.trim()).filter(Boolean);
+        for (const p of parts) this._addTag(p);
+        this._emitChange();
+        this.update();
+      }
+    });
+
+    this.$$<HTMLButtonElement>('.chip-remove').forEach(btn => {
+      this.listen(btn, 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = Number(btn.dataset.index);
+        if (!Number.isNaN(idx)) this._removeTagAt(idx);
+      });
+    });
+  }
+
+  getTags(): string[] {
+    return [...this._tags];
+  }
+
+  setTags(tags: string[]) {
+    this._tags = [];
+    for (const t of tags) this._addTag(t);
+    this._buffer = '';
+    this._valueInitialized = true;
+    this.update();
+  }
+
+  clear() {
+    this._tags = [];
+    this._buffer = '';
+    this._emitChange();
+    this.update();
+  }
+
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
+  get inputValue(): string { return this._tags.join(','); }
+  set inputValue(v: string) {
+    this.setTags(v ? v.split(',').map(s => s.trim()).filter(Boolean) : []);
+  }
+
+  private _loadFromAttr() {
+    const attrVal = this.getAttribute('value');
+    if (attrVal !== null) {
+      this._tags = [];
+      for (const t of attrVal.split(this._splitPattern()).map(s => s.trim()).filter(Boolean)) {
+        this._addTag(t);
+      }
+    }
+    this._valueInitialized = true;
+  }
+
+  /** Process buffer as user types — if a separator was entered, commit the tag(s) up to it. */
+  private _processBuffer(force: boolean) {
+    if (!this._buffer) return;
+    const pattern = this._splitPattern();
+    if (!pattern.test(this._buffer) && !force) return;
+    const parts = this._buffer.split(pattern);
+    const tail = parts.pop() ?? '';
+    let changed = false;
+    for (const p of parts) {
+      const tag = p.trim();
+      if (tag && this._addTag(tag)) changed = true;
+    }
+    this._buffer = tail;
+    if (changed) {
+      this._emitChange();
+      this.update();
+    } else {
+      const input = this.$<HTMLInputElement>('input');
+      if (input) input.value = this._buffer;
+    }
+  }
+
+  private _commitBuffer() {
+    const tag = this._buffer.trim();
+    this._buffer = '';
+    if (!tag) {
+      const input = this.$<HTMLInputElement>('input');
+      if (input) input.value = '';
+      return;
+    }
+    if (this._addTag(tag)) {
+      this._emitChange();
+    }
+    this.update();
+  }
+
+  private _addTag(tag: string): boolean {
+    if (!tag) return false;
+    const max = this.numAttr('max-count', 0);
+    if (max > 0 && this._tags.length >= max) {
+      this.emit('reject', { tag, reason: 'max-count' });
+      return false;
+    }
+    if (!this.boolAttr('allow-duplicates') && this._tags.includes(tag)) {
+      this.emit('reject', { tag, reason: 'duplicate' });
+      return false;
+    }
+    this._tags.push(tag);
+    this.emit('add', { tag, tags: [...this._tags] });
+    return true;
+  }
+
+  private _removeTagAt(index: number) {
+    if (index < 0 || index >= this._tags.length) return;
+    const [removed] = this._tags.splice(index, 1);
+    this.emit('remove', { tag: removed, tags: [...this._tags] });
+    this._emitChange();
+    this.update();
+  }
+
+  private _emitChange() {
+    this.emit('change', { name: this.attr('name'), tags: [...this._tags], value: this.inputValue });
+    this.syncFormState();
+  }
+
+  /**
+   * One `FormData` entry per tag, under this control's `name`. There is no native tag control, so the
+   * closest native analogue is a checkbox group / `<select multiple>` — a list, not a delimited string.
+   * See `b-multi-select.formValue()` for the full rationale; `value` still returns the joined string.
+   */
+  protected formValue(): FormData | null {
+    return this.multiFormValue(this._tags);
+  }
+
+  /**
+   * Snapshot the tags rather than the `value` attribute: tags may have arrived via `setTags()`, and the
+   * base default would route a comma-joined string back through the `value` setter.
+   */
+  protected captureInitialState(): unknown {
+    return this.getTags();
+  }
+
+  protected restoreInitialState(state: unknown): void {
+    this.setTags(Array.isArray(state) ? [...state as string[]] : []);
+  }
+
+  /** The inner `<input>` is the tag *buffer*, not the value — its validity would be meaningless. */
+  protected validationSource(): undefined {
+    return undefined;
+  }
+
+  protected formAnchor(): HTMLElement | undefined {
+    return this.$<HTMLElement>('.container') ?? undefined;
+  }
+
+  private _splitPattern(): RegExp {
+    const raw = this.getAttribute('separators');
+    if (!raw) return /[,\n\t]/;
+    const chars = raw.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('');
+    return new RegExp(`[${chars}]`);
+  }
+}
+
+define('b-tag-input', BTagInput);

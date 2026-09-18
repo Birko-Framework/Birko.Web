@@ -1,0 +1,790 @@
+import { BaseComponent, define } from 'birko-web-core';
+import type { ApiClient, ApiResponse } from 'birko-web-core/http';
+import type { TableColumn } from './b-table.js';
+import type { DropdownItem } from '../layout/b-dropdown-menu.js';
+import './b-table.js';
+import './b-pagination.js';
+import '../layout/b-dropdown-menu.js';
+import '../inputs/b-button.js';
+
+// ── Config types ──
+
+export interface ToolbarAction {
+  id: string;
+  label: string;
+  icon?: string;
+  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+}
+
+export interface BulkAction {
+  id: string;
+  label: string;
+  icon?: string;
+  variant?: 'danger';
+  permission?: string;
+  confirm?: boolean;
+  confirmMessage?: string;
+}
+
+export interface RowAction {
+  id: string;
+  label: string;
+  icon?: string;
+  variant?: 'danger';
+  permission?: string;
+  visible?: (row: Record<string, unknown>) => boolean;
+}
+
+export interface DataTableConfig {
+  endpoint: string;
+  columns: TableColumn[];
+  apiClient: ApiClient;
+  pageSize?: number;
+  pageSizeOptions?: number[] | false;
+  dataKey?: string | null;
+  totalKey?: string | null;
+  params?: Record<string, string>;
+  /**
+   * Paging mode escape hatch. Leave UNSET (recommended) to auto-detect from the response shape:
+   * a bare array is client-paged; a `{ items, totalCount }` envelope is server-paged. Set `true`
+   * to force client-side slicing, `false` to force server paging. NOTE: even with `true`, a CAPPED
+   * envelope (`items.length < totalCount`) auto-switches to server mode — client slicing can only
+   * blank page 2+ of a page the server already capped, so detection wins over a mis-set default.
+   */
+  flatArray?: boolean;
+
+  // Selection + bulk
+  selectable?: boolean;
+  bulkActions?: BulkAction[];
+
+  // Row identity
+  idField?: string;
+
+  // Row actions
+  rowActions?: RowAction[];
+
+  // Labels (i18n)
+  paginationLabels?: PaginationLabels;
+  labels?: DataTableLabels;
+}
+
+export interface PaginationLabels {
+  items?: string;
+  page?: string;
+  of?: string;
+  perPage?: string;
+  prev?: string;
+  next?: string;
+  pageSize?: string;
+}
+
+export interface DataTableLabels {
+  selected?: string;
+  confirmDefault?: string;
+  noData?: string;
+  actions?: string;
+  /** Accessible name for the header "select all rows" checkbox (default "Select all rows"). */
+  selectAll?: string;
+  /** Accessible name for each row's selection checkbox (default "Select row"). */
+  selectRow?: string;
+}
+
+/** localStorage key for default page size (set via Settings page). */
+export const PAGE_SIZE_STORAGE_KEY = 'symbio-page-size';
+
+/**
+ * Auto-fetching data grid with pagination, selection, bulk actions, row actions, and inline editing.
+ * Filtering is handled externally via `setFilters()` — the page-level filter row
+ * collects filter values and passes them as query params.
+ */
+export class BDataTable extends BaseComponent {
+  static get observedAttributes() { return ['loading']; }
+
+  private _config: DataTableConfig | null = null;
+  private _allData: Record<string, unknown>[] = [];
+  private _page = 1;
+  private _pageSize = 20;
+  private _totalPages = 1;
+  private _totalCount = 0;
+  private _loading = false;
+  /**
+   * Effective paging mode for the CURRENT data — resolved per load, not just from `flatArray`.
+   * `true`  → `_allData` is one server page: render as-is, refetch on page-change.
+   * `false` → `_allData` is the full set: slice locally, no refetch on page-change.
+   * Detection (see `load()`) can flip a mis-set `flatArray:true` default to server mode when the
+   * response is a CAPPED envelope; an explicit `flatArray:false` is always server mode. Sticky once
+   * server mode is detected so subsequent loads keep sending page/pageSize.
+   */
+  private _serverPaged = false;
+  private _selected = new Set<string>();
+  private _activeRowId: string | null = null;
+  private _filters: Record<string, string> = {};
+
+  static get styles() {
+    return `
+      :host { display: block; }
+      .data-table { display: flex; flex-direction: column; gap: var(--b-space-sm, 0.5rem); }
+
+      /* Selection */
+      .select-col { width: 2.5rem; text-align: center; }
+      .select-col input { cursor: pointer; }
+
+      /* Row actions */
+      .row-actions-col { width: var(--b-space-xl, 3rem); text-align: center; }
+      .row-action-trigger-icon {
+        font-size: var(--b-text-lg, 1.125rem);
+        font-weight: 600;
+        user-select: none;
+      }
+
+      /* Footer with bulk actions */
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--b-space-sm, 0.5rem);
+        position: sticky; bottom: 0; z-index: 1;
+        background: var(--b-bg);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem) 0 0;
+      }
+      .bulk-bar {
+        display: flex;
+        align-items: center;
+        gap: var(--b-space-sm, 0.5rem);
+        font-size: var(--b-text-sm, 0.8125rem);
+      }
+      .bulk-count { color: var(--b-text-secondary); white-space: nowrap; }
+      .bulk-btn {
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem);
+        background: var(--b-bg);
+        font-size: var(--b-text-sm, 0.8125rem);
+        cursor: pointer;
+        transition: all var(--b-transition, 150ms ease);
+      }
+      .bulk-btn:hover { background: var(--b-bg-tertiary); }
+      .bulk-btn.danger { color: var(--b-color-danger); border-color: var(--b-color-danger); }
+      .bulk-btn.danger:hover { background: var(--b-color-danger-light); }
+    `;
+  }
+
+  setConfig(config: DataTableConfig) {
+    this._config = config;
+    this._selected.clear();
+    this._filters = {};
+    // Explicit flatArray:false starts in server mode; everything else starts client and may be
+    // flipped by envelope detection on the first load.
+    this._serverPaged = config.flatArray === false;
+    this._pageSize = this._resolvePageSize();
+    this.update();
+    this._applyData();
+  }
+
+  /**
+   * Re-apply localized labels — columns, row actions, pagination labels, and the
+   * label set — WITHOUT resetting data, filters, selection or the current page.
+   * Use after a locale switch; unlike `setConfig()` this preserves table state.
+   */
+  relabel(labels: Partial<Pick<DataTableConfig, 'columns' | 'rowActions' | 'paginationLabels' | 'labels'>>): void {
+    if (!this._config) return;
+    if (labels.columns) this._config.columns = labels.columns;
+    if ('rowActions' in labels) this._config.rowActions = labels.rowActions;
+    if (labels.paginationLabels) this._config.paginationLabels = labels.paginationLabels;
+    if (labels.labels) this._config.labels = labels.labels;
+    this.update();      // re-renders pagination labels, no-data, action aria-label
+    this._applyData();  // re-applies columns/row-actions over the current page data
+  }
+
+  /**
+   * Set external filter parameters.
+   * Merges into query params on next load, resets to page 1, and triggers a reload.
+   */
+  setFilters(params: Record<string, string>): void {
+    this._filters = { ...params };
+    this._page = 1;
+    this.load();
+  }
+
+  async load(page?: number): Promise<void> {
+    if (!this._config) return;
+
+    if (page) this._page = page;
+    this._loading = true;
+    this.update();
+
+    try {
+      const params: Record<string, string> = { ...this._config.params };
+      const pageSize = this._pageSize;
+
+      // Send server-paging params when we KNOW we're server-paged: an explicit flatArray:false, or a
+      // mode already detected on a prior load (sticky). An explicit flatArray:true suppresses them
+      // (client escape hatch) until a capped envelope forces the flip; an unset flatArray sends them
+      // eagerly since a bare-array endpoint harmlessly ignores unknown query params.
+      if (this._config.flatArray !== true || this._serverPaged) {
+        params['page'] = String(this._page);
+        params['pageSize'] = String(pageSize);
+      }
+
+      // Merge external filters as query params
+      for (const [k, v] of Object.entries(this._filters)) {
+        if (v) params[k] = v;
+      }
+
+      const resp: ApiResponse = await this._config.apiClient.get(this._config.endpoint, params);
+
+      if (!resp.ok) {
+        this._allData = [];
+        this._totalCount = 0;
+        this._totalPages = 1;
+      } else if (Array.isArray(resp.data)) {
+        // Bare array. Client-paged unless the consumer explicitly forced server mode.
+        const all = (this._config.dataKey
+          ? ((resp.data as unknown as Record<string, unknown>)[this._config.dataKey] as Record<string, unknown>[])
+          : resp.data) as Record<string, unknown>[];
+        this._allData = all ?? [];
+        this._totalCount = this._allData.length;
+        this._totalPages = Math.max(1, Math.ceil(this._totalCount / pageSize));
+        if (this._config.flatArray !== false) this._serverPaged = false;
+      } else {
+        const env = this._extractEnvelope(resp.data);
+        if (env) {
+          // { items, totalCount } envelope. Auto-detect the mode: a CAPPED page (fewer rows than
+          // totalCount) can ONLY be paged by the server — client slicing would blank page 2+ — so
+          // switch to server mode even if flatArray was left at its client default. A full list that
+          // merely arrives wrapped in an envelope stays client-paged when flatArray:true. An explicit
+          // flatArray:false is always server. Server mode is sticky (next load sends page/pageSize).
+          this._allData = env.items;
+          this._totalCount = env.totalCount;
+          this._totalPages = Math.max(1, Math.ceil(env.totalCount / pageSize));
+          const capped = env.items.length < env.totalCount;
+          if (this._config.flatArray === true) this._serverPaged = this._serverPaged || capped;
+          else this._serverPaged = true;
+        } else {
+          // Unrecognised object shape → treat as an empty result rather than mis-render.
+          this._allData = [];
+          this._totalCount = 0;
+          this._totalPages = 1;
+        }
+      }
+    } catch {
+      this._allData = [];
+      this._totalCount = 0;
+    }
+
+    this._loading = false;
+    this.update();
+    this._applyData();
+  }
+
+  async refresh(): Promise<void> {
+    await this.load(this._page);
+  }
+
+  // ── Data API ──
+
+  getData(): Record<string, unknown>[] { return this._allData; }
+
+  getRowById(id: string): Record<string, unknown> | undefined {
+    return this._allData.find(r => this._rowId(r) === id);
+  }
+
+  // ── Active row (single-row highlight, distinct from bulk-checkbox selection) ──
+
+  /** Highlight a single row as active/selected. Persists across reloads until cleared. */
+  setActiveRow(id: string | null): void {
+    this._activeRowId = id == null ? null : String(id);
+    const table = this.$('b-table') as any;
+    if (table?.setActiveRow) table.setActiveRow(this._activeRowId);
+  }
+
+  getActiveRow(): string | null { return this._activeRowId; }
+
+  // ── Selection API ──
+
+  getSelected(): string[] { return [...this._selected]; }
+
+  clearSelection() {
+    this._selected.clear();
+    this.update();
+    this._applyData();
+  }
+
+  selectAll() {
+    const pageData = this._getPageData();
+    for (const row of pageData) {
+      const id = this._rowId(row);
+      if (id) this._selected.add(id);
+    }
+    this.update();
+    this._applyData();
+    this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+  }
+
+  // ── Render ──
+
+  render() {
+    if (!this._config) return '<div class="data-table"></div>';
+
+    const hasBulk = this._selected.size > 0 && this._config.bulkActions?.length;
+
+    const pageSizeAttr = this._showPageSizePicker() ? ` page-size="${this._pageSize}"` : '';
+    const pageSizesAttr = Array.isArray(this._config.pageSizeOptions)
+      ? ` page-sizes="${this._config.pageSizeOptions.join(',')}"` : '';
+    const labelAttrs = this._buildLabelAttrs();
+
+    return `
+      <div class="data-table">
+        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${this._config.labels.noData}"` : ''}></b-table>
+        <div class="footer">
+          ${hasBulk ? this._renderBulkBar() : '<span></span>'}
+          <b-pagination page="${this._page}" total-pages="${this._totalPages}" total-count="${this._totalCount}"${pageSizeAttr}${pageSizesAttr}${labelAttrs}></b-pagination>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderBulkBar(): string {
+    const count = this._selected.size;
+    const buttons = (this._config!.bulkActions ?? []).map(a =>
+      `<button class="bulk-btn ${a.variant ?? ''}" data-bulk="${a.id}" data-confirm="${a.confirm ?? false}" data-msg="${(a.confirmMessage ?? '').replace('{count}', String(count))}">${a.icon ?? ''}${a.label}</button>`
+    ).join('');
+
+    const lSelected = this._config!.labels?.selected ?? 'selected';
+    return `<div class="bulk-bar"><span class="bulk-count">${count} ${lSelected}</span>${buttons}</div>`;
+  }
+
+  protected onUpdated() {
+    if (!this._config) return;
+
+    // Pagination
+    const pagination = this.$<HTMLElement>('b-pagination');
+    if (pagination) {
+      this.listen(pagination, 'page-change', ((e: CustomEvent) => {
+        this._page = e.detail.page;
+        if (this._serverPaged) {
+          this.load(e.detail.page);
+        } else {
+          this.update();
+          this._applyData();
+        }
+      }) as EventListener);
+
+      // Page size change
+      this.listen(pagination, 'page-size-change', ((e: CustomEvent) => {
+        this._pageSize = e.detail.pageSize;
+        this._page = 1;
+        if (this._serverPaged) {
+          this.load(1);
+        } else {
+          this._totalPages = Math.max(1, Math.ceil(this._totalCount / this._pageSize));
+          this.update();
+          this._applyData();
+        }
+      }) as EventListener);
+    }
+
+    // Table events — enrich with full row data
+    const innerTable = this.$<HTMLElement>('b-table');
+
+    if (innerTable) {
+      this.listen(innerTable, 'row-click', ((e: CustomEvent) => {
+        // Stop the raw bubble from b-table (which only carries {id}) so page-level
+        // listeners don't see the pre-enrichment event AND then our re-emit below.
+        e.stopPropagation();
+        const id = e.detail?.id;
+        const row = this._allData.find(r => this._rowId(r) === id);
+        // Emit { id, row } to match row-action's shape — consumers read e.detail.row.
+        this.emit('row-click', { id, row: row ?? {} });
+      }) as EventListener);
+
+      this.listen(innerTable, 'action-click', ((e: CustomEvent) => {
+        e.stopPropagation();
+        const id = e.detail?.id;
+        const row = this._allData.find(r => this._rowId(r) === id);
+        this.emit('action-click', { action: e.detail.action, id, row: row ?? {} });
+      }) as EventListener);
+
+      this.listen(innerTable, 'sort', ((e: CustomEvent) => {
+        this.emit('sort', e.detail);
+      }) as EventListener);
+    }
+
+    // Bulk action buttons
+    this.$$<HTMLElement>('.bulk-btn').forEach(btn => {
+      this.listen(btn, 'click', () => {
+        const action = btn.dataset.bulk!;
+        const needsConfirm = btn.dataset.confirm === 'true';
+        const lConfirm = this._config!.labels?.confirmDefault ?? 'Are you sure?';
+        const msg = btn.dataset.msg || `${lConfirm} (${this._selected.size} items)`;
+
+        if (needsConfirm) {
+          // Use native confirm — can be replaced with b-confirm-dialog later
+          if (!confirm(msg)) return;
+        }
+
+        this.emit('bulk-action', {
+          action,
+          selected: this.getSelected(),
+          count: this._selected.size,
+        });
+      });
+    });
+  }
+
+  private _applyData() {
+    // Elements cloned from <template> content are uncustomized until they're
+    // adopted into a connected tree AND a CEReactions checkpoint runs. When
+    // _applyData is called synchronously right after update() (e.g. from
+    // setConfig), the <b-table> inserted by morphing can still be a plain
+    // HTMLElement. Force the upgrade here so setColumns/setData are callable.
+    if (this.shadowRoot) customElements.upgrade(this.shadowRoot);
+
+    const table = this.$('b-table') as any;
+    if (!table || !this._config) return;
+
+    // Build columns: [checkbox?] + user columns + [row actions?]
+    const columns: TableColumn[] = [];
+
+    if (this._config.selectable) {
+      const pageData = this._getPageData();
+      const allSelected = pageData.length > 0 && pageData.every(r => this._selected.has(this._rowId(r)));
+
+      columns.push({
+        key: '__select',
+        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${this._config?.labels?.selectAll ?? 'Select all rows'}" />`,
+        width: '2.5rem',
+        align: 'center',
+        render: (_v, row) => {
+          const id = this._rowId(row);
+          return `<input type="checkbox" class="row-select" data-id="${id}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${this._config?.labels?.selectRow ?? 'Select row'}" />`;
+        },
+      });
+    }
+
+    columns.push(...this._config.columns);
+
+    if (this._config.rowActions?.length) {
+      columns.push({
+        key: '__actions',
+        label: '',
+        width: '2.5rem',
+        align: 'center',
+        render: (_v, row) => {
+          const id = this._rowId(row);
+          return `<b-button variant="secondary" size="sm" class="row-action-trigger" data-id="${id}" aria-label="${this._config?.labels?.actions ?? 'Actions'}"><span class="row-action-trigger-icon">⋮</span></b-button>`;
+        },
+      });
+    }
+
+    table.setColumns(columns);
+    if (this._config?.idField) table.setIdField(this._config.idField);
+
+    const pageData = this._getPageData();
+    table.setData(pageData);
+    if (table.setActiveRow) table.setActiveRow(this._activeRowId);
+
+    // Wire selection checkboxes after table renders
+    requestAnimationFrame(() => this._wireTableInteractions());
+  }
+
+  private _wireTableInteractions() {
+    const table = this.$('b-table') as any;
+    if (!table?.shadowRoot) return;
+
+    // Select-all checkbox
+    const selectAll = table.shadowRoot.querySelector('.select-all') as HTMLInputElement;
+    if (selectAll) {
+      // Set indeterminate (can't be set via HTML attribute)
+      const pageData = this._getPageData();
+      const someSelected = pageData.some(r => this._selected.has(this._rowId(r)));
+      const allSelected = pageData.length > 0 && pageData.every(r => this._selected.has(this._rowId(r)));
+      selectAll.indeterminate = someSelected && !allSelected;
+
+      selectAll.addEventListener('change', () => {
+        const pageData = this._getPageData();
+        if (selectAll.checked) {
+          for (const row of pageData) this._selected.add(this._rowId(row));
+        } else {
+          for (const row of pageData) this._selected.delete(this._rowId(row));
+        }
+        this.update();
+        this._applyData();
+        this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+      });
+    }
+
+    // Row checkboxes
+    table.shadowRoot.querySelectorAll('.row-select').forEach((cb: HTMLInputElement) => {
+      cb.addEventListener('change', (e: Event) => {
+        e.stopPropagation(); // Don't trigger row-click
+        const id = cb.dataset.id!;
+        if (cb.checked) {
+          this._selected.add(id);
+        } else {
+          this._selected.delete(id);
+        }
+        this.update();
+        this._applyData();
+        this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+      });
+    });
+
+    // Row action triggers
+    table.shadowRoot.querySelectorAll('.row-action-trigger').forEach((btn: HTMLElement) => {
+      btn.addEventListener('click', (e: Event) => {
+        e.stopPropagation(); // Don't trigger row-click
+        const id = btn.dataset.id!;
+        const row = this._allData.find(r => this._rowId(r) === id);
+        if (!row) return;
+
+        // Build visible actions for this row
+        const actions = (this._config!.rowActions ?? [])
+          .filter(a => !a.visible || a.visible(row))
+          .map((a): DropdownItem => ({
+            id: a.id,
+            label: a.label,
+            icon: a.icon,
+            variant: a.variant,
+          }));
+
+        // Create a temporary dropdown
+        const menu = document.createElement('b-dropdown-menu') as any;
+        menu.setAttribute('align', 'right');
+
+        // Position the menu element at the button location
+        // The internal _positionMenu uses this.getBoundingClientRect() to position the popover
+        const rect = btn.getBoundingClientRect();
+        menu.style.position = 'fixed';
+        menu.style.left = `${rect.left}px`;
+        menu.style.top = `${rect.bottom}px`;
+        menu.style.width = `${rect.width}px`;
+        menu.style.height = '0';
+
+        document.body.appendChild(menu);
+        menu.setItems(actions);
+        menu.show();
+
+        // Single teardown shared by both the select and outside-click paths. Selecting an item is
+        // the common path — it must also unregister the document listener, otherwise every
+        // row-action leaves a dangling listener whose closure retains the removed menu.
+        const cleanup = () => { menu.remove(); document.removeEventListener('click', cleanup); };
+
+        menu.addEventListener('select', ((se: CustomEvent) => {
+          this.emit('row-action', { action: se.detail.id, id, row });
+          cleanup();
+        }) as EventListener);
+
+        // Clean up on outside click (popover handles this, but belt and suspenders)
+        setTimeout(() => document.addEventListener('click', cleanup), 0);
+      });
+    });
+
+    // Inline editable cells
+    const editableCols = this._config?.columns.filter(c => c.editable) ?? [];
+    if (editableCols.length) {
+      (table.shadowRoot as ShadowRoot).querySelectorAll<HTMLTableCellElement>('td[data-editable]').forEach((td) => {
+        td.addEventListener('click', (e: Event) => {
+          // Ignore if already editing (input/select already injected)
+          if (td.querySelector('input, select')) return;
+          e.stopPropagation(); // Don't trigger row-click
+
+          const colKey = td.dataset.editable!;
+          const rowEl = td.closest<HTMLElement>('tr[data-id]');
+          if (!rowEl) return;
+
+          const rowId = rowEl.dataset.id!;
+          const row = this._allData.find(r => this._rowId(r) === rowId);
+          const col = editableCols.find(c => c.key === colKey);
+          if (!row || !col) return;
+
+          this._startCellEdit(td, col, row, rowId);
+        });
+      });
+    }
+  }
+
+  private _startCellEdit(
+    td: HTMLElement,
+    col: TableColumn,
+    row: Record<string, unknown>,
+    rowId: string,
+  ): void {
+    const span = td.querySelector<HTMLElement>('.cell-val');
+    if (!span) return;
+
+    const originalValue = row[col.key];
+    let cancelled = false;
+
+    // Build the edit control
+    let input: HTMLInputElement | HTMLSelectElement;
+
+    const isSelect = col.editable === 'select'
+      || (col.editable === true && !!(col.options?.length || col.getOptions));
+
+    if (isSelect) {
+      const sel = document.createElement('select');
+      const opts = col.getOptions ? col.getOptions(row) : (col.options ?? []);
+      for (const opt of opts) {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.label;
+        if (String(originalValue) === opt.value) o.selected = true;
+        sel.appendChild(o);
+      }
+      input = sel;
+    } else {
+      const inp = document.createElement('input');
+      inp.type = col.editable === 'number' ? 'number'
+        : col.editable === 'date' ? 'date'
+        : 'text';
+      inp.value = originalValue !== null && originalValue !== undefined ? String(originalValue) : '';
+      input = inp;
+    }
+
+    // Style to match design tokens — injected directly since we're in b-table's shadow DOM
+    Object.assign(input.style, {
+      boxSizing: 'border-box',
+      width: '100%',
+      padding: '0.125rem 0.375rem',
+      border: '1px solid var(--b-color-primary)',
+      borderRadius: 'var(--b-radius, 0.375rem)',
+      fontSize: 'var(--b-text-sm, 0.8125rem)',
+      fontFamily: 'inherit',
+      background: 'var(--b-bg)',
+      color: 'var(--b-text)',
+      outline: 'none',
+      boxShadow: '0 0 0 2px color-mix(in srgb, var(--b-color-primary) 20%, transparent)',
+    });
+
+    span.innerHTML = '';
+    span.appendChild(input);
+    input.focus();
+    if (input instanceof HTMLInputElement && input.type === 'text') input.select();
+
+    const _display = (val: unknown): string =>
+      col.render ? col.render(val, { ...row, [col.key]: val }) : _escapeValue(val);
+
+    const commit = () => {
+      if (cancelled) return;
+      const raw = input.value;
+      const coerced: unknown = col.editable === 'number' && raw !== '' ? Number(raw) : raw;
+      span.innerHTML = _display(coerced);
+      // Optimistic update in _allData
+      const idx = this._allData.findIndex(r => this._rowId(r) === rowId);
+      if (idx !== -1) this._allData[idx][col.key] = coerced;
+      this.emit('cell-edit', {
+        id: rowId,
+        key: col.key,
+        oldValue: originalValue,
+        newValue: coerced,
+        row: { ...row, [col.key]: coerced },
+      });
+    };
+
+    const cancel = () => {
+      cancelled = true;
+      span.innerHTML = _display(originalValue);
+    };
+
+    input.addEventListener('blur', commit, { once: true });
+    input.addEventListener('keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (ke.key === 'Enter')  { ke.preventDefault(); input.blur(); }
+      if (ke.key === 'Escape') { cancel(); input.blur(); }
+    });
+  }
+
+  /**
+   * Recognise a `{ items, totalCount }` (PagedResult) envelope, honouring `dataKey`/`totalKey`
+   * overrides. Returns null for anything that isn't an object carrying an array under the items key.
+   */
+  private _extractEnvelope(data: unknown): { items: Record<string, unknown>[]; totalCount: number } | null {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    const obj = data as Record<string, unknown>;
+    const itemsKey = this._config?.dataKey || 'items';
+    const items = obj[itemsKey];
+    if (!Array.isArray(items)) return null;
+    const totalKey = this._config?.totalKey || 'totalCount';
+    const rawTotal = obj[totalKey];
+    const totalCount = typeof rawTotal === 'number' ? rawTotal : items.length;
+    return { items: items as Record<string, unknown>[], totalCount };
+  }
+
+  private _getPageData(): Record<string, unknown>[] {
+    if (!this._config) return [];
+    // Server-paged: _allData is already the current page — never re-slice (that is the page-2-empty
+    // trap). Client-paged: _allData is the full set — slice to the current page locally.
+    if (!this._serverPaged) {
+      const start = (this._page - 1) * this._pageSize;
+      return this._allData.slice(start, start + this._pageSize);
+    }
+    return this._allData;
+  }
+
+  private _rowId(row: Record<string, unknown>): string {
+    if (this._config?.idField) return String(row[this._config.idField] ?? '');
+    return String(row['id'] ?? row['guid'] ?? '');
+  }
+
+  /** Resolve effective page size: config.pageSize > localStorage default > 20. */
+  private _resolvePageSize(): number {
+    if (this._config?.pageSize) return this._config.pageSize;
+    const stored = localStorage.getItem(PAGE_SIZE_STORAGE_KEY);
+    if (stored) {
+      const n = Number(stored);
+      if (n > 0) return n;
+    }
+    return 20;
+  }
+
+  /** Whether to show the page size picker (disabled when pageSizeOptions === false). */
+  private _showPageSizePicker(): boolean {
+    if (!this._config) return false;
+    return this._config.pageSizeOptions !== false;
+  }
+
+  /** Build label-* attributes string for b-pagination from config.paginationLabels. */
+  private _buildLabelAttrs(): string {
+    const l = this._config?.paginationLabels;
+    if (!l) return '';
+    const map: Record<string, string | undefined> = {
+      'label-items': l.items,
+      'label-page': l.page,
+      'label-of': l.of,
+      'label-per-page': l.perPage,
+      'label-prev': l.prev,
+      'label-next': l.next,
+      'label-page-size': l.pageSize,
+    };
+    return Object.entries(map)
+      .filter(([, v]) => v != null)
+      .map(([k, v]) => ` ${k}="${v}"`)
+      .join('');
+  }
+}
+
+define('b-data-table', BDataTable);
+
+/** Detail payload carried by the `cell-edit` custom event on `<b-data-table>`. */
+export interface CellEditDetail {
+  /** Row identity value (resolved via `idField` or `id`/`guid`). */
+  id: string;
+  /** Column key that was edited. */
+  key: string;
+  /** Value before the edit. */
+  oldValue: unknown;
+  /** Coerced new value (number for `editable:'number'`, string otherwise). */
+  newValue: unknown;
+  /** Full row with the new value applied. */
+  row: Record<string, unknown>;
+}
+
+/** Escape a raw cell value to safe display HTML. */
+function _escapeValue(val: unknown): string {
+  if (val === null || val === undefined) return '<span style="color:var(--b-text-muted)">—</span>';
+  const el = document.createElement('span');
+  el.textContent = String(val);
+  return el.innerHTML;
+}

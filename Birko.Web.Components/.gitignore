@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.tsbuildinfo
+src/**/*.js
+.cache/
+.eslintcache
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user

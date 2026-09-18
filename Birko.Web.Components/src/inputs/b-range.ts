@@ -1,0 +1,527 @@
+import { FormControlComponent, define } from 'birko-web-core';
+import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { renderField, fieldAria } from './label-hint';
+
+export class BRange extends FormControlComponent {
+  static get observedAttributes() {
+    return ['label', 'hint', 'error', 'disabled', 'required', 'name',
+            'min', 'max', 'step', 'mode', 'display', 'value-type', 'value', 'orientation',
+            'bare', 'description'];
+  }
+
+  static get sharedStyles() {
+    return [formFieldSheet, formControlSheet];
+  }
+
+  static get styles() {
+    return `
+      :host { display: block; }
+
+      .range-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: var(--b-space-sm, 0.5rem);
+      }
+
+      /* ── Slider track & thumb ── */
+
+      .range-slider {
+        position: relative;
+        height: 1.5rem;
+        display: flex;
+        align-items: center;
+      }
+
+      .range-track {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        left: 0;
+        right: 0;
+        height: 0.25rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-border);
+      }
+
+      .range-track-fill {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 0.25rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-color-primary);
+        pointer-events: none;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        height: 1.5rem;
+        cursor: pointer;
+        outline: none;
+        box-shadow: none;
+        position: relative;
+        z-index: 2;
+      }
+      input[type="range"]:focus { box-shadow: none; }
+
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 0.25rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: transparent;
+      }
+      input[type="range"]::-moz-range-track {
+        height: 0.25rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: transparent;
+        border: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 1rem;
+        height: 1rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-input-thumb-bg, #ffffff);
+        border: 2px solid var(--b-color-primary);
+        margin-top: -0.375rem;
+        cursor: pointer;
+        transition: box-shadow var(--b-transition, 150ms ease);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 1rem;
+        height: 1rem;
+        border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-input-thumb-bg, #ffffff);
+        border: 2px solid var(--b-color-primary);
+        cursor: pointer;
+        transition: box-shadow var(--b-transition, 150ms ease);
+      }
+
+      input[type="range"]:focus-visible::-webkit-slider-thumb {
+        box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
+      }
+      input[type="range"]:focus-visible::-moz-range-thumb {
+        box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
+      }
+
+      input[type="range"]:disabled {
+        opacity: var(--b-disabled-opacity, 0.5);
+        cursor: not-allowed;
+      }
+      input[type="range"]:disabled::-webkit-slider-thumb { cursor: not-allowed; }
+      input[type="range"]:disabled::-moz-range-thumb { cursor: not-allowed; }
+
+      /* ── Dual slider (range mode) ── */
+
+      .range-slider--dual input[type="range"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+      .range-slider--dual input[type="range"]::-webkit-slider-thumb {
+        pointer-events: auto;
+      }
+      .range-slider--dual input[type="range"]::-moz-range-thumb {
+        pointer-events: auto;
+      }
+
+      /* ── Number inputs ── */
+
+      .range-inputs {
+        display: flex;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+      }
+
+      .range-input {
+        max-width: 5rem;
+        text-align: center;
+      }
+
+      .range-sep {
+        color: var(--b-text-muted);
+        font-size: var(--b-text-sm, 0.8125rem);
+        flex-shrink: 0;
+      }
+
+      .range-unit {
+        color: var(--b-text-secondary);
+        font-size: var(--b-text-sm, 0.8125rem);
+        flex-shrink: 0;
+      }
+
+      /* ── Error state ── */
+
+      :host([error]) input[type="range"]::-webkit-slider-thumb {
+        border-color: var(--b-color-danger);
+      }
+      :host([error]) input[type="range"]::-moz-range-thumb {
+        border-color: var(--b-color-danger);
+      }
+      :host([error]) .range-track-fill {
+        background: var(--b-color-danger);
+      }
+      :host([error]) .range-input {
+        border-color: var(--b-color-danger);
+      }
+
+      /* ── Vertical (equalizer): thin rail up the column, fill grows from the bottom ── */
+      :host([orientation="vertical"]) .range-wrap { height: 100%; }
+      :host([orientation="vertical"]) .range-slider {
+        width: 1.5rem;
+        height: 100%;
+        min-height: 8rem;
+        justify-content: center;
+      }
+      :host([orientation="vertical"]) input[type="range"] {
+        writing-mode: vertical-lr;
+        direction: rtl;               /* max at top, min at bottom — natural for an equalizer */
+        /* Absolute so the input's large vertical min-content height doesn't blow out the layout;
+           height comes from the (definite) slider box instead. */
+        position: absolute;
+        top: 0; bottom: 0; left: 50%;
+        transform: translateX(-50%);
+        width: 1.5rem;
+        height: auto;
+      }
+      :host([orientation="vertical"]) .range-track {
+        top: 0; bottom: 0; left: 50%; right: auto;
+        transform: translateX(-50%);
+        width: 0.25rem; height: auto;
+      }
+      :host([orientation="vertical"]) .range-track-fill {
+        top: auto; left: 50%; right: auto;
+        transform: translateX(-50%);
+        width: 0.25rem;
+      }
+    `;
+  }
+
+  private _from = 0;
+  private _to = 100;
+  private _lastThumb: 'from' | 'to' = 'to';
+
+  // ── Helpers ──
+
+  private get _min(): number { return Number(this.attr('min', '0')); }
+  private get _max(): number { return Number(this.attr('max', '100')); }
+  private get _step(): number { return Number(this.attr('step', '1')); }
+  private get _mode(): string { return this.attr('mode', 'single')!; }
+  private get _display(): string { return this.attr('display', 'both')!; }
+  private get _isVertical(): boolean { return this.attr('orientation', 'horizontal') === 'vertical'; }
+
+  /** Inline fill style for the current orientation (horizontal = left/width, vertical = bottom/height). */
+  private _fillStyle(fromPct: number, toPct: number): string {
+    const size = toPct - fromPct;
+    return this._isVertical ? `bottom:${fromPct}%;height:${size}%` : `left:${fromPct}%;width:${size}%`;
+  }
+  private get _valueType(): string { return this.attr('value-type', 'number')!; }
+  private get _isRange(): boolean { return this._mode === 'range'; }
+  private get _showSlider(): boolean { return this._display !== 'input'; }
+  private get _showInput(): boolean { return this._display !== 'slider'; }
+
+  private _clamp(val: number): number {
+    let v = Math.min(Math.max(val, this._min), this._max);
+    if (this._valueType === 'int') v = Math.round(v);
+    return v;
+  }
+
+  private _pct(val: number): number {
+    const range = this._max - this._min;
+    return range === 0 ? 0 : ((val - this._min) / range) * 100;
+  }
+
+  private _parseInitialValue() {
+    const raw = this.attr('value');
+    if (!raw) {
+      this._from = this._min;
+      this._to = this._max;
+      return;
+    }
+    if (this._isRange) {
+      try {
+        const obj = JSON.parse(raw);
+        this._from = this._clamp(Number(obj.from));
+        this._to = this._clamp(Number(obj.to));
+      } catch {
+        this._from = this._min;
+        this._to = this._max;
+      }
+    } else {
+      this._from = this._clamp(Number(raw) || this._min);
+    }
+  }
+
+  // ── Public API ──
+
+  get value(): string { return this.inputValue; }
+  set value(v: string) { this.inputValue = v; }
+
+  get inputValue(): string {
+    if (this._isRange) {
+      return JSON.stringify({ from: this._from, to: this._to });
+    }
+    return String(this._from);
+  }
+
+  set inputValue(v: string) {
+    if (this._isRange) {
+      try {
+        const obj = JSON.parse(v);
+        this._from = this._clamp(Number(obj.from));
+        this._to = this._clamp(Number(obj.to));
+      } catch { /* ignore */ }
+    } else {
+      this._from = this._clamp(Number(v) || 0);
+    }
+    this._syncDOM();
+  }
+
+  // ── Render ──
+
+  render() {
+    this._parseInitialValue();
+
+    const label = this.attr('label');
+    const hint = this.attr('hint');
+    const error = this.attr('error');
+    const bare = this.boolAttr('bare');
+    const description = this.attr('description');
+    // A range is ONE field with up to two editable parts — describe both, so the help row is announced
+    // whichever thumb / number box has focus.
+    const aria = fieldAria({ uid: this.uid, error, description, bare, label });
+    const disabled = this.boolAttr('disabled') ? 'disabled' : '';
+    const min = this._min;
+    const max = this._max;
+    const step = this._step;
+    const isPercent = this._valueType === 'percent';
+
+    let sliderHtml = '';
+    if (this._showSlider) {
+      if (this._isRange) {
+        const fromPct = this._pct(this._from);
+        const toPct = this._pct(this._to);
+        sliderHtml = `
+          <div class="range-slider range-slider--dual">
+            <div class="range-track"></div>
+            <div class="range-track-fill" style="${this._fillStyle(fromPct, toPct)}"></div>
+            <input type="range" class="slider-from" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} aria-label="From" />
+            <input type="range" class="slider-to" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._to}" ${disabled} aria-label="To"
+                   style="z-index:3" />
+          </div>`;
+      } else {
+        const fromPct = this._pct(this._from);
+        sliderHtml = `
+          <div class="range-slider">
+            <div class="range-track"></div>
+            <div class="range-track-fill" style="${this._fillStyle(0, fromPct)}"></div>
+            <input type="range" class="slider-single" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} />
+          </div>`;
+      }
+    }
+
+    let inputHtml = '';
+    if (this._showInput) {
+      if (this._isRange) {
+        inputHtml = `
+          <div class="range-inputs">
+            <input type="number" class="range-input input-from" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} aria-label="From" />
+            <span class="range-sep" aria-hidden="true">&ndash;</span>
+            <input type="number" class="range-input input-to" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._to}" ${disabled} aria-label="To" />
+            ${isPercent ? '<span class="range-unit" aria-hidden="true">%</span>' : ''}
+          </div>`;
+      } else {
+        inputHtml = `
+          <div class="range-inputs">
+            <input type="number" class="range-input input-single" ${aria} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} />
+            ${isPercent ? '<span class="range-unit" aria-hidden="true">%</span>' : ''}
+          </div>`;
+      }
+    }
+
+    return renderField({
+      bare,
+      uid: this.uid,
+      label,
+      hint,
+      error,
+      required: this.boolAttr('required'),
+      description,
+      control: `
+        <div class="range-wrap">
+          ${sliderHtml}
+          ${inputHtml}
+        </div>`,
+    });
+
+  }
+
+  // ── Events ──
+
+  protected onUpdated() {
+    if (this._isRange) {
+      this._wireRange();
+    } else {
+      this._wireSingle();
+    }
+    this.syncFormState();
+  }
+
+  /**
+   * Single mode submits one plain value under `name`. **Range mode submits `${name}-from` /
+   * `${name}-to`** — two values in one control has no native analogue to imitate, so rather than invent
+   * a delimiter (today's `value` is a JSON blob, which no server form-binder reads) it submits two
+   * ordinary fields. `value` / `inputValue` keep returning the JSON string for back-compat.
+   */
+  protected formValue(): string | FormData | null {
+    if (!this._isRange) {
+      const v = String(this._from);
+      return v === '' ? null : v;
+    }
+    return this.suffixedFormValue([['from', String(this._from)], ['to', String(this._to)]]);
+  }
+
+  /**
+   * The sliders are `<input type="range">`, which is never empty and never invalid — mirroring their
+   * validity would report "valid" regardless. `min`/`max`/`step` are already enforced by clamping.
+   */
+  protected validationSource(): undefined {
+    return undefined;
+  }
+
+  private _wireSingle() {
+    const slider = this.$<HTMLInputElement>('.slider-single');
+    const input = this.$<HTMLInputElement>('.input-single');
+
+    if (slider) {
+      this.listen(slider, 'input', () => {
+        this._from = this._clamp(Number(slider.value));
+        if (input) input.value = String(this._from);
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+
+    if (input) {
+      this.listen(input, 'change', () => {
+        this._from = this._clamp(Number(input.value));
+        input.value = String(this._from);
+        if (slider) slider.value = String(this._from);
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+  }
+
+  private _wireRange() {
+    const sliderFrom = this.$<HTMLInputElement>('.slider-from');
+    const sliderTo = this.$<HTMLInputElement>('.slider-to');
+    const inputFrom = this.$<HTMLInputElement>('.input-from');
+    const inputTo = this.$<HTMLInputElement>('.input-to');
+
+    if (sliderFrom) {
+      this.listen(sliderFrom, 'input', () => {
+        this._from = this._clamp(Math.min(Number(sliderFrom.value), this._to));
+        sliderFrom.value = String(this._from);
+        if (inputFrom) inputFrom.value = String(this._from);
+        this._lastThumb = 'from';
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+
+    if (sliderTo) {
+      this.listen(sliderTo, 'input', () => {
+        this._to = this._clamp(Math.max(Number(sliderTo.value), this._from));
+        sliderTo.value = String(this._to);
+        if (inputTo) inputTo.value = String(this._to);
+        this._lastThumb = 'to';
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+
+    if (inputFrom) {
+      this.listen(inputFrom, 'change', () => {
+        this._from = this._clamp(Math.min(Number(inputFrom.value), this._to));
+        inputFrom.value = String(this._from);
+        if (sliderFrom) sliderFrom.value = String(this._from);
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+
+    if (inputTo) {
+      this.listen(inputTo, 'change', () => {
+        this._to = this._clamp(Math.max(Number(inputTo.value), this._from));
+        inputTo.value = String(this._to);
+        if (sliderTo) sliderTo.value = String(this._to);
+        this._updateFill();
+        this._emitChange();
+      });
+    }
+  }
+
+  private _updateFill() {
+    const fill = this.$<HTMLElement>('.range-track-fill');
+    if (!fill) return;
+
+    const from = this._isRange ? this._pct(this._from) : 0;
+    const to = this._pct(this._isRange ? this._to : this._from);
+    if (this._isVertical) {
+      fill.style.left = '';
+      fill.style.width = '';
+      fill.style.bottom = `${from}%`;
+      fill.style.height = `${to - from}%`;
+    } else {
+      fill.style.bottom = '';
+      fill.style.height = '';
+      fill.style.left = `${from}%`;
+      fill.style.width = `${to - from}%`;
+    }
+  }
+
+  private _emitChange() {
+    if (this._isRange) {
+      this.emit('change', { name: this.attr('name'), value: { from: this._from, to: this._to } });
+      this.syncFormState();
+    } else {
+      this.emit('change', { name: this.attr('name'), value: this._from });
+      this.syncFormState();
+    }
+  }
+
+  private _syncDOM() {
+    if (this._isRange) {
+      const sf = this.$<HTMLInputElement>('.slider-from');
+      const st = this.$<HTMLInputElement>('.slider-to');
+      const inf = this.$<HTMLInputElement>('.input-from');
+      const int_ = this.$<HTMLInputElement>('.input-to');
+      if (sf) sf.value = String(this._from);
+      if (st) st.value = String(this._to);
+      if (inf) inf.value = String(this._from);
+      if (int_) int_.value = String(this._to);
+    } else {
+      const s = this.$<HTMLInputElement>('.slider-single');
+      const i = this.$<HTMLInputElement>('.input-single');
+      if (s) s.value = String(this._from);
+      if (i) i.value = String(this._from);
+    }
+    this._updateFill();
+  }
+}
+
+define('b-range', BRange);

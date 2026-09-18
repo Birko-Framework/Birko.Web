@@ -1,0 +1,531 @@
+/* ══════════════════════════════════════════════════
+   Birko Web Components — Shared Styles
+   ══════════════════════════════════════════════════
+   Pure CSS file. Imported by shared-styles.ts which
+   parses sections into reusable CSSStyleSheet objects.
+
+   Sections are delimited by comments like:
+     /* @sheet backdrop */
+   Each section becomes a named export in shared-styles.ts.
+
+   All values use rem-based design tokens (--b-*).
+   Fallbacks use rem equivalents for consistency.
+   ══════════════════════════════════════════════════ */
+
+
+/* @sheet backdrop
+   Fixed fullscreen backdrop with fade transition.
+   LEGACY — used by components not yet migrated to <dialog>.
+   Add class .open to show. */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--b-backdrop-bg, rgba(0, 0, 0, 0.4));
+  z-index: var(--b-z-modal-backdrop, 300);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--b-transition-slow, 300ms ease);
+}
+.backdrop.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+
+/* @sheet dialogBase
+   Reset + backdrop styling for native <dialog> elements.
+   Use with showModal() or show(). */
+
+dialog {
+  border: none;
+  padding: 0;
+  margin: auto;
+  max-width: unset;
+  max-height: unset;
+  background: transparent;
+  overflow: visible;
+  /* The UA stylesheet sets `color: CanvasText` on <dialog>, which resolves from the SYSTEM colour
+     scheme and therefore ignores an app-level dark theme (`[data-theme="dark"]` + dark.css tokens).
+     Because the declaration lands on the dialog itself it also beats inheritance from the host, so
+     every uncoloured descendant — the .overlay-header title above all — rendered near-black inside a
+     dark modal. Re-assert the themed text colour so the token wins. */
+  color: var(--b-text);
+}
+/* showModal() moves focus to the <dialog>; suppress the UA focus ring on the
+   container itself (Safari paints it blue around the whole modal). The dialog is
+   not an interactive control — its focusable children keep their own focus styling. */
+dialog:focus,
+dialog:focus-visible {
+  outline: none;
+}
+dialog::backdrop {
+  background: var(--b-backdrop-bg, rgba(0, 0, 0, 0.4));
+}
+dialog:not([open]) {
+  display: none;
+}
+
+
+/* @sheet closeButton
+   Icon-only close button (x). Parent positions it. */
+
+.close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+  border-radius: var(--b-radius, 0.375rem);
+  color: var(--b-text-muted);
+  font-size: var(--b-icon-base, 1rem);
+  line-height: 1;
+}
+.close-btn:hover {
+  background: var(--b-bg-tertiary);
+  color: var(--b-text);
+}
+
+
+/* @sheet overlayHeader
+   Flex header bar: title left, actions right, bottom border. */
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--b-space-lg, 1rem) var(--b-space-xl, 1.5rem);
+  border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+  font-family: var(--b-font-heading, var(--b-font));
+  font-weight: var(--b-font-weight-semibold, 600);
+  font-size: var(--b-text-lg, 1rem);
+  flex-shrink: 0;
+}
+
+
+/* @sheet overlayBody
+   Scrollable body area filling remaining flex space. */
+
+.overlay-body {
+  padding: var(--b-space-xl, 1.5rem);
+  overflow-y: auto;
+  flex: 1;
+}
+
+
+/* @sheet overlayFooter
+   Flex footer bar: actions right-aligned, top border. */
+
+.overlay-footer {
+  padding: var(--b-space-lg, 1rem) var(--b-space-xl, 1.5rem);
+  border-top: var(--b-border-width, 1px) solid var(--b-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--b-space-sm, 0.5rem);
+  flex-shrink: 0;
+}
+/* Normalize slotted <footer>/<div> — reset browser margins, inherit flex layout */
+.overlay-footer ::slotted(footer),
+.overlay-footer ::slotted(div) {
+  margin: 0;
+  display: flex;
+  gap: var(--b-space-sm, 0.5rem);
+  justify-content: flex-end;
+  width: 100%;
+}
+
+
+/* @sheet formField
+   Form field container with label and error message.
+   Works with <input>, <select>, <textarea> inside .field. */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--b-space-xs, 0.25rem);
+}
+.field label {
+  font-size: var(--b-text-sm, 0.8125rem);
+  font-weight: var(--b-font-weight-medium, 500);
+  color: var(--b-text-secondary);
+}
+.field .label-row {
+  display: flex;
+  align-items: center;
+  gap: var(--b-space-2xs, 0.125rem);
+}
+.field .label-row label { margin: 0; }
+.field .required-mark {
+  color: var(--b-color-danger-text, var(--b-color-danger));
+  margin-left: 0.125rem;
+}
+.field .label-row b-tooltip { line-height: 1; }
+.field .hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--b-radius-full, 50%);
+  background: var(--b-border);
+  color: var(--b-text-secondary);
+  font-size: 0.5625rem;
+  font-weight: var(--b-font-weight-bold, 700);
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: help;
+}
+.field .error {
+  font-size: var(--b-text-xs, 0.6875rem);
+  /* --b-color-danger-TEXT, not --b-color-danger: measured, the surface red fails WCAG AA as small text on
+     dark (3.03:1), finstat (2.65:1) and inverse (2.13:1). See tokens.css. */
+  color: var(--b-color-danger-text, var(--b-color-danger));
+}
+/* Persistent help text (the `description` attribute) — same footprint as .error so a field's height does
+   not jump when an error appears beside it.
+   `--b-text-secondary`, NOT `--b-text-muted`: measured against every shipped theme, muted gives
+   2.03–3.07:1 on the field background (failing WCAG AA's 4.5:1 for text this size in light / neon /
+   finstat), while secondary gives 3.77–7.24:1 — AA in four of five. This text exists to be *read while
+   typing*, so legibility beats the extra subtlety of a lighter grey. It is still lighter than the label,
+   which is bolder and larger. All five shipped themes now clear AA for this row (finstat's
+   --b-text-secondary was darkened for exactly this reason). */
+.field .help {
+  font-size: var(--b-text-xs, 0.6875rem);
+  color: var(--b-text-secondary);
+}
+
+
+/* @sheet formControl
+   Shared input/select styling: border, focus ring, error state, disabled. */
+
+input, select, textarea {
+  box-sizing: border-box;
+  padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+  min-height: var(--b-control-min-height, 2.375rem);
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  /* Form controls don't inherit the page font by default, and <textarea> defaults to MONOSPACE — so a
+     b-textarea rendered in a different typeface from every field beside it until this was set. font-family
+     only: the size is set below and overridden under a coarse pointer, so `font: inherit` would undo both. */
+  font-family: inherit;
+  font-size: var(--b-input-font-size, var(--b-text-base, 0.875rem)); /* base body size — matches labels/buttons/b-select on desktop */
+  background: var(--b-bg);
+  color: var(--b-text);
+  outline: none;
+  width: 100%;
+  transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
+}
+/* iOS Safari auto-zooms into any focused control with font-size < 16px. Guard
+   only on touch pointers so desktop keeps the consistent base size above. */
+@media (pointer: coarse) {
+  input, select, textarea {
+    font-size: max(16px, var(--b-input-font-size, var(--b-text-base, 0.875rem)));
+  }
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--b-border-focus);
+  box-shadow: var(--b-focus-ring);
+}
+input:disabled, select:disabled, textarea:disabled {
+  opacity: var(--b-disabled-opacity, 0.5);
+  cursor: not-allowed;
+}
+input.has-error, select.has-error {
+  border-color: var(--b-color-danger);
+}
+input.has-error:focus, select.has-error:focus {
+  box-shadow: var(--b-focus-ring-danger);
+}
+
+/* Compact / comfortable size variants. Driven by the host component's
+   `size` attribute so `<b-input size="sm">`, `<b-select size="lg">`, etc.
+   all opt in without extra CSS per component. */
+:host([size="sm"]) input,
+:host([size="sm"]) select,
+:host([size="sm"]) textarea {
+  min-height: var(--b-control-min-height-sm, 1.75rem);
+  padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem);
+  font-size: var(--b-text-sm, 0.8125rem);
+}
+:host([size="lg"]) input,
+:host([size="lg"]) select,
+:host([size="lg"]) textarea {
+  min-height: var(--b-control-min-height-lg, 2.75rem);
+  padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
+  font-size: var(--b-text-lg, 1rem);
+}
+/* The iOS floor again, and it has to be repeated here rather than relying on the rule above (TASK-126).
+   That rule is a bare element selector at (0,0,1); these size variants name the host and so outrank it
+   INSIDE the media query too — which silently opted every sized control out of the floor. Measured before
+   this block: size="sm" = 11.38px, and size="lg" = 14px, i.e. even the COMFORTABLE variant zoomed on iOS.
+   Nothing unusual was done to break it: writing an ordinary size rule is enough, which is why the floor is
+   swept in Playground's device-fix-check rather than trusted to review. */
+@media (pointer: coarse) {
+  :host([size="sm"]) input,
+  :host([size="sm"]) select,
+  :host([size="sm"]) textarea {
+    font-size: max(16px, var(--b-text-sm, 0.8125rem));
+  }
+  :host([size="lg"]) input,
+  :host([size="lg"]) select,
+  :host([size="lg"]) textarea {
+    font-size: max(16px, var(--b-text-lg, 1rem));
+  }
+}
+
+
+/* @sheet dropdownPanel
+   Popover dropdown panel — shared by b-dropdown-menu, b-multi-select,
+   and any future component that needs a positioned popover list. */
+
+.dropdown-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: var(--b-space-xs, 0.25rem) 0;
+  min-width: var(--b-dropdown-min-width, 10rem);
+  background: var(--b-bg-elevated);
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  box-shadow: var(--b-shadow-md);
+  max-height: 12.5rem;
+  overflow-y: auto;
+  z-index: 9999;
+}
+.dropdown-panel:popover-open { display: block; }
+
+
+/* @sheet formToggle
+   Shared wrapper, label, disabled, and focus styles for toggle-like inputs
+   (b-switch, b-checkbox, b-radio). Each component adds its own control visuals. */
+
+.toggle-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--b-space-sm, 0.5rem);
+  cursor: pointer;
+  vertical-align: middle;
+  /* Containing block for visually-hidden absolutely-positioned inputs (b-switch).
+     Without this their containing block is <html>, so they escape any ancestor
+     overflow:hidden (e.g. the app-shell) and stretch the document height,
+     producing a phantom page scrollbar. */
+  position: relative;
+}
+.toggle-wrapper.disabled {
+  opacity: var(--b-disabled-opacity, 0.5);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.toggle-label {
+  font-size: var(--b-text-sm, 0.8125rem);
+  color: var(--b-text);
+  user-select: none;
+  line-height: var(--b-line-height, 1.5);
+}
+.toggle-control:focus-visible {
+  outline: none;
+  box-shadow: var(--b-focus-ring, 0 0 0 3px rgba(37, 99, 235, 0.15));
+}
+.toggle-wrapper .required-mark {
+  color: var(--b-color-danger);
+  margin-left: 0.125rem;
+}
+.toggle-wrapper .hint-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--b-radius-full, 50%);
+  background: var(--b-border);
+  color: var(--b-text-secondary);
+  font-size: 0.5625rem;
+  font-weight: var(--b-font-weight-bold, 700);
+  line-height: 1;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+
+/* @sheet comboControl
+   Shared container styling for composite inputs that wrap their own
+   inner elements (b-select searchable, b-multi-select).
+   Mirrors formControl patterns: border, focus ring, error, disabled. */
+
+.combo-container {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  background: var(--b-bg);
+  min-height: var(--b-control-min-height, 2.375rem);
+  cursor: pointer;
+  transition: border-color var(--b-transition, 150ms ease), box-shadow var(--b-transition, 150ms ease);
+}
+.combo-container:focus-within {
+  border-color: var(--b-border-focus);
+  box-shadow: var(--b-focus-ring);
+}
+.combo-container.has-error {
+  border-color: var(--b-color-danger);
+}
+.combo-container.has-error:focus-within {
+  box-shadow: var(--b-focus-ring-danger);
+}
+.combo-container.disabled {
+  opacity: var(--b-disabled-opacity, 0.5);
+  cursor: not-allowed;
+  pointer-events: none;
+}
+:host([size="sm"]) .combo-container {
+  min-height: var(--b-control-min-height-sm, 1.75rem);
+  font-size: var(--b-text-sm, 0.8125rem);
+}
+:host([size="lg"]) .combo-container {
+  min-height: var(--b-control-min-height-lg, 2.75rem);
+  font-size: var(--b-text-lg, 1rem);
+}
+
+
+/* @sheet spin
+   Shared spinner keyframes. Used by b-spinner and b-button. */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+
+/* @sheet focusVisible
+   Shared focus-visible pattern: outline none + focus ring.
+   Apply to interactive elements (buttons, links, custom controls). */
+
+:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+
+
+/* @sheet iconButton
+   Bare icon-only button: no background, no border, cursor pointer.
+   Parent positions and sizes it. */
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--b-space-xs, 0.25rem);
+  color: var(--b-text-muted);
+  font-size: var(--b-icon-base, 1rem);
+  line-height: 1;
+}
+.icon-btn:hover {
+  background: var(--b-bg-tertiary);
+  color: var(--b-text);
+}
+.icon-btn:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+
+
+/* @sheet dataViewerCard
+   Compact data-viewer card shell: bg-tertiary, border, radius, overflow hidden.
+   Used by b-json-viewer, b-xml-viewer, b-code-block, and b-object-tree (when
+   header is shown). Add class .sticky-page to swap overflow to visible so a
+   nested position:sticky header can pin to the page viewport. */
+
+.data-viewer-card {
+  background: var(--b-bg-tertiary);
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  overflow: hidden;
+}
+.data-viewer-card.sticky-page {
+  overflow: visible;
+}
+
+
+/* @sheet dataViewerHeader
+   Compact sticky toolbar header for data-viewer cards:
+     <header class="data-viewer-header">
+       <span class="title">JSON</span>
+       <div class="actions"><button class="toolbar-btn">…</button></div>
+     </header>
+   Header uses position:sticky top:0 so it pins whether scrolling is internal
+   (body with max-height) or page-level (card has .sticky-page). */
+
+.data-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--b-space-sm, 0.5rem);
+  padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
+  border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+  background: var(--b-bg);
+  font-size: var(--b-text-xs, 0.6875rem);
+  color: var(--b-text-muted);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.data-viewer-header .title {
+  font-family: var(--b-font-mono, ui-monospace, monospace);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.data-viewer-header .actions {
+  display: flex;
+  gap: var(--b-space-xs, 0.25rem);
+}
+
+
+/* @sheet toolbarBtn
+   Small bordered action button used in data-viewer headers (Copy / Expand /
+   Collapse). Includes :hover, :focus-visible and .copied success state. */
+
+.toolbar-btn {
+  background: transparent;
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius-sm, 0.25rem);
+  color: var(--b-text-secondary);
+  font: inherit;
+  font-size: var(--b-text-xs, 0.6875rem);
+  padding: 0.125rem var(--b-space-sm, 0.5rem);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.toolbar-btn:hover {
+  background: var(--b-bg-tertiary);
+  color: var(--b-text);
+}
+.toolbar-btn:focus-visible {
+  box-shadow: var(--b-focus-ring);
+  outline: none;
+}
+.toolbar-btn.copied {
+  color: var(--b-color-success);
+  border-color: var(--b-color-success);
+}
+
+/* @sheet srOnly
+   Visually-hidden utility: keeps content in the accessibility tree (announced by
+   screen readers) while removing it from the visual layout. Use on aria-live
+   regions and off-screen labels. The .sr-only-focusable variant becomes visible
+   when focused (skip links). */
+
+.sr-only,
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
