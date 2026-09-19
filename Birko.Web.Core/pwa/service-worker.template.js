@@ -17,6 +17,39 @@ const CACHE_PREFIX = '__CACHE_PREFIX__-';
 const CACHE = CACHE_PREFIX + CACHE_VERSION;
 const PRECACHE = __PRECACHE__;
 
+/*
+ * BASE is the worker's own scope, which is the directory it was served from — '/' for an app at the
+ * web root, '/My.App/' for one published to a project GitHub Page or any other subpath. Everything
+ * below resolves against it rather than assuming the root.
+ *
+ * Deriving it at runtime rather than stamping it in at build time is deliberate: the same built
+ * output then works wherever it is served, so a local `serve wwwroot/` and a subpath deploy cannot
+ * disagree, and there is no config to get wrong.
+ *
+ *
+ * ⚠ Two things make this work and EITHER ALONE IS SUFFICIENT, so neither mutates to a failure on its
+ * own — a fact worth stating, because it means a future reader deleting "the redundant one" will see
+ * every check still pass:
+ *   1. the generator emits precache paths RELATIVE, and a relative URL in a worker already resolves
+ *      against the worker's own location;
+ *   2. `at()` strips a leading slash before resolving, so a list in the old absolute form lands in
+ *      the right place too.
+ * Measured: reverting (1) alone passes, reverting (2) alone passes, reverting BOTH fails with
+ * `/`, `/index.html` and `/app.js` all 404 and the worker never registering. (2) is kept because a
+ * hand-written or previously-generated absolute list must not silently break; (1) is kept because a
+ * worker published at /My.App/ that reads `"/index.html"` tells the next person something false.
+ *
+ * The cost of the strip is that an asset genuinely outside the app's base cannot be precached, which
+ * is already outside the documented contract — `shellAssets` are relative to the build's `outDir`.
+ *
+ * What it was like before either: the playground published to
+ * https://birko-framework.github.io/Birko.Web.Playground/ asked for '/index.html' and '/app.js',
+ * which 404 there — `addAll` rejects, the install step fails, and the app silently has no offline
+ * shell while looking entirely healthy.
+ */
+const BASE = new URL('./', self.registration.scope).href;
+const at = (path) => new URL(path.replace(/^\/+/, ''), BASE).href;
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
@@ -27,7 +60,7 @@ self.addEventListener('install', (event) => {
     // a new cache name appears, `activate` prunes the old one, everything looks like it updated, and
     // the app still serves old code. Hardening rather than a known-live bug — Chrome was measured
     // filling correctly (WorkoutTracker TASK-035/179) — but it costs one request flag.
-    await cache.addAll(PRECACHE.map((u) => new Request(u, { cache: 'reload' })));
+    await cache.addAll(PRECACHE.map((u) => new Request(at(u), { cache: 'reload' })));
     await self.skipWaiting();
   })());
 });
@@ -47,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // third-party: leave to the network
-  if (url.pathname.startsWith('/api/')) return;    // API: never cache — the write queue owns offline
+  if (url.href.startsWith(at('api/'))) return;     // API: never cache — the write queue owns offline
 
   if (request.mode === 'navigate') {
     event.respondWith(shellFirst(request));
@@ -58,7 +91,7 @@ self.addEventListener('fetch', (event) => {
 
 async function shellFirst(request) {
   const cache = await caches.open(CACHE);
-  const cached = (await cache.match('/index.html')) ?? (await cache.match('/'));
+  const cached = (await cache.match(at('index.html'))) ?? (await cache.match(at('./')));
   if (cached) return cached;
   try {
     return await fetch(request);

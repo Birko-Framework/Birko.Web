@@ -35,8 +35,17 @@ export function writeServiceWorker(opts) {
   for (const rel of shellAssets) hash.update(readFileSync(join(outDir, rel)));
   const version = hash.digest('hex').slice(0, 12);
 
-  // Web-root-absolute precache paths; always include the navigation fallback '/'.
-  const precache = Array.from(new Set(['/', ...shellAssets.map((a) => '/' + a.replace(/^\/+/, ''))]));
+  // Scope-RELATIVE precache paths; always include the navigation fallback './'.
+  //
+  // A relative URL in a worker already resolves against the worker's own location, so this alone is
+  // enough to make a subpath deploy work. The template's `at()` is the other half and is ALSO enough
+  // alone — see its comment: neither reverts to a failure on its own, only reverting both does. Kept
+  // relative here so the emitted file reads truthfully: `"/index.html"` in a worker published at
+  // /My.App/ says something false about where it looks.
+  //
+  // What the two together buy: the same built output serves correctly from the web root or from a
+  // subpath (a project GitHub Page, an app mounted under a prefix) with nothing to configure.
+  const precache = Array.from(new Set(['./', ...shellAssets.map((a) => a.replace(/^\/+/, ''))]));
 
   const sw = readFileSync(templatePath, 'utf8')
     .replaceAll('__CACHE_PREFIX__', cachePrefix)
