@@ -15,6 +15,20 @@ export interface TableColumn {
   // `any` intentional: allows consumers to declare narrow render signatures
   // like `(v: number) => string` without widening to `unknown` everywhere.
   render?: (value: any, row: any) => string;
+  /**
+   * Render the header cell as **HTML** instead of escaping {@link label}.
+   *
+   * A code opt-in, exactly like {@link render} for cells — the returned string is
+   * inserted without escaping, so escape any consumer data it interpolates. `label`
+   * stays escaped by default, which is what keeps an ordinary column heading from
+   * becoming an injection point. Without this, a cell could carry markup (`render`)
+   * while its own header could not — the asymmetry that made `<b-data-table>`'s
+   * "select all" checkbox render as literal `<input …>` text.
+   *
+   * Consumed by `<b-data-table>` for the selection column; a sortable column still
+   * wraps the result in its header button.
+   */
+  headerRender?: (column: TableColumn) => string;
   sortable?: boolean;
   /**
    * Enable inline click-to-edit for this column in `<b-data-table>`.
@@ -156,6 +170,9 @@ export class BTable extends BaseComponent {
                 const isSorted = this._sortKey === c.key;
                 const arrow = isSorted ? (this._sortDesc ? '&#9660;' : '&#9650;') : '&#9650;';
                 const ariaSort = !c.sortable ? '' : isSorted ? (this._sortDesc ? 'aria-sort="descending"' : 'aria-sort="ascending"') : 'aria-sort="none"';
+                // Escaped by default; `headerRender` is the explicit HTML opt-in (a cell's
+                // `render` is the same opt-in on the row side).
+                const label = c.headerRender ? c.headerRender(c) : escapeHtml(String(c.label ?? ''));
                 return `<th
                   scope="col"
                   class="${c.sortable ? 'sortable' : ''} ${isSorted ? 'sorted' : ''} ${c.align ? 'align-' + c.align : ''}"
@@ -163,8 +180,8 @@ export class BTable extends BaseComponent {
                   data-key="${escapeAttr(String(c.key))}"
                   ${ariaSort}
                 >${c.sortable
-                  ? `<button type="button" class="th-sort-btn">${escapeHtml(String(c.label ?? ''))}<span class="sort-icon" aria-hidden="true">${arrow}</span></button>`
-                  : escapeHtml(String(c.label ?? ''))}</th>`;
+                  ? `<button type="button" class="th-sort-btn">${label}<span class="sort-icon" aria-hidden="true">${arrow}</span></button>`
+                  : label}</th>`;
               }).join('')}
             </tr>
           </thead>

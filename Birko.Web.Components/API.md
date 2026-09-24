@@ -716,6 +716,10 @@ table.addEventListener('action-click', (e) => {
 });
 ```
 
+**Header content**: `label` is escaped text. For markup in a header, give the column a `headerRender`
+(a code opt-in returning raw HTML) — the header counterpart to a cell's `render`. `<b-data-table>`'s
+selection column uses it for the "select all" checkbox; see the README § *TableColumn — header content*.
+
 ### `<b-data-table>`
 Wraps `<b-table>` with auto-fetching, pagination, search, filters, selection, bulk actions, and row actions.
 

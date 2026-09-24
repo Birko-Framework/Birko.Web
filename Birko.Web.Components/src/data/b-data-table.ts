@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import type { TableColumn } from './b-table.js';
 import type { DropdownItem } from '../layout/b-dropdown-menu.js';
@@ -453,12 +454,17 @@ export class BDataTable extends BaseComponent {
 
       columns.push({
         key: '__select',
-        label: `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${this._config?.labels?.selectAll ?? 'Select all rows'}" />`,
+        label: this._config?.labels?.selectAll ?? 'Select all rows',
+        // The header is a live checkbox, not a text label, so it goes through the table's
+        // explicit HTML opt-in. Previously the markup rode in `label`, which `<b-table>`
+        // escapes — so the "select all" checkbox rendered as its own source text while the
+        // per-row ones (sent through `render`) worked. One emitter, two treatments.
+        headerRender: () => `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${escapeAttr(this._config?.labels?.selectAll ?? 'Select all rows')}" />`,
         width: '2.5rem',
         align: 'center',
         render: (_v, row) => {
           const id = this._rowId(row);
-          return `<input type="checkbox" class="row-select" data-id="${id}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${this._config?.labels?.selectRow ?? 'Select row'}" />`;
+          return `<input type="checkbox" class="row-select" data-id="${escapeAttr(id)}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${escapeAttr(this._config?.labels?.selectRow ?? 'Select row')}" />`;
         },
       });
     }

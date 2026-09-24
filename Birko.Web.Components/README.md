@@ -863,6 +863,24 @@ table?.setColumns([
 
 `TableColumnOption`: `{ value: string; label: string }`
 
+**TableColumn — header content** (`label` / `headerRender`):
+
+A column's `label` is always inserted as **escaped text**. To render markup in a header (an inline
+control, an icon), a column takes a `headerRender` function — the header-side counterpart to a cell's
+`render` — whose return value is inserted as **raw HTML**:
+
+```typescript
+table?.setColumns([
+  { key: 'name', label: 'Name' },
+  { key: '__select', label: 'Select all', width: '2.5rem', align: 'center',
+    headerRender: () => `<input type="checkbox" class="select-all" aria-label="Select all rows" />` },
+]);
+```
+
+`headerRender` is a code opt-in: escape any consumer data it interpolates. `label` stays escaped, so a
+heading built from ordinary data is never an injection point. `<b-data-table>` uses this for its
+selection column's "select all" checkbox; the per-row boxes go through `render`.
+
 ### b-data-table
 
 Auto-fetching table with toolbar, search, filters, pagination, bulk actions, and optional inline cell editing.
