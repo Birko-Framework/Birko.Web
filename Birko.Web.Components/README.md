@@ -253,6 +253,24 @@ Emits: `change` → `{ name, value }`, and `search` → `{ query, name }` in `se
 `birko-web-core`): typing `pritahy` finds `Príťahy`, `muller` finds `Müller`. Nobody types diacritics into a
 filter box in a hurry, least of all on a phone keyboard.
 
+```html
+<!-- pick an existing group, or create one -->
+<b-select label="Menu group" name="menuGroup" searchable creatable></b-select>
+```
+
+`creatable` adds a **Create “…”** row whenever the query names no existing option (same fold, so
+`pritahy` selects `Príťahy` rather than creating a near-duplicate). Choosing it, or pressing **Enter**,
+adds the value as an option and selects it — reported by the ordinary `change`, with **no** `create`
+event (unlike `b-multi-select`, whose bubbling `create` page listeners act on).
+**Escape** or clicking away cancels and restores the previous value. A value outside the options still
+displays as itself, so a form reopened on a created value is not blank. The label is the
+`bwc.select.create` key (`{value}` interpolated); `label-create` overrides the verb. `creatable` implies
+combobox mode — a native `<select>` has nowhere to type.
+
+`allow-free-text` is the other mode: the text box *is* the value, committed on Enter or whenever the
+dropdown closes, Escape included, with no create row. Use it for a free-form field with suggestions;
+use `creatable` for a pick-list that can grow.
+
 ### b-button
 
 ```html

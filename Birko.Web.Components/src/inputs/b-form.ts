@@ -80,6 +80,10 @@ export interface FormField {
   disabled?: boolean;
   options?: { value: string; label: string }[];
   searchable?: boolean;
+  /**
+   * `select` / `multi-select`: let the user add a value the options lack. `b-select` commits it as the
+   * field value; `b-multi-select` only emits `create` (add it via {@link BForm.addFieldOption}).
+   */
   creatable?: boolean;
   default?: unknown;
   required?: boolean;

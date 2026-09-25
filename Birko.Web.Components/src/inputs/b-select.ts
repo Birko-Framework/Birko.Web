@@ -1,5 +1,5 @@
-import { FormControlComponent, define, escapeHtml, matchesSearch } from 'birko-web-core';
-import { formFieldSheet, formControlSheet, comboControlSheet } from '../shared-styles';
+import { FormControlComponent, define, escapeHtml, matchesSearch, foldForSearch, t } from 'birko-web-core';
+import { formFieldSheet, formControlSheet, comboControlSheet, srOnlySheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
 
 interface Option {
@@ -10,7 +10,7 @@ interface Option {
 
 export class BSelect extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'allow-free-text', 'label-no-matches', 'hint', 'description', 'bare'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'creatable', 'allow-free-text', 'label-no-matches', 'label-create', 'hint', 'description', 'bare'];
   }
 
   private _options: Option[] = [];
@@ -20,7 +20,7 @@ export class BSelect extends FormControlComponent {
   private _wiredCombo: HTMLElement | null = null;
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet, comboControlSheet];
+    return [formFieldSheet, formControlSheet, comboControlSheet, srOnlySheet];
   }
 
   static get styles() {
@@ -80,6 +80,8 @@ export class BSelect extends FormControlComponent {
       }
       .option:hover, .option.active { background: var(--b-bg-tertiary); }
       .option.selected { color: var(--b-color-primary); font-weight: var(--b-font-weight-medium, 500); }
+      .option-create { color: var(--b-color-primary); }
+      .option-create:not(:first-child) { border-top: var(--b-border-width, 1px) solid var(--b-border); }
       .no-results {
         padding: var(--b-space-md, 0.75rem);
         text-align: center; color: var(--b-text-muted); font-size: var(--b-text-sm, 0.8125rem);
@@ -114,14 +116,14 @@ export class BSelect extends FormControlComponent {
   set value(v: string) { this.inputValue = v; }
 
   get inputValue(): string {
-    if (this.boolAttr('searchable')) {
+    if (this._isCombo()) {
       return this.attr('value') ?? '';
     }
     return this.$<HTMLSelectElement>('select')?.value ?? this.attr('value') ?? '';
   }
 
   set inputValue(v: string) {
-    if (this.boolAttr('searchable')) {
+    if (this._isCombo()) {
       this._selectValue(v);
     } else {
       const select = this.$<HTMLSelectElement>('select');
@@ -138,12 +140,12 @@ export class BSelect extends FormControlComponent {
   }
 
   render() {
-    if (this.boolAttr('searchable')) return this._renderSearchable();
+    if (this._isCombo()) return this._renderSearchable();
     return this._renderNative();
   }
 
   protected onUpdated() {
-    if (this.boolAttr('searchable')) {
+    if (this._isCombo()) {
       this._wireSearchable();
     } else {
       this._wireNative();
@@ -157,8 +159,26 @@ export class BSelect extends FormControlComponent {
    * back to the base's generic `required` check, which reads {@link formValue}.
    */
   protected validationSource(): HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined {
-    if (this.boolAttr('searchable')) return undefined;
+    if (this._isCombo()) return undefined;
     return super.validationSource();
+  }
+
+  /**
+   * `creatable` implies the typed combo: a native `<select>` has nowhere to type a new value, so honouring
+   * `creatable` without `searchable` any other way would be the silent no-op this attribute used to be.
+   */
+  private _isCombo(): boolean {
+    return this.boolAttr('searchable') || this.boolAttr('creatable');
+  }
+
+  /**
+   * The text shown for a value. A value outside the options is shown as itself when the control can hold
+   * one (`allow-free-text` / `creatable`) — otherwise a form reopened on a created value would look empty.
+   */
+  private _labelFor(value: string | null): string {
+    if (!value) return '';
+    return this._options.find(o => o.value === value)?.label
+      ?? (this.boolAttr('allow-free-text') || this.boolAttr('creatable') ? value : '');
   }
 
   protected update(): void {
@@ -235,8 +255,7 @@ export class BSelect extends FormControlComponent {
     const value = this.attr('value');
     const placeholder = this.attr('placeholder', 'Select...');
     const disabled = this.boolAttr('disabled');
-    const allowFree = this.boolAttr('allow-free-text');
-    const selectedLabel = this._options.find(o => o.value === value)?.label ?? (allowFree ? (value ?? '') : '');
+    const selectedLabel = this._labelFor(value);
 
     // Accent- and case-insensitive: a user typing `pritahy` must find `Príťahy`. A plain lowercase `includes`
     // only matches when the typed accents equal the stored ones, which no one manages on a phone keyboard.
@@ -270,7 +289,8 @@ export class BSelect extends FormControlComponent {
         </div>
         <div class="dropdown" popover="manual">
           ${this._renderOptionsHtml(filtered, value)}
-        </div>`,
+        </div>
+        <div class="sr-only" role="status" aria-live="polite"></div>`,
     });
   }
 
@@ -297,6 +317,13 @@ export class BSelect extends FormControlComponent {
     this.listen(input, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       if (ke.key === 'Escape') { this._closeDropdown(); input.blur(); }
+      // An empty query falls through, so Enter on an untouched field still submits the enclosing b-form.
+      if (ke.key === 'Enter' && this.boolAttr('creatable') && !this.boolAttr('allow-free-text') && this._filter.trim()) {
+        e.preventDefault();
+        this._commitTyped(this._filter.trim());
+        input.blur();
+        return;
+      }
       if (ke.key === 'Enter' && this.boolAttr('allow-free-text')) {
         e.preventDefault();
         this._selectValue(input.value.trim());
@@ -338,8 +365,7 @@ export class BSelect extends FormControlComponent {
     } else {
       this._filter = '';
       input.value = '';
-      input.placeholder = this._options.find(o => o.value === this.attr('value'))?.label
-        || this.attr('placeholder', 'Select...');
+      input.placeholder = this._labelFor(this.attr('value')) || this.attr('placeholder', 'Select...');
     }
     this._refreshOptions();
     input.focus();
@@ -367,7 +393,7 @@ export class BSelect extends FormControlComponent {
       return;
     }
 
-    const selectedLabel = this._options.find(o => o.value === this.attr('value'))?.label ?? '';
+    const selectedLabel = this._labelFor(this.attr('value'));
     this._filter = '';
     input.value = selectedLabel;
     input.placeholder = selectedLabel || this.attr('placeholder', 'Select...');
@@ -396,8 +422,7 @@ export class BSelect extends FormControlComponent {
 
     const input = this.$<HTMLInputElement>('.combo-input');
     const dropdown = this.$<HTMLElement>('.dropdown');
-    const allowFree = this.boolAttr('allow-free-text');
-    const label = this._options.find(o => o.value === val)?.label ?? (allowFree ? val : '');
+    const label = this._labelFor(val);
 
     if (input) {
       input.value = label;
@@ -434,11 +459,65 @@ export class BSelect extends FormControlComponent {
     this.syncFormState();
   }
 
+  // ── Creatable ──
+
+  /**
+   * The typed value to offer as a new option, or `null` when there is nothing to create: no query, or it
+   * already names an option. Matching uses the same accent/case fold as the filter, so `Pritahy` picks the
+   * existing `Príťahy` instead of creating a near-duplicate of it.
+   */
+  private _createCandidate(): string | null {
+    if (!this.boolAttr('creatable')) return null;
+    const typed = this._filter.trim();
+    if (!typed) return null;
+    return this._findExisting(typed) ? null : typed;
+  }
+
+  private _findExisting(typed: string): Option | undefined {
+    const folded = foldForSearch(typed);
+    return this._options.find(o => o.value === typed || foldForSearch(o.label) === folded);
+  }
+
+  private _createLabel(value: string): string {
+    const custom = this.attr('label-create');
+    if (custom) return `${custom} \u201C${value}\u201D`;
+    return t('bwc.select.create', { value }, 'Create \u201C{value}\u201D');
+  }
+
+  /** Enter on a query: an option it names is selected, anything else is created. */
+  private _commitTyped(typed: string) {
+    const existing = this._findExisting(typed);
+    if (existing) this._selectValue(existing.value);
+    else this._createValue(typed);
+  }
+
+  /**
+   * Adds the value as an option and selects it; the new value is reported by the ordinary `change`.
+   * Deliberately no `create` event: `b-multi-select`'s bubbles with `detail.name` = the typed text, and
+   * page-level listeners that persist it (Symbio's tag pages) filter on nothing else — the same event
+   * name carrying the field name here would have them create a tag called after the field.
+   */
+  private _createValue(value: string) {
+    if (!this._options.some(o => o.value === value)) {
+      this._options = [...this._options, { value, label: value }];
+    }
+    this._selectValue(value);
+    this._announce(t('bwc.select.created', { value }, 'Created \u201C{value}\u201D'));
+  }
+
+  private _announce(text: string) {
+    const status = this.$<HTMLElement>('[role="status"]');
+    if (status) status.textContent = text;
+  }
+
   // ── Options rendering ──
 
   private _renderOptionsHtml(options: Option[], selectedValue: string | null): string {
+    const candidate = this._createCandidate();
+    const createRow = candidate === null ? ''
+      : `<div class="option option-create" data-create-value="${escapeHtml(candidate)}">+ ${escapeHtml(this._createLabel(candidate))}</div>`;
     if (options.length === 0)
-      return `<div class="no-results">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
+      return createRow || `<div class="no-results">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
 
     // Labels and values are escaped: option data routinely comes from user-authored records (a catalogue the
     // user can rename), where a name like `Bench <b>press</b>` would otherwise render as markup and a quote in
@@ -450,7 +529,7 @@ export class BSelect extends FormControlComponent {
     if (!hasGroups) {
       return options.map(o => `
         ${opt(o)}
-      `).join('');
+      `).join('') + createRow;
     }
 
     let html = '';
@@ -463,7 +542,7 @@ export class BSelect extends FormControlComponent {
       }
       html += opt(o);
     }
-    return html;
+    return html + createRow;
   }
 
   private _refreshOptions() {
@@ -479,6 +558,8 @@ export class BSelect extends FormControlComponent {
 
     dropdown.innerHTML = this._renderOptionsHtml(filtered, value);
     this._wireOptionClicks(dropdown);
+    const candidate = this._createCandidate();
+    this._announce(candidate === null ? '' : this._createLabel(candidate));
   }
 
   private _wireOptionClicks(dropdown: HTMLElement) {
@@ -488,6 +569,14 @@ export class BSelect extends FormControlComponent {
         this._selectValue(opt.dataset.value!);
       });
     });
+    const createEl = dropdown.querySelector<HTMLElement>('.option-create');
+    if (createEl) {
+      this.listen(createEl, 'click', (e: Event) => {
+        e.stopPropagation();
+        const value = createEl.dataset.createValue;
+        if (value) this._createValue(value);
+      });
+    }
   }
 }
 

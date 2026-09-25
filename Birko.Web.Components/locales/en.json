@@ -104,6 +104,10 @@
       "placeholder": "Search...",
       "clear": "Clear search"
     },
+    "select": {
+      "create": "Create “{value}”",
+      "created": "Created “{value}”"
+    },
     "date": {
       "placeholder": "YYYY-MM-DD"
     },

@@ -192,6 +192,9 @@ the schema path adopts and which it deliberately ignores.
 | `error` | string |
 | `disabled` | boolean |
 | `searchable` | boolean (enables combobox mode; filtering is case- and accent-insensitive) |
+| `creatable` | boolean — offer "Create “…”" when the query names no option; Enter or a click commits it as the value. Implies combobox mode |
+| `label-create` | string — overrides the create row's verb (default: the `bwc.select.create` key) |
+| `allow-free-text` | boolean — the typed text itself is the value, committed on Enter **or on close** (Escape included) |
 | `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
 | `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
