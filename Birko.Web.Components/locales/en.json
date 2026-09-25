@@ -108,6 +108,12 @@
       "create": "Create “{value}”",
       "created": "Created “{value}”"
     },
+    "multiSelect": {
+      "noMatches": "No matches",
+      "search": "Search...",
+      "remove": "Remove",
+      "options": "Options"
+    },
     "date": {
       "placeholder": "YYYY-MM-DD"
     },

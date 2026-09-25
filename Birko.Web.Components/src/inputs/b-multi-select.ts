@@ -1,4 +1,4 @@
-import { FormControlComponent, define } from 'birko-web-core';
+import { FormControlComponent, define, t } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
@@ -24,6 +24,11 @@ export class BMultiSelect extends FormControlComponent {
   private _open = false;
   private _outsideClickHandler: ((e: Event) => void) | null = null;
   private _wiredContainer: HTMLElement | null = null;
+
+  /** Resolution order, as in every control: an explicit `label-*` attribute, then the `bwc.*` key, then English. */
+  private _text(attr: string, key: string, fallback: string): string {
+    return this.getAttribute(attr) ?? t(key, undefined, fallback);
+  }
 
   static get sharedStyles() {
     return [formFieldSheet, comboControlSheet];
@@ -218,7 +223,7 @@ export class BMultiSelect extends FormControlComponent {
         <span class="chip">
           ${o.color ? `<span class="chip-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
           ${escapeHtml(o.label)}
-          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
+          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this._text('label-remove', 'bwc.multiSelect.remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
         </span>
       `).join('');
 
@@ -227,8 +232,8 @@ export class BMultiSelect extends FormControlComponent {
       ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
       : this._options;
 
-    const noMatchesLabel = this.attr('label-no-matches', 'No matches');
-    const searchLabel = this.attr('label-search', 'Search...');
+    const noMatchesLabel = this._text('label-no-matches', 'bwc.multiSelect.noMatches', 'No matches');
+    const searchLabel = this._text('label-search', 'bwc.multiSelect.search', 'Search...');
 
     const description = this.attr('description');
     const bare = this.boolAttr('bare');
@@ -252,7 +257,7 @@ export class BMultiSelect extends FormControlComponent {
              ${fieldAria({ uid: this.uid, error, description, required, bare, label })}>
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
-        <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this.attr('label-options', 'Options')}">
+        <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this._text('label-options', 'bwc.multiSelect.options', 'Options')}">
           ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${escapeAttr(this._filter)}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
@@ -412,7 +417,7 @@ export class BMultiSelect extends FormControlComponent {
     }
 
     if (filtered.length === 0 && !this._canCreate()) {
-      dropdown.insertAdjacentHTML('beforeend', `<div class="no-results">${this.attr('label-no-matches', 'No matches')}</div>`);
+      dropdown.insertAdjacentHTML('beforeend', `<div class="no-results">${this._text('label-no-matches', 'bwc.multiSelect.noMatches', 'No matches')}</div>`);
     } else if (filtered.length > 0) {
       dropdown.insertAdjacentHTML('beforeend', filtered.map(o => `
         <label class="option">
@@ -427,9 +432,14 @@ export class BMultiSelect extends FormControlComponent {
     if (this._canCreate() && this._filter.trim()) {
       const exactMatch = this._options.some(o => o.label.toLowerCase() === this._filter.trim().toLowerCase());
       if (!exactMatch) {
-        const createLabel = this.attr('label-create', 'Create');
+        const value = this._filter.trim();
+        // An explicit label-create keeps its old shape (prefix + English quotes); otherwise the row is the
+        // same localised template b-select renders, so a locale also owns the quotation marks („…“ in sk).
+        const text = this.hasAttribute('label-create')
+          ? `${escapeHtml(this.getAttribute('label-create') ?? '')} “${escapeHtml(value)}”`
+          : escapeHtml(t('bwc.select.create', { value }, 'Create “{value}”'));
         dropdown.insertAdjacentHTML('beforeend',
-          `<div class="option-create" data-create-value="${escapeAttr(this._filter.trim())}">+ ${createLabel} &ldquo;${escapeHtml(this._filter.trim())}&rdquo;</div>`
+          `<div class="option-create" data-create-value="${escapeAttr(value)}">+ ${text}</div>`
         );
       }
     }
@@ -480,7 +490,7 @@ export class BMultiSelect extends FormControlComponent {
         <span class="chip">
           ${o.color ? `<span class="chip-dot" style="background:${escapeAttr(o.color)}"></span>` : ''}
           ${escapeHtml(o.label)}
-          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this.attr('label-remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
+          <button class="chip-remove" data-value="${escapeAttr(o.value)}" type="button" aria-label="${this._text('label-remove', 'bwc.multiSelect.remove', 'Remove')} ${escapeAttr(o.label)}">&times;</button>
         </span>
       `).join('');
 
