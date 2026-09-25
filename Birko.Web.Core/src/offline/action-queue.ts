@@ -6,7 +6,7 @@ import { openDatabase, idbRequest } from '../storage/idb.js';
 export interface QueuedAction {
   id: string;
   timestamp: number;
-  method: 'POST' | 'PUT' | 'DELETE';
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   path: string;
   body?: unknown;
   metadata: ActionMetadata;

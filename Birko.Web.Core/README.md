@@ -554,7 +554,24 @@ const created = await api.post<User>('users', { name: 'Alice' }, {
   moduleId: 'users',
   description: 'Create user Alice',   // shown in offline queue UI
 });
+
+// Partial update — queueable offline like post/put.
+await api.patch<User>('users/7', { name: 'Alice Smith' });
 ```
+
+**Custom per-request headers** — for a same-origin BFF that requires antiforgery on unsafe methods:
+
+```typescript
+const bff = new ApiClient({
+  baseUrl: '/bff',
+  getHeaders: () => ({ 'X-CSRF-TOKEN': readCookie('csrf') }),  // may also be async
+});
+await bff.post('/cart/items', { sku, qty });  // carries X-CSRF-TOKEN
+```
+
+`getHeaders` runs once per request, after the method's own `Content-Type` and **before** `Authorization` /
+`X-Tenant-Id`, so a custom header cannot override the framework's auth or tenant headers. It is applied on
+the retry after a token refresh as well as the first attempt.
 
 **ApiResponse\<T\>:**
 

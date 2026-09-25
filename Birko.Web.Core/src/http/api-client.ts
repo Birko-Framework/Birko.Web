@@ -36,6 +36,18 @@ export interface ApiClientOptions {
   baseUrl: string;
   getToken?: () => string | null;
   getTenant?: () => string | null;
+  /**
+   * Extra headers merged into **every** request: GETs, writes, and the retry after a token refresh.
+   *
+   * Applied after the request's own defaults (so `Content-Type` is set first) and **before**
+   * `Authorization` / `X-Tenant-Id` (so a custom header cannot clobber the framework's auth or tenant
+   * headers). May be async, so a consumer can fetch a token lazily at request time.
+   *
+   * The use this exists for is a same-origin BFF protected by ASP.NET Core antiforgery, where every
+   * unsafe method has to carry `X-CSRF-TOKEN`. Without a hook, such a consumer has to drop `ApiClient`
+   * and hand-roll `fetch` — losing the timeout, the offline queue and refresh handling.
+   */
+  getHeaders?: () => Record<string, string> | Promise<Record<string, string>>;
   onUnauthorized?: () => void;
   /**
    * Called on 401 before onUnauthorized. Should attempt to refresh the token
@@ -48,7 +60,7 @@ export interface ApiClientOptions {
    * Should persist the action for later sync. Returns the queue entry ID.
    */
   onQueueAction?: (
-    method: 'POST' | 'PUT' | 'DELETE',
+    method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     body: unknown,
     meta: ActionMeta,
@@ -111,6 +123,18 @@ export class ApiClient {
     });
   }
 
+  /**
+   * Partial update. Queueable exactly like `put` — a `PATCH` that fails on the network goes to the
+   * outbox rather than being lost.
+   */
+  async patch<T = unknown>(path: string, body?: unknown, meta?: ActionMeta): Promise<ApiResponse<T>> {
+    return this._sendWrite<T>('PATCH', path, body, meta, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  }
+
   async delete<T = unknown>(path: string, meta?: ActionMeta): Promise<ApiResponse<T>> {
     return this._sendWrite<T>('DELETE', path, undefined, meta, { method: 'DELETE' });
   }
@@ -123,7 +147,7 @@ export class ApiClient {
    * (status 0). Either way an offline write lands in the outbox instead of being silently lost.
    */
   private async _sendWrite<T>(
-    method: 'POST' | 'PUT' | 'DELETE',
+    method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     body: unknown,
     meta: ActionMeta | undefined,
@@ -136,7 +160,7 @@ export class ApiClient {
   }
 
   private async _queue<T>(
-    method: 'POST' | 'PUT' | 'DELETE',
+    method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
     path: string,
     body: unknown,
     meta: ActionMeta,
@@ -174,6 +198,13 @@ export class ApiClient {
     const url = this._options.baseUrl.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
 
     const headers = new Headers(init.headers);
+
+    // Custom per-request headers, before the framework's own so auth and tenant cannot be overridden.
+    // Applied to the `headers` object the post-refresh retry below reuses, which is what carries them
+    // onto that retry too — a fresh token does not mean a fresh CSRF token, but if it does, the caller's
+    // hook runs once per request and the value it returns is what both attempts send.
+    const extra = await this._options.getHeaders?.();
+    if (extra) for (const [name, value] of Object.entries(extra)) headers.set(name, value);
 
     const token = this._options.getToken?.();
     if (token) {

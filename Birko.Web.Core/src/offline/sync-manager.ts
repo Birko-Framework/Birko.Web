@@ -91,7 +91,9 @@ export class SyncManager {
             ? await this._api.post(action.path, action.body)
             : action.method === 'PUT'
               ? await this._api.put(action.path, action.body)
-              : await this._api.delete(action.path);
+              : action.method === 'PATCH'
+                ? await this._api.patch(action.path, action.body)
+                : await this._api.delete(action.path);
 
           const outcome = this._classifyReplay(action, resp.ok, resp.status);
           if (outcome === 'applied') {
