@@ -1188,6 +1188,15 @@ had given them. Measured in one consumer: **66 columns**, on exactly the free-te
 here: `cell.text(v)` is now the shortest correct spelling, and `cell.text(v, t('x.draft'))` covers the
 translated-placeholder variant. Empty values render `muted(fallback)`, matching `date`/`number`/`currency`.
 
+### Header content is escaped by default; `headerRender` is the HTML opt-in (2026-09-24)
+
+`TableColumn.label` is inserted with `escapeHtml`, so an ordinary heading built from consumer data is
+never an injection point. A header that needs markup (an inline control, an icon) takes
+`headerRender?: (column: TableColumn) => string`, whose return value is inserted **raw** — the
+header-side counterpart to a cell's `render`, and the same contract: a function is the opt-in, so data
+alone can never reach the unescaped path. `<b-data-table>`'s selection column uses it for the "select
+all" checkbox. Consumer docs: README/API § "TableColumn — header content".
+
 ### Form-associated inputs via ElementInternals (2026-07-29)
 
 STORY-023 / TASK-035. The 15 value-bearing inputs now extend the new **`FormControlComponent`**

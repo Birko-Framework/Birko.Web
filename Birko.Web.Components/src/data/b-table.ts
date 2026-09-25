@@ -21,9 +21,7 @@ export interface TableColumn {
    * A code opt-in, exactly like {@link render} for cells — the returned string is
    * inserted without escaping, so escape any consumer data it interpolates. `label`
    * stays escaped by default, which is what keeps an ordinary column heading from
-   * becoming an injection point. Without this, a cell could carry markup (`render`)
-   * while its own header could not — the asymmetry that made `<b-data-table>`'s
-   * "select all" checkbox render as literal `<input …>` text.
+   * becoming an injection point.
    *
    * Consumed by `<b-data-table>` for the selection column; a sortable column still
    * wraps the result in its header button.
@@ -170,8 +168,6 @@ export class BTable extends BaseComponent {
                 const isSorted = this._sortKey === c.key;
                 const arrow = isSorted ? (this._sortDesc ? '&#9660;' : '&#9650;') : '&#9650;';
                 const ariaSort = !c.sortable ? '' : isSorted ? (this._sortDesc ? 'aria-sort="descending"' : 'aria-sort="ascending"') : 'aria-sort="none"';
-                // Escaped by default; `headerRender` is the explicit HTML opt-in (a cell's
-                // `render` is the same opt-in on the row side).
                 const label = c.headerRender ? c.headerRender(c) : escapeHtml(String(c.label ?? ''));
                 return `<th
                   scope="col"

@@ -455,10 +455,6 @@ export class BDataTable extends BaseComponent {
       columns.push({
         key: '__select',
         label: this._config?.labels?.selectAll ?? 'Select all rows',
-        // The header is a live checkbox, not a text label, so it goes through the table's
-        // explicit HTML opt-in. Previously the markup rode in `label`, which `<b-table>`
-        // escapes — so the "select all" checkbox rendered as its own source text while the
-        // per-row ones (sent through `render`) worked. One emitter, two treatments.
         headerRender: () => `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${escapeAttr(this._config?.labels?.selectAll ?? 'Select all rows')}" />`,
         width: '2.5rem',
         align: 'center',
