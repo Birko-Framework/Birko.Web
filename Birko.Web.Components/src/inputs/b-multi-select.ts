@@ -155,7 +155,9 @@ export class BMultiSelect extends FormControlComponent {
   addOption(option: MultiSelectOption, select = true) {
     // Avoid duplicates
     if (!this._options.some(o => o.value === option.value)) {
-      this._options.push(option);
+      // Copy, never push: `_options` is the caller's array (setOptions keeps the reference), and in a b-form
+      // that is the SCHEMA's options, so a push leaked one form's created value into every other form.
+      this._options = [...this._options, option];
     }
     if (select) {
       this._selected.add(option.value);
@@ -252,13 +254,13 @@ export class BMultiSelect extends FormControlComponent {
         <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
              role="combobox"
-             aria-haspopup="true"
+             aria-haspopup="dialog"
              aria-expanded="${this._open}"
              aria-controls="${this.uid}-opts"
              ${fieldAria({ uid: this.uid, error, description, required, bare, label })}>
           ${chips || `<span class="placeholder">${placeholder}</span>`}
         </div>
-        <div class="dropdown" popover="manual" id="${this.uid}-opts" role="group" aria-label="${label || this._text('label-options', 'bwc.multiSelect.options', 'Options')}">
+        <div class="dropdown" popover="manual" id="${this.uid}-opts" role="dialog" aria-label="${label || this._text('label-options', 'bwc.multiSelect.options', 'Options')}">
           ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${escapeAttr(this._filter)}" /></div>` : ''}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
@@ -465,17 +467,32 @@ export class BMultiSelect extends FormControlComponent {
     });
   }
 
+  /**
+   * The create row commits the typed value as an option and selects it, unless a `create` listener calls
+   * `preventDefault()` to supply its own (a server-minted id, say, via `addOption`). Before TASK-490 it only
+   * emitted, so a `b-form` field with no page code showed a create row that did nothing.
+   *
+   * `detail` is `{ name: <field name>, value: <typed text> }`, the same `name` every other b-* event carries.
+   * It used to be `{ name: <typed text> }`; see CHANGELOG.md (2026-09-26, BREAKING).
+   * A listener must call `preventDefault()` synchronously, before its first `await`.
+   */
   private _wireCreateOption(dropdown: HTMLElement) {
     const createEl = dropdown.querySelector<HTMLElement>('.option-create');
     if (!createEl) return;
     this.listen(createEl, 'click', (e) => {
       e.stopPropagation();
-      const name = createEl.dataset.createValue ?? this._filter.trim();
-      if (!name) return;
-      this.emit('create', { name });
+      const value = createEl.dataset.createValue ?? this._filter.trim();
+      if (!value) return;
+      // Dispatched directly, not via emit(): emit() events are not cancelable, and the veto is the point.
+      const proceed = this.dispatchEvent(new CustomEvent('create', {
+        detail: { name: this.attr('name'), value },
+        bubbles: true, composed: true, cancelable: true,
+      }));
       this._filter = '';
       const searchInput = this.$<HTMLInputElement>('.dd-search');
       if (searchInput) searchInput.value = '';
+      if (proceed) this.addOption({ value, label: value }, true);
+      else this._refreshOptions(dropdown);
     });
   }
 

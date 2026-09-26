@@ -513,9 +513,9 @@ export class BSelect extends FormControlComponent {
 
   /**
    * Adds the value as an option and selects it; the new value is reported by the ordinary `change`.
-   * Deliberately no `create` event: `b-multi-select`'s bubbles with `detail.name` = the typed text, and
-   * page-level listeners that persist it (Symbio's tag pages) filter on nothing else — the same event
-   * name carrying the field name here would have them create a tag called after the field.
+   * No `create` event: nothing needs to veto a single select's new value yet. `b-multi-select` emits a
+   * cancelable one because pages substitute server-minted options there. If one is added here, give it
+   * the same `{ name, value }` detail. Page listeners filter on `detail.name` (TASK-490).
    */
   private _createValue(value: string) {
     if (!this._options.some(o => o.value === value)) {

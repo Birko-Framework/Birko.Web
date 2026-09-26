@@ -261,7 +261,7 @@ filter box in a hurry, least of all on a phone keyboard.
 `creatable` adds a **Create “…”** row whenever the query names no existing option (same fold, so
 `pritahy` selects `Príťahy` rather than creating a near-duplicate). Choosing it, or pressing **Enter**,
 adds the value as an option and selects it — reported by the ordinary `change`, with **no** `create`
-event (unlike `b-multi-select`, whose bubbling `create` page listeners act on).
+event. (`b-multi-select` does emit one — cancelable, so a page can substitute a server-minted option.)
 **Escape** or clicking away cancels and restores the previous value. A value outside the options still
 displays as itself, so a form reopened on a created value is not blank. The label is the
 `bwc.select.create` key (`{value}` interpolated); `label-create` overrides the verb. `creatable` implies

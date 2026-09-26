@@ -228,6 +228,7 @@ the schema path adopts and which it deliberately ignores.
 | Event | Detail |
 |-------|--------|
 | `change` | `{ name, values: string[] }` |
+| `create` | `{ name, value }` — `creatable` only. **Cancelable:** unless a listener calls `preventDefault()` (synchronously), the typed `value` is added as an option and selected. Before 2026-09-26 the detail was `{ name: <typed text> }` |
 
 ### `<b-tag-input>`
 Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste splits on separators.

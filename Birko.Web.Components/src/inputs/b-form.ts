@@ -81,8 +81,9 @@ export interface FormField {
   options?: { value: string; label: string }[];
   searchable?: boolean;
   /**
-   * `select` / `multi-select`: let the user add a value the options lack. `b-select` commits it as the
-   * field value; `b-multi-select` only emits `create` (add it via {@link BForm.addFieldOption}).
+   * `select` / `multi-select`: let the user add a value the options lack. Both commit it as the field
+   * value. `b-multi-select` first emits a cancelable `create` (`{ name, value }`); a page that mints its
+   * own option calls `preventDefault()` and adds it via {@link BForm.addFieldOption}.
    */
   creatable?: boolean;
   default?: unknown;
