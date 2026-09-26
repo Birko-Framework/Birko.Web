@@ -18,6 +18,8 @@ export class BSelect extends FormControlComponent {
   private _open = false;
   private _skipNextUpdate = false;
   private _wiredCombo: HTMLElement | null = null;
+  /** Index into {@link _navOptions} of the highlighted row, or -1. */
+  private _activeIndex = -1;
 
   static get sharedStyles() {
     return [formFieldSheet, formControlSheet, comboControlSheet, srOnlySheet];
@@ -95,7 +97,7 @@ export class BSelect extends FormControlComponent {
         letter-spacing: 0.05em;
         user-select: none;
       }
-      .opt-group-label:not(:first-child) {
+      .opt-group:not(:first-child) > .opt-group-label {
         margin-top: var(--b-space-xs, 0.25rem);
         border-top: 1px solid var(--b-border);
         padding-top: var(--b-space-sm, 0.5rem);
@@ -279,6 +281,8 @@ export class BSelect extends FormControlComponent {
       control: `
         <div class="combo combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}">
           <input class="combo-input" type="text"
+                 role="combobox" aria-autocomplete="list" aria-expanded="false"
+                 aria-controls="${this.uid}-listbox"
                  value="${escapeHtml(this._filter || selectedLabel)}"
                  placeholder="${escapeHtml(value ? selectedLabel : placeholder)}"
                  ${disabled ? 'disabled' : ''}
@@ -287,7 +291,8 @@ export class BSelect extends FormControlComponent {
           ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
-        <div class="dropdown" popover="manual">
+        <div class="dropdown" popover="manual" id="${this.uid}-listbox" role="listbox"
+             ${label ? `aria-label="${escapeHtml(label)}"` : ''}>
           ${this._renderOptionsHtml(filtered, value)}
         </div>
         <div class="sr-only" role="status" aria-live="polite"></div>`,
@@ -314,20 +319,31 @@ export class BSelect extends FormControlComponent {
       this._closeDropdown();
     });
 
+    // Focus stays in the input on every path below. Enter and Escape used to `blur()` it, which drops
+    // keyboard focus onto <body>: a keyboard or screen-reader user who picked a value was then nowhere.
     this.listen(input, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
-      if (ke.key === 'Escape') { this._closeDropdown(); input.blur(); }
+      if (ke.key === 'ArrowDown' || ke.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!this._open) this._openDropdown(input, dropdown);
+        this._moveActive(ke.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+      if (ke.key === 'Escape') { this._closeDropdown(); return; }
+      if (ke.key === 'Enter' && this._open && this._activeIndex >= 0) {
+        e.preventDefault();
+        this._activate(this._navOptions()[this._activeIndex]);
+        return;
+      }
       // An empty query falls through, so Enter on an untouched field still submits the enclosing b-form.
       if (ke.key === 'Enter' && this.boolAttr('creatable') && !this.boolAttr('allow-free-text') && this._filter.trim()) {
         e.preventDefault();
         this._commitTyped(this._filter.trim());
-        input.blur();
         return;
       }
       if (ke.key === 'Enter' && this.boolAttr('allow-free-text')) {
         e.preventDefault();
         this._selectValue(input.value.trim());
-        input.blur();
         return;
       }
       if (ke.key === 'Backspace' && !input.value && this.attr('value')) {
@@ -339,6 +355,7 @@ export class BSelect extends FormControlComponent {
       this._filter = input.value;
       if (!this._open) {
         this._open = true;
+        this._setExpanded(true);
         this._positionDropdown(dropdown);
         try { (dropdown as any).showPopover?.(); }
         catch { /* already open */ }
@@ -359,6 +376,7 @@ export class BSelect extends FormControlComponent {
 
   private _openDropdown(input: HTMLInputElement, dropdown: HTMLElement) {
     this._open = true;
+    this._setExpanded(true);
     if (this.boolAttr('allow-free-text')) {
       // Preserve whatever's typed / committed so the user can edit it.
       this._filter = input.value;
@@ -379,6 +397,7 @@ export class BSelect extends FormControlComponent {
   private _closeDropdown() {
     if (!this._open) return;
     this._open = false;
+    this._setExpanded(false);
     const dropdown = this.$<HTMLElement>('.dropdown');
     try { (dropdown as any)?.hidePopover?.(); }
     catch { /* already closed */ }
@@ -419,6 +438,7 @@ export class BSelect extends FormControlComponent {
   private _selectValue(val: string) {
     this._filter = '';
     this._open = false;
+    this._setExpanded(false);
 
     const input = this.$<HTMLInputElement>('.combo-input');
     const dropdown = this.$<HTMLElement>('.dropdown');
@@ -515,15 +535,22 @@ export class BSelect extends FormControlComponent {
   private _renderOptionsHtml(options: Option[], selectedValue: string | null): string {
     const candidate = this._createCandidate();
     const createRow = candidate === null ? ''
-      : `<div class="option option-create" data-create-value="${escapeHtml(candidate)}">+ ${escapeHtml(this._createLabel(candidate))}</div>`;
+      : `<div class="option option-create" role="option" aria-selected="false" id="${this.uid}-opt-create"
+             data-create-value="${escapeHtml(candidate)}">+ ${escapeHtml(this._createLabel(candidate))}</div>`;
+    // A disabled option, not bare text: a listbox child must be an option or a group, and a disabled one is
+    // announced but never highlighted by the arrow keys (see _navOptions).
     if (options.length === 0)
-      return createRow || `<div class="no-results">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
+      return createRow || `<div class="no-results" role="option" aria-disabled="true" aria-selected="false">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
 
     // Labels and values are escaped: option data routinely comes from user-authored records (a catalogue the
     // user can rename), where a name like `Bench <b>press</b>` would otherwise render as markup and a quote in
     // a value would break out of the data-value attribute.
-    const opt = (o: Option): string =>
-      `<div class="option ${o.value === selectedValue ? 'selected' : ''}" data-value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</div>`;
+    let n = 0;
+    const opt = (o: Option): string => {
+      const selected = o.value === selectedValue;
+      return `<div class="option ${selected ? 'selected' : ''}" role="option" id="${this.uid}-opt-${n++}"
+                   aria-selected="${selected}" data-value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</div>`;
+    };
 
     const hasGroups = options.some(o => o.group);
     if (!hasGroups) {
@@ -532,16 +559,25 @@ export class BSelect extends FormControlComponent {
       `).join('') + createRow;
     }
 
+    // Each named group is a `role="group"` labelled by its header. The header is aria-hidden so it is read
+    // as the group's name, not as an extra row between options.
     let html = '';
     let lastGroup = '';
+    let g = 0;
     for (const o of options) {
       const group = o.group ?? '';
       if (group !== lastGroup) {
-        if (group) html += `<div class="opt-group-label">${escapeHtml(group)}</div>`;
+        if (lastGroup) html += '</div>';
+        if (group) {
+          const gid = `${this.uid}-grp-${g++}`;
+          html += `<div class="opt-group" role="group" aria-labelledby="${gid}">`
+            + `<div class="opt-group-label" id="${gid}" aria-hidden="true">${escapeHtml(group)}</div>`;
+        }
         lastGroup = group;
       }
       html += opt(o);
     }
+    if (lastGroup) html += '</div>';
     return html + createRow;
   }
 
@@ -557,9 +593,55 @@ export class BSelect extends FormControlComponent {
       : this._options;
 
     dropdown.innerHTML = this._renderOptionsHtml(filtered, value);
+    this._setActive(-1);
     this._wireOptionClicks(dropdown);
     const candidate = this._createCandidate();
     this._announce(candidate === null ? '' : this._createLabel(candidate));
+  }
+
+  // ── Combobox state ──
+
+  private _setExpanded(open: boolean) {
+    const input = this.$<HTMLInputElement>('.combo-input');
+    if (!input) return;
+    input.setAttribute('aria-expanded', String(open));
+    if (!open) this._setActive(-1);
+  }
+
+  /** The rows the arrow keys can land on — options and the create row, never a disabled "No matches". */
+  private _navOptions(): HTMLElement[] {
+    const dropdown = this.$<HTMLElement>('.dropdown');
+    return dropdown ? [...dropdown.querySelectorAll<HTMLElement>('[role="option"]:not([aria-disabled="true"])')] : [];
+  }
+
+  private _setActive(index: number) {
+    const opts = this._navOptions();
+    const input = this.$<HTMLInputElement>('.combo-input');
+    opts.forEach(o => o.classList.remove('active'));
+    this._activeIndex = index >= 0 && index < opts.length ? index : -1;
+    const el = this._activeIndex >= 0 ? opts[this._activeIndex] : null;
+    if (!el) { input?.removeAttribute('aria-activedescendant'); return; }
+    el.classList.add('active');
+    input?.setAttribute('aria-activedescendant', el.id);
+    el.scrollIntoView?.({ block: 'nearest' });
+  }
+
+  /** From no highlight, ArrowDown starts at the selected option (else the first) and ArrowUp at the last. */
+  private _moveActive(delta: 1 | -1) {
+    const opts = this._navOptions();
+    if (!opts.length) return;
+    if (this._activeIndex < 0) {
+      const selected = opts.findIndex(o => o.getAttribute('aria-selected') === 'true');
+      this._setActive(delta > 0 ? (selected >= 0 ? selected : 0) : opts.length - 1);
+      return;
+    }
+    this._setActive(Math.min(opts.length - 1, Math.max(0, this._activeIndex + delta)));
+  }
+
+  private _activate(el: HTMLElement | undefined) {
+    if (!el) return;
+    if (el.dataset.createValue) this._createValue(el.dataset.createValue);
+    else if (el.dataset.value !== undefined) this._selectValue(el.dataset.value);
   }
 
   private _wireOptionClicks(dropdown: HTMLElement) {
