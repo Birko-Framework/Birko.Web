@@ -1,6 +1,7 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
+import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
 
 const DAYS_IN_WEEK = 7;
 
@@ -263,6 +264,8 @@ export class BDateRangePicker extends FormControlComponent {
   }
 
   private _open = false;
+  /** The endpoint input the panel was opened from; focus returns there when it closes. */
+  private _popupTrigger: HTMLElement | null = null;
   private _viewYear = new Date().getFullYear();
   private _viewMonth = new Date().getMonth();
   private _anchor: string | null = null;   // first click during a pick
@@ -517,6 +520,7 @@ export class BDateRangePicker extends FormControlComponent {
                  value="${formatDisplay(range?.start ?? '')}"
                  placeholder="${phStart}"
                  id="${this.uid}-start"
+                 ${triggerAria(this.uid, this._open)}
                  ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label,
                    part: { id: `${this.uid}-start`, name: phStart } })}
                  ${disabled ? 'disabled' : ''} />
@@ -526,12 +530,14 @@ export class BDateRangePicker extends FormControlComponent {
                  value="${formatDisplay(range?.end ?? '')}"
                  placeholder="${phEnd}"
                  id="${this.uid}-end"
+                 ${triggerAria(this.uid, this._open)}
                  ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label,
                    part: { id: `${this.uid}-end`, name: phEnd } })}
                  ${disabled ? 'disabled' : ''} />
-          ${range && !disabled ? '<button class="drp-clear" type="button" aria-label="Clear">&times;</button>' : ''}
+          ${range && !disabled ? clearButton('drp-clear', this._label('label-clear', 'clear', 'bwc.common.clear', 'Clear')) : ''}
         </div>
-        <div class="drp-panel ${this._open ? 'open' : ''}" data-months="${months}">
+        <div class="drp-panel ${this._open ? 'open' : ''}" data-months="${months}"
+             ${panelAria(this.uid, label || t('bwc.daterange.dialog', undefined, 'Choose dates'))}>
           ${this._renderPanelBody()}
         </div>`,
     });
@@ -702,6 +708,16 @@ export class BDateRangePicker extends FormControlComponent {
 
     this.listen(startInput, 'keydown', (e: Event) => this._onInputKeydown(e, false));
     this.listen(endInput, 'keydown', (e: Event) => this._onInputKeydown(e, true));
+
+    // Escape from inside the panel: same as on the inputs (cancel a pending confirm-mode pick), and _close
+    // hands focus back to the endpoint it was opened from.
+    this.listen(panel, 'keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (this._isConfirm()) this._cancelPending();
+      this._close();
+    });
   }
 
   private _onInputKeydown(e: Event, isEnd: boolean) {
@@ -715,7 +731,7 @@ export class BDateRangePicker extends FormControlComponent {
       if (!this._open) {
         const input = this.$<HTMLInputElement>(isEnd ? '.drp-input-end' : '.drp-input-start');
         const panel = this.$<HTMLElement>('.drp-panel');
-        if (input && panel) this._openPanel(input, panel);
+        if (input && panel) this._openPanel(input, panel, true);
       }
     }
   }
@@ -893,7 +909,7 @@ export class BDateRangePicker extends FormControlComponent {
     if (wrap) {
       const existing = wrap.querySelector('.drp-clear');
       if (range && !existing && !this.boolAttr('disabled')) {
-        endInput?.insertAdjacentHTML('afterend', '<button class="drp-clear" type="button" aria-label="Clear">&times;</button>');
+        endInput?.insertAdjacentHTML('afterend', clearButton('drp-clear', this._label('label-clear', 'clear', 'bwc.common.clear', 'Clear')));
         wrap.querySelector('.drp-clear')?.addEventListener('click', (e) => {
           e.stopPropagation();
           this._commit('', '');
@@ -904,7 +920,15 @@ export class BDateRangePicker extends FormControlComponent {
     }
   }
 
-  private _openPanel(input: HTMLElement, panel: HTMLElement) {
+  /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */
+  private _openPanel(input: HTMLElement, panel: HTMLElement, focusPanel = false) {
+    this._popupTrigger = input;
+    this._showPanel(input, panel);
+    setExpanded(this.shadowRoot, this.uid, true);
+    if (focusPanel) focusIntoPanel(panel);
+  }
+
+  private _showPanel(input: HTMLElement, panel: HTMLElement) {
     // Initialize view to range start or today
     const range = this._currentRange();
     if (range) {
@@ -943,6 +967,9 @@ export class BDateRangePicker extends FormControlComponent {
 
   private _close() {
     if (!this._open) return;
+    returnFocus(this.shadowRoot, this.$<HTMLElement>('.drp-panel'),
+      this._popupTrigger ?? this.$<HTMLElement>('.drp-input-start'));
+    setExpanded(this.shadowRoot, this.uid, false);
     this._open = false;
     this._anchor = null;
     this._hover = null;
@@ -952,7 +979,7 @@ export class BDateRangePicker extends FormControlComponent {
   private _refreshPanel() {
     const panel = this.$<HTMLElement>('.drp-panel');
     if (!panel) return;
-    panel.innerHTML = this._renderPanelBody();
+    refreshKeepingFocus(this.shadowRoot, panel, () => { panel.innerHTML = this._renderPanelBody(); });
     this._paintRange();
   }
 

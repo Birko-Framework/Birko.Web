@@ -1,6 +1,7 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
+import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
 
 const DAYS_IN_WEEK = 7;
 
@@ -312,11 +313,12 @@ export class BDatePicker extends FormControlComponent {
                  name="${this.attr('name')}"
                  value="${this._formatDisplay(value ?? '')}"
                  placeholder="${placeholder}"
+                 ${triggerAria(this.uid, this._open)}
                  ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  ${disabled ? 'disabled' : ''} />
-          ${value && !disabled ? '<button class="dp-clear" type="button">&times;</button>' : ''}
+          ${value && !disabled ? clearButton('dp-clear', this._clearLabel()) : ''}
         </div>
-        <div class="dp-panel ${this._open ? 'open' : ''}">
+        <div class="dp-panel ${this._open ? 'open' : ''}" ${panelAria(this.uid, label || t('bwc.date.dialog', undefined, 'Choose a date'))}>
           ${this._monthPicker ? this._renderMonthPicker() : this._renderCalendar()}
         </div>`,
     });
@@ -508,8 +510,17 @@ export class BDatePicker extends FormControlComponent {
       if (ke.key === 'Escape') this._close();
       if (ke.key === 'Enter' || ke.key === ' ') {
         e.preventDefault();
-        if (!this._open) this._openPanel(input, panel);
+        if (!this._open) this._openPanel(input, panel, true);
       }
+    });
+
+    // Escape from inside the panel closes it; _close hands focus back to the trigger. Default prevented so
+    // an enclosing <dialog> does not close with it.
+    this.listen(panel, 'keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this._close();
     });
   }
 
@@ -525,7 +536,14 @@ export class BDatePicker extends FormControlComponent {
     });
   }
 
-  private _openPanel(input: HTMLElement, panel: HTMLElement) {
+  /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */
+  private _openPanel(input: HTMLElement, panel: HTMLElement, focusPanel = false) {
+    this._showPanel(input, panel);
+    setExpanded(this.shadowRoot, this.uid, true);
+    if (focusPanel) focusIntoPanel(panel);
+  }
+
+  private _showPanel(input: HTMLElement, panel: HTMLElement) {
     // Initialize view to selected date or today
     const parsed = parseDate(this.attr('value') ?? '');
     if (parsed) {
@@ -558,6 +576,8 @@ export class BDatePicker extends FormControlComponent {
 
   private _close() {
     if (!this._open) return;
+    returnFocus(this.shadowRoot, this.$<HTMLElement>('.dp-panel'), this.$<HTMLElement>('.dp-input'));
+    setExpanded(this.shadowRoot, this.uid, false);
     this._open = false;
     this.$<HTMLElement>('.dp-panel')?.classList.remove('open');
   }
@@ -574,7 +594,7 @@ export class BDatePicker extends FormControlComponent {
     if (wrap) {
       const existing = wrap.querySelector('.dp-clear');
       if (iso && !existing && !this.boolAttr('disabled')) {
-        input?.insertAdjacentHTML('afterend', '<button class="dp-clear" type="button">&times;</button>');
+        input?.insertAdjacentHTML('afterend', clearButton('dp-clear', this._clearLabel()));
         wrap.querySelector('.dp-clear')?.addEventListener('click', (e) => {
           e.stopPropagation();
           this._selectDate('');
@@ -594,7 +614,9 @@ export class BDatePicker extends FormControlComponent {
   private _refreshPanel() {
     const panel = this.$<HTMLElement>('.dp-panel');
     if (!panel) return;
-    panel.innerHTML = this._monthPicker ? this._renderMonthPicker() : this._renderCalendar();
+    refreshKeepingFocus(this.shadowRoot, panel, () => {
+      panel.innerHTML = this._monthPicker ? this._renderMonthPicker() : this._renderCalendar();
+    });
   }
 
   private _isDisabled(iso: string, min: string, max: string): boolean {

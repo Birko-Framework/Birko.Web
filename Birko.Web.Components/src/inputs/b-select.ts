@@ -1,6 +1,7 @@
 import { FormControlComponent, define, escapeHtml, matchesSearch, foldForSearch, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet, comboControlSheet, srOnlySheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
+import { clearButton } from './picker-popup';
 
 interface Option {
   value: string;
@@ -288,7 +289,7 @@ export class BSelect extends FormControlComponent {
                  ${disabled ? 'disabled' : ''}
                  ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  autocomplete="off" />
-          ${value ? '<button class="combo-clear" type="button">&times;</button>' : ''}
+          ${value ? clearButton('combo-clear', t('bwc.common.clear', undefined, 'Clear')) : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
         <div class="dropdown" popover="manual" id="${this.uid}-listbox" role="listbox"
@@ -462,7 +463,7 @@ export class BSelect extends FormControlComponent {
       if (val && !clearBtn) {
         const arrow = combo.querySelector('.combo-arrow');
         if (arrow) {
-          arrow.insertAdjacentHTML('beforebegin', '<button class="combo-clear" type="button">&times;</button>');
+          arrow.insertAdjacentHTML('beforebegin', clearButton('combo-clear', t('bwc.common.clear', undefined, 'Clear')));
           combo.querySelector('.combo-clear')?.addEventListener('click', () => this._selectValue(''));
         }
       } else if (!val && clearBtn) {

@@ -1,6 +1,7 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
+import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -190,11 +191,12 @@ export class BTime extends FormControlComponent {
                  name="${this.attr('name')}"
                  value="${value ?? ''}"
                  placeholder="${placeholder}"
+                 ${triggerAria(this.uid, this._open)}
                  ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label })}
                  ${disabled ? 'disabled' : ''} />
-          ${value && !disabled ? '<button class="tp-clear" type="button">&times;</button>' : ''}
+          ${value && !disabled ? clearButton('tp-clear', this._clearLabel()) : ''}
         </div>
-        <div class="tp-panel ${this._open ? 'open' : ''}">
+        <div class="tp-panel ${this._open ? 'open' : ''}" ${panelAria(this.uid, label || t('bwc.time.dialog', undefined, 'Choose a time'))}>
           ${this._renderPanel()}
         </div>`,
     });
@@ -267,8 +269,17 @@ export class BTime extends FormControlComponent {
       if (ke.key === 'Escape') this._close();
       if (ke.key === 'Enter' || ke.key === ' ') {
         e.preventDefault();
-        if (!this._open) this._openPanel(input, panel);
+        if (!this._open) this._openPanel(input, panel, true);
       }
+    });
+
+    // Escape from inside the panel closes it; _close hands focus back to the trigger. Default prevented so
+    // an enclosing <dialog> does not close with it.
+    this.listen(panel, 'keydown', (e: Event) => {
+      if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
+      e.preventDefault();
+      e.stopPropagation();
+      this._close();
     });
   }
 
@@ -348,7 +359,14 @@ export class BTime extends FormControlComponent {
     }, { passive: false });
   }
 
-  private _openPanel(input: HTMLElement, panel: HTMLElement) {
+  /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */
+  private _openPanel(input: HTMLElement, panel: HTMLElement, focusPanel = false) {
+    this._showPanel(input, panel);
+    setExpanded(this.shadowRoot, this.uid, true);
+    if (focusPanel) focusIntoPanel(panel);
+  }
+
+  private _showPanel(input: HTMLElement, panel: HTMLElement) {
     const parsed = parseTime(this.attr('value') ?? '');
     if (parsed) {
       this._hour = parsed.hour;
@@ -378,6 +396,8 @@ export class BTime extends FormControlComponent {
 
   private _close() {
     if (!this._open) return;
+    returnFocus(this.shadowRoot, this.$<HTMLElement>('.tp-panel'), this.$<HTMLElement>('.tp-input'));
+    setExpanded(this.shadowRoot, this.uid, false);
     this._open = false;
     this.$<HTMLElement>('.tp-panel')?.classList.remove('open');
   }
@@ -395,7 +415,7 @@ export class BTime extends FormControlComponent {
     if (wrap) {
       const existing = wrap.querySelector('.tp-clear');
       if (v && !existing && !this.boolAttr('disabled')) {
-        input?.insertAdjacentHTML('afterend', '<button class="tp-clear" type="button">&times;</button>');
+        input?.insertAdjacentHTML('afterend', clearButton('tp-clear', this._clearLabel()));
         wrap.querySelector('.tp-clear')?.addEventListener('click', (e) => {
           e.stopPropagation();
           this._setValue('');
@@ -416,7 +436,7 @@ export class BTime extends FormControlComponent {
   private _refreshPanel(panel?: HTMLElement) {
     const el = panel ?? this.$<HTMLElement>('.tp-panel');
     if (!el) return;
-    el.innerHTML = this._renderPanel();
+    refreshKeepingFocus(this.shadowRoot, el, () => { el.innerHTML = this._renderPanel(); });
     this._wirePanel(el);
   }
 

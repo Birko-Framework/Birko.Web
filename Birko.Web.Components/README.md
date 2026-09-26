@@ -490,6 +490,14 @@ BDatePicker.setLocale({ months: [...], days: [...], today: 'Dnes', clear: 'Vymaz
 Attributes: `label`, `name`, `value` (ISO yyyy-MM-dd), `min`, `max`, `native`, `placeholder`, `error`, `disabled`, `required`, `hint`
 Emits: `change` → `{ name, value }`
 
+**Keyboard and screen readers** — the same for `b-date-picker`, `b-datetime-picker`, `b-time` and
+`b-date-range-picker` (custom mode; `native` is the browser's own). The field is announced as a combo box
+that opens a dialog ("Start date, combo box, collapsed"). **Enter** or **Space** opens the panel and moves
+focus into it (the selected day, else today). Focus stays put while you navigate months, and picking a
+value or pressing **Escape** returns it to the field. The panel is named by the field's `label`, falling back
+to the `bwc.{date,datetime,time,daterange}.dialog` keys, and the × clear button is named by the clear label
+(`bwc.common.clear`).
+
 ### b-datetime-picker
 
 Combined date + time picker. Same locale API as `b-date-picker` (`BDatetimePicker.setLocale({...})`).

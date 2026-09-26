@@ -115,15 +115,18 @@
       "options": "Options"
     },
     "date": {
-      "placeholder": "YYYY-MM-DD"
+      "placeholder": "YYYY-MM-DD",
+      "dialog": "Choose a date"
     },
     "datetime": {
       "placeholder": "YYYY-MM-DD HH:mm",
       "today": "Today",
-      "now": "Now"
+      "now": "Now",
+      "dialog": "Choose a date and time"
     },
     "time": {
-      "placeholder": "HH:mm"
+      "placeholder": "HH:mm",
+      "dialog": "Choose a time"
     },
     "colorPicker": {
       "swatch": "Pick a color",
@@ -135,6 +138,7 @@
       "placeholderEnd": "End date",
       "apply": "Apply",
       "presets": "Presets",
+      "dialog": "Choose dates",
       "nightsCount": "{count} nights",
       "daysCount": "{count} days",
       "preset": {
