@@ -297,6 +297,9 @@ export class BRange extends FormControlComponent {
     // A range is ONE field with up to two editable parts — describe both, so the help row is announced
     // whichever thumb / number box has focus.
     const aria = fieldAria({ uid: this.uid, error, description, bare, label });
+    // Range mode's two thumbs / number boxes are parts: "<label> From" / "<label> To" (TASK-495).
+    const partAria = (id: string, name: string) =>
+      `id="${this.uid}-${id}" ${fieldAria({ uid: this.uid, error, description, bare, label, part: { id: `${this.uid}-${id}`, name } })}`;
     const disabled = this.boolAttr('disabled') ? 'disabled' : '';
     const min = this._min;
     const max = this._max;
@@ -312,10 +315,10 @@ export class BRange extends FormControlComponent {
           <div class="range-slider range-slider--dual">
             <div class="range-track"></div>
             <div class="range-track-fill" style="${this._fillStyle(fromPct, toPct)}"></div>
-            <input type="range" class="slider-from" ${aria} min="${min}" max="${max}" step="${step}"
-                   value="${this._from}" ${disabled} aria-label="From" />
-            <input type="range" class="slider-to" ${aria} min="${min}" max="${max}" step="${step}"
-                   value="${this._to}" ${disabled} aria-label="To"
+            <input type="range" class="slider-from" ${partAria('slider-from', 'From')} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} />
+            <input type="range" class="slider-to" ${partAria('slider-to', 'To')} min="${min}" max="${max}" step="${step}"
+                   value="${this._to}" ${disabled}
                    style="z-index:3" />
           </div>`;
       } else {
@@ -335,11 +338,11 @@ export class BRange extends FormControlComponent {
       if (this._isRange) {
         inputHtml = `
           <div class="range-inputs">
-            <input type="number" class="range-input input-from" ${aria} min="${min}" max="${max}" step="${step}"
-                   value="${this._from}" ${disabled} aria-label="From" />
+            <input type="number" class="range-input input-from" ${partAria('input-from', 'From')} min="${min}" max="${max}" step="${step}"
+                   value="${this._from}" ${disabled} />
             <span class="range-sep" aria-hidden="true">&ndash;</span>
-            <input type="number" class="range-input input-to" ${aria} min="${min}" max="${max}" step="${step}"
-                   value="${this._to}" ${disabled} aria-label="To" />
+            <input type="number" class="range-input input-to" ${partAria('input-to', 'To')} min="${min}" max="${max}" step="${step}"
+                   value="${this._to}" ${disabled} />
             ${isPercent ? '<span class="range-unit" aria-hidden="true">%</span>' : ''}
           </div>`;
       } else {

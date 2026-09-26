@@ -67,6 +67,14 @@ export interface FieldAriaOptions {
    * renders; bare, `aria-label` (no visible label exists there).
    */
   label?: string | null;
+  /**
+   * One part of a multi-part control (a range's start, a slider's "From", an upload's browse button).
+   * The name becomes "<label> <part>", so the parts stay distinguishable: naming every part by the field
+   * label alone made them identical (TASK-495), and naming them by the part alone dropped which field
+   * they belong to. The caller puts `id` on the element and does NOT emit its own `aria-label`.
+   * Non-bare, `aria-labelledby` lists the element itself, which contributes its `aria-label`.
+   */
+  part?: { id: string; name: string };
 }
 
 /**
@@ -98,7 +106,11 @@ export function fieldAria(opts: FieldAriaOptions): string {
   describedBy.push(...(opts.describedBy ?? []));
   // Without one of these the control is announced by its placeholder or value, or by nothing (TASK-494):
   // the rendered <label> is a sibling with no `for`, so it names nothing by itself.
-  if (opts.label) {
+  if (opts.part) {
+    const joined = opts.bare && opts.label ? `${opts.label} ${opts.part.name}` : opts.part.name;
+    parts.push(`aria-label="${escapeHtml(joined)}"`);
+    if (opts.label && !opts.bare) parts.push(`aria-labelledby="${opts.uid}-label ${opts.part.id}"`);
+  } else if (opts.label) {
     parts.push(opts.bare
       ? `aria-label="${escapeHtml(opts.label)}"`
       : `aria-labelledby="${opts.uid}-label"`);

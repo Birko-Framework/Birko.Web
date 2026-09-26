@@ -465,22 +465,24 @@ export class BDateRangePicker extends FormControlComponent {
                  class="drp-native-start ${error ? 'has-error' : ''}"
                  name="${name}-start"
                  value="${range?.start ?? ''}"
-                 aria-label="${this.label('label-start', 'bwc.daterange.placeholderStart', 'Start date')}"
+                 id="${this.uid}-start"
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
                  ${this.boolAttr('required') ? 'required' : ''}
-                 ${fieldAria({ uid: this.uid, error, description, bare, label })}
+                 ${fieldAria({ uid: this.uid, error, description, bare, label,
+                   part: { id: `${this.uid}-start`, name: this.label('label-start', 'bwc.daterange.placeholderStart', 'Start date') } })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${this.attr('separator') ?? '→'}</span>
           <input type="date"
                  class="drp-native-end ${error ? 'has-error' : ''}"
                  name="${name}-end"
                  value="${range?.end ?? ''}"
-                 aria-label="${this.label('label-end', 'bwc.daterange.placeholderEnd', 'End date')}"
+                 id="${this.uid}-end"
                  ${this.attr('min') ? `min="${this.attr('min')}"` : ''}
                  ${this.attr('max') ? `max="${this.attr('max')}"` : ''}
                  ${this.boolAttr('required') ? 'required' : ''}
-                 ${fieldAria({ uid: this.uid, error, description, bare, label })}
+                 ${fieldAria({ uid: this.uid, error, description, bare, label,
+                   part: { id: `${this.uid}-end`, name: this.label('label-end', 'bwc.daterange.placeholderEnd', 'End date') } })}
                  ${disabled ? 'disabled' : ''} />
         </div>`,
     });
@@ -514,22 +516,18 @@ export class BDateRangePicker extends FormControlComponent {
                  type="text" readonly
                  value="${formatDisplay(range?.start ?? '')}"
                  placeholder="${phStart}"
-                 aria-label="${phStart}"
-                 ${/* No label passed: each endpoint already carries its own aria-label above, and a
-                       second one would be a DUPLICATE attribute (the first wins). The endpoint's own
-                       Start date / End date is the more useful name anyway. */
-                   fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare })}
+                 id="${this.uid}-start"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label,
+                   part: { id: `${this.uid}-start`, name: phStart } })}
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${sep}</span>
           <input class="drp-input drp-input-end ${error ? 'has-error' : ''}"
                  type="text" readonly
                  value="${formatDisplay(range?.end ?? '')}"
                  placeholder="${phEnd}"
-                 aria-label="${phEnd}"
-                 ${/* No label passed: each endpoint already carries its own aria-label above, and a
-                       second one would be a DUPLICATE attribute (the first wins). The endpoint's own
-                       Start date / End date is the more useful name anyway. */
-                   fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare })}
+                 id="${this.uid}-end"
+                 ${fieldAria({ uid: this.uid, error, required: this.boolAttr('required'), description, bare, label,
+                   part: { id: `${this.uid}-end`, name: phEnd } })}
                  ${disabled ? 'disabled' : ''} />
           ${range && !disabled ? '<button class="drp-clear" type="button" aria-label="Clear">&times;</button>' : ''}
         </div>

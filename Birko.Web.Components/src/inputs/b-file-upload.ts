@@ -186,13 +186,12 @@ export class BFileUpload extends BaseComponent {
       error,
       required,
       description,
-      // ARIA on the dropzone — it is the focusable widget. No `label` passed: the dropzone already
-      // carries its own aria-label ("Choose files") on the next line.
+      // ARIA on the dropzone — it is the focusable widget, named "<label> Choose files".
       control: `
         <div class="dropzone ${error ? 'has-error' : ''} ${this._dragging ? 'dragging' : ''} ${disabled ? 'disabled' : ''} ${hasFiles ? 'compact' : ''}"
-             role="button" tabindex="${disabled ? '-1' : '0'}"
-             ${fieldAria({ uid: this.uid, error, required, description, bare })}
-             aria-label="${this.label('label-browse', 'bwc.fileUpload.browse', 'Choose files')}">
+             role="button" tabindex="${disabled ? '-1' : '0'}" id="${this.uid}-browse"
+             ${fieldAria({ uid: this.uid, error, required, description, bare, label,
+               part: { id: `${this.uid}-browse`, name: this.label('label-browse', 'bwc.fileUpload.browse', 'Choose files') } })}>
           <input type="file"
                  ${accept !== '*' ? `accept="${accept}"` : ''}
                  ${multiple ? 'multiple' : ''}
