@@ -69,6 +69,10 @@ export class BRange extends FormControlComponent {
         z-index: 2;
       }
       input[type="range"]:focus { box-shadow: none; }
+      /* The shared size variants pad every input (sm 0.5rem, lg 1rem across), and ":host([size]) input"
+         outranks the rule above. Padding shortens the thumb's travel inside a track drawn at full width, so
+         the thumbs stopped short of the ends and drifted off the fill (TASK-497). */
+      :host([size]) input[type="range"] { padding: 0; }
 
       input[type="range"]::-webkit-slider-runnable-track {
         height: 0.25rem;
@@ -119,9 +123,14 @@ export class BRange extends FormControlComponent {
 
       /* ── Dual slider (range mode) ── */
 
+      /* Centred, not pinned to top 0: the shared form-control sheet gives every input a min-height (the
+         touch-target floor) taller than this 1.5rem box, and it varies with size and pointer. Pinned at
+         the top, the taller box hung down and both thumbs sat below the line (TASK-497). Single mode gets
+         the same centring from the flex row. */
       .range-slider--dual input[type="range"] {
         position: absolute;
-        top: 0;
+        top: 50%;
+        transform: translateY(-50%);
         left: 0;
         pointer-events: none;
       }
