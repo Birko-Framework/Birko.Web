@@ -9,14 +9,20 @@ import { escapeHtml } from '../dom-utils';
  *
  * `label` and `hint` are escaped so schema-supplied text with quotes or angle brackets
  * cannot break out of the attribute / inject markup into the shadow tree.
+ *
+ * `id` is what makes the label NAME anything: the `<label>` is a sibling of the control, not its
+ * wrapper, and carries no `for`, so on its own it associates with nothing. {@link fieldAria} points the
+ * control's `aria-labelledby` at this id. The required mark is `aria-hidden` so the name is "Weight",
+ * not "Weight*"; the control carries `required` / `aria-required` itself.
  */
-export function renderLabel(label: string | null, hint: string | null, required = false): string {
+export function renderLabel(label: string | null, hint: string | null, required = false, id?: string): string {
   if (!label) return '';
   const safeLabel = escapeHtml(label);
-  const req = required ? '<span class="required-mark">*</span>' : '';
+  const idAttr = id ? ` id="${escapeHtml(id)}"` : '';
+  const req = required ? '<span class="required-mark" aria-hidden="true">*</span>' : '';
   const hintEl = hint ? `<b-tooltip text="${escapeHtml(hint)}"><span class="hint-icon">?</span></b-tooltip>` : '';
-  if (!req && !hintEl) return `<label>${safeLabel}</label>`;
-  return `<div class="label-row"><label>${safeLabel}${req}</label>${hintEl}</div>`;
+  if (!req && !hintEl) return `<label${idAttr}>${safeLabel}</label>`;
+  return `<div class="label-row"><label${idAttr}>${safeLabel}${req}</label>${hintEl}</div>`;
 }
 
 /** Options describing the validation/accessibility state of a form control. */
@@ -46,7 +52,7 @@ export interface FieldAriaOptions {
   description?: string | null;
   /**
    * Bare mode ({@link renderField}) — no `.field` chrome is rendered, which removes the `<label>` that
-   * named the control, the error span, and the description span that `aria-describedby` points at. Set
+   * `aria-labelledby` points at, the error span, and the description span that `aria-describedby` points at. Set
    * this so the ARIA is rebuilt from attributes instead of silently degrading:
    * - `aria-describedby` is NOT emitted (it would be a dangling reference); the message is surfaced as
    *   `title` instead — hover text for sighted users, accessible description for AT;
@@ -56,7 +62,10 @@ export interface FieldAriaOptions {
    * - {@link FieldAriaOptions.label} becomes `aria-label`, so the control keeps an accessible name.
    */
   bare?: boolean;
-  /** The `label` attribute. Emitted as `aria-label` in bare mode only (no visible label exists there). */
+  /**
+   * The `label` attribute. Non-bare, it becomes `aria-labelledby` → the `<label>` {@link renderField}
+   * renders; bare, `aria-label` (no visible label exists there).
+   */
   label?: string | null;
 }
 
@@ -87,9 +96,13 @@ export function fieldAria(opts: FieldAriaOptions): string {
     }
   }
   describedBy.push(...(opts.describedBy ?? []));
-  // A bare control has no rendered <label>, so without this it would be announced by its placeholder
-  // (or by nothing at all) — a placeholder is not an accessible name.
-  if (opts.bare && opts.label) parts.push(`aria-label="${escapeHtml(opts.label)}"`);
+  // Without one of these the control is announced by its placeholder or value, or by nothing (TASK-494):
+  // the rendered <label> is a sibling with no `for`, so it names nothing by itself.
+  if (opts.label) {
+    parts.push(opts.bare
+      ? `aria-label="${escapeHtml(opts.label)}"`
+      : `aria-labelledby="${opts.uid}-label"`);
+  }
   if (opts.required) parts.push('aria-required="true"');
   if (describedBy.length) parts.push(`aria-describedby="${describedBy.join(' ')}"`);
   return parts.join(' ');
@@ -143,7 +156,7 @@ export function renderField(opts: RenderFieldOptions): string {
   if (opts.bare) return opts.control;
   return `
       <div class="field">
-        ${renderLabel(opts.label ?? null, opts.hint ?? null, opts.required)}
+        ${renderLabel(opts.label ?? null, opts.hint ?? null, opts.required, `${opts.uid}-label`)}
         ${opts.control}
         ${renderHelp(opts.uid, opts.description)}
         ${renderError(opts.uid, opts.error)}

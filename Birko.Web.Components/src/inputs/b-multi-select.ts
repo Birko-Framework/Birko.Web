@@ -251,6 +251,7 @@ export class BMultiSelect extends FormControlComponent {
       control: `
         <div class="container combo-container ${error ? 'has-error' : ''} ${disabled ? 'disabled' : ''}"
              tabindex="${disabled ? '-1' : '0'}"
+             role="combobox"
              aria-haspopup="true"
              aria-expanded="${this._open}"
              aria-controls="${this.uid}-opts"
