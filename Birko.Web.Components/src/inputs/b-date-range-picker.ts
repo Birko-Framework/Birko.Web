@@ -1,7 +1,10 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
-import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
+import {
+  triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton,
+  TYPING_GUARD_ATTRS, guardTyping, navAria, dayAria,
+} from './picker-popup';
 
 const DAYS_IN_WEEK = 7;
 
@@ -516,7 +519,7 @@ export class BDateRangePicker extends FormControlComponent {
       control: `
         <div class="drp-wrap">
           <input class="drp-input drp-input-start ${error ? 'has-error' : ''}"
-                 type="text" readonly
+                 type="text" ${TYPING_GUARD_ATTRS}
                  value="${formatDisplay(range?.start ?? '')}"
                  placeholder="${phStart}"
                  id="${this.uid}-start"
@@ -526,7 +529,7 @@ export class BDateRangePicker extends FormControlComponent {
                  ${disabled ? 'disabled' : ''} />
           <span class="drp-sep" aria-hidden="true">${sep}</span>
           <input class="drp-input drp-input-end ${error ? 'has-error' : ''}"
-                 type="text" readonly
+                 type="text" ${TYPING_GUARD_ATTRS}
                  value="${formatDisplay(range?.end ?? '')}"
                  placeholder="${phEnd}"
                  id="${this.uid}-end"
@@ -605,7 +608,7 @@ export class BDateRangePicker extends FormControlComponent {
       const py = m === 0 ? y - 1 : y;
       const iso = toISO(py, pm, d);
       const dis = this._isDisabled(iso, minDate, maxDate);
-      cells.push(`<button class="drp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" type="button">${d}</button>`);
+      cells.push(`<button class="drp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" type="button" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
     }
 
     for (let d = 1; d <= totalDays; d++) {
@@ -613,7 +616,7 @@ export class BDateRangePicker extends FormControlComponent {
       const cls: string[] = ['drp-day'];
       if (iso === todayISO) cls.push('today');
       if (this._isDisabled(iso, minDate, maxDate)) cls.push('disabled');
-      cells.push(`<button class="${cls.join(' ')}" data-date="${iso}" type="button">${d}</button>`);
+      cells.push(`<button class="${cls.join(' ')}" data-date="${iso}" type="button" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
     }
 
     const remaining = DAYS_IN_WEEK - (cells.length % DAYS_IN_WEEK);
@@ -623,7 +626,7 @@ export class BDateRangePicker extends FormControlComponent {
         const ny = m === 11 ? y + 1 : y;
         const iso = toISO(ny, nm, d);
         const dis = this._isDisabled(iso, minDate, maxDate);
-        cells.push(`<button class="drp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" type="button">${d}</button>`);
+        cells.push(`<button class="drp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" type="button" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
       }
     }
 
@@ -632,9 +635,9 @@ export class BDateRangePicker extends FormControlComponent {
     return `
       <section class="drp-month" aria-label="${months[m]} ${y}">
         <header class="drp-month-header">
-          <button class="drp-nav" type="button" data-nav="prev-month" ${isFirst ? '' : 'disabled'} aria-label="Previous month">&#9664;</button>
+          <button class="drp-nav" type="button" data-nav="prev-month" ${isFirst ? '' : 'disabled'} ${navAria('prev-month')}>&#9664;</button>
           <span class="drp-month-label">${months[m]} ${y}</span>
-          <button class="drp-nav" type="button" data-nav="next-month" ${isLast ? '' : 'disabled'} aria-label="Next month">&#9654;</button>
+          <button class="drp-nav" type="button" data-nav="next-month" ${isLast ? '' : 'disabled'} ${navAria('next-month')}>&#9654;</button>
         </header>
         <div class="drp-grid">
           ${dayHeaders.map(d => `<span class="drp-day-header">${d}</span>`).join('')}
@@ -670,6 +673,8 @@ export class BDateRangePicker extends FormControlComponent {
     const endInput = this.$<HTMLInputElement>('.drp-input-end');
     const panel = this.$<HTMLElement>('.drp-panel');
     if (!startInput || !endInput || !panel) return;
+    guardTyping(startInput, (el, type, fn) => this.listen(el, type, fn));
+    guardTyping(endInput, (el, type, fn) => this.listen(el, type, fn));
 
     const openOn = (focusEnd: boolean) => {
       if (this.boolAttr('disabled')) return;

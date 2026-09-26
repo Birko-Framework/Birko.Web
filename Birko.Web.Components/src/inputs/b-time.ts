@@ -1,7 +1,10 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
-import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
+import {
+  triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton,
+  TYPING_GUARD_ATTRS, guardTyping, 
+} from './picker-popup';
 
 function pad(n: number): string {
   return n < 10 ? `0${n}` : `${n}`;
@@ -187,7 +190,7 @@ export class BTime extends FormControlComponent {
       control: `
         <div class="tp-wrap">
           <input class="tp-input ${error ? 'has-error' : ''}"
-                 type="text" readonly
+                 type="text" ${TYPING_GUARD_ATTRS}
                  name="${this.attr('name')}"
                  value="${value ?? ''}"
                  placeholder="${placeholder}"
@@ -208,15 +211,15 @@ export class BTime extends FormControlComponent {
     return `
       <div class="tp-spinners">
         <div class="tp-spinner">
-          <button class="tp-spin-btn" data-spin="hour-up">&#9650;</button>
-          <input class="tp-num-input" data-time="hour" type="number" min="0" max="23" value="${pad(this._hour)}" />
-          <button class="tp-spin-btn" data-spin="hour-down">&#9660;</button>
+          <button class="tp-spin-btn" data-spin="hour-up" aria-label="${t('bwc.time.hourUp', undefined, 'Increase hours')}">&#9650;</button>
+          <input class="tp-num-input" data-time="hour" aria-label="${t('bwc.time.hours', undefined, 'Hours')}" type="number" min="0" max="23" value="${pad(this._hour)}" />
+          <button class="tp-spin-btn" data-spin="hour-down" aria-label="${t('bwc.time.hourDown', undefined, 'Decrease hours')}">&#9660;</button>
         </div>
         <span class="tp-sep">:</span>
         <div class="tp-spinner">
-          <button class="tp-spin-btn" data-spin="minute-up">&#9650;</button>
-          <input class="tp-num-input" data-time="minute" type="number" min="0" max="59" step="${step}" value="${pad(this._minute)}" />
-          <button class="tp-spin-btn" data-spin="minute-down">&#9660;</button>
+          <button class="tp-spin-btn" data-spin="minute-up" aria-label="${t('bwc.time.minuteUp', undefined, 'Increase minutes')}">&#9650;</button>
+          <input class="tp-num-input" data-time="minute" aria-label="${t('bwc.time.minutes', undefined, 'Minutes')}" type="number" min="0" max="59" step="${step}" value="${pad(this._minute)}" />
+          <button class="tp-spin-btn" data-spin="minute-down" aria-label="${t('bwc.time.minuteDown', undefined, 'Decrease minutes')}">&#9660;</button>
         </div>
       </div>
       <div class="tp-footer">
@@ -234,6 +237,7 @@ export class BTime extends FormControlComponent {
     const input = this.$<HTMLInputElement>('.tp-input');
     const panel = this.$<HTMLElement>('.tp-panel');
     if (!input || !panel) return;
+    guardTyping(input, (el, type, fn) => this.listen(el, type, fn));
 
     this.listen(input, 'click', () => {
       if (this.boolAttr('disabled')) return;

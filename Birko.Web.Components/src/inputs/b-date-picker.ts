@@ -1,7 +1,10 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
-import { triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton } from './picker-popup';
+import {
+  triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton,
+  TYPING_GUARD_ATTRS, guardTyping, navAria, dayAria,
+} from './picker-popup';
 
 const DAYS_IN_WEEK = 7;
 
@@ -309,7 +312,7 @@ export class BDatePicker extends FormControlComponent {
       control: `
         <div class="dp-wrap">
           <input class="dp-input ${error ? 'has-error' : ''}"
-                 type="text" readonly
+                 type="text" ${TYPING_GUARD_ATTRS}
                  name="${this.attr('name')}"
                  value="${this._formatDisplay(value ?? '')}"
                  placeholder="${placeholder}"
@@ -347,7 +350,7 @@ export class BDatePicker extends FormControlComponent {
       const py = m === 0 ? y - 1 : y;
       const iso = toISO(py, pm, d);
       const dis = this._isDisabled(iso, minDate, maxDate);
-      cells.push(`<button class="dp-day other ${dis ? 'disabled' : ''}" data-date="${iso}">${d}</button>`);
+      cells.push(`<button class="dp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
     }
 
     for (let d = 1; d <= totalDays; d++) {
@@ -356,7 +359,7 @@ export class BDatePicker extends FormControlComponent {
       if (iso === todayISO) cls.push('today');
       if (iso === selected) cls.push('selected');
       if (this._isDisabled(iso, minDate, maxDate)) cls.push('disabled');
-      cells.push(`<button class="${cls.join(' ')}" data-date="${iso}">${d}</button>`);
+      cells.push(`<button class="${cls.join(' ')}" data-date="${iso}" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
     }
 
     // Next month fill
@@ -367,7 +370,7 @@ export class BDatePicker extends FormControlComponent {
         const ny = m === 11 ? y + 1 : y;
         const iso = toISO(ny, nm, d);
         const dis = this._isDisabled(iso, minDate, maxDate);
-        cells.push(`<button class="dp-day other ${dis ? 'disabled' : ''}" data-date="${iso}">${d}</button>`);
+        cells.push(`<button class="dp-day other ${dis ? 'disabled' : ''}" data-date="${iso}" ${dayAria(iso, months)}${iso === todayISO ? ' aria-current="date"' : ''}>${d}</button>`);
       }
     }
 
@@ -376,9 +379,9 @@ export class BDatePicker extends FormControlComponent {
 
     return `
       <div class="dp-header">
-        <button class="dp-nav" data-nav="prev-month">&#9664;</button>
+        <button class="dp-nav" data-nav="prev-month" ${navAria('prev-month')}>&#9664;</button>
         <span class="dp-header-label" data-nav="month-picker">${months[m]} ${y}</span>
-        <button class="dp-nav" data-nav="next-month">&#9654;</button>
+        <button class="dp-nav" data-nav="next-month" ${navAria('next-month')}>&#9654;</button>
       </div>
       <div class="dp-grid">
         ${dayHeaders.map(d => `<span class="dp-day-header">${d}</span>`).join('')}
@@ -398,9 +401,9 @@ export class BDatePicker extends FormControlComponent {
 
     return `
       <div class="dp-header">
-        <button class="dp-nav" data-nav="prev-year">&#9664;</button>
+        <button class="dp-nav" data-nav="prev-year" ${navAria('prev-year')}>&#9664;</button>
         <span class="dp-header-label">${y}</span>
-        <button class="dp-nav" data-nav="next-year">&#9654;</button>
+        <button class="dp-nav" data-nav="next-year" ${navAria('next-year')}>&#9654;</button>
       </div>
       <div class="dp-months">
         ${months.map((name, i) =>
@@ -422,6 +425,7 @@ export class BDatePicker extends FormControlComponent {
     const input = this.$<HTMLInputElement>('.dp-input');
     const panel = this.$<HTMLElement>('.dp-panel');
     if (!input || !panel) return;
+    guardTyping(input, (el, type, fn) => this.listen(el, type, fn));
 
     // Toggle on input click
     this.listen(input, 'click', () => {

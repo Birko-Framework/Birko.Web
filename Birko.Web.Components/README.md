@@ -497,6 +497,10 @@ focus into it (the selected day, else today). Focus stays put while you navigate
 value or pressing **Escape** returns it to the field. The panel is named by the field's `label`, falling back
 to the `bwc.{date,datetime,time,daterange}.dialog` keys, and the × clear button is named by the clear label
 (`bwc.common.clear`).
+Inside the panel, the ◀/▶ buttons are named ("Previous month", `bwc.date.prevMonth` …), each day carries its
+month and year ("10 September 2026", today marked `aria-current="date"`), and `b-time`'s spinners are named
+("Increase hours", "Hours" … under `bwc.time.*`). The field is deliberately **not** `readonly`: NVDA reads a
+read-only combo box as "combo edit" and drops expanded/collapsed. It refuses typed text instead.
 
 ### b-datetime-picker
 

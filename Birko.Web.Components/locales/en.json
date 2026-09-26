@@ -116,7 +116,11 @@
     },
     "date": {
       "placeholder": "YYYY-MM-DD",
-      "dialog": "Choose a date"
+      "dialog": "Choose a date",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "prevYear": "Previous year",
+      "nextYear": "Next year"
     },
     "datetime": {
       "placeholder": "YYYY-MM-DD HH:mm",
@@ -126,7 +130,13 @@
     },
     "time": {
       "placeholder": "HH:mm",
-      "dialog": "Choose a time"
+      "dialog": "Choose a time",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "hourUp": "Increase hours",
+      "hourDown": "Decrease hours",
+      "minuteUp": "Increase minutes",
+      "minuteDown": "Decrease minutes"
     },
     "colorPicker": {
       "swatch": "Pick a color",
