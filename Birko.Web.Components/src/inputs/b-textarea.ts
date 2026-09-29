@@ -1,4 +1,5 @@
 import { FormControlComponent, define, escapeHtml } from 'birko-web-core';
+import { escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
 
@@ -34,8 +35,8 @@ export class BTextarea extends FormControlComponent {
       required,
       control: `
         <textarea
-          name="${this.attr('name')}"
-          placeholder="${this.attr('placeholder')}"
+          name="${escapeAttr(this.attr('name'))}"
+          placeholder="${escapeAttr(this.attr('placeholder'))}"
           rows="${this.numAttr('rows', 4)}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}

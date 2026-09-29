@@ -272,6 +272,15 @@ export class BForm extends BaseComponent {
         padding: 0;
       }
       .b-form-group--invalid { border-color: var(--b-color-danger); }
+      .b-form-error {
+        margin: 0 0 var(--b-space-md, 0.75rem) 0;
+        padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
+        border: var(--b-border-width, 1px) solid var(--b-color-danger, #dc2626);
+        border-radius: var(--b-radius-md, 0.375rem);
+        color: var(--b-color-danger, #dc2626);
+        font-size: var(--b-text-sm, 0.8125rem);
+      }
+      .b-form-error[hidden] { display: none; }
       .b-form-group-error {
         font-size: var(--b-text-xs, 0.6875rem);
         color: var(--b-color-danger);
@@ -500,7 +509,8 @@ export class BForm extends BaseComponent {
 
   render() {
     if (!this._schema) return '<slot></slot>';
-    return this._renderGroup(this._schema, '', true);
+    // Form-level errors — any error whose path is not a field in the schema (see _applyErrors).
+    return `<div class="b-form-error" role="alert" hidden></div>${this._renderGroup(this._schema, '', true)}`;
   }
 
   private _renderGroup(group: FormGroupDef, prefix: string, isRoot: boolean): string {
@@ -1029,16 +1039,28 @@ export class BForm extends BaseComponent {
   private _applyErrors() {
     // Set/clear error attribute on each field element
     if (!this._schema) return;
+    const shown = new Set<string>();
     this._walkFields(this._schema, '', (field, path) => {
       const el = this._getFieldElement(path);
       if (!el) return;
       const err = this._errors.get(path);
       if (err) {
         el.setAttribute('error', err);
+        shown.add(path);
       } else {
         el.removeAttribute('error');
       }
     });
+
+    // An error no field can show — the shell's `showFormError` puts every non-field server error on `_form` — goes
+    // to the form-level alert. Before this it was stored and never rendered, so a business-rule refusal (e.g.
+    // `Automation.TriggerMissingMetric`) left the modal open with no message at all.
+    const banner = this.$<HTMLElement>('.b-form-error');
+    if (banner) {
+      const orphans = [...this._errors].filter(([path, msg]) => msg && !shown.has(path)).map(([, msg]) => msg);
+      banner.textContent = orphans.join(' ');
+      banner.hidden = orphans.length === 0;
+    }
 
     // Update group error display
     this.$$<HTMLElement>('.b-form-group').forEach(fieldset => {

@@ -106,7 +106,7 @@ export class BInput extends FormControlComponent {
         <input
           type="${innerType}"${decimalInputMode}
           name="${this.attr('name')}"
-          placeholder="${this.attr('placeholder')}"
+          placeholder="${escapeAttr(this.attr('placeholder'))}"
           class="${error ? 'has-error' : ''}"
           ${this.boolAttr('disabled') ? 'disabled' : ''}
           ${required ? 'required' : ''}
