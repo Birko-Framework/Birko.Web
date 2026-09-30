@@ -573,6 +573,26 @@ await bff.post('/cart/items', { sku, qty });  // carries X-CSRF-TOKEN
 `X-Tenant-Id`, so a custom header cannot override the framework's auth or tenant headers. It is applied on
 the retry after a token refresh as well as the first attempt.
 
+**File upload (`multipart/form-data`)** — `postForm`:
+
+```typescript
+const form = new FormData();
+form.append('file', file);
+form.append('altText', 'Front view');
+
+const resp = await api.postForm<Image>(`products/${id}/images/upload`, form, { timeoutMs: 120_000 });
+if (!resp.ok) toast.error(resp.status === 0 ? 'Upload failed — check your connection' : apiErrorMessage(resp.data));
+```
+
+- **No `Content-Type` is set** — the browser adds `multipart/form-data` with its boundary. Auth, tenant and
+  `getHeaders` apply as usual, so `getHeaders` must not return a `Content-Type`.
+- **Never queued.** A file cannot go into the JSON outbox, so `postForm` never calls `onQueueAction` and its
+  result is never `queued`. Offline, a network error or a timeout is the plain `{ ok: false, status: 0 }`
+  envelope — the caller tells the user.
+- A 401 refreshes through the client's shared refresh and resends the same form.
+- `timeoutMs` overrides the client's timeout for this call only; pass a longer one for large files — the
+  20 s default is too short for a slow uplink. `<= 0` disables it.
+
 **ApiResponse\<T\>:**
 
 | Field | Type | Description |

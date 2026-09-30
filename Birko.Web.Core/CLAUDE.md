@@ -106,6 +106,9 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
 - `ApiClient` adds `Authorization: Bearer` and `X-Tenant-Id` headers automatically
 - All methods return `ApiResponse<T>` — always check `resp.ok` before using `resp.data`
 - If `meta` is provided and the device is offline, the request is queued via `onQueueAction`
+- `postForm` (multipart upload) is the exception: it takes no `meta`, never queues, and sets no `Content-Type`
+  (the browser adds the boundary). Keep it on `_fetch` so it shares `_refreshPromise` — refresh tokens rotate,
+  and a second refresh flow spends a token the first already redeemed and logs the user out
 - Never throw from a response handler — API errors are in `resp.data?.error?.message`
 - **Append a query param with `appendQuery`, never `'?' + qs`.** `ApiClient.get` appended `'?'`
   unconditionally, so an endpoint that already carried a query string came out as

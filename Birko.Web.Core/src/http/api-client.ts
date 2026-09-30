@@ -140,6 +140,33 @@ export class ApiClient {
   }
 
   /**
+   * POST a `multipart/form-data` body — a file upload.
+   *
+   * Sets **no** `Content-Type`: the browser must add it itself, because only the browser knows the multipart
+   * boundary. Auth, tenant and `getHeaders` apply exactly as on every other request — so a `getHeaders` hook
+   * must not return a `Content-Type` of its own, or it replaces the boundary and the server cannot parse the body.
+   *
+   * **Not queueable, and the result is never `queued`.** A `File`/`Blob` body cannot go into the JSON outbox, so
+   * this never calls `onQueueAction`, online or offline. A network failure or timeout returns the ordinary
+   * `{ ok: false, status: 0 }` envelope, and the caller decides what to tell the user.
+   *
+   * A 401 refreshes the token through the same shared refresh as every other request and resends the form —
+   * a `FormData` body can be sent twice, which a `ReadableStream` could not. Sharing that refresh is the reason
+   * this lives here: refresh tokens rotate, so a second, independent refresh flow redeems a token the first
+   * already spent, fails, and logs the user out.
+   *
+   * `opts.timeoutMs` overrides the client's timeout for this call only; the 20 s default is too short for a
+   * large file on a slow uplink. Omitted, the client's `timeoutMs` (or {@link DEFAULT_REQUEST_TIMEOUT_MS}) applies.
+   */
+  async postForm<T = unknown>(
+    path: string,
+    form: FormData,
+    opts?: { timeoutMs?: number },
+  ): Promise<ApiResponse<T>> {
+    return this._fetch<T>(path, { method: 'POST', body: form }, opts?.timeoutMs);
+  }
+
+  /**
    * Issue a queueable write. `navigator.onLine` is only advisory — it reports the network *interface*,
    * not server reachability, and stays `true` under DevTools-offline on a service-worker-served page or
    * on a captive/dead network. So we queue in two cases: proactively when we already know we're offline
@@ -180,9 +207,11 @@ export class ApiClient {
    * The timer spans the **body read as well as the response**, which is why it is cleared here rather than
    * around the `fetch` call alone: a response whose headers arrive and whose body then stalls hangs just as
    * completely, and `await response.json()` is where that would land.
+   *
+   * `timeoutOverride` replaces the client's timeout for this one call (`postForm` passes it for uploads).
    */
-  private async _fetch<T>(path: string, init: RequestInit): Promise<ApiResponse<T>> {
-    const timeoutMs = this._options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  private async _fetch<T>(path: string, init: RequestInit, timeoutOverride?: number): Promise<ApiResponse<T>> {
+    const timeoutMs = timeoutOverride ?? this._options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     if (timeoutMs <= 0) return this._send<T>(path, init);
 
     const controller = new AbortController();
