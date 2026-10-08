@@ -503,7 +503,12 @@ const { store, hasPermission, hasModulePermission, getVisibleOptions, resolveMod
 - `hasPermission(perm)` — checks against the currently active module
 - `hasModulePermission(moduleId, perm)` — checks against any module
 - `getVisibleOptions(mod)` — filters options by user's permissions (wildcard `*` = all)
-- `resolveModuleFromHash(hash)` — parses `'/iot/devices/123'` → `{ moduleId, optionId, entityId }`, updates store
+- `resolveModuleFromHash(hash)` — matches the hash against the **declared** option routes in `modules` (longest
+  wins; `:param` segments match anything) → `{ moduleId, optionId, entityId, resolved }`, updates store.
+  `'/iot/devices/123'` → `iot` / `devices` / `123`. A hash no module declares (`/settings`, `/dashboard`) returns
+  `resolved: false` and **clears** `activeModuleId` / `activeOptionId` to `null` — it never invents a module id. An
+  option may declare any route (`/sales/leads`), and that route resolves to its module. Before `modules` is loaded
+  nothing resolves, so resolve again once it is set.
 
 ### Ribbon builder
 
