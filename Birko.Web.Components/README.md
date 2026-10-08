@@ -1239,6 +1239,10 @@ import { BCodeBlock } from 'birko-web-components';
 (el as BCodeBlock).setCode('SELECT * FROM users;', 'sql');
 ```
 
+The source is the `code` attribute when present, otherwise the element's text. Changing the text in place, including
+a parent re-render that morphs the same element and swaps only its text, re-renders the block (TASK-543). The `code`
+attribute still wins when both are set.
+
 Attributes: `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `sticky-header` (`page`), `size`, `label-copy`, `label-copied`
 Emits: `copy` → `{ code }`, `copy-error`
 

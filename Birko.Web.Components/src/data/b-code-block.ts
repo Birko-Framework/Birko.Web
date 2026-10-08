@@ -65,6 +65,26 @@ export class BCodeBlock extends BaseComponent {
   }
 
   private _code = '';
+  private _textObserver: MutationObserver | null = null;
+
+  /**
+   * Re-render when the light-DOM text changes. A parent's re-render morphs children in place and keeps this element
+   * when its attributes are unchanged, replacing only the text node — no observed attribute changes, so without this
+   * the block kept showing the previous code (TASK-543, found in Presenter). Watching the light DOM cannot loop: the
+   * render writes to the shadow root.
+   */
+  protected onMount() {
+    this._textObserver = new MutationObserver(() => {
+      if (this.hasAttribute('code') || (this.textContent ?? '') === this._code) return;
+      this.update();
+    });
+    this._textObserver.observe(this, { childList: true, characterData: true, subtree: true });
+  }
+
+  protected onUnmount() {
+    this._textObserver?.disconnect();
+    this._textObserver = null;
+  }
 
   render() {
     const lang = this._normalizeLang(this.attr('language', 'plain'));
