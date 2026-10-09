@@ -104,6 +104,9 @@
       "placeholder": "Search...",
       "clear": "Clear search"
     },
+    "input": {
+      "clear": "Clear"
+    },
     "select": {
       "create": "Create “{value}”",
       "created": "Created “{value}”"

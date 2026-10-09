@@ -1,12 +1,13 @@
 import { FormControlComponent, define, parseDecimal } from 'birko-web-core';
 import { escapeAttr } from '../dom-utils';
-import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { formFieldSheet, formControlSheet, iconButtonSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
 
 export class BInput extends FormControlComponent {
   static get observedAttributes() {
     return [
       'label', 'type', 'placeholder', 'value', 'name', 'error', 'disabled', 'required', 'hint', 'description', 'bare',
+      'clearable', 'label-clear',
       // Passed straight through to the inner <input> — see PASSTHROUGH.
       'min', 'max', 'step', 'inputmode', 'autocomplete',
     ];
@@ -40,12 +41,37 @@ export class BInput extends FormControlComponent {
   }
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet];
+    return [formFieldSheet, formControlSheet, iconButtonSheet];
   }
 
   static get styles() {
     return `
       :host { display: block; }
+      .control-wrap { position: relative; }
+      /* Adornments sit ON TOP of the input, inside its box. The input's inline padding is widened to the
+         measured adornment width by syncAdornments() as an inline style, which outranks every size variant
+         in formControlSheet: those set the padding SHORTHAND, so a per-element padding-left in a sheet loses
+         at size="sm" and the text runs under the adornment (the trap b-search-input documents).
+         The span is click-through so a click on its empty area still reaches the input; slotted content and
+         the clear button take the pointer back. */
+      .adorn {
+        position: absolute;
+        inset-block: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--b-space-xs, 0.25rem);
+        color: var(--b-text-muted);
+        pointer-events: none;
+      }
+      .adorn.prefix { inset-inline-start: var(--b-space-sm, 0.5rem); }
+      .adorn.suffix { inset-inline-end: var(--b-space-xs, 0.25rem); }
+      ::slotted(*), .clear { pointer-events: auto; }
+      .clear { border-radius: var(--b-radius, 0.375rem); }
+      .clear:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
+      /* Hidden by visibility, not display: the x keeps its width while the value is empty, so the input's
+         padding and the outer box never change as it appears and disappears. visibility also takes it out
+         of the tab order and the accessibility tree. */
+      .clear.is-empty { visibility: hidden; }
     `;
   }
 
@@ -92,6 +118,11 @@ export class BInput extends FormControlComponent {
     // keeps the numeric keypad; an explicit `inputmode` still wins, since a consumer may want `numeric`.
     const innerType = decimal ? 'text' : this.attr('type', 'text');
     const decimalInputMode = decimal && !this.hasAttribute('inputmode') ? ' inputmode="decimal"' : '';
+    // After any slotted suffix content, at the far inline end. Not rendered at all while disabled.
+    const clearButton = this.boolAttr('clearable') && !this.boolAttr('disabled')
+      ? `<button type="button" class="clear icon-btn${this.inputValue === '' ? ' is-empty' : ''}"
+           aria-label="${escapeAttr(this.label('label-clear', 'bwc.input.clear', 'Clear'))}">&times;</button>`
+      : '';
     return renderField({
       bare,
       uid: this.uid,
@@ -103,6 +134,8 @@ export class BInput extends FormControlComponent {
       // The <datalist> is part of the control, not the chrome — it must stay with the <input> in
       // bare mode too, or `list=` dangles and suggestions silently stop working.
       control: `
+        <div class="control-wrap">
+        <span class="adorn prefix"><slot name="prefix"></slot></span>
         <input
           type="${innerType}"${decimalInputMode}
           name="${this.attr('name')}"
@@ -114,6 +147,8 @@ export class BInput extends FormControlComponent {
           ${fieldAria({ uid: this.uid, error, description, bare, label })}
           ${hasSuggestions ? `list="${this._datalistId}" autocomplete="off"` : ''}
         />
+        <span class="adorn suffix"><slot name="suffix"></slot>${clearButton}</span>
+        </div>
         ${hasSuggestions ? `<datalist id="${this._datalistId}">${
           this._suggestions.map(s => `<option value="${escapeAttr(s)}"></option>`).join('')
         }</datalist>` : ''}`,
@@ -132,11 +167,87 @@ export class BInput extends FormControlComponent {
       this._value = (e.target as HTMLInputElement).value;
       this.emit('change', { name: this.attr('name'), value: this._value });
       this.syncFormState();
+      this.syncClear();
     });
+
+    const clear = this.$<HTMLButtonElement>('.clear');
+    if (clear) this.listen(clear, 'click', () => {
+      input.value = '';
+      // The same path a keystroke takes: the native event leaves the shadow root (composed), and the
+      // listener above records the value, emits `change` and syncs the form value.
+      input.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+      input.focus();
+    });
+
+    for (const slot of this.$$<HTMLSlotElement>('slot')) this.listen(slot, 'slotchange', () => this.watchAdornments());
+    this.watchAdornments();
+    this.applyAdornmentPadding();
+    this.syncClear();
 
     // Re-sync after every render, not just on input: the value may have been restored above, and the
     // `error` / `required` / `min` / `step` attributes that drive validity can change between renders.
     this.syncFormState();
+  }
+
+  protected onUnmount() {
+    this._adornObserver?.disconnect();
+    this._adornObserver = null;
+  }
+
+  // ── adornments ─────────────────────────────────────────────────────────────────────────────────────
+
+  private _adornObserver: ResizeObserver | null = null;
+  /** Last measured adornment widths, so a re-render re-applies the padding without reading layout. */
+  private _adornWidth = { prefix: 0, suffix: 0 };
+
+  /**
+   * Observe the adornments only while there is one. Widths come from the `ResizeObserver` — its first
+   * notification arrives on observe, and later ones when a slotted element or an icon font changes size —
+   * and never from a layout read during render. That matters at scale: a synchronous measurement in
+   * `onUpdated` forces a layout per instance, and the grid benchmark's thousands of `bare` cells, none of
+   * them adorned, locked the page up. A plain b-input therefore observes nothing and measures nothing.
+   */
+  private watchAdornments(): void {
+    const filled = (name: string) => (this.$<HTMLSlotElement>(`slot[name="${name}"]`)?.assignedNodes().length ?? 0) > 0;
+    const adorned = filled('prefix') || filled('suffix') || !!this.$('.clear');
+    if (!adorned) {
+      this._adornObserver?.disconnect();
+      this._adornObserver = null;
+      this._adornWidth = { prefix: 0, suffix: 0 };
+      this.applyAdornmentPadding();
+      return;
+    }
+    this._adornObserver ??= new ResizeObserver((entries) => {
+      for (const e of entries) {
+        // A span a full re-render replaced reports 0 once it is detached; it must not reset the live one.
+        if (!e.target.isConnected) { this._adornObserver?.unobserve(e.target); continue; }
+        const side = (e.target as HTMLElement).classList.contains('prefix') ? 'prefix' : 'suffix';
+        this._adornWidth[side] = e.borderBoxSize?.[0]?.inlineSize ?? e.contentRect.width;
+      }
+      this.applyAdornmentPadding();
+    });
+    // A render can replace the spans; observing one already observed is a no-op.
+    for (const adorn of this.$$<HTMLElement>('.adorn')) this._adornObserver.observe(adorn);
+  }
+
+  /**
+   * Widen the input's inline padding to clear the adornment on each side, or drop back to the size
+   * variant's padding when a side is empty. Inline style on purpose — see the `.adorn` styles.
+   */
+  private applyAdornmentPadding(): void {
+    const input = this.$<HTMLInputElement>('input');
+    if (!input) return;
+    const pad = (width: number, prop: 'padding-inline-start' | 'padding-inline-end') => {
+      if (width > 0) input.style.setProperty(prop, `calc(${width}px + var(--b-space-sm, 0.5rem) + var(--b-space-xs, 0.25rem))`);
+      else input.style.removeProperty(prop);
+    };
+    pad(this._adornWidth.prefix, 'padding-inline-start');
+    pad(this._adornWidth.suffix, 'padding-inline-end');
+  }
+
+  /** Show the clear button only while there is something to clear. */
+  private syncClear(): void {
+    this.$('.clear')?.classList.toggle('is-empty', this.inputValue === '');
   }
 
   // ── decimal mode ───────────────────────────────────────────────────────────────────────────────────
@@ -250,6 +361,7 @@ export class BInput extends FormControlComponent {
     const input = this.$<HTMLInputElement>('input');
     if (input) input.value = v;
     this.syncFormState();
+    this.syncClear();
   }
 }
 

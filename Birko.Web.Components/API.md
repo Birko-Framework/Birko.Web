@@ -116,10 +116,25 @@ boundary (`requestSubmit(submitter)` only accepts a native submit button belongi
 | `autocomplete` | forwarded |
 | `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
 | `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
+| `clearable` | boolean — a × at the inline end of the field, shown while the value is non-empty. Not rendered while `disabled` |
+| `label-clear` | string — the ×'s accessible name (default: i18n `bwc.input.clear`, then `Clear`) |
+
+| Slot | Content |
+|------|---------|
+| `prefix` | Rendered inside the field box at the inline start (an icon, `https://`, a currency sign) |
+| `suffix` | Rendered inside the field box at the inline end. With `clearable`, the × comes **after** the slotted content |
+
+Adornments are vertically centred, and the input's text is inset to clear them at every `size`. The inset only
+applies while a slot has content and follows it (`slotchange`, and a resize of the slotted element). The ×
+keeps its space while hidden, so neither the field nor its text moves as it appears.
 
 | Event | Detail |
 |-------|--------|
 | `change` | `{ name, value }` |
+
+Clearing with the × goes the same way as a keystroke: a native `input` event, then `change` with
+`value: ''`, then focus goes back to the input. An empty field has no `FormData` entry, the same as one
+emptied by typing.
 
 Form-associated (`ElementInternals`): the value lands in `FormData` under `name`, and `required` / `type` /
 `min` / `max` / `step` are enforced by the wrapping `<form>`. See [Form participation](#form-participation).

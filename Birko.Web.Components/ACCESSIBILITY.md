@@ -90,6 +90,7 @@ The `.sr-only-focusable` variant becomes visible on focus (for skip links).
 - **Tabs/tree/kanban/ribbon**: arrow keys navigate; Home/End jump; roving tabindex keeps one stop per group.
 - **Segmented (radio group)**: arrow/Home/End move and select; one tab stop.
 - **Sortable table headers**: focusable inner `<button>`; Enter/Space sort.
+- **`b-input clearable`**: the × is a native `<button type="button">` that comes after the input in tab order. Its name comes from `label-clear`, then i18n `bwc.input.clear`, then `Clear`. Enter/Space clears the field and focus goes back to the input. While the field is empty the × is `visibility: hidden`, so it is out of the tab order and the accessibility tree but keeps its space. Slotted `prefix` / `suffix` content is light DOM, so it keeps whatever semantics the consumer gives it.
 - **Collapsible form groups, inline-edit, file-upload dropzone**: Enter/Space activate. The file-upload dropzone is the focusable control because its native `<input type=file>` is `display:none`.
 
 ## Custom controls that aren't native elements

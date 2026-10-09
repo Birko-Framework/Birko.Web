@@ -357,7 +357,7 @@ the same as their `.value`:
 ### Inputs (22)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
-| `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled` |
+| `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
 | `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled` |
 | `<b-button>` | BButton | — | `variant`, `size`, `type`, `disabled`, `loading` |
 | `<b-checkbox>` | BCheckbox | — | `checked`, `indeterminate`, `disabled`, `name`, `label` |
@@ -574,6 +574,20 @@ new code should populate messages via the global singleton instead.
 ## Recent Updates
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
+
+### `b-input` gets `prefix` / `suffix` slots and `clearable` — and must never read layout while it renders (2026-10-08)
+
+TASK-484, for Presenter's × inside its URL field. The inset that keeps the text clear of an adornment is an
+**inline style** sized from the measured adornment. An inline style is what beats the size variants' `padding`
+shorthand at every `size`; a sheet rule loses at `sm` (the `b-search-input` trap). The × hides with
+`visibility`, not `display`, so it keeps its space and nothing moves when it appears. A clear dispatches the
+native `input` event, so it behaves exactly like a keystroke.
+
+**⚠ The first version measured with `getBoundingClientRect()` in `onUpdated`, and that froze the Playground:**
+the main thread was blocked and `verify.mjs` timed out before loading. Every render forced a layout per instance,
+and the grid benchmark renders thousands of `bare` cells. Widths now come only from a `ResizeObserver`, which is
+created only while a slot has content or `clearable` is set. A plain `b-input` measures nothing. `b-input bare` is
+the planned `b-editable-table` cell, so **a per-render layout read in this control costs once per grid cell.**
 
 ### The iOS 16px input floor was escaped by twelve controls across nine components (2026-08-08)
 
