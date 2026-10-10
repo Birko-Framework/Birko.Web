@@ -90,6 +90,7 @@ Before writing CSS, check if a shared sheet covers the pattern:
 | `dataViewerHeaderSheet` | `.data-viewer-header` compact sticky toolbar header with `.title` + `.actions` | same set as above |
 | `toolbarBtnSheet` | `.toolbar-btn` small bordered header button with `.copied` state | same set as above |
 | `srOnlySheet` | `.sr-only` / `.sr-only-focusable` visually-hidden helper | aria-live regions, off-screen labels |
+| `slideNavSheet` | `.viewport` scroll-snap track, `.round-btn` + `.arrow.prev/.next`, `.dots` / `.dot` / `.pip` (24px target) | b-carousel, b-gallery |
 
 ```typescript
 import { overlayHeaderSheet, overlayFooterSheet, closeButtonSheet } from '../shared-styles';
@@ -381,10 +382,11 @@ the same as their `.value`:
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
-### Layout (14)
+### Layout (15)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-carousel>` | BCarousel | `next()`, `prev()`, `goTo(i)`, `index` | `label`, `per-view` (1–6; or `--b-carousel-per-view` in CSS — consumer CSS wins, so breakpoints are plain media queries), `loop`, `autoplay` (ms, default 5000); slides = light-DOM children; `--b-carousel-gap`; event `slide-change` `{index}` |
+| `<b-gallery>` | BGallery | `show(i)`, `index`, `openZoom()`, `closeZoom()` | `label`, `index` (start image; later changes navigate); slides = light-DOM `<img>` with `alt`, optional `data-thumb` / `data-full`; `--b-gallery-aspect-ratio`, `--b-gallery-thumb-size`; events `image-change` `{index}`, `zoom-open`, `zoom-close` |
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|md\|lg\|xl) |
 | `<b-accordion>` | BAccordion | `setItems([{id,header,open?,disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()` | `multiple` (allow several open), `size` (sm\|md\|lg — header footprint); body via `slot="{id}"`; event `toggle` `{id,open}` |
 | `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |
@@ -574,6 +576,23 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-gallery` — the carousel's track, thumbnails that become dots, and a zoom that gives focus back (2026-10-10)
+
+TASK-550, FlowerFurStudio's product images. Built on `SlideTrack`; the arrows / dots / viewport CSS moved into the new
+`slideNavSheet` so both components draw them from one place (rule: no duplicated CSS).
+
+- **`index` is a start, then a command — never a leash.** It is read once at first render; later changes go through
+  `attributeChangedCallback` → navigate. Re-reading it in `onUpdated` would snap the gallery back on any unrelated
+  re-render (the mutation the suite proves).
+- **Thumbnails turn into dots by a container query** (`max-width: 30rem` of the gallery itself, not the viewport),
+  same buttons, so names and `aria-current` are unchanged. Dot targets are `max(1.5rem, 24px)` — the Playground's
+  14px root measured `1.5rem` at 21px, under WCAG 2.5.8.
+- **Zoom is a native modal `<dialog>`** named by the image's alt; Escape is the browser's, and every close returns
+  focus to the zoom button. Click magnifies ×2 around the point; pinch is the browser's.
+- **The thumbnail strip scrolls itself, never the page** — `scrollIntoView` would scroll every ancestor.
+- In the Playground the gallery suite starts after `input-adornment-smoke` (window flag): a modal plus image decoding
+  in the shared page delayed that suite's ResizeObserver past its fixed settle and failed its geometry checks.
 
 ### `b-carousel` + `SlideTrack` — server-rendered slides enhanced, never owned (2026-10-10)
 

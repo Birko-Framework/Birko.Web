@@ -1,6 +1,6 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { escapeAttr } from '../dom-utils';
-import { srOnlySheet } from '../shared-styles';
+import { slideNavSheet, srOnlySheet } from '../shared-styles';
 import { SlideTrack, prefersReducedMotion } from './slide-track';
 
 /**
@@ -29,7 +29,7 @@ export class BCarousel extends BaseComponent {
   }
 
   static get sharedStyles() {
-    return [srOnlySheet];
+    return [slideNavSheet, srOnlySheet];
   }
 
   static get styles() {
@@ -43,80 +43,14 @@ export class BCarousel extends BaseComponent {
       ${perView}
       .carousel { position: relative; }
       .stage { position: relative; }
-      .viewport {
-        display: flex;
-        gap: var(--b-carousel-gap);
-        overflow-x: auto;
-        overscroll-behavior-x: contain;
-        scroll-snap-type: x mandatory;
-        scrollbar-width: none;
-      }
-      .viewport::-webkit-scrollbar { display: none; }
-      .viewport.dragging { scroll-snap-type: none; cursor: grabbing; user-select: none; }
+      .viewport { gap: var(--b-carousel-gap); }
       ::slotted(*) {
         box-sizing: border-box;
         flex: 0 0 calc((100% - (var(--b-carousel-per-view) - 1) * var(--b-carousel-gap)) / var(--b-carousel-per-view));
         min-width: 0;
         scroll-snap-align: start;
       }
-      .arrow, .rotation {
-        position: absolute;
-        z-index: 1;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        box-sizing: border-box;
-        width: var(--b-control-min-height, 2.375rem);
-        height: var(--b-control-min-height, 2.375rem);
-        padding: 0;
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-bg);
-        color: var(--b-text);
-        box-shadow: var(--b-shadow-sm);
-        font-family: inherit;
-        font-size: var(--b-icon-base, 1rem);
-        line-height: 1;
-        cursor: pointer;
-      }
-      .arrow { top: 50%; transform: translateY(-50%); }
-      .prev { inset-inline-start: var(--b-space-sm, 0.5rem); }
-      .next { inset-inline-end: var(--b-space-sm, 0.5rem); }
-      .rotation { top: var(--b-space-sm, 0.5rem); inset-inline-end: var(--b-space-sm, 0.5rem); }
-      .arrow:hover:not(:disabled), .rotation:hover { background: var(--b-bg-tertiary); }
-      .arrow:focus-visible, .rotation:focus-visible, .dot:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
-      .arrow:disabled { opacity: var(--b-disabled-opacity, 0.5); cursor: default; }
-      .dots {
-        display: flex;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: var(--b-space-2xs, 0.125rem);
-        margin-top: var(--b-space-xs, 0.25rem);
-      }
-      /* The dot is drawn small but the button around it is a 24px target (WCAG 2.5.8). */
-      .dot {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 1.5rem;
-        min-height: 1.5rem;
-        padding: 0;
-        border: none;
-        border-radius: var(--b-radius-full, 9999px);
-        background: none;
-        cursor: pointer;
-      }
-      .dot span {
-        width: var(--b-space-sm, 0.5rem);
-        height: var(--b-space-sm, 0.5rem);
-        border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-border);
-        transition: background var(--b-transition, 150ms ease);
-      }
-      .dot[aria-current="true"] span { background: var(--b-color-primary); }
-      @media (pointer: coarse) {
-        .arrow, .rotation { width: max(var(--b-control-min-height-lg, 2.75rem), 44px); height: max(var(--b-control-min-height-lg, 2.75rem), 44px); }
-      }
+      .rotation { position: absolute; z-index: 1; top: var(--b-space-sm, 0.5rem); inset-inline-end: var(--b-space-sm, 0.5rem); }
     `;
   }
 
@@ -159,16 +93,16 @@ export class BCarousel extends BaseComponent {
     const label = this.attr('label');
     const role = this.label('label-carousel', 'bwc.carousel.carousel', 'carousel');
     const rotation = this.autoplayAllowed()
-      ? `<button type="button" class="rotation" aria-label="${escapeAttr(this.rotationLabel())}">${this.rotationIcon()}</button>`
+      ? `<button type="button" class="round-btn rotation" aria-label="${escapeAttr(this.rotationLabel())}">${this.rotationIcon()}</button>`
       : '';
     const arrows = multi ? `
-        <button type="button" class="arrow prev" aria-label="${escapeAttr(this.label('label-previous', 'bwc.carousel.previous', 'Previous slide'))}"><span aria-hidden="true">&#8249;</span></button>
-        <button type="button" class="arrow next" aria-label="${escapeAttr(this.label('label-next', 'bwc.carousel.next', 'Next slide'))}"><span aria-hidden="true">&#8250;</span></button>` : '';
+        <button type="button" class="round-btn arrow prev" aria-label="${escapeAttr(this.label('label-previous', 'bwc.carousel.previous', 'Previous slide'))}"><span aria-hidden="true">&#8249;</span></button>
+        <button type="button" class="round-btn arrow next" aria-label="${escapeAttr(this.label('label-next', 'bwc.carousel.next', 'Next slide'))}"><span aria-hidden="true">&#8250;</span></button>` : '';
     const positions = this.maxIndex() + 1;
     const dots = multi
       ? `<div class="dots">${Array.from({ length: positions }, (_, i) => `<button type="button" class="dot" data-index="${i}"
             aria-label="${escapeAttr(this.label('label-go-to', 'bwc.carousel.goTo', 'Slide {index}', { index: i + 1 }))}"
-            aria-current="${i === this._index}"><span aria-hidden="true"></span></button>`).join('')}</div>`
+            aria-current="${i === this._index}"><span class="pip" aria-hidden="true"></span></button>`).join('')}</div>`
       : '';
     return `
       <section class="carousel" aria-roledescription="${escapeAttr(role)}"${label ? ` aria-label="${escapeAttr(label)}"` : ''} data-count="${count}">

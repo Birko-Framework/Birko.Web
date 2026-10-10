@@ -1058,6 +1058,39 @@ Slides are the element's light-DOM children (server-rendered content is enhanced
 One page of slides renders no arrows, dots or autoplay. Off-screen slides are `inert`. Autoplay pauses while
 hovered, stops when keyboard focus enters (the start button restarts it) and always shows a stop / start control.
 
+### `<b-gallery>`
+Images are the element's light-DOM children — `<img alt="…">`, primary first.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string — names the gallery region |
+| `index` | starting image (0-based); setting it later navigates |
+| `label-previous` / `label-next` / `label-zoom` / `label-close` / `label-image` | per-instance names (`bwc.gallery.*`) |
+
+| Per-image attribute | Meaning |
+|---------------------|---------|
+| `alt` | names the image, its thumbnail and the zoom dialog (missing → "Image n") |
+| `data-thumb` | small URL for the thumbnail (default: the image's own source) |
+| `data-full` | large URL for the zoom (default: the image's own source) |
+
+| CSS property | Default |
+|--------------|---------|
+| `--b-gallery-aspect-ratio` | `1` (main image box; images are `object-fit: contain`) |
+| `--b-gallery-thumb-size` | `4rem` |
+
+| Property / method | Description |
+|-------------------|-------------|
+| `index` | current image |
+| `show(i)` | show image `i` (clamped) — use it to switch image on a variant pick |
+| `openZoom()` / `closeZoom()` | the full-view dialog |
+
+| Event | Detail |
+|-------|--------|
+| `image-change` | `{ index }` |
+| `zoom-open` / `zoom-close` | `{ index }` |
+
+One image renders no navigation. In a container narrower than 30rem the thumbnails are drawn as dots.
+
 ### `<b-card>`
 | Attribute | Values |
 |-----------|--------|

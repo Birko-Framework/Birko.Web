@@ -115,6 +115,15 @@
       "pause": "Stop automatic slide show",
       "play": "Start automatic slide show"
     },
+    "gallery": {
+      "previous": "Previous image",
+      "next": "Next image",
+      "images": "Images",
+      "image": "Image {index}",
+      "zoom": "Enlarge image",
+      "zoomCount": "{index} / {count}",
+      "status": "Image {index} of {count}: {name}"
+    },
     "qtyStepper": {
       "decrement": "Decrease",
       "increment": "Increase",

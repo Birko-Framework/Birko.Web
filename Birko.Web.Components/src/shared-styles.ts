@@ -94,3 +94,6 @@ export const iconButtonSheet = getSheet('iconButton');
 
 /** Visually-hidden helper (`.sr-only` / `.sr-only-focusable`) for screen-reader-only text and aria-live regions. */
 export const srOnlySheet = getSheet('srOnly');
+
+/** Scroll-snap viewport, round prev / next arrows and dot row shared by b-carousel and b-gallery. */
+export const slideNavSheet = getSheet('slideNav');
