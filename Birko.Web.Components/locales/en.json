@@ -104,6 +104,17 @@
       "placeholder": "Search...",
       "clear": "Clear search"
     },
+    "carousel": {
+      "carousel": "carousel",
+      "slide": "slide",
+      "slideLabel": "{index} of {count}",
+      "previous": "Previous slide",
+      "next": "Next slide",
+      "goTo": "Slide {index}",
+      "status": "Slide {index} of {count}",
+      "pause": "Stop automatic slide show",
+      "play": "Start automatic slide show"
+    },
     "qtyStepper": {
       "decrement": "Decrease",
       "increment": "Increase",

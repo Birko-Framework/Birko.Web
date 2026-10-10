@@ -381,9 +381,10 @@ the same as their `.value`:
 | `<b-option-group>` | BOptionGroup | `setOptions([{value,label,icon?}])` | `label`, `name`, `value`, `disabled` |
 | `<b-form>` | BForm | `setSchema()`, `setValues()`, `validate()`, `setFieldError()`, `setFieldOptions()`, `setFieldDisabled()`, `onFieldChange()`, `focusField()`, `reset()` | `validate-on` |
 
-### Layout (13)
+### Layout (14)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
+| `<b-carousel>` | BCarousel | `next()`, `prev()`, `goTo(i)`, `index` | `label`, `per-view` (1–6; or `--b-carousel-per-view` in CSS — consumer CSS wins, so breakpoints are plain media queries), `loop`, `autoplay` (ms, default 5000); slides = light-DOM children; `--b-carousel-gap`; event `slide-change` `{index}` |
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|md\|lg\|xl) |
 | `<b-accordion>` | BAccordion | `setItems([{id,header,open?,disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()` | `multiple` (allow several open), `size` (sm\|md\|lg — header footprint); body via `slot="{id}"`; event `toggle` `{id,open}` |
 | `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |
@@ -573,6 +574,25 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-carousel` + `SlideTrack` — server-rendered slides enhanced, never owned (2026-10-10)
+
+TASK-549, for FlowerFurStudio's hero / category tiles / product rows. Worth carrying:
+
+- **Slides are the light-DOM children and stay there.** Without JS they are ordinary content (first visible,
+  none hidden). To show only the first slide before upgrade, a consumer adds
+  `b-carousel:not(:defined) > :not(:first-child) { display: none }` — opt-in, because hiding content behind a
+  script is the consumer's call, not the library's.
+- **Scrolling is native `scroll-snap`**, so swipe and momentum are the browser's. `layout/slide-track.ts`
+  (`SlideTrack`) adds the settled index, a viewport-only `scrollTo` (no `scrollIntoView` — it scrolls the
+  page) and a mouse drag that suppresses the click ending it. `b-gallery` reuses it.
+- **Per-view is a custom property**, `per-view` only sets it for 1–6; outer CSS beats `:host`, so a consumer's
+  media query wins and the carousel re-pages on the resize that comes with it.
+- **Off-screen slides are `inert`** and named "n of m"; a consumer's own `role` / `aria-label` is kept, and
+  attributes the carousel added are removed when a slide leaves (tracked in a set — a removed node is no
+  longer reachable through the host, which is the bug the first run of the suite caught).
+- **Autoplay follows APG:** never under reduced motion, pause on hover, *stop* when focus enters (only the start
+  button restarts it), a visible stop / start control, automatic steps not announced.
 
 ### `b-qty-stepper` — exact steps, and the user's value is snapped while the app's is reported (2026-10-10)
 

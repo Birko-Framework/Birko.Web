@@ -1030,6 +1030,34 @@ Collapsible XML tree via DOMParser.
 
 ## Layout
 
+### `<b-carousel>`
+Slides are the element's light-DOM children (server-rendered content is enhanced, never moved).
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string — names the carousel region |
+| `per-view` | `1`–`6` slides visible at once (default 1). Or set `--b-carousel-per-view` in CSS — that wins, so breakpoints are media queries |
+| `loop` | boolean — previous / next wrap |
+| `autoplay` | interval in ms (empty → 5000). Never runs under `prefers-reduced-motion` |
+| `label-previous` / `label-next` / `label-play` / `label-pause` | per-instance names (`bwc.carousel.*`) |
+
+| CSS property | Default |
+|--------------|---------|
+| `--b-carousel-per-view` | `1` |
+| `--b-carousel-gap` | `var(--b-space-md)` |
+
+| Property / method | Description |
+|-------------------|-------------|
+| `index` | first visible slide |
+| `goTo(i)` / `next()` / `prev()` | navigate (clamped; `next` / `prev` honour `loop`) |
+
+| Event | Detail |
+|-------|--------|
+| `slide-change` | `{ index }` — from arrows, dots, swipe, drag, autoplay and `goTo` |
+
+One page of slides renders no arrows, dots or autoplay. Off-screen slides are `inert`. Autoplay pauses while
+hovered, stops when keyboard focus enters (the start button restarts it) and always shows a stop / start control.
+
 ### `<b-card>`
 | Attribute | Values |
 |-----------|--------|

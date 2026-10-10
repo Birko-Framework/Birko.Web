@@ -51,6 +51,7 @@ Covered inputs: `b-input`, `b-textarea`, `b-select` (native + combo), `b-multi-s
 | Menu | `b-dropdown-menu` | `menu`/`menuitem`/`separator`, decorative icons `aria-hidden` |
 | Listbox / combobox | `b-command-palette`, `b-select` (combo) | `listbox`/`option`, `aria-selected`, `combobox` + `aria-controls` + `aria-activedescendant` (palette) |
 | Spinbutton | `b-qty-stepper` | field `role="spinbutton"` + `aria-valuenow/min/max` + `aria-valuetext` (value with unit); arrows / PageUp / PageDown / Home / End; − / + `tabindex="-1"`, named "Decrease/Increase {label}"; a button press is announced through a polite `role="status"` region (focus is not moved to the field, so no phone keyboard opens) |
+| Carousel | `b-carousel` | region `aria-roledescription="carousel"` + `aria-label`; slides `role="group"` + `aria-roledescription="slide"` + "n of m"; off-screen slides `inert`; dots `aria-current`; user moves announced in a polite status region (autoplay steps not); autoplay: stop/start button first in order, stops on focus, pauses on hover, off under reduced motion |
 | Radio group | `b-segmented`, `b-option-group` | `radiogroup`/`radio`, `aria-checked`, roving tabindex + arrow/Home/End (focus follows selection) |
 | Checkbox group (disclosure) | `b-multi-select` | trigger `aria-haspopup`/`aria-expanded`/`aria-controls`; popup `role="group"` + `aria-label` over native checkboxes (not a listbox — its children are interactive) |
 | Tree | `b-tree-menu`, `b-object-tree` | `tree`/`treeitem`/`group`, `aria-expanded`, `aria-busy` while lazy-loading |
