@@ -101,10 +101,21 @@ export class BGallery extends BaseComponent {
         }
         .thumb[aria-current="true"] .pip { background: var(--b-color-primary); }
       }
+      /* Responsive zoom (owner's choice, 2026-10-10): full-screen on a phone, where every pixel belongs to the
+         image; from 48rem a framed panel with the dialog backdrop around it, which a click closes. */
       .zoom {
         width: 100vw;
         height: 100dvh;
         background: var(--b-bg);
+      }
+      @media (min-width: 48rem) {
+        .zoom {
+          width: min(90vw, 72rem);
+          height: min(90dvh, 54rem);
+          border-radius: var(--b-radius-lg, 0.5rem);
+          box-shadow: var(--b-shadow-xl);
+          overflow: hidden;
+        }
       }
       .zoom-inner { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; }
       .zoom-bar {

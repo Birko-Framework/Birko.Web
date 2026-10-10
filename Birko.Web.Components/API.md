@@ -1091,7 +1091,8 @@ Images are the element's light-DOM children — `<img alt="…">`, primary first
 | `image-change` | `{ index }` |
 | `zoom-open` / `zoom-close` | `{ index }` |
 
-One image renders no navigation. In a container narrower than 24rem (a phone column) the thumbnails are drawn as dots.
+The zoom is full-screen on a phone and a framed panel over a dimmed backdrop from 48rem, where a click on the
+backdrop closes it. One image renders no navigation. In a container narrower than 24rem (a phone column) the thumbnails are drawn as dots.
 
 ### `<b-card>`
 | Attribute | Values |
