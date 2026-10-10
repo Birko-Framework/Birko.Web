@@ -1,4 +1,5 @@
 import { t, onI18nChange } from '../i18n/global.js';
+import { interpolate } from '../i18n/interpolate.js';
 import { coerceCssLength } from '../css/length.js';
 
 /**
@@ -316,10 +317,7 @@ export abstract class BaseComponent extends HTMLElement {
   ): string {
     const raw = this.getAttribute(attrName);
     if (raw !== null) {
-      if (params) {
-        return raw.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
-      }
-      return raw;
+      return interpolate(raw, params);
     }
     return t(key, params, fallback);
   }

@@ -20,6 +20,7 @@ src/
 ├── i18n/
 │   ├── i18n.ts              # I18n class (locale switching, JSON bundles, plurals)
 │   ├── fmt.ts               # createFormatter — date/time/number/currency
+│   ├── interpolate.ts       # interpolate() — THE {placeholder} filler (one pass), used by every t() path
 │   └── global.ts            # Global singleton: i18n, t(), useI18n(), onI18nChange()
 ├── storage/
 │   ├── idb.ts               # Low-level promisified IndexedDB helpers (openDatabase, idbRequest, txComplete, deleteDatabase)
@@ -140,6 +141,7 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
 - `t(key)` returns the key itself when missing (standard i18n convention); pass `fallback` to get an English string back instead
 - `BaseComponent` subscribes to `onI18nChange` at module load → all mounted components re-render on `setLocale()`
 - Components emit user-facing text via `this.label(attrName, i18nKey, fallback, params?)` — explicit attribute wins > global i18n > English fallback
+- **`{placeholder}` filling has one producer, `interpolate()`**, and it fills in **one pass**: `I18n.t()` (incl. plurals), the global `t()` fallback and `BaseComponent.label()`'s attribute path all call it. Never write another `replace` loop over params — replacing placeholder after placeholder rescans inserted values, so a value holding `{other}` gets rewritten (`"Barva {value}"` → `Barva hnědá: hnědá`, TASK-551), and a string replacement expands `$&`. Unknown, `null` and inherited (`{constructor}`) placeholders stay visible
 - **Namespace split:** component labels/chrome → `bwc.*`; **validation messages → unprefixed `common.*`**, the same tree `b-form` uses, so one registration translates the app's and the library's verdict on the same field. `FormControlComponent.requiredMessage()` therefore resolves `common.required` (labelled) / `common.requiredNoLabel` (unlabelled), overridable per instance via `label-required`
 
 ### SseClient rules

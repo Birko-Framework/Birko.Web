@@ -1,5 +1,6 @@
 import { I18n } from './i18n.js';
 import { createFormatter, type Formatter } from './fmt.js';
+import { interpolate } from './interpolate.js';
 
 // ── Global singleton ───────────────────────────────────────────────────────
 //
@@ -59,10 +60,7 @@ export function getFormatter(): Formatter {
 export function t(key: string, params?: Record<string, string | number>, fallback?: string): string {
   const result = _i18n.t(key, params);
   if (result === key && fallback !== undefined) {
-    if (params) {
-      return fallback.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
-    }
-    return fallback;
+    return interpolate(fallback, params);
   }
   return result;
 }

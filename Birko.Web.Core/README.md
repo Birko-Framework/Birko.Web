@@ -193,7 +193,8 @@ unsub();
 | Export | Purpose |
 |--------|---------|
 | `i18n` | The default `I18n` instance — preloaded with English fallback. |
-| `t(key, params?, fallback?)` | Resolve against the current singleton; interpolates `{param}` placeholders. |
+| `t(key, params?, fallback?)` | Resolve against the current singleton; interpolates `{param}` placeholders in one pass (an inserted value is never re-scanned). |
+| `interpolate(template, params?)` | The placeholder filler every `t()` path uses — for a string that is not a translation key. |
 | `useI18n(instance)` | Replace the active singleton with an app-owned one. All subscribers auto re-wire. |
 | `onI18nChange(fn)` | Subscribe to locale or singleton changes (auto-called from `BaseComponent`). |
 | `I18n` | Class — instantiate to own a separate i18n scope (tests, isolated micro-apps). |

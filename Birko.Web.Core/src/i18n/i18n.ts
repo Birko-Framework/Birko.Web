@@ -1,4 +1,5 @@
 import { Signal, signal, type Unsubscribe } from '../state/signal.js';
+import { interpolate } from './interpolate.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -99,14 +100,7 @@ export class I18n {
            ?? key;
     }
 
-    // Parameter interpolation: {name} → value
-    if (params) {
-      for (const [k, v] of Object.entries(params)) {
-        value = value.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
-      }
-    }
-
-    return value;
+    return interpolate(value, params);
   }
 
   // ── Module lazy loading ──
