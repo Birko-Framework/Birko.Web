@@ -672,6 +672,26 @@ sse.disconnect();
 
 Token is appended as `?token=...` query param (SSE cannot send headers).
 
+**Reconnecting.** On an error the client closes the native `EventSource` and retries on its own schedule — one retry
+loop, so a server `retry:` field is not used. By default the delay grows per consecutive failure and resets when a
+connection opens:
+
+```typescript
+const sse = new SseClient({
+  url: '/sse/sessions/abc',
+  reconnectDelays: [5000, 10000, 30000, 60000], // default; the last value repeats; a 0 stops retrying
+  failingAfter: 5,                              // default; 0 = never fire _failing
+});
+// or: reconnectMs: 5000 — one fixed delay (0 = never reconnect). Passing both options throws a TypeError.
+
+sse.on('_failing', (d) => showHint((d as SseFailing).failures, (d as SseFailing).nextDelayMs)); // once per outage
+sse.on('_reconnect', () => hideHint());                                                         // recovered
+```
+
+Internal events: `_open`, `_error`, `_reconnect` (an open after an earlier one), `_failing` (`{ failures, nextDelayMs }`,
+once when `failingAfter` consecutive failures are reached). `sse.failures` is the current count; `sse.state` reads
+`'connecting'` while a retry is pending. `disconnect()` cancels a pending retry, and `connect()` starts the schedule fresh.
+
 ---
 
 ## Router

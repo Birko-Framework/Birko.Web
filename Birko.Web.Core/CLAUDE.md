@@ -148,6 +148,11 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
 - Token is appended as a query param (SSE cannot send headers)
 - Subscribe per event type: `const unsub = sse.on('device-update', handler)`
 - Call `sse.disconnect()` in `onUnmount()`
+- **One retry loop:** `onerror` closes the native source before scheduling — never leave it `CONNECTING`. The browser
+  then retries by itself in parallel, and when it wins, the client's timer closes the healthy connection (TASK-547).
+  Delays come from `reconnectDelays` (default `[5000, 10000, 30000, 60000]`, last repeats, reset on open) or the fixed
+  `reconnectMs` — both together throw. `_failing` (`{ failures, nextDelayMs }`) fires once per outage at
+  `failingAfter` (default 5); `_reconnect` signals recovery
 
 ### Storage rules
 - Pick the backend by data shape: small flags/preferences → `localStorage` (`persistSet`/`persistGet`, `Signal({ persist })`); transient per-tab state → `sessionStorage` (`sessionSet`/`sessionGet`); keyed structured collections → `IndexedDbStore`; HTTP responses / assets → `CacheStore` (Cache API)
