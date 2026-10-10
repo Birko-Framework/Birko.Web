@@ -336,7 +336,7 @@ export class BGallery extends BaseComponent {
     const img = this.imgOf(this.slides()[this._index]);
     const zoomImg = this.$<HTMLImageElement>('.zoom-img');
     if (!img || !zoomImg) return;
-    const src = img.dataset.full || img.currentSrc || img.getAttribute('src') || '';
+    const src = img.dataset.full || BGallery.largestSrcset(img.getAttribute('srcset')) || img.currentSrc || img.getAttribute('src') || '';
     if (zoomImg.getAttribute('src') !== src) zoomImg.src = src;
     zoomImg.alt = img.alt;
     this.$('dialog.zoom')?.setAttribute('aria-label', this.imageName(this._index));
@@ -344,6 +344,23 @@ export class BGallery extends BaseComponent {
     const count = this.$('.zoom-count');
     if (count) count.textContent = this.label('label-zoom-count', 'bwc.gallery.zoomCount', '{index} / {count}',
       { index: this._index + 1, count: this.slides().length });
+  }
+
+  /**
+   * The largest candidate of a `srcset` (by its `w` or `x` descriptor), or `null`. `currentSrc` is no substitute:
+   * it is the candidate the browser picked for the small main image, which is exactly what a zoom must not show.
+   */
+  private static largestSrcset(srcset: string | null): string | null {
+    if (!srcset) return null;
+    let best: string | null = null;
+    let bestSize = -1;
+    for (const part of srcset.split(',')) {
+      const [url, descriptor = '1x'] = part.trim().split(/\s+/);
+      if (!url) continue;
+      const size = parseFloat(descriptor); // a srcset uses one kind of descriptor, w or x
+      if (Number.isFinite(size) && size > bestSize) { best = url; bestSize = size; }
+    }
+    return best;
   }
 
   /** Click to magnify ×2 around the point clicked; click again to fit. Pinch is the browser's own. */

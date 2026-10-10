@@ -1071,7 +1071,7 @@ Images are the element's light-DOM children — `<img alt="…">`, primary first
 |---------------------|---------|
 | `alt` | names the image, its thumbnail and the zoom dialog (missing → "Image n") |
 | `data-thumb` | small URL for the thumbnail (default: the image's own source) |
-| `data-full` | large URL for the zoom (default: the image's own source) |
+| `data-full` | large URL for the zoom (default: the largest `srcset` candidate, else the image's own source) |
 
 | CSS property | Default |
 |--------------|---------|
