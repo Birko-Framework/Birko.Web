@@ -6,9 +6,9 @@ Quick reference for all component attributes, methods, and events.
 
 ## Form participation
 
-The 15 value-bearing inputs (`b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+The 16 value-bearing inputs (`b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
 `b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
-`b-markdown-editor`, `b-checkbox`, `b-switch`, `b-radio`) are `ElementInternals`-based **form-associated custom elements**: values land in
+`b-markdown-editor`, `b-qty-stepper`, `b-checkbox`, `b-switch`, `b-radio`) are `ElementInternals`-based **form-associated custom elements**: values land in
 `FormData`, constraint validation (`required` / `type` / `min` / `max` / `step` / `pattern`) blocks a
 native submit, `checkValidity()` / `reportValidity()` / `validity` / `validationMessage` work on control
 and form, `form.reset()` restores, and `<fieldset disabled>` propagates in. An empty control submits **no
@@ -21,6 +21,7 @@ Non-obvious submitted shapes:
 | `b-multi-select`, `b-tag-input` | one entry per value under `name` | read via `getAll(name)` |
 | `b-range` `mode="range"` | `name-from`, `name-to` | single mode → one value under `name` |
 | `b-date-range-picker` | `name-start`, `name-end` | ISO dates |
+| `b-qty-stepper` | canonical decimal with `.` (`1.5`) | whatever separator the locale shows (`1,5`) |
 | `b-color-picker` | base hex `#rrggbb` | alpha dropped; `.value` keeps it |
 | `b-markdown-editor` | markdown source | not the rendered preview |
 | `b-checkbox`, `b-switch`, `b-radio` | `value` attr (default `on`) only when checked | unchecked → no entry |
@@ -612,6 +613,43 @@ Segmented control — a horizontal single-choice switch for 2–4 short options.
 - `number` — decimal, stored as-is
 - `int` — rounded to nearest integer
 - `percent` — displayed 0-100, stored 0-1 (b-form converts automatically)
+
+### `<b-qty-stepper>`
+A quantity stepper: − / + around a typed field, with a decimal step anchored at `min` and a unit label.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` / `hint` / `description` | string |
+| `name` | string |
+| `value` | canonical decimal string (`"1.5"`) |
+| `min` | number (default `0`) — also the anchor of the step grid |
+| `max` | number (default none) |
+| `step` | number > 0 (default `1`; `0.5` for half units) |
+| `unit` | string shown after the control (`m`, `ks`) and read out with the value |
+| `placeholder` | string |
+| `size` | `sm` \| `lg` |
+| `error`, `required`, `disabled`, `bare` | as on every form control |
+| `label-decrement` / `label-increment` | per-instance button names (default `Decrease {label}` / `Increase {label}`, `bwc.qtyStepper.*`) |
+
+| Property / method | Description |
+|-------------------|-------------|
+| `value` | `string` get/set — canonical, `''` when empty. **Assignments are kept verbatim** (no snapping, no `change`) |
+| `numericValue` | `number \| null` |
+| `stepBy(n)` | step `n` steps (negative = down), clamped; emits `change` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value }` — once per committed value: a button press, a key, or typed text on blur / Enter |
+
+**Rules.** Steps are integer arithmetic on a scaled grid, so `0.1 × 3` is exactly `0.3`. What the **user** types is
+clamped to `[min, max]` and rounded to the nearest step on the grid anchored at `min` (ties up); unreadable text
+reverts. What the **app** assigns is kept and, if off the grid or out of range, reported through validity
+(`stepMismatch` / `rangeUnderflow` / `rangeOverflow`) rather than silently changed. The first press from an
+off-grid value lands on the adjacent grid point. The field shows the value in the current locale without
+grouping; both `,` and `.` are accepted when typing.
+
+Keyboard: ArrowUp / ArrowDown step, PageUp / PageDown step ×10, Home → `min`, End → `max` (only when there is a
+max), Enter commits.
 
 ### `<b-form>`
 | Attribute | Values |

@@ -89,9 +89,9 @@ See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full role map, the `fieldAria()
 
 ## Form participation
 
-The 15 value-bearing inputs — `b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+The 16 value-bearing inputs — `b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
 `b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
-`b-markdown-editor`, `b-checkbox`, `b-switch`, `b-radio` — are **form-associated custom elements** (`ElementInternals`). Drop them in a plain
+`b-markdown-editor`, `b-qty-stepper`, `b-checkbox`, `b-switch`, `b-radio` — are **form-associated custom elements** (`ElementInternals`). Drop them in a plain
 `<form>` and it behaves as if they were native controls:
 
 ```html

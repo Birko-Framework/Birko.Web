@@ -40,7 +40,7 @@ render() {
 - `fieldAria({ uid, error, required, describedBy })` returns `aria-invalid="true"`, `aria-describedby="${uid}-error"`, and (optionally) `aria-required="true"`. Pass `required: true` **only** for non-native controls (the div-based combos in `b-multi-select`, `b-select` searchable, `b-tag-input`) — a native `<input required>` / `<select required>` already exposes required state, so `aria-required` there is redundant.
 - `renderError(uid, error)` renders `<span class="error" id="${uid}-error" role="alert">…</span>`. `role="alert"` makes SRs announce the message as soon as it appears; the matching `id` is what `aria-describedby` links to. It does not HTML-escape — pass an already-escaped message for untrusted input (as `b-markdown-editor` does).
 
-Covered inputs: `b-input`, `b-textarea`, `b-select` (native + combo), `b-multi-select`, `b-tag-input`, `b-color-picker`, `b-date-picker` (native + custom), `b-datetime-picker`, `b-time`, `b-range` (live-region error only — it has multiple labelled sub-inputs), `b-date-range-picker` (native + custom), `b-markdown-editor`.
+Covered inputs: `b-input`, `b-textarea`, `b-select` (native + combo), `b-multi-select`, `b-tag-input`, `b-color-picker`, `b-date-picker` (native + custom), `b-datetime-picker`, `b-time`, `b-range` (live-region error only — it has multiple labelled sub-inputs), `b-date-range-picker` (native + custom), `b-markdown-editor`, `b-qty-stepper`.
 
 ## ARIA roles by component
 
@@ -50,6 +50,7 @@ Covered inputs: `b-input`, `b-textarea`, `b-select` (native + combo), `b-multi-s
 | Tabs | `b-tabs`, `b-ribbon` | `tablist`/`tab`/`tabpanel`, `aria-selected`, roving tabindex, arrow-key nav |
 | Menu | `b-dropdown-menu` | `menu`/`menuitem`/`separator`, decorative icons `aria-hidden` |
 | Listbox / combobox | `b-command-palette`, `b-select` (combo) | `listbox`/`option`, `aria-selected`, `combobox` + `aria-controls` + `aria-activedescendant` (palette) |
+| Spinbutton | `b-qty-stepper` | field `role="spinbutton"` + `aria-valuenow/min/max` + `aria-valuetext` (value with unit); arrows / PageUp / PageDown / Home / End; − / + `tabindex="-1"`, named "Decrease/Increase {label}"; a button press is announced through a polite `role="status"` region (focus is not moved to the field, so no phone keyboard opens) |
 | Radio group | `b-segmented`, `b-option-group` | `radiogroup`/`radio`, `aria-checked`, roving tabindex + arrow/Home/End (focus follows selection) |
 | Checkbox group (disclosure) | `b-multi-select` | trigger `aria-haspopup`/`aria-expanded`/`aria-controls`; popup `role="group"` + `aria-label` over native checkboxes (not a listbox — its children are interactive) |
 | Tree | `b-tree-menu`, `b-object-tree` | `tree`/`treeitem`/`group`, `aria-expanded`, `aria-busy` while lazy-loading |

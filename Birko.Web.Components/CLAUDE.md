@@ -269,7 +269,7 @@ Rules when adding `bare` to a new form control:
 
 ### Form-association convention (value-bearing controls)
 
-The 15 value-bearing inputs extend **`FormControlComponent`** (from `birko-web-core`) rather than
+The 16 value-bearing inputs extend **`FormControlComponent`** (from `birko-web-core`) rather than
 `BaseComponent`, which makes them `ElementInternals`-based form-associated custom elements: value in
 `FormData`, native constraint validation, `reportValidity()`, `form.reset()`, `<fieldset disabled>`.
 
@@ -354,7 +354,7 @@ the same as their `.value`:
 
 ## Component inventory
 
-### Inputs (22)
+### Inputs (23)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
@@ -370,6 +370,7 @@ the same as their `.value`:
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
+| `<b-qty-stepper>` | BQtyStepper | `stepBy(n)` | `label`, `name`, `value`, `min` (grid anchor, default 0), `max`, `step` (decimal ok), `unit`, `size`, `bare`, `error`, `required`, `disabled`, `label-decrement` / `label-increment` |
 | `<b-segmented>` | BSegmented | `setOptions([{value,label}])` | `label`, `name`, `value`, `disabled` |
 | `<b-color-picker>` | BColorPicker | — | `label`, `name`, `value` (`#rrggbb`, or `#rrggbbaa` with `alpha`), `placeholder`, `alpha` (opacity slider), `swatch-only` (hide hex field, swatch only), `size`, `error`, `hint`, `required`, `disabled` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |
@@ -572,6 +573,20 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-qty-stepper` — exact steps, and the user's value is snapped while the app's is reported (2026-10-10)
+
+TASK-548, for FlowerFurStudio's storefront (fabric in 0.5 m steps, pieces by 1). Three choices worth keeping:
+
+- **Steps are integers on a scaled grid**, never `value + step` in floats — that gives `0.30000000000000004`
+  after three 0.1 steps (proved: the naive version fails 6 of the Playground's `qty-stepper-smoke` checks).
+  The scale covers `min`, `step` *and* the current value, so an off-grid value converts exactly.
+- **Typed input is snapped on commit; an assigned `value` is not.** Silently snapping a quantity the server
+  sent would show a number nobody stored, so it is kept and reported as `stepMismatch` / `range*` instead
+  (the same `common.*` messages as `b-input type="decimal"`).
+- **The − / + buttons are out of the tab order, and a press does not move focus to the field** (spinbutton
+  pattern; focusing the field would open a phone keyboard), so a press is announced through a polite `role="status"` region, and the
+  buttons are named after the field — a cart's list of steppers otherwise reads "Increase, Increase, …".
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 

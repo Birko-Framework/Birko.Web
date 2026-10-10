@@ -104,6 +104,12 @@
       "placeholder": "Search...",
       "clear": "Clear search"
     },
+    "qtyStepper": {
+      "decrement": "Decrease",
+      "increment": "Increase",
+      "decrementNamed": "Decrease {label}",
+      "incrementNamed": "Increase {label}"
+    },
     "input": {
       "clear": "Clear"
     },
