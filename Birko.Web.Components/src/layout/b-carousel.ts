@@ -66,6 +66,12 @@ export class BCarousel extends BaseComponent {
   /** Slides this component has put attributes on — a removed one is no longer reachable through the host. */
   private _decorated = new Set<HTMLElement>();
 
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    // Switching autoplay on is a fresh request to rotate; an earlier stop belonged to the previous setting.
+    if (name === 'autoplay' && oldValue === null && newValue !== null) this._stopped = false;
+    super.attributeChangedCallback(name, oldValue, newValue);
+  }
+
   // ── public API ─────────────────────────────────────────────────────────────────────────────────────
 
   /** The first visible slide. */
@@ -149,8 +155,12 @@ export class BCarousel extends BaseComponent {
     // Hover pauses for as long as it lasts; focus entering stops until the user presses start (APG).
     this.listen<PointerEvent>(this, 'pointerenter', (e) => { if (e.pointerType === 'mouse') { this._hovered = true; this.syncAutoplay(); } });
     this.listen<PointerEvent>(this, 'pointerleave', () => { this._hovered = false; this.syncAutoplay(); });
+    // Only a rotation that is running can be stopped by focus: a carousel focused before it had autoplay (or while
+    // it was already stopped) must not carry a stop into an autoplay switched on later (owner's test, 2026-10-10).
     this.listen(this, 'focusin', () => {
-      if (!this._focusWithin) { this._focusWithin = true; this._stopped = true; this.syncRotation(); this.syncAutoplay(); }
+      if (this._focusWithin) return;
+      this._focusWithin = true;
+      if (this.playing) { this._stopped = true; this.syncRotation(); this.syncAutoplay(); }
     });
     this.listen(this, 'focusout', () => {
       setTimeout(() => { this._focusWithin = this.matches(':focus-within'); }, 0);
