@@ -80,8 +80,10 @@ export class BGallery extends BaseComponent {
       .thumb[aria-current="true"] { opacity: 1; border-color: var(--b-color-primary); box-shadow: 0 0 0 1px var(--b-color-primary); }
       .thumb:focus-visible { outline: none; box-shadow: var(--b-focus-ring); opacity: 1; }
       .thumb .pip { display: none; }
-      /* A narrow container trades thumbnails for dots: the same buttons, drawn as dots. */
-      @container (max-width: 30rem) {
+      /* A phone-width container trades thumbnails for dots: the same buttons, drawn as dots. 24rem, not 30rem: in a
+         container query rem is the ROOT size, so 30rem was 420px under a 14px root and a ~410px desktop product
+         column got dots (owner's walkthrough). A phone column (~343px) is under 24rem at a 14px or 16px root. */
+      @container (max-width: 24rem) {
         .thumbs { justify-content: center; gap: var(--b-space-2xs, 0.125rem); margin-top: var(--b-space-xs, 0.25rem); }
         .thumb {
           display: inline-flex; align-items: center; justify-content: center;

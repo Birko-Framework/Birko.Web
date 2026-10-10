@@ -585,7 +585,8 @@ TASK-550, FlowerFurStudio's product images. Built on `SlideTrack`; the arrows / 
 - **`index` is a start, then a command — never a leash.** It is read once at first render; later changes go through
   `attributeChangedCallback` → navigate. Re-reading it in `onUpdated` would snap the gallery back on any unrelated
   re-render (the mutation the suite proves).
-- **Thumbnails turn into dots by a container query** (`max-width: 30rem` of the gallery itself, not the viewport),
+- **Thumbnails turn into dots by a container query** (`max-width: 24rem` of the gallery itself, not the viewport —
+  30rem gave a ~410px desktop column dots under a 14px root, since container-query rem is the root size),
   same buttons, so names and `aria-current` are unchanged. Dot targets are `max(1.5rem, 24px)` — the Playground's
   14px root measured `1.5rem` at 21px, under WCAG 2.5.8.
 - **Zoom is a native modal `<dialog>`** named by the image's alt; Escape is the browser's, and every close returns
