@@ -149,8 +149,8 @@ export class BQtyStepper extends FormControlComponent {
             ${fieldAria({ uid: this.uid, error, description, bare, label, describedBy: unit ? [unitId] : [] })} />
           <button type="button" class="step inc" aria-label="${inc}" ${disabled ? 'disabled' : ''}><span aria-hidden="true">+</span></button>
           ${unit ? `<span class="unit" id="${unitId}">${escapeHtml(unit)}</span>` : ''}
-        </div>
-        <span class="sr-only" role="status" aria-live="polite"></span>`,
+          <span class="sr-only" role="status" aria-live="polite"></span>
+        </div>`,
     });
   }
 
@@ -235,7 +235,8 @@ export class BQtyStepper extends FormControlComponent {
   /**
    * Say the new value, with its unit, through the live region. A button press keeps focus on the button (moving
    * it to the field would open a phone's keyboard), and a plain text field does not announce a value changed
-   * under the caret — so both paths announce explicitly.
+   * under the caret — so both paths announce explicitly. The region sits INSIDE the stepper row: as a sibling after
+   * the row it was a line of its own, and Narrator sometimes read "2 m, new line" (owner's test, 2026-10-10).
    */
   private announce(): void {
     const status = this.$('[role="status"]');
