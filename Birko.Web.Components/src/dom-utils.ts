@@ -61,3 +61,21 @@ export function rovingIndex(e: KeyboardEvent, current: number, count: number): n
   e.preventDefault();
   return next;
 }
+
+/**
+ * Announce `text` to screen readers — through `Element.ariaNotify()` where the browser has it, else by writing it
+ * into `fallback`, a `role="status"` live region the component renders.
+ *
+ * `ariaNotify` exists for exactly this: a status message with no element behind it. The live-region route needs a
+ * hidden element in the reading order, and Narrator read that element's text as a line of its own — "2 m, new
+ * line" on the owner's test (TASK-548), still there after the region was moved inside the control's row. Keep the
+ * fallback region rendered: browsers without `ariaNotify` (Firefox, Safari at the time of writing) still need it.
+ */
+export function announce(from: Element, text: string, fallback: Element | null): void {
+  const notify = (from as Element & { ariaNotify?: (announcement: string) => void }).ariaNotify;
+  if (typeof notify === 'function') {
+    notify.call(from, text);
+    return;
+  }
+  if (fallback) fallback.textContent = text;
+}

@@ -1,5 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { escapeAttr } from '../dom-utils';
+import { announce, escapeAttr } from '../dom-utils';
 import { closeButtonSheet, dialogBaseSheet, slideNavSheet, srOnlySheet } from '../shared-styles';
 import { SlideTrack } from './slide-track';
 
@@ -314,9 +314,8 @@ export class BGallery extends BaseComponent {
     if (this.$<HTMLDialogElement>('dialog.zoom')?.open) this.fillZoom();
     this.emit('image-change', { index: i });
     if (user) {
-      const status = this.$('[role="status"]');
-      if (status) status.textContent = this.label('label-status', 'bwc.gallery.status', 'Image {index} of {count}: {name}',
-        { index: i + 1, count: this.slides().length, name: this.imageName(i) });
+      announce(this, this.label('label-status', 'bwc.gallery.status', 'Image {index} of {count}: {name}',
+        { index: i + 1, count: this.slides().length, name: this.imageName(i) }), this.$('[role="status"]'));
     }
   }
 

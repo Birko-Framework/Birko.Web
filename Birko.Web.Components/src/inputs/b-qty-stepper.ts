@@ -1,5 +1,5 @@
 import { FormControlComponent, define, getI18n, parseDecimal } from 'birko-web-core';
-import { escapeAttr, escapeHtml } from '../dom-utils';
+import { announce, escapeAttr, escapeHtml } from '../dom-utils';
 import { formFieldSheet, formControlSheet, srOnlySheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
 
@@ -233,14 +233,13 @@ export class BQtyStepper extends FormControlComponent {
   }
 
   /**
-   * Say the new value, with its unit, through the live region. A button press keeps focus on the button (moving
+   * Say the new value, with its unit (`announce()` — `ariaNotify` where available, else the live region). A button press keeps focus on the button (moving
    * it to the field would open a phone's keyboard), and a plain text field does not announce a value changed
    * under the caret — so both paths announce explicitly. The region sits INSIDE the stepper row: as a sibling after
    * the row it was a line of its own, and Narrator sometimes read "2 m, new line" (owner's test, 2026-10-10).
    */
   private announce(): void {
-    const status = this.$('[role="status"]');
-    if (status) status.textContent = this.valueText();
+    announce(this, this.valueText(), this.$('[role="status"]'));
   }
 
   /** Commit what was typed: blank empties the field, unreadable text reverts, a number is snapped. */

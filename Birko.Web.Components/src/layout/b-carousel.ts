@@ -1,5 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { escapeAttr } from '../dom-utils';
+import { announce, escapeAttr } from '../dom-utils';
 import { slideNavSheet, srOnlySheet } from '../shared-styles';
 import { SlideTrack, prefersReducedMotion } from './slide-track';
 
@@ -224,9 +224,8 @@ export class BCarousel extends BaseComponent {
     this.syncControls();
     this.emit('slide-change', { index: i });
     if (user) {
-      const status = this.$('[role="status"]');
-      if (status) status.textContent = this.label('label-status', 'bwc.carousel.status', 'Slide {index} of {count}',
-        { index: i + 1, count: this.slides().length });
+      announce(this, this.label('label-status', 'bwc.carousel.status', 'Slide {index} of {count}',
+        { index: i + 1, count: this.slides().length }), this.$('[role="status"]'));
     }
   }
 

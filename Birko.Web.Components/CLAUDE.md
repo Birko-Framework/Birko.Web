@@ -132,6 +132,7 @@ Do **not** re-declare per-component `_escapeHtml` / `_escapeAttr` or hand-roll t
 - `escapeAttr(s)` — alias of `escapeHtml`, used at attribute call sites for intent.
 - `isActivationKey(e)` — `true` for Enter/Space; gate the keydown handler of any `role="button"` element with it.
 - `rovingIndex(e, current, count)` — arrow/Home/End roving-tabindex math for radio groups / toolbars (returns the next index or `null`; calls `preventDefault()`).
+- `announce(from, text, fallbackRegion)` — say a status message: `Element.ariaNotify()` where the browser has it, else the component's `role="status"` region. A hidden live region was read by Narrator as a separate line ("2 m, new line", TASK-548); `b-qty-stepper`, `b-carousel` and `b-gallery` use this. Keep rendering the fallback region.
 
 ### Accessibility (ARIA / screen readers)
 Components must be operable and announced correctly. The catalogue's baseline (see [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full map):
