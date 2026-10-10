@@ -103,13 +103,21 @@ export class BGallery extends BaseComponent {
       }
       /* Responsive zoom (owner's choice, 2026-10-10): full-screen on a phone, where every pixel belongs to the
          image; from 48rem a framed panel with the dialog backdrop around it, which a click closes. */
+      /* Pinned to the four edges, not sized in vw: 100vw is the screen's width, and a page that overflows sideways
+         (measured: 433px of page on a 390px phone) is laid out wider than that, so a 100vw zoom sat centred with a
+         strip of backdrop either side (owner's phone, 2026-10-10). inset: 0 covers whatever the viewport is. */
       .zoom {
-        width: 100vw;
-        height: 100dvh;
+        position: fixed;
+        inset: 0;
+        margin: 0;
+        width: auto;
+        height: auto;
         background: var(--b-bg);
       }
       @media (min-width: 48rem) {
         .zoom {
+          /* still inset: 0 — with a fixed width and height, margin: auto centres it between the edges */
+          margin: auto;
           width: min(90vw, 72rem);
           height: min(90dvh, 54rem);
           border-radius: var(--b-radius-lg, 0.5rem);
