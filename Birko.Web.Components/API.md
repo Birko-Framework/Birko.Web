@@ -1066,6 +1066,7 @@ Images are the element's light-DOM children — `<img alt="…">`, primary first
 |-----------|--------|
 | `label` | string — names the gallery region |
 | `index` | starting image (0-based); setting it later navigates |
+| `zoom-close-outside` | boolean — a click on the empty space around the zoomed image closes the zoom (default: only Escape / ×) |
 | `label-previous` / `label-next` / `label-zoom` / `label-close` / `label-image` | per-instance names (`bwc.gallery.*`) |
 
 | Per-image attribute | Meaning |

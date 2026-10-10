@@ -386,7 +386,7 @@ the same as their `.value`:
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-carousel>` | BCarousel | `next()`, `prev()`, `goTo(i)`, `index` | `label`, `per-view` (1–6; or `--b-carousel-per-view` in CSS — consumer CSS wins, so breakpoints are plain media queries), `loop`, `autoplay` (ms, default 5000); slides = light-DOM children; `--b-carousel-gap`; event `slide-change` `{index}` |
-| `<b-gallery>` | BGallery | `show(i)`, `index`, `openZoom()`, `closeZoom()` | `label`, `index` (start image; later changes navigate); slides = light-DOM `<img>` with `alt`, optional `data-thumb` / `data-full`; `--b-gallery-aspect-ratio`, `--b-gallery-thumb-size`; events `image-change` `{index}`, `zoom-open`, `zoom-close` |
+| `<b-gallery>` | BGallery | `show(i)`, `index`, `openZoom()`, `closeZoom()` | `label`, `index` (start image; later changes navigate), `zoom-close-outside` (opt-in: click beside the zoomed image closes); slides = light-DOM `<img>` with `alt`, optional `data-thumb` / `data-full`; `--b-gallery-aspect-ratio`, `--b-gallery-thumb-size`; events `image-change` `{index}`, `zoom-open`, `zoom-close` |
 | `<b-card>` | BCard | — | `header`, `padding` (none\|sm\|md\|lg\|xl) |
 | `<b-accordion>` | BAccordion | `setItems([{id,header,open?,disabled?}])`, `open(id)`, `close(id)`, `toggle(id)`, `openAll()`, `closeAll()`, `getOpen()` | `multiple` (allow several open), `size` (sm\|md\|lg — header footprint); body via `slot="{id}"`; event `toggle` `{id,open}` |
 | `<b-button-group>` | BButtonGroup | — | `label` (aria-label); default slot of b-buttons rendered as one bordered cluster |

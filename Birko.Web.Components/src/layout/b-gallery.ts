@@ -240,7 +240,15 @@ export class BGallery extends BaseComponent {
       this.listen<MouseEvent>(dialog, 'click', (e) => { if (e.target === dialog) dialog.close(); });
       const pane = this.$('.zoom-pane');
       const img = this.$<HTMLImageElement>('.zoom-img');
-      if (pane && img) this.listen<MouseEvent>(img, 'click', (e) => this.toggleMagnify(pane, img, e));
+      if (pane && img) {
+        this.listen<MouseEvent>(img, 'click', (e) => this.toggleMagnify(pane, img, e));
+        // Opt-in: the zoom fills the screen, so there is no backdrop — `zoom-close-outside` makes the empty space
+        // around the image close it, lightbox-style. Off by default, so a stray tap beside the image while panning
+        // a magnified picture does not throw the user out (owner's choice, 2026-10-10).
+        this.listen<MouseEvent>(pane, 'click', (e) => {
+          if (e.target === pane && this.hasAttribute('zoom-close-outside')) dialog.close();
+        });
+      }
     }
 
     // The `index` attribute is the starting image; later changes go through attributeChangedCallback, so an
