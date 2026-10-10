@@ -35,8 +35,12 @@ export class BCarousel extends BaseComponent {
   static get styles() {
     const perView = [1, 2, 3, 4, 5, 6].map((n) => `:host([per-view="${n}"]) { --b-carousel-per-view: ${n}; }`).join('\n');
     return `
+      /* Fill the parent, as b-gallery does: slides are sized as a share of the viewport, so in a shrink-to-fit parent
+         the carousel would otherwise be only as wide as one slide's content. A consumer's own width still wins. */
       :host {
         display: block;
+        width: 100%;
+        min-width: 0;
         --b-carousel-per-view: 1;
         --b-carousel-gap: var(--b-space-md, 0.75rem);
       }

@@ -29,8 +29,13 @@ export class BGallery extends BaseComponent {
 
   static get styles() {
     return `
+      /* width: 100% — the .gallery is a size container (for the thumbs-to-dots query), and a size container takes no
+         width from its content: in a shrink-to-fit parent (a centred flex column — the Playground card, measured
+         0px wide on the owner's walkthrough) the whole gallery collapsed. A consumer's own width still wins. */
       :host {
         display: block;
+        width: 100%;
+        min-width: 0;
         --b-gallery-aspect-ratio: 1;
         --b-gallery-thumb-size: 4rem;
       }
