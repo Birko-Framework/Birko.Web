@@ -648,8 +648,9 @@ reverts. What the **app** assigns is kept and, if off the grid or out of range, 
 off-grid value lands on the adjacent grid point. The field shows the value in the current locale without
 grouping; both `,` and `.` are accepted when typing.
 
-Keyboard: ArrowUp / ArrowDown step, PageUp / PageDown step ×10, Home → `min`, End → `max` (only when there is a
-max), Enter commits.
+Keyboard (in the field): ArrowUp / ArrowDown step, PageUp / PageDown step ×10, Home → `min`, End → `max` (only when
+there is a max), Enter commits. The field is a plain text field described by the unit; − / + are in the Tab order and
+become `aria-disabled` (not `disabled`) at a limit; each step is announced with its unit.
 
 ### `<b-form>`
 | Attribute | Values |

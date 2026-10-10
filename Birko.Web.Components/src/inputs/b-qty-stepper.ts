@@ -80,9 +80,9 @@ export class BQtyStepper extends FormControlComponent {
         cursor: pointer;
         transition: background var(--b-transition, 150ms ease);
       }
-      .step:hover:not(:disabled) { background: var(--b-bg-tertiary); }
+      .step:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--b-bg-tertiary); }
       .step:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
-      .step:disabled { opacity: var(--b-disabled-opacity, 0.5); cursor: not-allowed; }
+      .step:disabled, .step[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); cursor: not-allowed; }
       .unit { color: var(--b-text-secondary); white-space: nowrap; }
       :host([size="sm"]) .step {
         min-width: var(--b-control-min-height-sm, 1.75rem);
@@ -116,9 +116,6 @@ export class BQtyStepper extends FormControlComponent {
     const required = this.boolAttr('required');
     const disabled = this.boolAttr('disabled');
     const unit = this.attr('unit');
-    const g = this.grid();
-    const minAttr = `aria-valuemin="${escapeAttr(BQtyStepper.toCanonical(g.min, g))}"`;
-    const maxAttr = g.maxSteps === null ? '' : `aria-valuemax="${escapeAttr(BQtyStepper.toCanonical(g.min + g.maxSteps * g.step, g))}"`;
     // Named after the field when it has a label: a cart renders one stepper per line, and a screen reader's
     // list of buttons reading "Increase, Increase, Increase" says nothing about which line each one is.
     const dec = escapeAttr(label
@@ -127,8 +124,11 @@ export class BQtyStepper extends FormControlComponent {
     const inc = escapeAttr(label
       ? this.label('label-increment', 'bwc.qtyStepper.incrementNamed', 'Increase {label}', { label })
       : this.label('label-increment', 'bwc.qtyStepper.increment', 'Increase'));
-    // The buttons are out of the tab order, as in the WAI-ARIA spinbutton pattern: the field is the one
-    // stop and the arrow keys step it. They stay reachable by pointer, touch and a screen reader's cursor.
+    // A plain text field, not role="spinbutton": Chrome drops aria-valuetext on a text input (measured), so the
+    // unit was never read, and Narrator could not reach a skipped-by-Tab button. So the field is an ordinary edit
+    // field with the unit as its description, and − / + are ordinary buttons in the Tab order (owner's Narrator
+    // test, 2026-10-10). The arrow keys still step the field as a convenience.
+    const unitId = `${this.uid}-unit`;
     return renderField({
       bare,
       uid: this.uid,
@@ -139,17 +139,16 @@ export class BQtyStepper extends FormControlComponent {
       required,
       control: `
         <div class="stepper">
-          <button type="button" class="step dec" tabindex="-1" aria-label="${dec}" ${disabled ? 'disabled' : ''}><span aria-hidden="true">&minus;</span></button>
-          <input type="text" inputmode="decimal" role="spinbutton" autocomplete="off"
+          <button type="button" class="step dec" aria-label="${dec}" ${disabled ? 'disabled' : ''}><span aria-hidden="true">&minus;</span></button>
+          <input type="text" inputmode="decimal" autocomplete="off"
             name="${escapeAttr(this.attr('name'))}"
             placeholder="${escapeAttr(this.attr('placeholder'))}"
             class="${error ? 'has-error' : ''}"
             ${disabled ? 'disabled' : ''}
             ${required ? 'required' : ''}
-            ${minAttr} ${maxAttr}
-            ${fieldAria({ uid: this.uid, error, description, bare, label })} />
-          <button type="button" class="step inc" tabindex="-1" aria-label="${inc}" ${disabled ? 'disabled' : ''}><span aria-hidden="true">+</span></button>
-          ${unit ? `<span class="unit" aria-hidden="true">${escapeHtml(unit)}</span>` : ''}
+            ${fieldAria({ uid: this.uid, error, description, bare, label, describedBy: unit ? [unitId] : [] })} />
+          <button type="button" class="step inc" aria-label="${inc}" ${disabled ? 'disabled' : ''}><span aria-hidden="true">+</span></button>
+          ${unit ? `<span class="unit" id="${unitId}">${escapeHtml(unit)}</span>` : ''}
         </div>
         <span class="sr-only" role="status" aria-live="polite"></span>`,
     });
@@ -222,14 +221,23 @@ export class BQtyStepper extends FormControlComponent {
       default: return;
     }
     e.preventDefault();
+    this.announce();
   }
 
   private stepFromButton(direction: 1 | -1): void {
     if (this.boolAttr('disabled')) return;
+    if (this.$(direction > 0 ? '.inc' : '.dec')?.getAttribute('aria-disabled') === 'true') return;
     this.commitDraft();
     this.stepBy(direction);
-    // A button press moves no focus to the field (that would open a phone's keyboard), so the new value is
-    // announced through the live region instead. Keyboard steps are announced by the spinbutton itself.
+    this.announce();
+  }
+
+  /**
+   * Say the new value, with its unit, through the live region. A button press keeps focus on the button (moving
+   * it to the field would open a phone's keyboard), and a plain text field does not announce a value changed
+   * under the caret — so both paths announce explicitly.
+   */
+  private announce(): void {
     const status = this.$('[role="status"]');
     if (status) status.textContent = this.valueText();
   }
@@ -266,18 +274,20 @@ export class BQtyStepper extends FormControlComponent {
     const value = this.value;
     if (this._draft === null) input.value = this.display(value, g);
     const scaled = this.scaled(value, g);
-    if (scaled === null) {
-      input.removeAttribute('aria-valuenow');
-      input.removeAttribute('aria-valuetext');
-    } else {
-      input.setAttribute('aria-valuenow', BQtyStepper.toCanonical(scaled, g));
-      input.setAttribute('aria-valuetext', this.valueText());
-    }
+    // At a limit the button is aria-disabled, not disabled: a disabled button leaves the Tab order and a screen
+    // reader's reading order, and the one being pressed would drop focus to the page the moment it hit the limit.
+    // `disabled` proper is kept for the whole control being disabled.
     const disabled = this.boolAttr('disabled');
+    const atMin = scaled !== null && scaled <= g.min;
+    const atMax = scaled !== null && g.maxSteps !== null && scaled >= g.min + g.maxSteps * g.step;
     const dec = this.$<HTMLButtonElement>('.dec');
     const inc = this.$<HTMLButtonElement>('.inc');
-    if (dec) dec.disabled = disabled || (scaled !== null && scaled <= g.min);
-    if (inc) inc.disabled = disabled || (scaled !== null && g.maxSteps !== null && scaled >= g.min + g.maxSteps * g.step);
+    for (const [btn, limit] of [[dec, atMin], [inc, atMax]] as const) {
+      if (!btn) continue;
+      btn.disabled = disabled;
+      if (limit && !disabled) btn.setAttribute('aria-disabled', 'true');
+      else btn.removeAttribute('aria-disabled');
+    }
   }
 
   // ── validity ───────────────────────────────────────────────────────────────────────────────────────

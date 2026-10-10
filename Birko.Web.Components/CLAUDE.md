@@ -623,9 +623,12 @@ TASK-548, for FlowerFurStudio's storefront (fabric in 0.5 m steps, pieces by 1).
 - **Typed input is snapped on commit; an assigned `value` is not.** Silently snapping a quantity the server
   sent would show a number nobody stored, so it is kept and reported as `stepMismatch` / `range*` instead
   (the same `common.*` messages as `b-input type="decimal"`).
-- **The − / + buttons are out of the tab order, and a press does not move focus to the field** (spinbutton
-  pattern; focusing the field would open a phone keyboard), so a press is announced through a polite `role="status"` region, and the
-  buttons are named after the field — a cart's list of steppers otherwise reads "Increase, Increase, …".
+- **Not `role="spinbutton"` — measured, then reverted on the owner's Narrator test.** On a text `<input>` Chrome
+  drops `aria-valuetext`, so the unit was never read, and Narrator could not reach Tab-skipped buttons. Now: a plain
+  text field with the unit as its `aria-describedby`; − / + in the Tab order, `aria-disabled` (not `disabled`) at a
+  limit so they stay reachable and a press at the limit does not drop focus; every step announced with its unit via a
+  polite `role="status"` region. Buttons are named after the field ("Increase Fabric") — a cart of steppers otherwise
+  reads "Increase, Increase, …".
 
 Newest-first log of notable component-library changes. Keep entries short; roll the oldest into project history when this grows past ~5–8.
 
