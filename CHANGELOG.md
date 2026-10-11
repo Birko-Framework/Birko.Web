@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.1 — 2026-10-11
+
+- **A validator's refusal reaches the screen** — Birko TASK-554 (found in Symbio TASK-903).
+  - `ApiClient` parses every JSON media type (`application/problem+json` included) as JSON. A validation refusal
+    used to come back as the raw JSON **string**, so neither a field error nor a readable message could be shown.
+    A caller that worked around this by `JSON.parse`-ing a string `data` now receives the object.
+  - `showFormError` and `apiErrorMessage` read field-error entries that are `{ errorCode, message }` objects as
+    well as plain strings; such an entry used to show as `[object Object]`.
+  - `apiErrorMessage` prefers the first field's own message over the generic ProblemDetails `title`
+    (`detail` still comes first).
+  - New export `fieldErrorText(entry)` (`birko-web-core/http`): the message of one field-error entry, or `''`.
+- README (Core): DevTools *Offline* cannot test `SseClient`'s `_failing`; stop the server or use a device — TASK-547.
+
 ## v0.1.0 — 2026-10-10
 
 First tagged version: the state of `main` on 2026-10-10, all four packages. Nothing before it was versioned, so it is
