@@ -157,7 +157,7 @@ export class BDatetimePicker extends FormControlComponent {
       }
       .dp-day.selected {
         background: var(--b-color-primary);
-        color: var(--b-text-inverse);
+        color: var(--b-text-on-primary, var(--b-text-inverse));
       }
       .dp-day.selected:hover { background: var(--b-color-primary-hover, var(--b-color-primary)); }
       .dp-day.disabled { opacity: 0.3; cursor: not-allowed; pointer-events: none; }

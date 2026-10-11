@@ -119,7 +119,7 @@ export class BChat extends BaseComponent {
       }
       .message.user .bubble {
         background: var(--b-color-primary, #2563eb);
-        color: var(--b-text-inverse);
+        color: var(--b-text-on-primary, var(--b-text-inverse));
         border-bottom-right-radius: var(--b-radius-sm, 0.25rem);
       }
       .message.assistant .bubble {
@@ -237,7 +237,7 @@ export class BChat extends BaseComponent {
         align-self: flex-end;
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         background: var(--b-color-primary, #2563eb);
-        color: var(--b-text-inverse);
+        color: var(--b-text-on-primary, var(--b-text-inverse));
         border: none;
         border-radius: var(--b-radius-lg, 0.625rem);
         font-family: inherit;

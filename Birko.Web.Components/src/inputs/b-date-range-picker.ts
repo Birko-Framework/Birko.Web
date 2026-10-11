@@ -212,9 +212,9 @@ export class BDateRangePicker extends FormControlComponent {
         border: 1px dashed var(--b-color-primary);
       }
       .drp-day[data-range="start"],
-      .drp-day[data-range="end"] { color: var(--b-text-inverse); }
+      .drp-day[data-range="end"] { color: var(--b-text-on-primary, var(--b-text-inverse)); }
       .drp-day[data-range="start"]:hover,
-      .drp-day[data-range="end"]:hover { color: var(--b-text-inverse); }
+      .drp-day[data-range="end"]:hover { color: var(--b-text-on-primary, var(--b-text-inverse)); }
 
       /* When start has trailing in-range neighbor, square the right edge; same for end with leading neighbor. */
       .drp-day[data-range="start"][data-range-pair="true"]::before {
@@ -259,7 +259,7 @@ export class BDateRangePicker extends FormControlComponent {
       .drp-actions button:hover { background: var(--b-bg-tertiary); }
       .drp-actions button.primary {
         background: var(--b-color-primary);
-        color: var(--b-text-inverse);
+        color: var(--b-text-on-primary, var(--b-text-inverse));
       }
       .drp-actions button.primary:hover { background: var(--b-color-primary-hover, var(--b-color-primary)); }
       .drp-actions button:disabled { opacity: 0.5; cursor: not-allowed; }

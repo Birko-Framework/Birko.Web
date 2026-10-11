@@ -134,7 +134,7 @@ export class BTour extends BaseComponent {
       }
       button:hover { border-color: var(--b-border-hover); }
       button.skip { border: none; background: none; color: var(--b-text-muted); padding-inline: var(--b-space-xs, 0.25rem); }
-      button.primary { background: var(--b-color-primary); border-color: var(--b-color-primary); color: var(--b-text-inverse); }
+      button.primary { background: var(--b-color-primary); border-color: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); }
       button.primary:hover { background: var(--b-color-primary-hover); border-color: var(--b-color-primary-hover); }
       button:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       @keyframes tour-fade { from { opacity: 0; } to { opacity: 1; } }

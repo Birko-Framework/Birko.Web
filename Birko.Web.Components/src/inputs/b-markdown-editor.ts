@@ -118,7 +118,7 @@ export class BMarkdownEditor extends FormControlComponent {
       .mode-btn:first-child { border-radius: var(--b-radius-sm, 0.25rem) 0 0 var(--b-radius-sm, 0.25rem); }
       .mode-btn:last-child { border-radius: 0 var(--b-radius-sm, 0.25rem) var(--b-radius-sm, 0.25rem) 0; border-left: none; }
       .mode-btn:not(:first-child):not(:last-child) { border-left: none; }
-      .mode-btn.active { background: var(--b-color-primary); color: var(--b-text-inverse); border-color: var(--b-color-primary); }
+      .mode-btn.active { background: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); border-color: var(--b-color-primary); }
       .mode-btn:focus-visible { box-shadow: var(--b-focus-ring); outline: none; position: relative; z-index: 1; }
 
       /* Split pane */
