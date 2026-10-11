@@ -644,7 +644,7 @@ const msg = apiErrorMessage(resp.data);
 const msg = apiErrorMessage(resp.data, 'Could not save device');
 ```
 
-Handles `{ errors: { field: ['msg'] } }`, `{ detail: '...' }`, `{ title: '...' }`, and plain strings.
+Order: `detail`, then the first entry of `errors` (`{ field: ['msg'] }` or `{ field: [{ errorCode, message }] }`), then `title`, then a plain string. `ApiClient` parses any JSON media type, `application/problem+json` included, so a validation refusal arrives here as an object (TASK-554).
 
 ---
 

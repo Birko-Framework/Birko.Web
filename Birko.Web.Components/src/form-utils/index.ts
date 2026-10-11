@@ -1,5 +1,5 @@
 import type { ApiClient } from 'birko-web-core/http';
-import { apiErrorMessage } from 'birko-web-core/http';
+import { apiErrorMessage, fieldErrorText } from 'birko-web-core/http';
 import type { BForm } from '../inputs/b-form.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -71,9 +71,9 @@ export function showFormError(
     const errors = obj['errors'] as Record<string, unknown>;
     let hadField = false;
     for (const [field, messages] of Object.entries(errors)) {
-      const msg = Array.isArray(messages)
-        ? String(messages[0] ?? '')
-        : String(messages ?? '');
+      // An entry is a string (ModelState) or `{ errorCode, message }` (a validator that reports codes) —
+      // `String()` of the second printed "[object Object]" under the field (Birko TASK-554).
+      const msg = fieldErrorText(Array.isArray(messages) ? messages[0] : messages);
       if (msg) {
         // ASP.NET capitalises the first letter; normalise to camelCase field name
         const camelField = field.charAt(0).toLowerCase() + field.slice(1);

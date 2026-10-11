@@ -306,7 +306,10 @@ export class ApiClient {
     let data: T;
     try {
       const contentType = response.headers.get('Content-Type') ?? '';
-      if (contentType.includes('application/json')) {
+      // Any JSON media type, not only `application/json`: ASP.NET answers a validation refusal as
+      // `application/problem+json`, and reading that as text handed every caller the raw JSON string, so no
+      // field error and no readable message could ever reach the screen (Birko TASK-554, measured in Symbio TASK-903).
+      if (/[/+]json\b/i.test(contentType)) {
         data = await response.json();
       } else {
         const text = await response.text();

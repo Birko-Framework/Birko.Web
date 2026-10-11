@@ -94,6 +94,28 @@ export function unwrapTotal(
 }
 
 /**
+ * The message of one ASP.NET field-error entry: a plain string (`ModelState`) or an object carrying `message`
+ * (`{ errorCode, message }`, which a validator that reports codes sends). `''` when it is neither.
+ */
+export function fieldErrorText(entry: unknown): string {
+  if (typeof entry === 'string') return entry;
+  if (entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>)['message'] === 'string') {
+    return (entry as Record<string, unknown>)['message'] as string;
+  }
+  return '';
+}
+
+/** The first non-empty message in a ProblemDetails `errors` map (`{ field: [entry, …] }`), or `''`. */
+function firstFieldErrorMessage(errors: unknown): string {
+  if (!errors || typeof errors !== 'object' || Array.isArray(errors)) return '';
+  for (const messages of Object.values(errors as Record<string, unknown>)) {
+    const text = fieldErrorText(Array.isArray(messages) ? messages[0] : messages);
+    if (text) return text;
+  }
+  return '';
+}
+
+/**
  * Extract a human-readable error message from an API error response body.
  *
  * Handles the following formats (in order):
@@ -117,8 +139,11 @@ export function apiErrorMessage(
 
   const obj = data as Record<string, unknown>;
 
-  // ASP.NET ProblemDetails: detail > title
+  // ASP.NET ProblemDetails: detail > the first field's own message > title. A validation refusal's title is the
+  // generic "Validation failed"; the sentence that says what to fix is in `errors` (Birko TASK-554).
   if (typeof obj['detail'] === 'string' && obj['detail']) return obj['detail'];
+  const fieldMessage = firstFieldErrorMessage(obj['errors']);
+  if (fieldMessage) return fieldMessage;
   if (typeof obj['title'] === 'string' && obj['title']) return obj['title'];
 
   // { error: { message } }

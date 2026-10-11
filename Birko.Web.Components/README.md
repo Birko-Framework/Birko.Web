@@ -1634,7 +1634,7 @@ if (!resp.ok) {
 }
 ```
 
-Handles `{ errors: { fieldName: ['msg'] } }` (ModelState), `{ detail: '...' }`, `{ title: '...' }`, and plain error strings. Non-field errors are placed on `fallbackField` (default `'_form'`).
+Handles `{ errors: { fieldName: ['msg'] } }` (ModelState) and `{ errors: { fieldName: [{ errorCode, message }] } }` (TASK-554), `{ detail: '...' }`, `{ title: '...' }`, and plain error strings. Non-field errors are placed on `fallbackField` (default `'_form'`).
 
 ### loadOptions
 
