@@ -68,8 +68,12 @@
   /* ── Text ── */
   --b-text: #0f172a;
   --b-text-secondary: #475569;
-  --b-text-muted: #94a3b8;
+  /* Muted text floor: 4.76:1 on --b-bg, 4.55:1 on --b-bg-secondary. #94a3b8 measured 2.56 / 2.45 (TASK-562). */
+  --b-text-muted: #64748b;
   --b-text-inverse: #ffffff;
+  /* Text on a --b-color-primary fill (b-button primary, b-pagination active page). A theme whose primary
+     is too light for white text overrides it rather than darkening primary, which is also a text colour. */
+  --b-text-on-primary: var(--b-text-inverse);
 
   /* ── Borders (px — stay crisp) ── */
   --b-border: #e2e8f0;

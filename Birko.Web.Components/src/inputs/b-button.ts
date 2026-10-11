@@ -73,7 +73,7 @@ export class BButton extends FormControlComponent {
       }
       button:disabled, button.loading { opacity: var(--b-disabled-opacity); cursor: not-allowed; pointer-events: none; }
       /* Variants */
-      .primary { background: var(--b-color-primary); color: var(--b-text-inverse); }
+      .primary { background: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); }
       .primary:hover { background: var(--b-color-primary-hover); }
       .secondary { background: var(--b-bg-tertiary); color: var(--b-text); border-color: var(--b-border); }
       .secondary:hover { background: var(--b-border); }

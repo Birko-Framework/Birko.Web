@@ -16,7 +16,7 @@ export class BPagination extends BaseComponent {
       }
       .pagination-left { display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); }
       .pages { display: flex; gap: var(--b-space-xs, 0.25rem); }
-      .page-btn-active { background: var(--b-color-primary); color: var(--b-text-inverse); border-color: var(--b-color-primary); }
+      .page-btn-active { background: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); border-color: var(--b-color-primary); }
       .info { color: var(--b-text-muted); }
       .ellipsis { padding: 0 var(--b-space-xs, 0.25rem); color: var(--b-text-muted); align-self: flex-end; }
       .page-size-wrapper { display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); }

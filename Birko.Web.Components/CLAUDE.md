@@ -220,6 +220,13 @@ themes, muted gives 2.03–3.07:1 against the field background (below WCAG AA's 
 `--b-text-xs`), secondary gives 3.77–7.24:1. Text meant to be read while typing has to clear AA; reach for
 muted only for genuinely decorative text.
 
+**Muted now clears AA in light and dark, and text on a primary fill has its own token (TASK-562).** Light
+`--b-text-muted` is `#64748b` (4.76 / 4.55:1 on bg / bg-secondary), dark `#8391a7` (5.59 / 4.58:1); neon, finstat and
+inverse are unmeasured. **`--b-text-on-primary`** is the text colour on a `--b-color-primary` fill: `:root` sets
+`var(--b-text-inverse)`, dark sets `#0f172a`, because white on dark's `#3b82f6` is 3.68:1 and primary cannot darken
+(45 rules use it as a text colour). A new primary-filled control uses `var(--b-text-on-primary, var(--b-text-inverse))`,
+never `--b-text-inverse` directly. `tests/Birko.DesignTokens.Tests/ContrastTests.cs` (Framework) guards both pairs.
+
 - **Both, not a mode.** A single attribute with a `tooltip|text` switch was considered and rejected: it makes
   a field unable to carry a standing constraint *and* a longer explainer at the same time, and any default
   choice is either wrong or a visible change for every consumer already passing `hint`.

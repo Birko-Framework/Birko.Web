@@ -42,7 +42,11 @@
 
   --b-text: #f1f5f9;
   --b-text-secondary: #94a3b8;
-  --b-text-muted: #64748b;
+  /* Muted text floor: 5.59:1 on --b-bg, 4.58:1 on --b-bg-secondary. #64748b measured 3.75 / 3.07 (TASK-562). */
+  --b-text-muted: #8391a7;
+  /* White on #3b82f6 is 3.68:1 (2.54:1 on hover). Primary stays, because 45 rules use it as a text
+     colour on dark surfaces; the text on the fill goes dark instead: 4.85:1, 7.02:1 on hover (TASK-562). */
+  --b-text-on-primary: #0f172a;
 
   --b-border: #334155;
   --b-border-hover: #475569;
