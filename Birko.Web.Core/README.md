@@ -692,6 +692,10 @@ Internal events: `_open`, `_error`, `_reconnect` (an open after an earlier one),
 once when `failingAfter` consecutive failures are reached). `sse.failures` is the current count; `sse.state` reads
 `'connecting'` while a retry is pending. `disconnect()` cancels a pending retry, and `connect()` starts the schedule fresh.
 
+**Testing the hint.** Chrome DevTools' Network → *Offline* does not break an `EventSource` that is already open, so
+it never produces `_failing`. Stop the server, or put a real device in airplane mode; with the default schedule the
+hint appears after about 2¾ minutes (5 failures) and clears on the next open. Measured in Presenter, 2026-10-11.
+
 ---
 
 ## Router
