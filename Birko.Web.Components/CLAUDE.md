@@ -600,6 +600,8 @@ found nothing. Found by Presenter's Narrator pass; reproduced headlessly at four
   no content control, the native focus (Close) stands.
 - **A trap over slotted content must look through the slots.** `b-tour`'s trap is correct only because its
   buttons are its own shadow children. Copy it into anything with a `<slot>` and it breaks the same way.
+- **`open()` is a no-op while open** (TASK-573). Consumers call it from state on every render; a second call
+  pulled focus back to the first control and made a control inside the dialog the one `close()` returned to.
 - Guard: `modal-focus-smoke.ts` in the playground. Red-verified against the old code: 5 of 10 checks fail.
 
 ### `b-gallery` — the carousel's track, thumbnails that become dots, and a zoom that gives focus back (2026-10-10)

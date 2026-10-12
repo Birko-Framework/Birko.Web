@@ -92,8 +92,11 @@ export class BModal extends BaseComponent {
   }
 
   open() {
-    this._previousFocus = document.activeElement as HTMLElement;
     const dlg = this.$<HTMLDialogElement>('#dlg');
+    // A no-op while open: consumers sync open() from state on every render, and a second call would pull focus
+    // back to the first control and make a control inside the dialog the one close() returns to (TASK-573).
+    if (dlg?.open) return;
+    this._previousFocus = document.activeElement as HTMLElement;
     dlg?.showModal();
 
     // Start on the first content control, not the header's Close that showModal() picks. The content is
