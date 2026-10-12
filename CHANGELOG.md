@@ -4,6 +4,20 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.2 — 2026-10-12
+
+- **Text on a primary fill clears WCAG AA in dark** — Birko TASK-562, TASK-563.
+  - New token `--b-text-on-primary` (dark theme: `#0f172a`; light keeps white). Every rule that puts text on
+    `--b-color-primary` uses it: `b-button` primary, `b-pagination`'s active page, the date pickers' selected day,
+    range ends and apply button, `b-option-group`, `b-markdown-editor`'s active mode, `b-tour`'s primary button and
+    `b-chat`'s user bubble and send button. A theme that does not define it falls back to `--b-text-inverse`.
+  - `--b-text-muted` is darker in light and lighter in dark, so muted text clears AA on both.
+- **`b-modal` focus works with slotted content** — TASK-568, TASK-573.
+  - The Tab trap is gone: it saw only the modal's shadow tree and pinned focus on Close. `open()` focuses the first
+    slotted control (through slots, open shadow roots and `display: contents`).
+  - `open()` on a modal that is already open does nothing. Re-calling it on every render used to pull focus back to
+    the first control and overwrite the element `close()` returns focus to.
+
 ## v0.1.1 — 2026-10-11
 
 - **A validator's refusal reaches the screen** — Birko TASK-554 (found in Symbio TASK-903).
