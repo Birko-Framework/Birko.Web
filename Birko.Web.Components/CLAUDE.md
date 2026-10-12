@@ -585,6 +585,23 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-modal` has no Tab trap of its own — it pinned focus on Close (2026-10-12, TASK-568)
+
+`b-modal` trapped Tab with `dlg.querySelectorAll(…)`, which searches **its shadow tree only**. A modal's content
+is slotted light DOM, so the list held just the header's Close: every Tab was cancelled and refocused Close, and
+nothing a consumer put in the dialog was reachable by keyboard. `open()`'s auto-focus used the same query and
+found nothing. Found by Presenter's Narrator pass; reproduced headlessly at four Tab presses in three dialogs.
+
+- **The trap is removed, not fixed** (owner's call). `showModal()` already makes the page behind inert and tabs
+  through slotted content in flat-tree order, which is what `b-confirm-dialog` and `b-drawer` rely on. After the
+  last control, focus may pass through the browser's own UI before coming back. It never reaches the page.
+- **`open()` starts on the first slotted control**, through `slot.assignedElements({ flatten: true })` and
+  into open shadow roots (a `b-button`'s inner `<button>`), skipping disabled, hidden and `tabindex="-1"`. With
+  no content control, the native focus (Close) stands.
+- **A trap over slotted content must look through the slots.** `b-tour`'s trap is correct only because its
+  buttons are its own shadow children. Copy it into anything with a `<slot>` and it breaks the same way.
+- Guard: `modal-focus-smoke.ts` in the playground. Red-verified against the old code: 5 of 10 checks fail.
+
 ### `b-gallery` — the carousel's track, thumbnails that become dots, and a zoom that gives focus back (2026-10-10)
 
 TASK-550, FlowerFurStudio's product images. Built on `SlideTrack`; the arrows / dots / viewport CSS moved into the new

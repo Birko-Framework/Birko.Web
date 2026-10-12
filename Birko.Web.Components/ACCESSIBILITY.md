@@ -46,7 +46,7 @@ Covered inputs: `b-input`, `b-textarea`, `b-select` (native + combo), `b-multi-s
 
 | Pattern | Components | Key attributes |
 |---|---|---|
-| Dialog | `b-modal`, `b-drawer`, `b-tour`, `b-command-palette`, `b-confirm-dialog` | `role="dialog"`, `aria-modal`, `aria-labelledby`/`aria-describedby`, focus trap + restore |
+| Dialog | `b-modal`, `b-drawer`, `b-tour`, `b-command-palette`, `b-confirm-dialog` | `role="dialog"`, `aria-modal`, `aria-labelledby`/`aria-describedby`, focus held + restored (`b-modal`, `b-confirm-dialog`, `b-drawer`: native `showModal()`, no custom Tab trap; `b-modal` opens on its first slotted control) |
 | Tabs | `b-tabs`, `b-ribbon` | `tablist`/`tab`/`tabpanel`, `aria-selected`, roving tabindex, arrow-key nav |
 | Menu | `b-dropdown-menu` | `menu`/`menuitem`/`separator`, decorative icons `aria-hidden` |
 | Listbox / combobox | `b-command-palette`, `b-select` (combo) | `listbox`/`option`, `aria-selected`, `combobox` + `aria-controls` + `aria-activedescendant` (palette) |

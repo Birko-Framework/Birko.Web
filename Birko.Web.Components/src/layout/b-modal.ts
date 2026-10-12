@@ -86,29 +86,9 @@ export class BModal extends BaseComponent {
     });
     this.listen(dlg, 'close', () => this.emit('close'));
 
-    // Focus trap: Tab cycles within modal
-    this.listen(dlg, 'keydown', (e: Event) => {
-      const ke = e as KeyboardEvent;
-      if (ke.key === 'Tab') {
-        const focusable = dlg.querySelectorAll<HTMLElement>(
-          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (ke.shiftKey) {
-          if (document.activeElement === first || this.shadowRoot?.activeElement === first) {
-            ke.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last || this.shadowRoot?.activeElement === last) {
-            ke.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    });
+    // No Tab trap of our own: showModal() already makes the page behind inert and tabs through the slotted
+    // content in flat-tree order. The custom trap queried this shadow tree only, so it saw just Close and
+    // pinned focus there; nothing a consumer slotted in was reachable by keyboard (TASK-568).
   }
 
   open() {
@@ -116,12 +96,13 @@ export class BModal extends BaseComponent {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     dlg?.showModal();
 
-    // Auto-focus first focusable element inside modal
+    // Start on the first content control, not the header's Close that showModal() picks. The content is
+    // slotted, so look through the slots (and into a slotted b-button's own shadow root), not this tree.
     requestAnimationFrame(() => {
-      const first = dlg?.querySelector<HTMLElement>(
-        'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not(.close-btn):not([disabled])'
-      );
-      if (first) first.focus();
+      for (const slot of this.$$<HTMLSlotElement>('.overlay-body slot, .overlay-footer slot')) {
+        const first = firstFocusable(slot.assignedElements({ flatten: true }));
+        if (first) { first.focus(); return; }
+      }
     });
   }
 
@@ -131,6 +112,21 @@ export class BModal extends BaseComponent {
     this._previousFocus?.focus();
     this._previousFocus = null;
   }
+}
+
+const FOCUSABLE = 'a[href], button, input, select, textarea, [tabindex]';
+
+/** First keyboard-focusable element in document order, descending into open shadow roots. */
+function firstFocusable(elements: Iterable<Element>): HTMLElement | null {
+  for (const el of elements) {
+    if (!(el instanceof HTMLElement) || el.hidden) continue;
+    // No boxes means not rendered, except display: contents, whose children still are.
+    if (el.getClientRects().length === 0 && getComputedStyle(el).display !== 'contents') continue;
+    if (el.matches(FOCUSABLE) && !el.matches(':disabled') && el.tabIndex >= 0) return el;
+    const inner = (el.shadowRoot && firstFocusable(el.shadowRoot.children)) || firstFocusable(el.children);
+    if (inner) return inner;
+  }
+  return null;
 }
 
 define('b-modal', BModal);
