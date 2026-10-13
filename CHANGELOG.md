@@ -4,6 +4,24 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.3 — 2026-10-13
+
+- **Import only the components you use** — Birko TASK-564 (for Presenter TASK-035).
+  - Every component has its own entry point, the source file itself: `birko-web-components/<category>/<b-name>`
+    (e.g. `birko-web-components/inputs/b-button`), through one `./<category>/*` pattern per category in `exports`.
+    The full import and the category barrels are unchanged.
+  - A component imported alone registers every `b-*` it renders: the hint tooltip of every labelled control, the
+    command palette's spinner, `b-confirm-dialog`'s buttons, and all of `b-form`'s field controls.
+  - Consumers resolving Birko from source: alias `birko-web-components` to the package's `src` **directory** and
+    use `"birko-web-components/*": ["…/src/*"]` in `tsconfig` paths. The older `src/index.ts` alias and
+    `src/*/index.ts` pattern still resolve the barrels, but not a component path. Components README § Import only
+    what you use has the path table and the measured sizes.
+- **A page's tour button sits beside its title** — Birko TASK-582 (for Symbio TASK-677).
+  - `BasePage.tourSteps()` (default `null`) renders a `?` beside the `<h1>`, named by `bws.tour.button` ("Take a
+    tour"), and starts the tour on click, replaying every time. `renderTourButton()` keeps it in a custom header.
+  - The page header now wraps the title in `.page-title-group`. A consumer stylesheet that selects the title as a
+    direct child of `.page-header` (`.page-header > .page-title`) no longer matches it.
+
 ## v0.1.2 — 2026-10-12
 
 - **Text on a primary fill clears WCAG AA in dark** — Birko TASK-562, TASK-563.
