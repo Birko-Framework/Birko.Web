@@ -37,7 +37,7 @@ birko-web-shell/dashboard      # BaseDashboardWidget
 
 The shell uses the same global i18n singleton as the rest of the ecosystem. Bootstrap once with `useI18n(myI18n)` (from `birko-web-core`) and every shell surface — ribbon, status bar, user menu, notifications, command palette, page bases — picks up the active locale automatically.
 
-**Canonical key namespace:** `bws.*` (Birko Web Shell). Examples: `bws.common.new`, `bws.common.edit`, `bws.common.delete`, `bws.common.cancel`, `bws.common.save`, `bws.common.confirmDelete`, `bws.pagination.items`, `bws.ribbon.selectModule`.
+**Canonical key namespace:** `bws.*` (Birko Web Shell). Examples: `bws.common.new`, `bws.common.edit`, `bws.common.delete`, `bws.common.cancel`, `bws.common.save`, `bws.common.confirmDelete`, `bws.pagination.items`, `bws.ribbon.selectModule`, `bws.tour.button`.
 
 **`{entity}` placeholder.** The shell's `t()` helper (and `BaseCrudPage.t()` etc.) automatically interpolate `{entity}` with the page's `entityLabel`. A single bundle entry produces entity-specific strings across every CRUD page:
 
@@ -683,6 +683,26 @@ Optional features are controlled by what your abstract methods return — no exp
 ## Page base classes
 
 Abstract base classes that eliminate boilerplate across list, detail, and modal pages. Import from `birko-web-shell/pages`.
+
+### Guided tour (every `BasePage`)
+
+A page with a guided tour returns its steps from `tourSteps()`, and `BasePage` renders a `?` button **beside the
+page title**, never in the action group, so it reads the same with or without a Create button. The click is
+wired once by the base class (it survives re-renders) and always replays the tour.
+
+```typescript
+class OrdersPage extends BaseListPage<Order> {
+  protected override tourSteps(): TourStep[] | null {
+    return [{ target: '.page-title', title: 'Orders', body: 'Every order, newest first.' }];
+  }
+  protected override get tourId() { return 'orders-v1'; }   // optional; defaults to the page's tag name
+}
+```
+
+- `tourSteps()` returns `null` (default) or `[]` → no button. It is read again on every launch.
+- The button's accessible name and tooltip come from `bws.tour.button` (default "Take a tour").
+- A page that overrides `renderPageHeader()` keeps the button by calling `this.renderTourButton()` in its markup.
+- `BaseDetailPage` and `BaseFormModal` do not extend `BasePage` and render no page header, so they have no tour button.
 
 ### BaseListPage\<T\>
 

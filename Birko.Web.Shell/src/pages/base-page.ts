@@ -1,4 +1,5 @@
-import { BaseComponent } from 'birko-web-core';
+import { BaseComponent, escapeHtml, t as globalT } from 'birko-web-core';
+import { tour, type TourStep } from 'birko-web-components/layout';
 
 /**
  * Abstract base class for all module pages.
@@ -32,8 +33,32 @@ import { BaseComponent } from 'birko-web-core';
  *   protected renderContent() { return `<b-form id="form"></b-form>`; }
  * }
  * ```
+ *
+ * ## With a guided tour
+ * ```ts
+ * class OrdersPage extends BasePage {
+ *   protected pageTitle = 'Orders';
+ *   protected tourSteps() {
+ *     return [{ target: '.page-title', title: 'Orders', body: 'Every order, newest first.' }];
+ *   }
+ * }
+ * ```
+ * The `?` that launches it renders beside the title, never in the action group.
  */
 export abstract class BasePage extends BaseComponent {
+
+  constructor() {
+    super();
+    // One raw, delegated listener for the tour button, for the page's whole life. Not `this.listen`: that is
+    // aborted on every update(), so the button would go dead after the first re-render. Not onMount: a subclass
+    // may override it without calling super. Delegation keeps it working when a morph replaces the button.
+    this.shadowRoot?.addEventListener('click', (e: Event) => {
+      const el = e.target as Element | null;
+      if (!el?.closest?.('[data-b-page-tour]')) return;
+      const steps = this.tourSteps();
+      if (steps?.length) tour.start(steps, { id: this.tourId, once: false });
+    });
+  }
 
   /** Page title shown in the header. Subclasses set via field or getter. */
   protected get pageTitle(): string { return ''; }
@@ -43,6 +68,27 @@ export abstract class BasePage extends BaseComponent {
 
   /** Render the main page content. */
   protected renderContent(): string { return ''; }
+
+  // ── Guided tour ───────────────────────────────────────────────────────────
+
+  /**
+   * Steps of this page's guided tour. Return `null` (the default) or `[]` for no tour, and no `?` renders.
+   * Read again on every launch, so steps that depend on loaded state are current.
+   */
+  protected tourSteps(): TourStep[] | null { return null; }
+
+  /** Stable id of this page's tour. Defaults to the page's tag name. */
+  protected get tourId(): string { return this.localName; }
+
+  /**
+   * The `?` that launches the tour, or `''` when the page has none. `renderPageHeader()` places it beside the
+   * title; a page that overrides `renderPageHeader()` calls this to keep it. The click is wired by `BasePage`.
+   */
+  protected renderTourButton(): string {
+    if (!this.tourSteps()?.length) return '';
+    const label = escapeHtml(globalT('bws.tour.button', undefined, 'Take a tour'));
+    return `<b-button variant="ghost" size="sm" class="page-tour-btn" data-b-page-tour title="${label}" aria-label="${label}">?</b-button>`;
+  }
 
   // ── Page header ───────────────────────────────────────────────────────────
 
@@ -60,7 +106,10 @@ export abstract class BasePage extends BaseComponent {
     const actions = this.renderHeaderActions();
     return `
       <header class="page-header">
-        <h1 class="page-title">${this.pageTitle ?? ''}</h1>
+        <div class="page-title-group">
+          <h1 class="page-title">${this.pageTitle ?? ''}</h1>
+          ${this.renderTourButton()}
+        </div>
         ${actions ? `<div class="header-actions">${actions}</div>` : ''}
       </header>
     `;
@@ -88,6 +137,9 @@ export abstract class BasePage extends BaseComponent {
       .page-header {
         display: flex; align-items: center; justify-content: space-between;
         flex-wrap: wrap; gap: var(--b-space-sm, 0.5rem);
+      }
+      .page-title-group {
+        display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem); min-width: 0;
       }
       .page-title {
         font-size: var(--b-text-2xl, 1.5rem);

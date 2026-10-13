@@ -195,6 +195,7 @@ Shell base pages (`BaseCrudPage`, `BaseListPage`, `BaseSplitPage`, `BaseDetailPa
 - `bws.common.new|edit|delete|save|cancel|close|saved|deleted|loading|loadError|confirmDelete`
 - `bws.pagination.items|page|of|perPage|prev|next|pageSize`
 - `bws.ribbon.selectModule`
+- `bws.tour.button` (the page tour `?` — `BasePage.renderTourButton()`)
 
 `this.t()` auto-interpolates `{entity}` with `this.entityLabel`, so a bundle entry like `"bws.common.new": "Nový {entity}"` with `entityLabel = 'Account'` resolves to `"Nový Account"`. If a key is missing in the app's bundle, English defaults from the base class kick in.
 
@@ -231,6 +232,14 @@ sse.on('_error', () => conn.setState('reconnecting'));
 ### Permissions — wildcard `*`
 
 `hasPermission()` and `getVisibleOptions()` treat the `'*'` permission as a superadmin wildcard — if the module's permissions array includes `'*'`, all checks return `true` and all options are visible.
+
+### Page tour button: beside the title, wired once in the constructor
+
+`BasePage.tourSteps()` opts a page into a guided tour, and `renderPageHeader()` puts the `?` inside
+`.page-title-group` next to the `<h1>`, because help is about the page, not an action on its data (Symbio TASK-677,
+Birko.Framework TASK-582). Its click is ONE raw, delegated listener on the shadow root, added in the constructor.
+Keep it there: `this.listen` is aborted on every `update()`, so the button goes dead after the first re-render, and
+`onMount` is skipped by a subclass that overrides it without `super`. Playground `page-tour-smoke` asserts both.
 
 ### Master-detail: the click must land somewhere the reader can see
 
