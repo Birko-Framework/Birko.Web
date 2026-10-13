@@ -1,5 +1,23 @@
 import { BaseComponent, define, t as globalT, parseDecimal } from 'birko-web-core';
 import { isActivationKey, escapeAttr } from '../dom-utils';
+// Every control a schema field can render.
+import './b-checkbox.js';
+import './b-date-picker.js';
+import './b-date-range-picker.js';
+import './b-datetime-picker.js';
+import './b-file-upload.js';
+import './b-input.js';
+import './b-markdown-editor.js';
+import './b-multi-select.js';
+import './b-option-group.js';
+import './b-radio.js';
+import './b-range.js';
+import './b-search-input.js';
+import './b-select.js';
+import './b-switch.js';
+import './b-tag-input.js';
+import './b-textarea.js';
+import './b-time.js';
 
 // ── Types ──
 

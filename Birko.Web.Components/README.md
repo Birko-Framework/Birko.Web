@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`. **54 components** across inputs, layout, data, feedback, navigation, and command palette.
+Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`. **64 components** across inputs, layout, data, feedback, navigation, and command palette.
 
 ## Install
 
@@ -29,7 +29,87 @@ import { BModal, BDataTable, toast } from 'birko-web-components';
 birko-web-components              # main (registers all components)
 birko-web-components/dialogs      # imperative confirm/confirmDelete/alert/prompt/choose/promptForm/busy/notify
 birko-web-components/form-utils   # showFormError, loadOptions, wireSearchableSelect
+birko-web-components/<category>/<b-name>   # one component, e.g. birko-web-components/inputs/b-button
 ```
+
+### Import only what you use
+
+`import 'birko-web-components'` registers every component. It is the convenient default, and it is what an app
+gets unless it asks for less. An app that uses a handful of components can import each one on its own instead:
+
+```ts
+import 'birko-web-components/inputs/b-button';
+import 'birko-web-components/layout/b-tooltip';
+import 'birko-web-components/feedback/b-spinner';
+import 'birko-web-components/layout/b-modal';
+import 'birko-web-components/inputs/b-input';
+import 'birko-web-components/feedback/b-empty';
+import 'birko-web-components/layout/b-card';
+import 'birko-web-components/data/b-code-block';
+```
+
+Each entry registers its own tag **and every `b-*` it renders inside its shadow root** (b-confirm-dialog's buttons,
+b-input's hint tooltip, all of b-form's field controls), so a lean import never leaves an unknown element. Add an
+import when a page starts using a component; a tag nobody imported renders as a bare, unstyled element.
+
+**Measured** (esbuild 0.28, minified, these eight components against the full barrel, framework code only):
+
+| Entry | Minified | Gzip |
+|-------|---------:|-----:|
+| `import 'birko-web-components'` | 539,955 B | 125,335 B |
+| the eight imports above | 67,836 B | 20,069 B |
+| `birko-web-components/inputs/b-form` alone | 237,410 B | 54,628 B |
+
+`b-form` is large on its own on purpose: it cannot know its schema ahead, so it registers every field control.
+Presenter TASK-035 records the before/after for a whole app.
+
+**The path is the source file:** `birko-web-components/<category>/<file>`. Every component:
+
+| Category | Entry points |
+|----------|--------------|
+| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
+| `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour` |
+| `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
+| `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
+| `nav` | `birko-web-components/nav/b-breadcrumb`, `birko-web-components/nav/b-ribbon`, `birko-web-components/nav/b-sidebar`, `birko-web-components/nav/b-tree-menu` |
+| `command` | `birko-web-components/command/b-command-palette` |
+
+Only the `b-*` files are supported entry points. Other modules the same pattern reaches (`inputs/label-hint`,
+`data/cell-renderers`, `command/command-provider`, …) are internal and may change without notice; import their
+public exports from a barrel. The barrels (`birko-web-components/inputs`, `/layout`, …) and `.` work exactly as before.
+
+**Resolving from source.** Consumers point at the Birko\Web checkout rather than an installed package, so they need
+one esbuild alias per package and its `tsconfig` `paths` pair. **That one alias covers the bare import, the barrels
+and every component**, because it maps the package name to the `src` directory, not to `src/index.ts`:
+
+```js
+// build.js (esbuild)
+alias: {
+  'birko-web-core':       `${BIRKO_SRC}/Birko.Web.Core/src`,
+  'birko-web-components': `${BIRKO_SRC}/Birko.Web.Components/src`,
+}
+```
+
+```jsonc
+// tsconfig.json — paths cannot read an env var, so they assume the bucket layout
+"compilerOptions": {
+  "moduleResolution": "Bundler",
+  "noUncheckedSideEffectImports": true,
+  "paths": {
+    "birko-web-core":         ["<Web>/Birko.Web.Core/src/index.ts"],
+    "birko-web-core/*":       ["<Web>/Birko.Web.Core/src/*/index.ts"],
+    "birko-web-components":   ["<Web>/Birko.Web.Components/src/index.ts"],
+    "birko-web-components/*": ["<Web>/Birko.Web.Components/src/*"]
+  }
+}
+```
+
+- An older alias of the form `'birko-web-components': '…/src/index.ts'`, or a `paths` entry of the form
+  `src/*/index.ts`, resolves the barrels but **not** a component path: esbuild fails to resolve it, and `tsc` reports
+  TS2307. Switch to the two forms above.
+- `noUncheckedSideEffectImports` (TypeScript 5.6+) matters here because every per-component import is a side-effect
+  import, and without it `tsc` does not check them at all: a typo'd path type-checks and fails only at bundle time.
+- `birko-web-components/dialogs` and `/form-utils` resolve through the same alias and pattern.
 
 ### Imperative dialogs
 

@@ -1,5 +1,7 @@
 import { FormControlComponent, define } from 'birko-web-core';
 import { formToggleSheet } from '../shared-styles';
+// <b-tooltip>: rendered for a `hint`
+import '../layout/b-tooltip.js';
 
 export class BCheckbox extends FormControlComponent {
   static get observedAttributes() {

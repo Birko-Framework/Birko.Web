@@ -1,4 +1,6 @@
 import { escapeHtml } from '../dom-utils';
+// <b-tooltip>: rendered for a field's `hint`, for every control that uses this helper
+import '../layout/b-tooltip.js';
 
 /**
  * Render a label element with optional hint tooltip and required indicator.

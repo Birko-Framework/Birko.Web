@@ -349,6 +349,16 @@ the same as their `.value`:
   unchecks the previous member **without re-rendering it**, so that path must call `syncFormState()`
   explicitly — otherwise the group submits two entries.
 
+### A component imports every component it renders (MANDATORY)
+
+Each file is a public entry point (`birko-web-components/<category>/<b-name>`, TASK-564), so importing it alone must
+register every `b-*` its markup or `createElement` can produce, **including children that render only on a condition**
+(a `hint` tooltip, a search spinner, every `b-form` field control). Add a side-effect import
+(`import '../layout/b-tooltip.js';`) beside the render, in the shared helper when the render lives in one (`label-hint.ts`
+covers every labelled control). The full barrel hides a missing one; a lean consumer gets a bare, unstyled tag.
+Playground `entry-points-check.mjs` fails on a gap (a static scan of each file's import closure plus a real mount of
+each file alone), on a component with no `exports` entry, and on one missing from the README path table.
+
 ### New component checklist
 1. File: `src/{category}/b-{name}.ts`
 2. Class: `B{Name} extends BaseComponent`
@@ -360,6 +370,7 @@ the same as their `.value`:
 8. Emit typed `CustomEvent` for state changes
 9. Accessibility — follow the [Accessibility (ARIA / screen readers)](#accessibility-aria--screen-readers) rules: semantic role, `aria-hidden="true"` on decorative elements, validation ARIA via `fieldAria()`/`renderError()` for form controls, `aria-expanded` on expand/collapse toggles
 10. Add to `CLAUDE.md` component table in this file
+11. Import every `b-*` it renders (see above), and add its path to README § Import only what you use
 
 ## Component inventory
 

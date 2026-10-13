@@ -2,6 +2,8 @@ import { BaseComponent, define } from 'birko-web-core';
 import { escapeHtml } from '../dom-utils';
 import { srOnlySheet } from '../shared-styles';
 import { getProviders, type CommandItem } from './command-provider.js';
+// <b-spinner>: rendered while a search is in flight
+import '../feedback/b-spinner.js';
 
 // ── Store ────────────────────────────────────────────────────────────────────
 

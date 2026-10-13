@@ -1,6 +1,8 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { dialogBaseSheet, overlayFooterSheet } from '../shared-styles';
 import { escapeHtml, escapeAttr } from '../dom-utils';
+// <b-button>: the footer buttons
+import '../inputs/b-button.js';
 
 export class BConfirmDialog extends BaseComponent {
   static get observedAttributes() {

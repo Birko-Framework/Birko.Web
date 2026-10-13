@@ -5,11 +5,17 @@
   "exports": {
     ".": "./src/index.ts",
     "./inputs": "./src/inputs/index.ts",
+    "./inputs/*": "./src/inputs/*.ts",
     "./layout": "./src/layout/index.ts",
+    "./layout/*": "./src/layout/*.ts",
     "./data": "./src/data/index.ts",
+    "./data/*": "./src/data/*.ts",
     "./feedback": "./src/feedback/index.ts",
+    "./feedback/*": "./src/feedback/*.ts",
     "./dialogs": "./src/dialogs/index.ts",
     "./nav": "./src/nav/index.ts",
+    "./nav/*": "./src/nav/*.ts",
+    "./command/*": "./src/command/*.ts",
     "./form-utils": "./src/form-utils/index.ts",
     "./locales/en.json": "./locales/en.json"
   }
