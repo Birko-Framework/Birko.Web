@@ -61,7 +61,14 @@ import when a page starts using a component; a tag nobody imported renders as a 
 | `birko-web-components/inputs/b-form` alone | 237,410 B | 54,628 B |
 
 `b-form` is large on its own on purpose: it cannot know its schema ahead, so it registers every field control.
-Presenter TASK-035 records the before/after for a whole app.
+**In a real app** (Presenter TASK-035, its whole `app.js` including its own code, after switching to the eight imports above):
+
+| Presenter `app.js` | Minified | Gzip -9 | Served (brotli) |
+|--------------------|---------:|--------:|----------------:|
+| full barrel (before) | 642,859 B | 149,911 B | 149,545 B |
+| eight imports (after) | 170,662 B | 44,956 B | 45,670 B |
+
+Every Presenter surface was checked for undefined `b-*` tags through every shadow root and found none.
 
 **The path is the source file:** `birko-web-components/<category>/<file>`. Every component:
 
