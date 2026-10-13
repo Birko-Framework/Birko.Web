@@ -28,6 +28,7 @@
   --b-color-success: #25ba7a;        /* @clr-green */
   --b-color-success-light: #d7f3e6;  /* derived */
   --b-color-warning: #fab921;        /* @clr-yellow */
+  --b-rating-color: #a77400;         /* b-rating fill: the brand yellow is 1.7:1 on white; this clears 3:1 on --b-bg and --b-bg-secondary (TASK-579) */
   --b-color-warning-light: #fdf0cf;  /* derived */
   --b-color-danger: #f26d4f;         /* @clr-red */
   /* Text-only red, darkened from @clr-red which measures 2.65:1 on --b-bg-secondary — well below AA for

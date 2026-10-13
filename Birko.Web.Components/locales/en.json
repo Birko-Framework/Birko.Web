@@ -130,6 +130,11 @@
       "decrementNamed": "Decrease {label}",
       "incrementNamed": "Increase {label}"
     },
+    "rating": {
+      "star": "{value} of {max}",
+      "readonly": "Rated {value} of {max}",
+      "none": "Not rated"
+    },
     "input": {
       "clear": "Clear"
     },

@@ -1,6 +1,6 @@
 # Birko.Web.Components
 
-Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`. **64 components** across inputs, layout, data, feedback, navigation, and command palette.
+Shadow DOM web components for building data-driven UIs. Built on `Birko.Web.Core`. **65 components** across inputs, layout, data, feedback, navigation, and command palette.
 
 ## Install
 
@@ -74,7 +74,7 @@ Every Presenter surface was checked for undefined `b-*` tags through every shado
 
 | Category | Entry points |
 |----------|--------------|
-| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
+| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
 | `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour` |
 | `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
 | `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
@@ -507,6 +507,26 @@ Attributes: `label`, `name`, `min`, `max`, `step`, `mode` (single|range), `displ
 Emits: `change` → `{ name, value }` (single) or `{ name, value: { from, to } }` (range)
 
 `orientation="vertical"` renders the slider bottom-to-top (fill grows from the bottom) — set a height on the host (or a flex-row container) and use `display="slider"` to build an equalizer/mixer bank. Single and range modes both work vertically.
+
+### b-rating
+
+A form-associated whole-star rating input (TASK-579). Keyboard: Tab reaches the group once, arrow keys move and select,
+Home/End jump to the ends; each star is announced as "3 of 5" (`bwc.rating.star`).
+
+```html
+<b-rating name="stars" label="Your rating" required></b-rating>
+<b-rating name="stars" value="4" max="5" size="lg"></b-rating>
+<b-rating value="4" readonly></b-rating>   <!-- an image named "Rated 4 of 5": no tab stop, nothing to operate -->
+```
+
+- `value` is `"1"`…`max`, or empty for no rating, which submits nothing. A user's pick fires `change`
+  `{ name, value }`. As with a native input the `value` attribute is the default: it drives the control until a user
+  pick or a `.value` set, after which changing it does nothing until `form.reset()`. To show a new rating from
+  script, set `.value`.
+- `required` is the radio group's own validity; `disabled` (or a disabled `<fieldset>`) disables every star.
+- `max` is a whole number from 1 to 10 (default 5). `size`: `sm` / default / `lg` star diameter; each star is a
+  44 px target on a coarse pointer.
+- The filled colour is `--b-rating-color` (default `--b-color-warning`); an empty star is outlined in `--b-text-secondary`. Both clear 3:1 against `--b-bg` and `--b-bg-secondary` in every shipped theme; finstat sets `--b-rating-color` because its brand yellow does not.
 
 ### b-form
 
