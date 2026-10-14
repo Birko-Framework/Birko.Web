@@ -388,6 +388,7 @@ export class BEditableTable extends BaseComponent {
     this._config = config;
     this._errors.clear();
     this.update();
+    this._syncControls();
   }
 
   /**
@@ -398,6 +399,7 @@ export class BEditableTable extends BaseComponent {
     this._data = data.map(row => ({ ...row }));
     this._errors.clear();
     this.update();
+    this._syncControls();
   }
 
   /**
@@ -494,7 +496,30 @@ export class BEditableTable extends BaseComponent {
     this._errors = updated;
 
     this.update();
+    this._syncControls();
     this.emit('row-remove', { rowIndex: idx, row });
+  }
+
+  /**
+   * Write `_data` into every cell control's live value after a re-render that moved rows under the controls.
+   *
+   * The morph in `update()` keeps existing `<input>` / `<select>` nodes and syncs only their attributes, and a
+   * control the user has typed in ignores a changed `value` / `checked` / `selected` attribute (TASK-552). Not
+   * called after `validate()` / `clearErrors()`: the rows did not move, and rewriting a typed `1.50` as `1.5`
+   * would edit what the user is typing.
+   */
+  private _syncControls(): void {
+    const controls = this.shadowRoot?.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key][data-idx]');
+    controls?.forEach(el => {
+      const row = this._data[parseInt(el.dataset.idx ?? '', 10)];
+      if (!row) return;
+      const val = row[el.dataset.key!];
+      if (el instanceof HTMLInputElement && el.type === 'checkbox') {
+        el.checked = Boolean(val);
+        return;
+      }
+      el.value = val === null || val === undefined ? '' : String(val);
+    });
   }
 
   /**

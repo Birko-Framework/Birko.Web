@@ -1170,7 +1170,7 @@ if (valid) {
 **Methods:**
 
 ```typescript
-table.setData(rows);                       // Load initial data
+table.setData(rows);                       // Replace the rows; every cell shows them, typed-in cells included
 table.getData(): Record<string, unknown>[] // Get current data (including edits)
 table.validate(): EditableTableValidateResult  // Validate all required fields
 ```
