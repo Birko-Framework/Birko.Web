@@ -4,6 +4,17 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.9 — 2026-10-14
+
+- **`b-editable-table` shows its data after `setData()` or a row removal** — Birko TASK-552 (for Symbio TASK-900).
+  Cells the user had typed in kept their old values on screen while the table's data had moved, so the next
+  keystroke wrote the shown value into another row. Text, number, select and checkbox cells. Symbio's
+  `syncCellValues` workaround can go.
+- **`b-modal`'s title is a heading, and text** — Birko TASK-580 (for Presenter TASK-025). An `<h2>` by default,
+  `heading-level` for 1–6, labelling the dialog and styled as before; no title, no heading. Headings inside a dialog
+  now nest under it, so start them at `<h3>`. The title was interpolated as HTML: markup in it ran in the page, the
+  same defect v0.1.5 fixed in `b-toast`.
+
 ## v0.1.8 — 2026-10-14
 
 - **`WsClient.request()`: request/response over a WebSocket** — Birko TASK-523 (for DraCode TASK-116). Sends
