@@ -4,6 +4,17 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.10 — 2026-10-14
+
+- **A write a closed tab left mid-send is recovered** — Birko TASK-598. It stayed `syncing` forever: never resent, not
+  counted, not listed. The next sync now resends a `PUT`, `DELETE` or `idPinned` `POST` (retry count kept); a plain
+  `POST` or a `PATCH` may have landed, so it becomes `dead` for the user to retry or discard. **Changed behaviour:**
+  `sync()` drains under a Web Lock, so one tab sends at a time (two tabs could send the same action twice), and
+  `pendingCount` counts `syncing` actions. New options `locks` and `syncLeaseMs` (the fallback without Web Locks).
+  Core README § Offline writes.
+- **`b-drawer`'s title is a heading, and text** — Birko TASK-609. As `b-modal` in v0.1.9: `<h2>` / `heading-level`,
+  labelling the drawer, which had no accessible name; markup in the title ran in the page.
+
 ## v0.1.9 — 2026-10-14
 
 - **`b-editable-table` shows its data after `setData()` or a row removal** — Birko TASK-552 (for Symbio TASK-900).
