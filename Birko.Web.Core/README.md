@@ -370,6 +370,39 @@ Low-level helpers (`openDatabase`, `idbRequest`, `txComplete`, `deleteDatabase`)
 are exported too — the same promisified IDB primitives the offline `ActionQueue`
 is built on, for hand-rolling a custom store.
 
+## Offline writes (ActionQueue + SyncManager)
+
+`ApiClient` queues a write it cannot send into an `ActionQueue` (IndexedDB). `SyncManager` drains the queue, oldest
+first, on the `online` event and every `syncInterval` (30 s).
+
+```typescript
+import { ActionQueue, SyncManager } from 'birko-web-core';
+
+const queue = new ActionQueue();
+const sync = new SyncManager(queue, api, {
+  retryBaseMs: 5_000,   // first retry after 5 s, doubling…
+  retryMaxMs: 900_000,  // …up to 15 min between attempts
+  maxRetries: 10,       // then the action is dead
+});
+
+sync.onDead((action) => showFailedWrite(action));       // build a failed-action UI on these
+const dead = await sync.getDead();
+await sync.retry(dead[0].id);    // back in line, full retry budget
+await sync.discard(dead[0].id);  // gone for good
+```
+
+| Status | Meaning |
+|---|---|
+| `pending` | Not tried yet |
+| `failed` | Tried; sent again at `nextAttemptAt` (persisted, so a reload keeps the schedule) |
+| `dead` | Gave up: a 4xx a retry cannot change (anything but 401, 408, 409, 429), or `maxRetries` attempts. Never re-sent until `retry(id)` |
+| `conflict` | The conflict status (409); see `onConflict` |
+
+A `DELETE` answered 404 is *already applied* and drains (`deleteMissingIsApplied`, default `true`); an `idPinned`
+`POST` answered 409 likewise. **Order is kept per entity** (`metadata.entityType` + `entityId`, or the `path` when no
+`entityId` is set): while one write to an entity backs off or is dead, later writes to it wait, and writes to other
+entities go ahead. `pendingCount` counts `pending` and `failed`, not `dead`.
+
 ## Offline reads (MirrorStore)
 
 `ActionQueue` makes *writes* durable offline. `MirrorStore` is the read-side

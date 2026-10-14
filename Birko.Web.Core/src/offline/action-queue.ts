@@ -10,9 +10,17 @@ export interface QueuedAction {
   path: string;
   body?: unknown;
   metadata: ActionMetadata;
-  status: 'pending' | 'syncing' | 'failed' | 'conflict';
+  /**
+   * - `pending` — not tried yet. `failed` — tried, will be tried again at `nextAttemptAt`.
+   * - `dead` — terminal: the server refused it in a way a retry cannot fix, or it ran out of retries. It is not
+   *   sent again until `SyncManager.retry(id)`; `SyncManager.discard(id)` drops it.
+   * - `conflict` — the server reported a conflict; see `SyncManager.onConflict`.
+   */
+  status: 'pending' | 'syncing' | 'failed' | 'dead' | 'conflict';
   retries: number;
   lastError?: string;
+  /** Epoch ms before which a `failed` action is not re-sent (exponential backoff). Persisted, so a reload resumes it. */
+  nextAttemptAt?: number;
 }
 
 export interface ActionMetadata {
@@ -41,6 +49,8 @@ export interface SyncResult {
   synced: number;
   failed: number;
   conflicts: number;
+  /** Actions that became `dead` in this sync. */
+  dead: number;
 }
 
 export interface ActionQueueOptions {
@@ -117,7 +127,21 @@ export class ActionQueue {
     return items;
   }
 
-  /** Get only pending actions (FIFO order). */
+  /** Get one action by id, or `undefined`. */
+  async get(id: string): Promise<QueuedAction | undefined> {
+    const db = await this._open();
+    const item = await idbRequest(tx(db, 'readonly').get(id)) as QueuedAction | undefined;
+    db.close();
+    return item;
+  }
+
+  /** Get the actions that gave up (`dead`), oldest first — what a failed-action UI lists. */
+  async getDead(): Promise<QueuedAction[]> {
+    const all = await this.getAll();
+    return all.filter(a => a.status === 'dead');
+  }
+
+  /** Get only pending actions (FIFO order), including `failed` ones waiting out their backoff. Not `dead`. */
   async getPending(): Promise<QueuedAction[]> {
     const all = await this.getAll();
     return all.filter(a => a.status === 'pending' || a.status === 'failed');

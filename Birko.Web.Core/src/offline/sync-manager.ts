@@ -21,6 +21,20 @@ export interface SyncManagerOptions {
    * make will not start succeeding.
    */
   deleteMissingIsApplied?: boolean;
+  /**
+   * Delay before the first retry of a failed action, in ms (default: 5000). Each further failure doubles it, up
+   * to `retryMaxMs`. An action is not re-sent before its delay is up, however often `sync()` runs.
+   */
+  retryBaseMs?: number;
+  /** Longest delay between two attempts of one action, in ms (default: 900000, 15 minutes). */
+  retryMaxMs?: number;
+  /**
+   * Attempts after which a failing action becomes `dead` instead of being retried (default: 10). A response that a
+   * retry cannot fix makes it `dead` at once — see {@link SyncManager} for which ones.
+   */
+  maxRetries?: number;
+  /** Clock, for tests (default: `Date.now`). */
+  now?: () => number;
 }
 
 /**
@@ -30,14 +44,31 @@ export interface SyncManagerOptions {
  * only evidence is a non-2xx status. Reading it as `failed` retries it forever; reading it as `conflict`
  * asks the user to resolve a write that already succeeded.
  */
-type ReplayOutcome = 'applied' | 'conflict' | 'failed';
+type ReplayOutcome = 'applied' | 'conflict' | 'failed' | 'dead';
 
 // ── SyncManager ────────────────────────────────────────────────────────────
 
+/**
+ * Drains an {@link ActionQueue} against the API, oldest first.
+ *
+ * A write that fails is retried with exponential backoff (`retryBaseMs` doubling to `retryMaxMs`), and becomes
+ * `dead` after `maxRetries` attempts — or at once when the server's answer is one a retry cannot change: a 4xx
+ * other than 401, 408, 409 (the conflict status) and 429. A `dead` action stays in the queue for a failed-action
+ * UI: {@link getDead}, {@link retry}, {@link discard}, {@link onDead}.
+ *
+ * Order is kept **per entity**: while one write to an entity is backing off or dead, later writes to the same
+ * entity wait behind it, and writes to other entities go ahead. The entity is `metadata.entityType` +
+ * `metadata.entityId`, or the action's `path` when no `entityId` is declared.
+ */
 export class SyncManager {
   private _syncing = false;
   private _conflictListeners = new Set<(action: QueuedAction, serverResponse: unknown) => void>();
   private _completeListeners = new Set<(result: SyncResult) => void>();
+  private _deadListeners = new Set<(action: QueuedAction) => void>();
+  private _retryBaseMs: number;
+  private _retryMaxMs: number;
+  private _maxRetries: number;
+  private _now: () => number;
   private _queue: ActionQueue;
   private _api: ApiClient;
   private _conflictStatus: number;
@@ -52,6 +83,10 @@ export class SyncManager {
     this._api = api;
     this._conflictStatus = options.conflictStatus ?? 409;
     this._deleteMissingIsApplied = options.deleteMissingIsApplied ?? true;
+    this._retryBaseMs = options.retryBaseMs ?? 5_000;
+    this._retryMaxMs = options.retryMaxMs ?? 900_000;
+    this._maxRetries = options.maxRetries ?? 10;
+    this._now = options.now ?? Date.now;
 
     // Auto-sync when coming back online
     window.addEventListener('online', this._onlineHandler);
@@ -67,22 +102,36 @@ export class SyncManager {
 
   get isSyncing(): boolean { return this._syncing; }
 
-  /** Process all pending actions in FIFO order. */
+  /**
+   * Send every action that is due, oldest first. An action still backing off, or one behind a write to the same
+   * entity that is backing off or dead, is left for a later sync.
+   */
   async sync(): Promise<SyncResult> {
-    if (this._syncing) return { synced: 0, failed: 0, conflicts: 0 };
+    if (this._syncing) return { synced: 0, failed: 0, conflicts: 0, dead: 0 };
     this._syncing = true;
 
     let synced = 0;
     let failed = 0;
     let conflicts = 0;
+    let dead = 0;
 
     // try/finally so _syncing is always cleared — otherwise an exception from getPending()
     // (e.g. an IndexedDB open failure) or a queue write would leave _syncing stuck at true and
     // the guard above would permanently disable every future sync for the session.
     try {
+      // Entities with a write that is not getting through: later writes to them wait, in order.
+      const held = new Set((await this._queue.getDead()).map(entityKey));
       const pending = await this._queue.getPending();
+      const now = this._now();
 
       for (const action of pending) {
+        const key = entityKey(action);
+        if (held.has(key)) continue;
+        if (action.nextAttemptAt !== undefined && action.nextAttemptAt > now) {
+          held.add(key);
+          continue;
+        }
+
         action.status = 'syncing';
         await this._queue.update(action);
 
@@ -104,28 +153,58 @@ export class SyncManager {
             await this._queue.update(action);
             conflicts++;
             this._notifyConflict(action, resp.data);
+          } else if (await this._fail(action, `HTTP ${resp.status}`, outcome === 'dead')) {
+            dead++;
+            held.add(key);
           } else {
-            action.status = 'failed';
-            action.retries++;
-            action.lastError = `HTTP ${resp.status}`;
-            await this._queue.update(action);
             failed++;
+            held.add(key);
           }
         } catch (e) {
-          action.status = 'failed';
-          action.retries++;
-          action.lastError = (e as Error).message;
-          await this._queue.update(action);
-          failed++;
+          if (await this._fail(action, (e as Error).message, false)) dead++;
+          else failed++;
+          held.add(key);
         }
       }
     } finally {
       this._syncing = false;
     }
 
-    const result = { synced, failed, conflicts };
+    const result = { synced, failed, conflicts, dead };
     this._notifyComplete(result);
     return result;
+  }
+
+  /** Actions that gave up, oldest first. */
+  getDead(): Promise<QueuedAction[]> {
+    return this._queue.getDead();
+  }
+
+  /**
+   * Put a `dead` (or `failed`) action back in line with a fresh schedule: sent on the next sync, with the full
+   * retry budget. Returns false when there is no such action.
+   */
+  async retry(id: string): Promise<boolean> {
+    const action = await this._queue.get(id);
+    if (!action || (action.status !== 'dead' && action.status !== 'failed')) return false;
+    action.status = 'pending';
+    action.retries = 0;
+    action.nextAttemptAt = undefined;
+    await this._queue.update(action);
+    return true;
+  }
+
+  /** Drop an action from the queue for good. Returns false when there is no such action. */
+  async discard(id: string): Promise<boolean> {
+    if (!await this._queue.get(id)) return false;
+    await this._queue.remove(id);
+    return true;
+  }
+
+  /** Subscribe to actions becoming `dead`. */
+  onDead(fn: (action: QueuedAction) => void): () => void {
+    this._deadListeners.add(fn);
+    return () => this._deadListeners.delete(fn);
   }
 
   /** Subscribe to conflict events. */
@@ -178,7 +257,27 @@ export class SyncManager {
     if (status === this._conflictStatus) {
       return action.method === 'POST' && action.metadata?.idPinned ? 'applied' : 'conflict';
     }
-    return 'failed';
+    // The opt-out above says this API's 404 on DELETE is something a retry can fix.
+    if (action.method === 'DELETE' && status === 404) return 'failed';
+    return isUnrecoverable(status) ? 'dead' : 'failed';
+  }
+
+  /** Record a failed attempt: schedule the next one, or make the action dead. Returns true when it died. */
+  private async _fail(action: QueuedAction, error: string, unrecoverable: boolean): Promise<boolean> {
+    action.retries++;
+    action.lastError = error;
+    const dies = unrecoverable || action.retries >= this._maxRetries;
+    if (dies) {
+      action.status = 'dead';
+      action.nextAttemptAt = undefined;
+    } else {
+      action.status = 'failed';
+      const delay = Math.min(this._retryMaxMs, this._retryBaseMs * 2 ** (action.retries - 1));
+      action.nextAttemptAt = this._now() + delay;
+    }
+    await this._queue.update(action);
+    if (dies) for (const fn of this._deadListeners) fn(action);
+    return dies;
   }
 
   private _notifyConflict(action: QueuedAction, serverResponse: unknown): void {
@@ -188,4 +287,15 @@ export class SyncManager {
   private _notifyComplete(result: SyncResult): void {
     for (const fn of this._completeListeners) fn(result);
   }
+}
+
+/** A 4xx a retry cannot change. 401 (signing in again), 408, 409 and 429 can change. */
+function isUnrecoverable(status: number): boolean {
+  return status >= 400 && status < 500 && status !== 401 && status !== 408 && status !== 409 && status !== 429;
+}
+
+/** The entity a write targets; writes to one entity keep their order. */
+function entityKey(action: QueuedAction): string {
+  const m = action.metadata;
+  return m?.entityId ? `${m.entityType ?? ''}:${m.entityId}` : `path:${action.path}`;
 }
