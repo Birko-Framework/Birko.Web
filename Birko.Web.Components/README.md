@@ -528,6 +528,28 @@ Home/End jump to the ends; each star is announced as "3 of 5" (`bwc.rating.star`
   44 px target on a coarse pointer.
 - The filled colour is `--b-rating-color` (default `--b-color-warning`); an empty star is outlined in `--b-text-secondary`. Both clear 3:1 against `--b-bg` and `--b-bg-secondary` in every shipped theme; finstat sets `--b-rating-color` because its brand yellow does not.
 
+**A custom icon (TASK-592).** Put one SVG in the `icon` slot and it replaces the star in every position, in the
+operable and read-only modes:
+
+```html
+<b-rating name="love" label="How much?">
+  <svg slot="icon" viewBox="0 0 24 24"><path d="M12 21s-7-4.4-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6c-2.5 4.6-9.5 9-9.5 9z"/></svg>
+</b-rating>
+```
+
+- **Only the shape is used.** Each star gets a copy rebuilt from an allowlist: `g`, `path`, `circle`, `ellipse`,
+  `rect`, `line`, `polyline` and `polygon` with their geometry (`d`, `points`, `cx`…, `transform`, `fill-rule`).
+  Everything else is dropped: colours, opacity, inline styles, classes, ids, `<style>`, scripts and handlers,
+  animation, `<image>`, masks, clip paths, gradients, and `<use>` (so a sprite reference renders nothing: inline the
+  shape). A link around the drawing is unwrapped, its shapes kept.
+- The component paints the shape: `--b-rating-color` when filled, an outline when empty, so a two-tone icon becomes
+  one colour and filled and empty stay distinguishable at 3:1.
+- Its `width` and `height` are not used (the size is `size` / `--b-rating-star`); give it a `viewBox`, or one is
+  derived from `width` and `height`.
+- Replacing or removing the slotted SVG updates the stars; the value and focus are kept. Changing the inside of the
+  same SVG does not: swap the element. The first `svg` child with `slot="icon"` is used.
+- The original is not shown or announced; the copies are decorative. A non-SVG in the slot is ignored.
+
 ### b-form
 
 Schema-driven form builder with validation.

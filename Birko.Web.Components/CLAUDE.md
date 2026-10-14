@@ -391,7 +391,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
 | `<b-range>` | BRange | — | `mode` (single\|range), `display` (both\|slider\|input), `value-type` (number\|int\|percent), `min`, `max`, `step` |
 | `<b-qty-stepper>` | BQtyStepper | `stepBy(n)` | `label`, `name`, `value`, `min` (grid anchor, default 0), `max`, `step` (decimal ok), `unit`, `size`, `bare`, `error`, `required`, `disabled`, `label-decrement` / `label-increment` |
-| `<b-rating>` | BRating | `value` (get/set) | `name`, `value` (`1`…`max`, empty = unrated), `max` (1–10, default 5), `required`, `disabled`, `readonly` (an image, no tab stop), `label`, `hint`, `description`, `error`, `size`, `bare`, `label-star` / `label-readonly` / `label-none`; `--b-rating-color` |
+| `<b-rating>` | BRating | `value` (get/set) | `name`, `value` (`1`…`max`, empty = unrated), `max` (1–10, default 5), `required`, `disabled`, `readonly` (an image, no tab stop), `label`, `hint`, `description`, `error`, `size`, `bare`, `label-star` / `label-readonly` / `label-none`; `--b-rating-color`; slot `icon` (an SVG cloned into each star and painted by the component) |
 | `<b-segmented>` | BSegmented | `setOptions([{value,label}])` | `label`, `name`, `value`, `disabled` |
 | `<b-color-picker>` | BColorPicker | — | `label`, `name`, `value` (`#rrggbb`, or `#rrggbbaa` with `alpha`), `placeholder`, `alpha` (opacity slider), `swatch-only` (hide hex field, swatch only), `size`, `error`, `hint`, `required`, `disabled` |
 | `<b-date-picker>` | BDatePicker | `setLocale()` (static) | `label`, `name`, `value`, `min`, `max`, `native`, `error`, `disabled` |

@@ -5,6 +5,58 @@ import { renderField, fieldAria } from './label-hint';
 
 const STAR = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 2.6l2.9 6.2 6.8.8-5 4.6 1.3 6.7L12 17.6l-6 3.3 1.3-6.7-5-4.6 6.8-.8z"/></svg>';
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+/** The only elements an icon copy may contain, each with the only attributes it may keep: geometry, nothing else. */
+const ICON_SHAPES: Record<string, readonly string[]> = {
+  g: ['transform'],
+  path: ['d', 'transform', 'fill-rule', 'clip-rule', 'pathLength'],
+  circle: ['cx', 'cy', 'r', 'transform'],
+  ellipse: ['cx', 'cy', 'rx', 'ry', 'transform'],
+  rect: ['x', 'y', 'width', 'height', 'rx', 'ry', 'transform'],
+  line: ['x1', 'y1', 'x2', 'y2', 'transform'],
+  polyline: ['points', 'transform'],
+  polygon: ['points', 'transform', 'fill-rule'],
+};
+/** Containers whose own element is dropped but whose shapes are kept (a link around the drawing). */
+const ICON_UNWRAP = new Set(['a', 'switch']);
+
+/**
+ * A consumer's `icon` slot SVG rebuilt for every star (TASK-592). It is an **allowlist**: a fresh SVG holding only the
+ * shape elements of {@link ICON_SHAPES} with their geometry attributes, so the copy re-parsed into the shadow root has
+ * nothing that can run, load, take focus or restyle the component: no scripts, handlers, links, animation, `<style>`,
+ * images, `<use>`, masks, gradients, ids, classes, opacity or inline styles. The shapes carry no paint, so they take
+ * the component's (`.star svg` and `.star.filled svg`), which is what keeps filled and empty distinguishable.
+ */
+function iconMarkup(source: SVGSVGElement): string {
+  const copy = (from: Element, to: Element): void => {
+    for (const child of from.children) {
+      const name = child.localName;
+      if (child.namespaceURI === SVG_NS && ICON_UNWRAP.has(name)) { copy(child, to); continue; }
+      const allowed = child.namespaceURI === SVG_NS ? ICON_SHAPES[name] : undefined;
+      if (!allowed) continue;
+      const el = document.createElementNS(SVG_NS, name);
+      for (const attr of allowed) {
+        const value = child.getAttribute(attr);
+        if (value !== null) el.setAttribute(attr, value);
+      }
+      copy(child, el);
+      to.appendChild(el);
+    }
+  };
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  // The star's size comes from --b-rating-star, so the icon's own width/height are not copied; keep its coordinates.
+  const w = parseFloat(source.getAttribute('width') ?? '');
+  const h = parseFloat(source.getAttribute('height') ?? '');
+  const viewBox = source.getAttribute('viewBox') ?? (w > 0 && h > 0 ? `0 0 ${w} ${h}` : null);
+  if (viewBox) svg.setAttribute('viewBox', viewBox);
+  const ratio = source.getAttribute('preserveAspectRatio');
+  if (ratio) svg.setAttribute('preserveAspectRatio', ratio);
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  copy(source, svg);
+  return svg.outerHTML;
+}
+
 /**
  * Star rating — a form-associated whole-star input (TASK-579).
  *
@@ -36,6 +88,8 @@ export class BRating extends FormControlComponent {
       .stars { display: inline-flex; align-items: center; gap: var(--b-space-2xs, 0.125rem); }
       .star { display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
         border-radius: var(--b-radius-sm, 0.25rem); }
+      /* The icon slot is a source to copy from, never rendered itself (nor in the accessibility tree). */
+      slot[name="icon"] { display: none; }
       .star svg { width: var(--b-rating-star); height: var(--b-rating-star); display: block;
         fill: none; stroke: var(--b-text-secondary); stroke-width: 1.5; stroke-linejoin: round; }
       .star.filled svg { fill: var(--b-rating-color, var(--b-color-warning)); stroke: var(--b-rating-color, var(--b-color-warning)); }
@@ -85,7 +139,14 @@ export class BRating extends FormControlComponent {
 
   // ── render ─────────────────────────────────────────────────────────────────────────────────────────
 
+  /** The `icon` slot's SVG as markup for each star, or the built-in star. */
+  private icon(): string {
+    const source = this.querySelector<SVGSVGElement>(':scope > svg[slot="icon"]');
+    return source ? iconMarkup(source) : STAR;
+  }
+
   render() {
+    const icon = this.icon();
     const value = Number(this.value) || 0;
     const max = this.max;
     const label = this.attr('label');
@@ -99,7 +160,7 @@ export class BRating extends FormControlComponent {
 
     const control = readonly
       ? `<div class="stars readonly" role="img" aria-label="${escapeAttr(this.readonlyName(value, max))}">
-          ${stars.map((i) => `<span class="star${i <= value ? ' filled' : ''}">${STAR}</span>`).join('')}
+          ${stars.map((i) => `<span class="star${i <= value ? ' filled' : ''}">${icon}</span>`).join('')}
         </div>`
       : `<div class="stars${disabled ? ' disabled' : ''}${error ? ' has-error' : ''}" role="radiogroup"
           ${fieldAria({ uid: this.uid, error, description, bare, label, required })}>
@@ -107,13 +168,17 @@ export class BRating extends FormControlComponent {
             <input class="sr-only" type="radio" id="${this.uid}-r${i}" name="${this.uid}" value="${i}"
               aria-label="${escapeAttr(this.label('label-star', 'bwc.rating.star', '{value} of {max}', { value: i, max }))}"
               ${i === value ? 'checked' : ''} ${disabled ? 'disabled' : ''} ${required ? 'required' : ''} />
-            <label for="${this.uid}-r${i}" class="star${i <= value ? ' filled' : ''}" aria-hidden="true">${STAR}</label>`).join('')}
+            <label for="${this.uid}-r${i}" class="star${i <= value ? ' filled' : ''}" aria-hidden="true">${icon}</label>`).join('')}
         </div>`;
 
-    return renderField({ bare, uid: this.uid, label, hint: this.attr('hint'), description, error, required, control });
+    return renderField({ bare, uid: this.uid, label, hint: this.attr('hint'), description, error, required, control })
+      + '<slot name="icon"></slot>';
   }
 
   protected onUpdated() {
+    // A replaced or removed icon re-renders the stars; the morph keeps the radios, so the value and focus survive.
+    const slot = this.$<HTMLSlotElement>('slot[name="icon"]');
+    if (slot) this.listen(slot, 'slotchange', () => this.update());
     const radios = this.$$<HTMLInputElement>('input[type="radio"]');
     radios.forEach((radio) => {
       this.listen(radio, 'change', () => { if (radio.checked) this.pick(radio.value); });
