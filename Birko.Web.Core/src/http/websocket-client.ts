@@ -24,6 +24,25 @@ export interface WsClientOptions {
   onClose?: (event: CloseEvent) => void;
   /** Called on WebSocket error. */
   onError?: (event: Event) => void;
+  /**
+   * Envelope field that correlates a `request()` with its reply (default `'id'`). It sits at the top level of the
+   * message both ways: `{ type, id, data }` out, `{ type: 'response', id, data }` back.
+   */
+  requestIdField?: string;
+}
+
+export interface WsRequestOptions {
+  /** Reject when no reply arrives in time (default 30000 ms). */
+  timeoutMs?: number;
+  /** Reply `type`s that reject instead of resolving (default `['error']`). */
+  errorTypes?: string[];
+}
+
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+  errorTypes: string[];
 }
 
 export class WsClient {
@@ -34,6 +53,8 @@ export class WsClient {
   private _heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private _reconnectAttempts = 0;
   private _intentionalClose = false;
+  private _pending = new Map<string, PendingRequest>();
+  private _requestSeq = 0;
 
   constructor(options: WsClientOptions) {
     this._options = options;
@@ -76,6 +97,9 @@ export class WsClient {
         parsed = event.data;
       }
 
+      // A reply to request(): consumed here, not dispatched to the type handlers.
+      if (this._settleReply(parsed)) return;
+
       // Dispatch to typed handler if message has a `type` field
       if (parsed && typeof parsed === 'object' && 'type' in (parsed as Record<string, unknown>)) {
         const msg = parsed as Record<string, unknown>;
@@ -93,6 +117,7 @@ export class WsClient {
 
     this._socket.onclose = (event: CloseEvent) => {
       this._stopHeartbeat();
+      this._rejectPending('WebSocket closed');
       this._dispatch('_close', event);
 
       if (!this._intentionalClose) {
@@ -111,6 +136,7 @@ export class WsClient {
   disconnect(): void {
     this._intentionalClose = true;
     this._stopHeartbeat();
+    this._rejectPending('WebSocket disconnected');
 
     if (this._reconnectTimer) {
       clearTimeout(this._reconnectTimer);
@@ -160,6 +186,40 @@ export class WsClient {
     this.send(JSON.stringify({ type, data }));
   }
 
+  /**
+   * Send `{ type, [requestIdField]: id, data }` and resolve with the `data` of the reply carrying the same id. Rejects
+   * when the reply's `type` is an error type, on timeout, when the socket closes or `disconnect()` is called, and at
+   * once when the socket is not open.
+   */
+  request<T = unknown>(type: string, data?: unknown, options: WsRequestOptions = {}): Promise<T> {
+    return this.requestMessage<T>({ type, data }, options);
+  }
+
+  /** Like `request()`, for a message of any shape: `body` is sent with the correlation id added to it. */
+  requestMessage<T = unknown>(body: Record<string, unknown>, options: WsRequestOptions = {}): Promise<T> {
+    if (!this.connected) return Promise.reject(new Error('WebSocket is not open'));
+    const id = `req_${Date.now().toString(36)}_${(++this._requestSeq).toString(36)}`;
+    const field = this._options.requestIdField ?? 'id';
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        if (this._pending.delete(id)) reject(new Error(`Request timed out after ${options.timeoutMs ?? 30_000} ms`));
+      }, options.timeoutMs ?? 30_000);
+      this._pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer, errorTypes: options.errorTypes ?? ['error'] });
+      try {
+        this.send(JSON.stringify({ ...body, [field]: id }));
+      } catch (err) {
+        clearTimeout(timer);
+        this._pending.delete(id);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      }
+    });
+  }
+
+  /** Requests waiting for a reply. */
+  get pendingRequests(): number {
+    return this._pending.size;
+  }
+
   // ── Event subscription ────────────────────────────────────────────────────
 
   /**
@@ -185,6 +245,33 @@ export class WsClient {
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
+
+  /** Settle the request this message answers. Returns false when it answers none. */
+  private _settleReply(msg: unknown): boolean {
+    if (!msg || typeof msg !== 'object' || this._pending.size === 0) return false;
+    const m = msg as Record<string, unknown>;
+    const id = m[this._options.requestIdField ?? 'id'];
+    if (typeof id !== 'string') return false;
+    const pending = this._pending.get(id);
+    if (!pending) return false;
+    this._pending.delete(id);
+    clearTimeout(pending.timer);
+    if (typeof m.type === 'string' && pending.errorTypes.includes(m.type)) {
+      const reason = typeof m.error === 'string' ? m.error : typeof m.message === 'string' ? m.message : 'Request failed';
+      pending.reject(new Error(reason));
+    } else {
+      pending.resolve(m.data);
+    }
+    return true;
+  }
+
+  private _rejectPending(reason: string): void {
+    for (const p of this._pending.values()) {
+      clearTimeout(p.timer);
+      p.reject(new Error(reason));
+    }
+    this._pending.clear();
+  }
 
   private _dispatch(event: string, data: unknown): void {
     const handlers = this._handlers.get(event);
