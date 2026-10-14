@@ -826,9 +826,13 @@ Slots: default; `b-toolbar` adds `end`
 (document.querySelector('#my-modal') as BModal).open();
 ```
 
-Attributes: `title`, `size` (sm|md|lg|xl|xxl|full)
+Attributes: `title`, `heading-level` (1–6, default 2), `size` (sm|md|lg|xl|xxl|full)
 Slots: default (body), `footer`
 Methods: `open()`, `close()`
+
+The title renders as an `<h2>` (or `heading-level`) that names the dialog, styled as before; a heading you put inside
+the dialog nests under it, so start at `<h3>`. The title is text: markup in it is shown, not parsed. No `title`, no
+heading.
 Emits: `close`
 
 `sm`–`xxl` cap `max-width` (380 / 520 / 720 / 960 / 1280px via `--b-modal-width{,-sm,-lg,-xl,-xxl}`); the modal stays 90% wide and at most `85vh` tall. `full` is the editor size — the viewport minus `--b-modal-full-inset` (2rem) on all four sides, in **both** axes, so a WYSIWYG field or a complex form editor gets the full height instead of a 85vh cap. Below 640px it goes edge to edge with square corners.

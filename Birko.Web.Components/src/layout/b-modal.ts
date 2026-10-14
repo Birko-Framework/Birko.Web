@@ -3,9 +3,10 @@ import {
   dialogBaseSheet, closeButtonSheet,
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
+import { escapeHtml } from '../dom-utils';
 
 export class BModal extends BaseComponent {
-  static get observedAttributes() { return ['title', 'size', 'label-close']; }
+  static get observedAttributes() { return ['title', 'heading-level', 'size', 'label-close']; }
 
   private _previousFocus: HTMLElement | null = null;
 
@@ -20,6 +21,8 @@ export class BModal extends BaseComponent {
   static get styles() {
     return `
       :host { display: contents; }
+      /* The title is a heading for the document outline only: it keeps the header bar's type, as the <span> did. */
+      .overlay-title { margin: 0; font: inherit; letter-spacing: inherit; }
       /* Viewport-relative width, not 90% — the <dialog> parent is UA-sized as fit-content, so a percentage
          resolves against a box derived from this very child and the card lands narrower than the dialog
          around it (see the same fix in b-confirm-dialog). Here it also fought min-width, so the card could
@@ -61,11 +64,18 @@ export class BModal extends BaseComponent {
   render() {
     const title = this.attr('title');
     const titleId = 'modal-title-' + (this.id || 'default');
+    // h2 by default: a dialog sits under the page's h1. `heading-level` for one opened from deeper in the outline.
+    const level = Number(this.attr('heading-level', '2'));
+    const tag = Number.isInteger(level) && level >= 1 && level <= 6 ? `h${level}` : 'h2';
+    // Text, never HTML: titles carry record and tenant names (TASK-580; b-toast's TASK-597 is the same defect).
+    const heading = title
+      ? `<${tag} id="${titleId}" class="overlay-title">${escapeHtml(title)}</${tag}>`
+      : '<span></span>';
     return `
-      <dialog id="dlg" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+      <dialog id="dlg" role="dialog" aria-modal="true"${title ? ` aria-labelledby="${titleId}"` : ''}>
         <div class="modal">
           <div class="overlay-header">
-            <span id="${titleId}">${title}</span>
+            ${heading}
             <button class="close-btn" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&times;</button>
           </div>
           <div class="overlay-body"><slot></slot></div>
