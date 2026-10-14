@@ -497,7 +497,7 @@ export abstract class BAppShell extends BSidebarAppShell {
         position: absolute; top: -0.25rem; right: -0.375rem;
         min-width: 1.125rem; height: 1.125rem; padding: 0 var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger); color: var(--b-text-inverse);
+        background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse));
         font-size: 0.625rem; font-weight: var(--b-font-weight-bold, 700);
         display: flex; align-items: center; justify-content: center; line-height: 1;
         animation: bell-pulse 2s ease infinite;

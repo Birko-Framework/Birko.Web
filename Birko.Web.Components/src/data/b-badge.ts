@@ -11,11 +11,11 @@ export class BBadge extends BaseComponent {
         border-radius: var(--b-radius-full, 9999px); font-size: var(--b-text-xs, 0.6875rem);
         font-weight: var(--b-font-weight-medium, 500); line-height: 1.6; white-space: nowrap;
       }
-      .primary { background: var(--b-color-primary-light); color: var(--b-color-primary); }
-      .success { background: var(--b-color-success-light); color: var(--b-color-success); }
-      .warning { background: var(--b-color-warning-light); color: var(--b-color-warning); }
-      .danger { background: var(--b-color-danger-light); color: var(--b-color-danger); }
-      .info { background: var(--b-color-info-light); color: var(--b-color-info); }
+      .primary { background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); }
+      .success { background: var(--b-color-success-light); color: var(--b-color-success-text, var(--b-color-success)); }
+      .warning { background: var(--b-color-warning-light); color: var(--b-color-warning-text, var(--b-color-warning)); }
+      .danger { background: var(--b-color-danger-light); color: var(--b-color-danger-text, var(--b-color-danger)); }
+      .info { background: var(--b-color-info-light); color: var(--b-color-info-text, var(--b-color-info)); }
       .neutral { background: var(--b-bg-tertiary); color: var(--b-text-secondary); }
       :host([size="sm"]) .badge { padding: 0 var(--b-space-xs); font-size: var(--b-text-2xs, 0.625rem); }
       :host([size="lg"]) .badge { padding: var(--b-space-xs) var(--b-space-md); font-size: var(--b-text-sm); }

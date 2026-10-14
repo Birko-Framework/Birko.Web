@@ -144,7 +144,7 @@ export class BTreeMenu extends BaseComponent {
         white-space: nowrap;
       }
       .node-action-btn:hover { background: var(--b-bg-secondary); color: var(--b-text); }
-      .node-action-btn.danger:hover { background: var(--b-color-danger-light, #fee2e2); color: var(--b-color-danger); }
+      .node-action-btn.danger:hover { background: var(--b-color-danger-light, #fee2e2); color: var(--b-color-danger-text, var(--b-color-danger)); }
 
       /* ── Sortable controls ── */
       .node-sort {

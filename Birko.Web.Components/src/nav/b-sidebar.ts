@@ -39,7 +39,7 @@ export class BSidebar extends BaseComponent {
         transition: all var(--b-transition, 150ms ease); overflow: hidden; white-space: nowrap;
       }
       .nav-item:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
-      .nav-item.active { background: var(--b-color-primary-light); color: var(--b-color-primary); }
+      .nav-item.active { background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); }
       .nav-icon { width: var(--b-icon-lg, 1.25rem); text-align: center; flex-shrink: 0; font-size: var(--b-icon-base); }
       .nav-label { overflow: hidden; text-overflow: ellipsis; }
       :host([collapsed]) .nav-label { display: none; }

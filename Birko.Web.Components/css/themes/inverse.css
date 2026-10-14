@@ -20,6 +20,15 @@
   /* Text-only red. This theme inherits danger from the page theme, so the error row was #dc2626 on a dark
      surface — 2.13:1. #fca5a5 gives 5.41:1 on --b-bg-secondary and 7.62:1 on --b-bg. */
   --b-color-danger-text: #fca5a5;
+  --b-color-primary-light: #1e3a5f;
+  --b-color-success-light: #14352a;
+  --b-color-warning-light: #3d2c0a;
+  --b-color-danger-light: #3f1d1d;
+  --b-color-info-light: #0e3438;
+  --b-color-primary-text: #70a4f8;
+  --b-color-success-text: #2cac5b;
+  --b-color-warning-text: #dc8117;
+  --b-color-info-text: #32a4bf;
 
   --b-bg: #2b2929;
   --b-bg-secondary: #434040;
@@ -28,7 +37,7 @@
 
   --b-text: #ffffff;
   --b-text-secondary: #d5d0d0;
-  --b-text-muted: #b0abab;
+  --b-text-muted: #bdb9b9;
 
   --b-border: #5a5656;
   --b-border-hover: #736f6f;

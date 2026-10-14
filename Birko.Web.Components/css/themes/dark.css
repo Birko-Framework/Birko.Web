@@ -14,6 +14,7 @@
   --b-color-primary: #3b82f6;
   --b-color-primary-hover: #60a5fa;
   --b-color-primary-light: #1e3a5f;
+  --b-color-primary-text: #70a4f8;
   /* The rest of the semantic *-light family. These are TINT BACKGROUNDS, and tokens.css gives them pale
      pastels (#dcfce7 / #fef3c7 / #fee2e2 / #cffafe) for a light page. Only primary-light was ever darkened
      here, so in dark mode the other four kept their pastel value while --b-text flipped to #f1f5f9 — near-
@@ -23,9 +24,12 @@
      Values follow primary-light's approach: a dark, desaturated tint of the same hue, so --b-text sits on
      them at a comfortable ratio. */
   --b-color-success-light: #14352a;
+  --b-color-success-text: #2cac5b;
   --b-color-warning-light: #3d2c0a;
+  --b-color-warning-text: #dc8117;
   --b-color-danger-light: #3f1d1d;
   --b-color-info-light: #0e3438;
+  --b-color-info-text: #32a4bf;
   --b-color-danger-hover: #ef4444;
   /* Text-only red. The base #dc2626 measures 3.03:1 on --b-bg-secondary — below AA for small text.
      #f87171 gives 5.29:1 there and 6.45:1 on --b-bg, without touching the danger used for fills. */
@@ -41,9 +45,9 @@
   --b-tooltip-border: #1e293b;
 
   --b-text: #f1f5f9;
-  --b-text-secondary: #94a3b8;
+  --b-text-secondary: #b3becd;
   /* Muted text floor: 5.59:1 on --b-bg, 4.58:1 on --b-bg-secondary. #64748b measured 3.75 / 3.07 (TASK-562). */
-  --b-text-muted: #8391a7;
+  --b-text-muted: #a3adbd;
   /* White on #3b82f6 is 3.68:1 (2.54:1 on hover). Primary stays, because 45 rules use it as a text
      colour on dark surfaces; the text on the fill goes dark instead: 4.85:1, 7.02:1 on hover (TASK-562). */
   --b-text-on-primary: #0f172a;

@@ -77,7 +77,7 @@ export class BButton extends FormControlComponent {
       .primary:hover { background: var(--b-color-primary-hover); }
       .secondary { background: var(--b-bg-tertiary); color: var(--b-text); border-color: var(--b-border); }
       .secondary:hover { background: var(--b-border); }
-      .danger { background: var(--b-color-danger); color: var(--b-text-inverse); }
+      .danger { background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse)); }
       .danger:hover { background: var(--b-color-danger-hover); }
       .ghost { background: transparent; color: var(--b-text-secondary); }
       .ghost:hover { background: var(--b-bg-tertiary); }

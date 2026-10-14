@@ -8,13 +8,16 @@
   --b-color-primary: #2563eb;
   --b-color-primary-hover: #1d4ed8;
   --b-color-primary-light: #dbeafe;
+  --b-color-primary-text: #235edf;
   --b-color-secondary: #64748b;
   --b-color-secondary-hover: #475569;
 
   --b-color-success: #16a34a;
   --b-color-success-light: #dcfce7;
+  --b-color-success-text: #11803a;
   --b-color-warning: #d97706;
   --b-color-warning-light: #fef3c7;
+  --b-color-warning-text: #a65b05;
   --b-rating-color: var(--b-color-warning);  /* b-rating fill; a theme whose warning colour is under 3:1 overrides it (TASK-608) */
   --b-color-danger: #dc2626;
   /* Danger as TEXT, kept separate from the danger used for surfaces/borders/buttons. A red that reads well
@@ -23,11 +26,12 @@
      substitution is lazy, so a theme that overrides only --b-color-danger gets its own red here too);
      themes override it where the measured contrast falls below WCAG AA 4.5:1. Used by `.field .error`
      and `.required-mark`. */
-  --b-color-danger-text: var(--b-color-danger);
+  --b-color-danger-text: #ca2323;
   --b-color-danger-hover: #b91c1c;
   --b-color-danger-light: #fee2e2;
   --b-color-info: #0891b2;
   --b-color-info-light: #cffafe;
+  --b-color-info-text: #077893;
 
   /* ── Status alpha (semi-transparent tints for backgrounds/borders) ── */
   --b-color-danger-alpha-bg: rgba(220, 38, 38, 0.08);
@@ -70,11 +74,15 @@
   --b-text: #0f172a;
   --b-text-secondary: #475569;
   /* Muted text floor: 4.76:1 on --b-bg, 4.55:1 on --b-bg-secondary. #94a3b8 measured 2.56 / 2.45 (TASK-562). */
-  --b-text-muted: #64748b;
+  --b-text-muted: #607086;
   --b-text-inverse: #ffffff;
   /* Text on a --b-color-primary fill (b-button primary, b-pagination active page). A theme whose primary
      is too light for white text overrides it rather than darkening primary, which is also a text colour. */
   --b-text-on-primary: var(--b-text-inverse);
+  --b-text-on-success: #0f172a;
+  --b-text-on-warning: #0f172a;
+  --b-text-on-danger: #ffffff;
+  --b-text-on-info: #0f172a;
 
   /* ── Borders (px — stay crisp) ── */
   --b-border: #e2e8f0;

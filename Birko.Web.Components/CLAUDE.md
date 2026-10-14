@@ -227,6 +227,24 @@ inverse are unmeasured. **`--b-text-on-primary`** is the text colour on a `--b-c
 (45 rules use it as a text colour). A new primary-filled control uses `var(--b-text-on-primary, var(--b-text-inverse))`,
 never `--b-text-inverse` directly. `tests/Birko.DesignTokens.Tests/ContrastTests.cs` (Framework) guards both pairs.
 
+**Text on a tint or a fill has its own token, in every theme (TASK-130, TASK-599).** A semantic colour is a fill and
+an accent; as **text on its own tint** it was below AA in every theme (light warning 2.86:1, finstat 1.54:1), and white
+on the success/warning/info fills was 3.19–3.68:1. So:
+
+| Painting | Use | Never |
+|---|---|---|
+| text on `--b-color-<x>-light` | `var(--b-color-<x>-text, var(--b-color-<x>))` | `--b-color-<x>` |
+| text on a `--b-color-<x>` fill | `var(--b-text-on-<x>, var(--b-text-inverse))` (`-on-primary` for primary) | `--b-text-inverse` |
+
+The fallback is for consumers that fork `tokens.css` (Symbio): they keep today's colours until they add the tokens.
+The values are the smallest step darker (light surfaces) or lighter (dark ones) that clears 4.5:1, so each theme keeps
+its hues; on the success/warning/info fills (and every finstat fill) the text is dark, not white. `--b-text-muted` and
+`--b-text-secondary` moved the same way in neon, finstat and inverse, keeping secondary above muted. `inverse` now
+carries dark tints (dark.css's), because white text on the page's pastels read at 1.10:1. Gates: `ContrastTests`
+(every pair, every theme, from tokens.json) and the Playground's `device-fix-check.mjs` § 3b (the rendered
+components). A new component painting text on a tint or a fill uses the table above, and adds its pair to
+`Contrast.Pairs` if it is a new one.
+
 - **Both, not a mode.** A single attribute with a `tooltip|text` switch was considered and rejected: it makes
   a field unable to carry a standing constraint *and* a longer explainer at the same time, and any default
   choice is either wrong or a visible change for every consumer already passing `hint`.

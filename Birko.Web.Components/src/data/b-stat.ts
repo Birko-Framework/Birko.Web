@@ -56,8 +56,8 @@ export class BStat extends BaseComponent {
         transition: background var(--b-transition, 150ms ease);
       }
       .delta .arrow { font-size: 0.85em; line-height: 1; }
-      .positive { background: var(--b-color-success-light); color: var(--b-color-success); }
-      .negative { background: var(--b-color-danger-light); color: var(--b-color-danger); }
+      .positive { background: var(--b-color-success-light); color: var(--b-color-success-text, var(--b-color-success)); }
+      .negative { background: var(--b-color-danger-light); color: var(--b-color-danger-text, var(--b-color-danger)); }
       .neutral  { background: var(--b-bg-tertiary); color: var(--b-text-secondary); }
     `;
   }

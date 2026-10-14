@@ -203,10 +203,10 @@ export class BToastItem extends BaseComponent {
         cursor: default;
       }
       :host([href]) .toast { cursor: pointer; }
-      .success { background: var(--b-color-success); color: var(--b-text-inverse); }
-      .error { background: var(--b-color-danger); color: var(--b-text-inverse); }
-      .warning { background: var(--b-color-warning); color: var(--b-text-inverse); }
-      .info { background: var(--b-color-info); color: var(--b-text-inverse); }
+      .success { background: var(--b-color-success); color: var(--b-text-on-success, var(--b-text-inverse)); }
+      .error { background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse)); }
+      .warning { background: var(--b-color-warning); color: var(--b-text-on-warning, var(--b-text-inverse)); }
+      .info { background: var(--b-color-info); color: var(--b-text-on-info, var(--b-text-inverse)); }
       .icon { flex-shrink: 0; }
       .msg { flex: 1; }
       .action {

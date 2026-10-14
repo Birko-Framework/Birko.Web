@@ -15,20 +15,25 @@
   --b-color-primary: #8cffb0;
   --b-color-primary-hover: #6be89a;
   --b-color-primary-light: #06301a;
+  --b-color-primary-text: var(--b-color-primary);
   --b-color-secondary: #6f87a8;
   --b-color-secondary-hover: #8aa0bd;
 
   --b-color-success: #8cffb0;
   --b-color-success-light: #06301a;
+  --b-color-success-text: var(--b-color-success);
   --b-color-warning: #ffaa44;
   --b-color-warning-light: #3a2a10;
+  --b-color-warning-text: var(--b-color-warning);
   /* #ff4466 measures 5.36:1 as text on --b-bg-secondary, so no --b-color-danger-text override is needed
      here — it inherits this value. */
   --b-color-danger: #ff4466;
   --b-color-danger-hover: #ff6680;
   --b-color-danger-light: #551018;
+  --b-color-danger-text: #ff5372;
   --b-color-info: #66e0ff;
   --b-color-info-light: #0e2a3a;
+  --b-color-info-text: var(--b-color-info);
 
   /* Surfaces — very dark navy base, lifting to lighter navy for elevated chrome */
   --b-bg: #0b0f1a;
@@ -41,9 +46,13 @@
   --b-tooltip-border: #3a6ea5;
 
   --b-text: #e6f0ff;
-  --b-text-secondary: #6f87a8;
-  --b-text-muted: #4a5f7e;
+  --b-text-secondary: #8599b5;
+  --b-text-muted: #7b8aa1;
   --b-text-inverse: #06301a;
+  --b-text-on-success: var(--b-text-inverse);
+  --b-text-on-warning: var(--b-text-inverse);
+  --b-text-on-danger: #000000;
+  --b-text-on-info: var(--b-text-inverse);
 
   --b-border: #21314f;
   --b-border-hover: #3a6ea5;

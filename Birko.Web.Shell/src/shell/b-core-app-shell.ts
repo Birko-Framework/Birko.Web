@@ -447,7 +447,7 @@ export abstract class BCoreAppShell extends BaseComponent {
       .user-trigger.is-static:hover { background: none; color: var(--b-text-secondary); }
       .user-avatar {
         width: 1.75rem; height: 1.75rem; border-radius: 50%;
-        background: var(--b-color-primary-light); color: var(--b-color-primary);
+        background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
         display: flex; align-items: center; justify-content: center;
         font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-bold, 700);
         flex-shrink: 0;

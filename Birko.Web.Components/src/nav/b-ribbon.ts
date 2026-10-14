@@ -189,7 +189,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-tab-badge {
         min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger); color: var(--b-text-inverse);
+        background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse));
         font-size: var(--b-text-2xs, 0.625rem); font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
@@ -367,7 +367,7 @@ export class BRibbon extends BaseComponent {
       }
       .ribbon-item:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-item:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
-      .ribbon-item.active { background: var(--b-color-primary-light); color: var(--b-color-primary); }
+      .ribbon-item.active { background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); }
       .ribbon-item[aria-disabled="true"] {
         opacity: var(--b-disabled-opacity, 0.5); pointer-events: none;
       }
@@ -377,7 +377,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-item-badge {
         min-width: 1rem; height: 1rem; padding: 0 0.2rem;
         border-radius: var(--b-radius-full, 9999px);
-        background: var(--b-color-danger); color: var(--b-text-inverse);
+        background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse));
         font-size: 0.5625rem; font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
@@ -433,7 +433,7 @@ export class BRibbon extends BaseComponent {
         font-size: var(--b-text-base, 0.875rem);
       }
       .mobile-tab-header:hover { background: var(--b-bg-tertiary); }
-      .mobile-tab-header.active { color: var(--b-color-primary); background: var(--b-color-primary-light); }
+      .mobile-tab-header.active { color: var(--b-color-primary-text, var(--b-color-primary)); background: var(--b-color-primary-light); }
       .mobile-group { padding-left: var(--b-space-lg, 1rem); }
       .mobile-group-label {
         font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
