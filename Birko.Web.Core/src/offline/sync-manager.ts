@@ -33,6 +33,16 @@ export interface SyncManagerOptions {
    * retry cannot fix makes it `dead` at once — see {@link SyncManager} for which ones.
    */
   maxRetries?: number;
+  /**
+   * The lock manager that lets one tab drain the queue at a time (default: `navigator.locks`, or `null` where the
+   * browser has none). While a tab holds the lock, another tab's `sync()` sends nothing. Pass `null` to opt out.
+   */
+  locks?: LockManager | null;
+  /**
+   * Without a lock manager, how old a `syncing` action must be before it counts as abandoned by a closed tab, in ms
+   * (default: 300000, 5 minutes). Keep it above the longest a request can take, or a slow send is sent twice.
+   */
+  syncLeaseMs?: number;
   /** Clock, for tests (default: `Date.now`). */
   now?: () => number;
 }
@@ -45,6 +55,8 @@ export interface SyncManagerOptions {
  * asks the user to resolve a write that already succeeded.
  */
 type ReplayOutcome = 'applied' | 'conflict' | 'failed' | 'dead';
+
+const NOTHING: SyncResult = { synced: 0, failed: 0, conflicts: 0, dead: 0 };
 
 // ── SyncManager ────────────────────────────────────────────────────────────
 
@@ -59,6 +71,12 @@ type ReplayOutcome = 'applied' | 'conflict' | 'failed' | 'dead';
  * Order is kept **per entity**: while one write to an entity is backing off or dead, later writes to the same
  * entity wait behind it, and writes to other entities go ahead. The entity is `metadata.entityType` +
  * `metadata.entityId`, or the action's `path` when no `entityId` is declared.
+ *
+ * An action is stored `syncing` while it is sent. One a closed tab left `syncing` (it may or may not have reached the
+ * server) is recovered by the next sync: a PUT, a DELETE or an `idPinned` POST is sent again, keeping its retry count,
+ * because a replay that already landed reads as applied; a plain POST or a PATCH becomes `dead`, because sending it
+ * again could apply it twice, and the user decides through {@link retry} / {@link discard}. One tab drains at a time,
+ * under a Web Lock; without Web Locks, a `syncing` action is abandoned once it is older than `syncLeaseMs`.
  */
 export class SyncManager {
   private _syncing = false;
@@ -73,6 +91,8 @@ export class SyncManager {
   private _api: ApiClient;
   private _conflictStatus: number;
   private _deleteMissingIsApplied: boolean;
+  private _locks: LockManager | null;
+  private _syncLeaseMs: number;
   private _intervalId: ReturnType<typeof setInterval> | null = null;
   // Retained so dispose() can unregister it — an inline arrow can't be removed and would keep the
   // disposed SyncManager (and its captured `this`) alive, firing sync() on every reconnect.
@@ -87,6 +107,8 @@ export class SyncManager {
     this._retryMaxMs = options.retryMaxMs ?? 900_000;
     this._maxRetries = options.maxRetries ?? 10;
     this._now = options.now ?? Date.now;
+    this._locks = options.locks !== undefined ? options.locks : (navigator.locks ?? null);
+    this._syncLeaseMs = options.syncLeaseMs ?? 300_000;
 
     // Auto-sync when coming back online
     window.addEventListener('online', this._onlineHandler);
@@ -104,75 +126,118 @@ export class SyncManager {
 
   /**
    * Send every action that is due, oldest first. An action still backing off, or one behind a write to the same
-   * entity that is backing off or dead, is left for a later sync.
+   * entity that is backing off, dead or being sent, is left for a later sync. Sends nothing while another tab is
+   * draining the same queue.
    */
   async sync(): Promise<SyncResult> {
-    if (this._syncing) return { synced: 0, failed: 0, conflicts: 0, dead: 0 };
+    if (this._syncing) return { ...NOTHING };
     this._syncing = true;
 
+    let result: SyncResult | null;
+    // try/finally so _syncing is always cleared — otherwise an exception from getPending()
+    // (e.g. an IndexedDB open failure) or a queue write would leave _syncing stuck at true and
+    // the guard above would permanently disable every future sync for the session.
+    try {
+      result = this._locks
+        ? await this._locks.request(`birko-sync:${this._queue.name}`, { ifAvailable: true },
+          (lock) => lock ? this._drain(true) : null)
+        : await this._drain(false);
+    } finally {
+      this._syncing = false;
+    }
+
+    // Another tab holds the lock and is draining: nothing was done here.
+    if (!result) return { ...NOTHING };
+    this._notifyComplete(result);
+    return result;
+  }
+
+  /** One pass over the queue. `exclusive`: this tab holds the drain lock, so no other tab is sending anything. */
+  private async _drain(exclusive: boolean): Promise<SyncResult> {
     let synced = 0;
     let failed = 0;
     let conflicts = 0;
     let dead = 0;
 
-    // try/finally so _syncing is always cleared — otherwise an exception from getPending()
-    // (e.g. an IndexedDB open failure) or a queue write would leave _syncing stuck at true and
-    // the guard above would permanently disable every future sync for the session.
-    try {
-      // Entities with a write that is not getting through: later writes to them wait, in order.
-      const held = new Set((await this._queue.getDead()).map(entityKey));
-      const pending = await this._queue.getPending();
-      const now = this._now();
+    // Entities with a write that is not getting through: later writes to them wait, in order.
+    const held = new Set<string>();
+    const now = this._now();
 
-      for (const action of pending) {
-        const key = entityKey(action);
-        if (held.has(key)) continue;
-        if (action.nextAttemptAt !== undefined && action.nextAttemptAt > now) {
-          held.add(key);
-          continue;
-        }
+    // A `syncing` action is one a closed tab left behind, unless another tab may still be sending it.
+    for (const action of (await this._queue.getAll()).filter(a => a.status === 'syncing')) {
+      const abandoned = exclusive || action.syncingSince === undefined || now - action.syncingSince >= this._syncLeaseMs;
+      if (!abandoned) held.add(entityKey(action));
+      else if (await this._recover(action)) dead++;
+    }
+    for (const action of await this._queue.getDead()) held.add(entityKey(action));
+    const pending = await this._queue.getPending();
 
-        action.status = 'syncing';
-        await this._queue.update(action);
-
-        try {
-          const resp = action.method === 'POST'
-            ? await this._api.post(action.path, action.body)
-            : action.method === 'PUT'
-              ? await this._api.put(action.path, action.body)
-              : action.method === 'PATCH'
-                ? await this._api.patch(action.path, action.body)
-                : await this._api.delete(action.path);
-
-          const outcome = this._classifyReplay(action, resp.ok, resp.status);
-          if (outcome === 'applied') {
-            await this._queue.remove(action.id);
-            synced++;
-          } else if (outcome === 'conflict') {
-            action.status = 'conflict';
-            await this._queue.update(action);
-            conflicts++;
-            this._notifyConflict(action, resp.data);
-          } else if (await this._fail(action, `HTTP ${resp.status}`, outcome === 'dead')) {
-            dead++;
-            held.add(key);
-          } else {
-            failed++;
-            held.add(key);
-          }
-        } catch (e) {
-          if (await this._fail(action, (e as Error).message, false)) dead++;
-          else failed++;
-          held.add(key);
-        }
+    for (const action of pending) {
+      const key = entityKey(action);
+      if (held.has(key)) continue;
+      if (action.nextAttemptAt !== undefined && action.nextAttemptAt > now) {
+        held.add(key);
+        continue;
       }
-    } finally {
-      this._syncing = false;
+
+      action.status = 'syncing';
+      action.syncingSince = this._now();
+      await this._queue.update(action);
+
+      try {
+        const resp = action.method === 'POST'
+          ? await this._api.post(action.path, action.body)
+          : action.method === 'PUT'
+            ? await this._api.put(action.path, action.body)
+            : action.method === 'PATCH'
+              ? await this._api.patch(action.path, action.body)
+              : await this._api.delete(action.path);
+
+        const outcome = this._classifyReplay(action, resp.ok, resp.status);
+        if (outcome === 'applied') {
+          await this._queue.remove(action.id);
+          synced++;
+        } else if (outcome === 'conflict') {
+          action.status = 'conflict';
+          action.syncingSince = undefined;
+          await this._queue.update(action);
+          conflicts++;
+          this._notifyConflict(action, resp.data);
+        } else if (await this._fail(action, `HTTP ${resp.status}`, outcome === 'dead')) {
+          dead++;
+          held.add(key);
+        } else {
+          failed++;
+          held.add(key);
+        }
+      } catch (e) {
+        if (await this._fail(action, (e as Error).message, false)) dead++;
+        else failed++;
+        held.add(key);
+      }
     }
 
-    const result = { synced, failed, conflicts, dead };
-    this._notifyComplete(result);
-    return result;
+    return { synced, failed, conflicts, dead };
+  }
+
+  /**
+   * Put an abandoned `syncing` action back in line, or make it dead when sending it again could apply it twice.
+   * Returns true when it died.
+   */
+  private async _recover(action: QueuedAction): Promise<boolean> {
+    action.syncingSince = undefined;
+    action.nextAttemptAt = undefined;
+    const safe = action.method === 'PUT' || action.method === 'DELETE' || (action.method === 'POST' && !!action.metadata?.idPinned);
+    if (safe) {
+      action.status = 'failed';   // due now, with its retry count
+      await this._queue.update(action);
+      return false;
+    }
+    action.status = 'dead';
+    action.lastError = 'Interrupted while sending: it may have been applied. Retry or discard it.';
+    await this._queue.update(action);
+    for (const fn of this._deadListeners) fn(action);
+    return true;
   }
 
   /** Actions that gave up, oldest first. */
@@ -266,6 +331,7 @@ export class SyncManager {
   private async _fail(action: QueuedAction, error: string, unrecoverable: boolean): Promise<boolean> {
     action.retries++;
     action.lastError = error;
+    action.syncingSince = undefined;
     const dies = unrecoverable || action.retries >= this._maxRetries;
     if (dies) {
       action.status = 'dead';

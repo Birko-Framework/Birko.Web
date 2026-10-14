@@ -128,6 +128,12 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
   `PUT` is excluded even when pinned: it is addressed by id already, so its conflict is about the entity's
   *state*. Never infer `idPinned` from the body — Reps' own suite has a `POST` that carries a client guid and
   can *also* 409 on a uniqueness rule
+- **`syncing` is stored before the request and is the one status a closed tab can strand** (TASK-598). Nothing
+  read it back, so such a write was never resent, never counted and never listed. `SyncManager._drain` recovers it
+  first, under the drain lock: resent only where a landed replay is recognisable (`PUT`, `DELETE`, `idPinned`
+  `POST`), otherwise `dead`. Never resend a plain `POST` or a `PATCH` on recovery — "may have landed" is the user's
+  call. The lock (`navigator.locks`, `birko-sync:<queue name>`) is also what stops two tabs sending the same
+  pending action, which they did before it; a fake queue in a test needs `getAll()` and `name`, or `locks: null`
 
 ### Router rules
 - Hash-based (`#/path`): `window.location.hash = '#/path'` to navigate

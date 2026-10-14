@@ -394,6 +394,7 @@ await sync.discard(dead[0].id);  // gone for good
 | Status | Meaning |
 |---|---|
 | `pending` | Not tried yet |
+| `syncing` | Being sent, since `syncingSince` |
 | `failed` | Tried; sent again at `nextAttemptAt` (persisted, so a reload keeps the schedule) |
 | `dead` | Gave up: a 4xx a retry cannot change (anything but 401, 408, 409, 429), or `maxRetries` attempts. Never re-sent until `retry(id)` |
 | `conflict` | The conflict status (409); see `onConflict` |
@@ -401,7 +402,15 @@ await sync.discard(dead[0].id);  // gone for good
 A `DELETE` answered 404 is *already applied* and drains (`deleteMissingIsApplied`, default `true`); an `idPinned`
 `POST` answered 409 likewise. **Order is kept per entity** (`metadata.entityType` + `entityId`, or the `path` when no
 `entityId` is set): while one write to an entity backs off or is dead, later writes to it wait, and writes to other
-entities go ahead. `pendingCount` counts `pending` and `failed`, not `dead`.
+entities go ahead. `pendingCount` counts `pending`, `failed` and `syncing`, not `dead`.
+
+**A tab closed mid-send** leaves its action `syncing`, and it may or may not have reached the server. The next sync
+recovers it: a `PUT`, a `DELETE` or an `idPinned` `POST` is sent again with its retry count kept (a replay that already
+landed reads as applied); a plain `POST` or a `PATCH` becomes `dead` with *"it may have been applied"*, because
+sending it again could apply it twice, and the user decides through `retry` / `discard`. **One tab drains at a time**:
+`sync()` holds a Web Lock named after the queue, and another tab's `sync()` sends nothing while it is held. Where Web
+Locks is missing (`locks: null`, or a non-secure context), a `syncing` action counts as abandoned once it is older
+than `syncLeaseMs` (5 min): keep that above your longest request.
 
 ## Offline reads (MirrorStore)
 

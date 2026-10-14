@@ -15,12 +15,15 @@ export interface QueuedAction {
    * - `dead` — terminal: the server refused it in a way a retry cannot fix, or it ran out of retries. It is not
    *   sent again until `SyncManager.retry(id)`; `SyncManager.discard(id)` drops it.
    * - `conflict` — the server reported a conflict; see `SyncManager.onConflict`.
+   * - `syncing` — being sent since `syncingSince`. One left behind by a closed tab is recovered by the next sync.
    */
   status: 'pending' | 'syncing' | 'failed' | 'dead' | 'conflict';
   retries: number;
   lastError?: string;
   /** Epoch ms before which a `failed` action is not re-sent (exponential backoff). Persisted, so a reload resumes it. */
   nextAttemptAt?: number;
+  /** Epoch ms the current send started, while `syncing`. Without Web Locks it decides when the send was abandoned. */
+  syncingSince?: number;
 }
 
 export interface ActionMetadata {
@@ -97,7 +100,14 @@ export class ActionQueue {
     void this._refreshCount().catch(() => { /* IDB unavailable — leave count at 0 */ });
   }
 
-  /** Reactive pending count. */
+  /** The IndexedDB database name; it also names the lock that lets one tab drain this queue at a time. */
+  get name(): string { return this._dbName; }
+
+  /**
+   * Reactive count of writes not yet on the server: `pending`, `failed` and `syncing`. A `syncing` one counts because
+   * it may be left over from a closed tab, and the periodic sync, which runs only while this is above zero, is what
+   * recovers it (TASK-598).
+   */
   get pendingCount(): number { return this._pendingCount.value; }
 
   /** Add an action to the offline queue. Returns the action ID. */
@@ -185,8 +195,8 @@ export class ActionQueue {
   }
 
   private async _refreshCount(): Promise<void> {
-    const pending = await this.getPending();
-    this._pendingCount.value = pending.length;
+    const all = await this.getAll();
+    this._pendingCount.value = all.filter(a => a.status === 'pending' || a.status === 'failed' || a.status === 'syncing').length;
     this._notifyChange();
   }
 
