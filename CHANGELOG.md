@@ -12,6 +12,14 @@ interchangeable for consumers.
   `sync()` drains under a Web Lock, so one tab sends at a time (two tabs could send the same action twice), and
   `pendingCount` counts `syncing` actions. New options `locks` and `syncLeaseMs` (the fallback without Web Locks).
   Core README § Offline writes.
+- **Every theme's text clears WCAG AA, and a gate keeps it there** — Birko TASK-130, TASK-599 (for Reps TASK-123,
+  Presenter). 98 of 232 measured pairs were below 4.5:1, among them the default theme's warning badge (2.86:1) and
+  `inverse`'s white text on pale tints (1.10:1). **Changed look:** badge, stat and active-item text is darker on light
+  themes and lighter on dark ones (new `--b-color-<x>-text`); toasts on success/warning/info (and every finstat fill)
+  carry dark text (new `--b-text-on-<x>`); muted/secondary text moved in neon, finstat and inverse; `inverse` has dark
+  tints. Each value is the smallest step that clears AA, so hues are kept. **A consumer that forks `tokens.css`**
+  (Symbio) sees no change until it copies the new tokens in: every component falls back to the old token. Gated by
+  Birko.DesignTokens' `ContrastTests` and the Playground's `device-fix-check`.
 - **`b-drawer`'s title is a heading, and text** — Birko TASK-609. As `b-modal` in v0.1.9: `<h2>` / `heading-level`,
   labelling the drawer, which had no accessible name; markup in the title ran in the page.
 
