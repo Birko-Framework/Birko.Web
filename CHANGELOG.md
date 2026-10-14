@@ -4,6 +4,22 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.5 — 2026-10-14
+
+- **Undo instead of a confirm dialog for reversible deletes** — Birko TASK-545 (for Symbio TASK-899).
+  - `toast.show(msg, variant, ms, { action })` and `toast.notify(msg, { action })` render an action button in the
+    toast's live region (label default `bwc.common.undo`); clicking it dismisses the toast, then runs the callback.
+    Both now return the `<b-toast-item>` (`focusAction()`); a toast with an action lives 10 s by default.
+  - `base-crud-page` (list and split pages): `deleteMode: 'undo'` deletes at once and offers Undo, which calls the
+    page's `restoreDeleted(id)`. Opting in without it throws when the page connects; a failed restore shows an error
+    and the row stays gone; a keyboard-started delete moves focus to Undo. New key `bws.common.restored`.
+    `'confirm'` stays the default, so no page changes.
+  - **Every toast:** dismissal pauses while it is hovered or holds focus, and resumes with what was left (at least 1 s).
+- **A toast's message and icon are text** — Birko TASK-597. Both were rendered as HTML, so a server error, tenant
+  name or module label carrying markup ran in the page. Markup is now shown, never parsed. No consumer passed HTML.
+- **`b-rating` icon slot** — Birko TASK-592. A slotted `<svg slot="icon">` replaces the star; only its shape
+  geometry is kept and the component paints it, so filled/empty and 3:1 contrast hold.
+
 ## v0.1.4 — 2026-10-14
 
 - **`b-rating`, a form-associated star-rating input** — Birko TASK-579 (for the storefront's TASK-012 and TASK-025).
