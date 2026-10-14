@@ -15,6 +15,7 @@
   --b-color-success-light: #dcfce7;
   --b-color-warning: #d97706;
   --b-color-warning-light: #fef3c7;
+  --b-rating-color: var(--b-color-warning);  /* b-rating fill; a theme whose warning colour is under 3:1 overrides it (TASK-608) */
   --b-color-danger: #dc2626;
   /* Danger as TEXT, kept separate from the danger used for surfaces/borders/buttons. A red that reads well
      as a button fill is often too low-contrast as small text on the page background, and darkening the one
