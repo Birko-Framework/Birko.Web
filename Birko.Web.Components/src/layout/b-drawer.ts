@@ -3,9 +3,10 @@ import {
   dialogBaseSheet, closeButtonSheet,
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
+import { escapeHtml } from '../dom-utils';
 
 export class BDrawer extends BaseComponent {
-  static get observedAttributes() { return ['title', 'size', 'modal', 'label-close']; }
+  static get observedAttributes() { return ['title', 'heading-level', 'size', 'modal', 'label-close']; }
 
   static get sharedStyles() {
     return [dialogBaseSheet, closeButtonSheet, overlayHeaderSheet, overlayBodySheet, overlayFooterSheet];
@@ -14,6 +15,8 @@ export class BDrawer extends BaseComponent {
   static get styles() {
     return `
       :host { display: contents; }
+      /* The title is a heading for the document outline only: it keeps the header bar's type, as the <span> did. */
+      .overlay-title { margin: 0; font: inherit; letter-spacing: inherit; }
       /* Pin to the right edge of the viewport regardless of modal/non-modal mode.
          Without position:fixed, dialog.show() (non-modal) flows inline and pushes
          surrounding content; showModal() is fine because the top layer promotes it,
@@ -60,11 +63,18 @@ export class BDrawer extends BaseComponent {
 
   render() {
     const title = this.attr('title');
+    const titleId = 'drawer-title-' + (this.id || 'default');
+    // As b-modal (TASK-580): an h2 by default, `heading-level` 1–6, and text, never HTML (TASK-609).
+    const level = Number(this.attr('heading-level', '2'));
+    const tag = Number.isInteger(level) && level >= 1 && level <= 6 ? `h${level}` : 'h2';
+    const heading = title
+      ? `<${tag} id="${titleId}" class="overlay-title">${escapeHtml(title)}</${tag}>`
+      : '<span></span>';
     return `
-      <dialog id="dlg">
+      <dialog id="dlg"${title ? ` aria-labelledby="${titleId}"` : ''}>
         <div class="drawer">
           <div class="overlay-header">
-            <span>${title}</span>
+            ${heading}
             <button class="close-btn" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&times;</button>
           </div>
           <div class="overlay-body"><slot></slot></div>
