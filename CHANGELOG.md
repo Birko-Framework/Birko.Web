@@ -4,6 +4,21 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.6 — 2026-10-14
+
+- **`SyncManager` stops re-sending a write the server will never take** — Birko TASK-581 (for Symbio TASK-151).
+  - **Changed default:** a failed write is retried with exponential backoff (`retryBaseMs` 5 s doubling to
+    `retryMaxMs` 15 min; the next attempt is persisted with the action) and becomes **`dead` after `maxRetries` (10)**
+    attempts. It used to be re-sent every 30 s forever.
+  - **Changed default:** a 4xx a retry cannot change (anything but 401, 408, 409, 429) makes it `dead` at once — a 422
+    validation refusal no longer sits in the outbox as pending. A `DELETE` 404 still drains (or retries, with
+    `deleteMissingIsApplied: false`).
+  - **Changed default:** order is kept per entity. While a write to an entity backs off or is dead, later writes to
+    that entity wait; other entities go ahead. Before, a later write was sent past a failed one.
+  - New: `getDead()`, `retry(id)`, `discard(id)`, `onDead(fn)`; `ActionQueue.get(id)` / `getDead()`;
+    `QueuedAction.status` gains `'dead'` and `nextAttemptAt`; `SyncResult` gains `dead`. `pendingCount` excludes dead
+    actions, so a consumer shows them through its own failed-write UI. Core README § Offline writes.
+
 ## v0.1.5 — 2026-10-14
 
 - **Undo instead of a confirm dialog for reversible deletes** — Birko TASK-545 (for Symbio TASK-899).
