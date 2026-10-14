@@ -681,6 +681,51 @@ Order: `detail`, then the first entry of `errors` (`{ field: ['msg'] }` or `{ fi
 
 ---
 
+## WsClient
+
+A WebSocket with reconnect (exponential backoff), heartbeat and typed dispatch: `on(type, handler)` receives a
+message's `data`; `on('message', …)` receives every message. `connected` / `state` report the socket.
+
+```typescript
+import { WsClient } from 'birko-web-core/http';
+
+const ws = new WsClient({ url: 'wss://host/ws', getToken: () => auth.token });
+ws.connect();
+ws.on('kobold-status', (data) => render(data));      // unsolicited messages
+
+// Request/response: sends { type, id, data }; resolves with the data of the reply carrying the same id.
+const stats = await ws.request<Stats>('get_stats', { range: 24 }, { timeoutMs: 10_000 });
+```
+
+`request()` rejects when the reply's `type` is in `errorTypes` (default `['error']`; message from `error` or
+`message`), on timeout (default 30 s), when the socket closes or `disconnect()` is called, and at once when the socket
+is not open. The correlation field is `requestIdField` (default `'id'`), at the envelope's top level both ways. For
+another envelope shape, `requestMessage(body)` sends any object with the id added. A correlated reply is consumed;
+everything else reaches the handlers as before.
+
+## Runtime configuration (RuntimeConfig)
+
+Settings from three layers, each overriding the one before: built-in defaults, the server, then the user's local
+choices. Only keys the defaults declare, with the default's type, are taken from the server or from storage.
+
+```typescript
+import { RuntimeConfig } from 'birko-web-core/state';
+
+const config = new RuntimeConfig({
+  defaults: { serverUrl: 'ws://localhost:5000', refreshMs: 5000, authToken: '' },
+  serverUrl: '/api/config',     // or fetchServer: () => Promise<Partial<T> | null>
+  storageKey: 'myapp-config',   // the local layer persists here (memory only without it)
+  secretKeys: ['authToken'],    // never written to storage
+});
+await config.load();             // false (values kept) when the server cannot be read; call again to retry
+config.set({ serverUrl: 'wss://other' });   // a local choice outlives later server loads
+config.reset(['serverUrl']);                // …until reset
+config.onChange((c) => reconnect(c.serverUrl));
+```
+
+Only the local layer is persisted — never the server's values, so a later server change still reaches a user who once
+saved. A `secretKeys` value lives in memory only, and a copy an older build stored is ignored and removed on load.
+
 ## SseClient
 
 ```typescript

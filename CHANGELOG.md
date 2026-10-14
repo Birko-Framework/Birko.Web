@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.8 — 2026-10-14
+
+- **`WsClient.request()`: request/response over a WebSocket** — Birko TASK-523 (for DraCode TASK-116). Sends
+  `{ type, id, data }`, resolves with the reply carrying the same id; rejects on an error reply, a timeout (30 s), a
+  close or `disconnect()`, and at once when not open. `requestIdField` names the correlation field; `requestMessage()`
+  sends another envelope shape. Unsolicited messages reach the handlers as before. Core README § WsClient.
+- **`RuntimeConfig`: defaults < server < local settings** — Birko TASK-526 (for DraCode TASK-116). Declared keys and
+  types only; the local layer persists, the server's never does; `secretKeys` are memory-only and scrubbed from storage
+  an older build wrote. Core README § Runtime configuration.
+
 ## v0.1.7 — 2026-10-14
 
 - **A list can refresh when another user changes it** — Birko TASK-583 (for Symbio TASK-898).
