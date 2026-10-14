@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.7 — 2026-10-14
+
+- **A list can refresh when another user changes it** — Birko TASK-583 (for Symbio TASK-898).
+  - `BaseListPage.liveRefresh = { moduleId, entityType, debounceMs? }` (off by default) reloads the list on a matching
+    `entity-changed` event: debounced (500 ms), never while the create/edit modal is open (one reload when it closes),
+    unsubscribed on unmount.
+  - The app registers the event source once: `setEntityChangeSource((h) => sse.on('entity-changed', h))`. Opting in
+    without one throws when the page connects. New exports: `EntityChangedEvent`, `parseEntityChangedEvent`,
+    `LiveRefreshOptions`. Shell README § Live refresh.
+
 ## v0.1.6 — 2026-10-14
 
 - **`SyncManager` stops re-sending a write the server will never take** — Birko TASK-581 (for Symbio TASK-151).
