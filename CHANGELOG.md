@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.4 — 2026-10-14
+
+- **`b-rating`, a form-associated star-rating input** — Birko TASK-579 (for the storefront's TASK-012 and TASK-025).
+  - Whole stars, `max` 1–10 (default 5). Each star is a label for a hidden native radio: one tab stop, arrow keys move
+    and select, Home/End jump to the ends, and each star is named "3 of 5" (`bwc.rating.star`).
+  - Submits `value` with a form (nothing when unrated); `required` uses the radio group's own validity; `form.reset()`
+    restores the `value` attribute. As with a native input, the attribute is the default: after a user pick or a
+    `.value` set, changing it does nothing until a reset.
+  - `readonly` renders an image named "Rated 4 of 5" (`bwc.rating.readonly` / `bwc.rating.none`): no tab stop.
+  - New token `--b-rating-color` (default `--b-color-warning`); the finstat theme sets it to `#a77400`, because its
+    brand yellow is 1.7:1 on white. Filled and empty stars clear 3:1 in every shipped theme.
+- Components README: Presenter's measured whole-app sizes for per-component imports (TASK-564).
+
 ## v0.1.3 — 2026-10-13
 
 - **Import only the components you use** — Birko TASK-564 (for Presenter TASK-035).
