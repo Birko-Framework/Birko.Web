@@ -1498,7 +1498,20 @@ toast.notify('Door sensor triggered', {
   href: '#/devices/door-1',
   duration: 8000,
 });
+
+// An action beside the message — a real <button>, inside the live region. Clicking it dismisses the toast,
+// then runs onClick. The label defaults to "Undo" (bwc.common.undo); a toast with an action lives 10 s by default.
+const item = toast.show('Invoice archived', 'success', undefined, {
+  action: { onClick: () => api.post(`api/invoices/${id}/unarchive`) },
+});
+item.focusAction(); // only when the control that had focus is gone (e.g. its row was removed)
 ```
+
+No toast disappears while it is hovered or holds focus; when the pointer or focus leaves, it gets what was left of
+its time, never less than 1 s. `show()` and `notify()` return the `<b-toast-item>`.
+
+**An Undo action must really undo.** Offer it only where the operation can be reversed on the server (a soft delete,
+an archive). For a whole CRUD page, use the Shell's `deleteMode: 'undo'` rather than wiring this by hand.
 
 ### b-spinner
 

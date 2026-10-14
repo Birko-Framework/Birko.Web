@@ -1,4 +1,4 @@
-import type { ApiClient } from 'birko-web-core/http';
+import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import { t as globalT, getI18n } from 'birko-web-core';
 import type { TableColumn } from 'birko-web-components/data';
@@ -112,6 +112,21 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
   /** Show Delete actions. Default: `true`. */
   protected deleteEnabled = true;
+
+  /**
+   * How a delete is guarded.
+   * - `'confirm'` (default): a confirm dialog first, then the delete.
+   * - `'undo'`: delete at once, the row leaves the view, and a toast offers Undo, which calls `restoreDeleted`.
+   *   Only for entities the backend can genuinely restore (soft delete). Keep `'confirm'` for hard deletes and
+   *   for anything touching money or permissions.
+   *
+   * `'undo'` without a `restoreDeleted` override throws when the page connects: an Undo button that cannot undo
+   * is worse than the confirm it replaces.
+   */
+  protected deleteMode: 'confirm' | 'undo' = 'confirm';
+
+  /** Restore an entity deleted in `deleteMode: 'undo'` (e.g. POST `{resource}/{id}/restore`). Required by that mode. */
+  protected restoreDeleted?(id: string): Promise<ApiResponse>;
 
   /** Modal size — passed to `<b-modal size="...">`. `'full'` fills the viewport in both axes. */
   protected declare modalSize?: 'sm' | 'lg' | 'xl' | 'xxl' | 'full';
@@ -277,6 +292,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       'bws.common.confirmDelete': 'Delete this {entity}? This cannot be undone.',
       'bws.common.saved':         '{entity} saved',
       'bws.common.deleted':       '{entity} deleted',
+      'bws.common.restored':      '{entity} restored',
       'bws.common.loadError':     'Failed to load data',
       'bws.pagination.items':     'items',
       'bws.pagination.page':      'Page',
@@ -517,6 +533,15 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
+
+  override connectedCallback(): Promise<void> {
+    // Here and not in the constructor: a subclass's field initialisers have not run yet when the base constructor does.
+    if (this.deleteMode === 'undo' && typeof this.restoreDeleted !== 'function') {
+      throw new Error(`${this.constructor.name}: deleteMode 'undo' needs a restoreDeleted(id) override — `
+        + `without one the Undo could not undo. Implement it, or keep deleteMode 'confirm'.`);
+    }
+    return super.connectedCallback();
+  }
 
   protected onMount(): void {
     this._setupTable();
@@ -903,10 +928,14 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     });
   }
 
-  /** Show delete confirmation and delete the entity. */
+  /** Delete the entity: after a confirm dialog, or at once with an Undo toast (`deleteMode: 'undo'`). */
   protected async _confirmDelete(id: string): Promise<void> {
     const resource = this.resourceEndpoint;
     if (!resource) return;
+    if (this.deleteMode === 'undo') {
+      await this._deleteWithUndo(resource, id);
+      return;
+    }
     const confirm = this.$<BConfirmDialog>('#confirm');
     if (!confirm) return;
 
@@ -921,6 +950,46 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     } else {
       toast.error(apiErrorMessage(resp.data));
     }
+  }
+
+  private async _deleteWithUndo(resource: string, id: string): Promise<void> {
+    // Read before anything changes: the control that started the delete leaves with its row, so a keyboard
+    // user's focus would fall to <body>. Their focus goes to Undo instead. A pointer user's is left alone.
+    const fromKeyboard = deepActiveElement()?.matches(':focus-visible') === true;
+
+    const resp = await this.api.delete(entityUrl(resource, id));
+    if (!resp.ok) {
+      toast.error(apiErrorMessage(resp.data));
+      return;
+    }
+    this.onDeleteSuccess?.(id);
+    this._afterDelete(id);
+
+    const item = toast.show(this.t('bws.common.deleted'), 'success', undefined, {
+      action: { onClick: () => this._restore(id) },
+    });
+    if (fromKeyboard) item.focusAction();
+  }
+
+  private async _restore(id: string): Promise<void> {
+    let resp: ApiResponse;
+    try {
+      resp = await this.restoreDeleted!(id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    if (!resp.ok) {
+      toast.error(apiErrorMessage(resp.data));
+      return;
+    }
+    toast.success(this.t('bws.common.restored'));
+    await this._afterRestore(id);
+  }
+
+  /** Hook called after an Undo restored an entity. Default: reload the table. */
+  protected _afterRestore(_id: string): void | Promise<void> {
+    return this.reload();
   }
 
   /** Hook called after a successful delete. Override for subclass-specific cleanup. */
@@ -993,4 +1062,11 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected reload(): Promise<void> {
     return this.$<BDataTable>('#table')?.load() ?? Promise.resolve();
   }
+}
+
+/** The focused element, looking through open shadow roots. */
+function deepActiveElement(): Element | null {
+  let el: Element | null = document.activeElement;
+  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
+  return el;
 }

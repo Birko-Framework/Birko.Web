@@ -188,11 +188,20 @@ type LabelResolver = (key: string | undefined, fallback: string) => string;
 
 Without a resolver, labels are used as-is. With a resolver, it tries to translate `labelKey`/`groupLabelKey` and falls back to the string `label` if the key returns itself (no translation found).
 
+### Delete: confirm by default, Undo by opt-in (TASK-545)
+
+`BaseCrudPage._confirmDelete` serves `BaseListPage` and `BaseSplitPage`. `deleteMode` is `'confirm'` (the dialog)
+unless a page sets `'undo'`, which deletes at once and offers Undo through the toast action, calling the page's
+`restoreDeleted(id)`. The opt-in is guarded in `connectedCallback` (the earliest point a subclass field is set):
+`'undo'` without `restoreDeleted` throws. Never add a client-side "undo" that redraws a row the server deleted; the
+button promises the action is reversed. Hard deletes, money and permissions keep the confirm.
+Tests: Playground `undo-delete-smoke.ts` and `keyboard-check.mjs`.
+
 ### i18n — Shell-owned strings use `bws.*`
 
 Shell base pages (`BaseCrudPage`, `BaseListPage`, `BaseSplitPage`, `BaseDetailPage`, `BaseFormModal`) resolve user-facing text via `this.t(key, params?)`, which delegates to the global `birko-web-core` singleton. Keys live under the `bws.*` namespace (distinct from `bwc.*` used by Components):
 
-- `bws.common.new|edit|delete|save|cancel|close|saved|deleted|loading|loadError|confirmDelete`
+- `bws.common.new|edit|delete|save|cancel|close|saved|deleted|restored|loading|loadError|confirmDelete`
 - `bws.pagination.items|page|of|perPage|prev|next|pageSize`
 - `bws.ribbon.selectModule`
 - `bws.tour.button` (the page tour `?` — `BasePage.renderTourButton()`)

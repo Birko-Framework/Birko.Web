@@ -443,7 +443,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 ### Feedback (6)
 | Tag / Export | Key API |
 |---|---|
-| `toast` (manager) | `toast.success(msg)`, `toast.error(msg)`, `toast.warning(msg)`, `toast.info(msg)`, `toast.notify(msg, opts)` |
+| `toast` (manager) | `toast.success(msg)`, `toast.error(msg)`, `toast.warning(msg)`, `toast.info(msg)`, `toast.show(msg, variant?, durationMs?, { action })`, `toast.notify(msg, opts)` — `show`/`notify` return the `<b-toast-item>`; an `action` (`{ label?, onClick }`, label default `bwc.common.undo`) renders a button that dismisses then runs the callback. Dismissal pauses while a toast is hovered or holds focus (TASK-545) |
 | `<b-spinner>` | `size` attribute (sm\|md\|lg) |
 | `<b-progress>` | `setValue(value, max?)`; attributes `type` (linear\|circular), `value`, `max`, `indeterminate`, `label`, `show-value`, `value-format` (percent\|fraction\|value), `size` (sm\|md\|lg\|xl), `variant` (primary\|success\|warning\|danger\|info\|secondary), `striped`, `animated` (linear only), `thickness` (circular stroke width); events `change`, `complete` |
 | `<b-empty>` | `icon`, `message` attributes |

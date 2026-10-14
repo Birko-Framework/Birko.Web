@@ -1344,6 +1344,7 @@ toast.error('Failed');
 toast.warning('Careful');
 toast.info('FYI');
 toast.notify('Custom', { variant: 'success', durationMs: 5000, href: '/link' });
+toast.show('Archived', 'success', undefined, { action: { label: 'Undo', onClick: () => restore() } }); // label defaults to bwc.common.undo
 toast.configure({ position: 'top-right', maxVisible: 5 });
 ```
 

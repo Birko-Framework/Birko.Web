@@ -73,7 +73,9 @@ Use `srOnlySheet` and an `aria-live` region for transient, SR-only feedback:
 
 - `b-kanban` — `.sr-only` `aria-live="polite"` region announces drag-and-drop moves.
 - `b-command-palette` — `.sr-only` `role="status"` region announces result counts / "Searching…" / "No results".
-- `b-toast` — `role="status"` + `aria-live="polite"` (or `alert` + `assertive` for the error variant).
+- `b-toast` — `role="status"` + `aria-live="polite"` (or `alert` + `assertive` for the error variant). An action button
+  sits inside that region, so the announcement names it. A toast never times out while hovered or focused (WCAG
+  2.2.1); a caller whose triggering control disappears moves focus to the action with `focusAction()`.
 
 The `.sr-only-focusable` variant becomes visible on focus (for skip links).
 

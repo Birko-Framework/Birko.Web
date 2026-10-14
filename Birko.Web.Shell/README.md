@@ -771,6 +771,8 @@ define('devices-page', DevicesPage);
 | `pageSize` | `20` | Rows per page |
 | `editEnabled` | `true` | Set `false` to hide Edit row action entirely |
 | `deleteEnabled` | `true` | Set `false` to hide Delete row action entirely |
+| `deleteMode` | `'confirm'` | `'undo'`: delete at once and offer Undo in a toast instead of a confirm dialog — see below |
+| `restoreDeleted(id)` | none | Required by `deleteMode: 'undo'`; returns the restore request's `ApiResponse` |
 | `modalSize` | `undefined` (md) | Modal size: `'sm'`, `'lg'`, `'xl'`, `'xxl'`, `'full'` (viewport-filling, both axes — editor-heavy forms) |
 | `createPermission` | `undefined` (always shown) | Permission key controlling Create button visibility |
 | `editPermission` | `undefined` | Permission key controlling Edit row action |
@@ -832,6 +834,27 @@ class TerminalsPage extends BaseListPage<Terminal> {
 ```
 
 ---
+
+#### Undo instead of a confirm dialog
+
+For an entity the backend soft-deletes, a confirm dialog guards something that can be taken back. Opt in to
+delete at once and offer Undo (`BaseListPage` and `BaseSplitPage` alike):
+
+```typescript
+class DevicesPage extends BaseListPage<Device> {
+  protected deleteMode = 'undo' as const;
+  protected restoreDeleted(id: string) { return api.post(`api/devices/${id}/restore`); }
+}
+```
+
+The row leaves the view, a `bws.common.deleted` toast offers Undo for 10 s, and Undo calls `restoreDeleted`: on
+success a `bws.common.restored` toast and a reload (`_afterRestore(id)`), on failure an error toast and the row
+stays gone. A delete started from the keyboard moves focus to Undo, since its row (and the control) is gone.
+
+- `deleteMode: 'undo'` **without** `restoreDeleted` throws when the page connects. There is no fallback to an Undo
+  that only redraws the row.
+- **Keep the confirm** for hard deletes, and for anything touching money or permissions, even when it is reversible:
+  there the pause before acting is the point.
 
 ### BaseSplitPage\<T\>
 
