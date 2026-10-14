@@ -835,6 +835,27 @@ class TerminalsPage extends BaseListPage<Terminal> {
 
 ---
 
+#### Live refresh when another user changes the list
+
+An open list can reload when the server announces that one of its entities changed — in another tab or by another
+user. The app registers where those events come from, once; the Shell opens no connection itself:
+
+```typescript
+import { setEntityChangeSource } from 'birko-web-shell';
+setEntityChangeSource((handler) => sse.on('entity-changed', handler)); // any (handler) => unsubscribe works
+
+class StockCardsPage extends BaseListPage<StockCard> {
+  protected liveRefresh = { moduleId: 'warehouse', entityType: 'StockCard' }; // debounceMs?: default 500
+}
+```
+
+The event is `{ moduleId, entityType, entityGuid | null, kind: 'created' | 'updated' | 'deleted' }` (`EntityChangedEvent`):
+ids only, never a row, so the list reloads through its normal permission-checked API. `entityGuid: null` is a bulk
+change. A burst of events is one reload; events for another module or type, and malformed payloads, are ignored.
+While the create/edit modal is open nothing reloads; one reload runs when it closes. The subscription ends when the
+page unmounts. **Opting in without a registered source throws when the page connects.** Scoping events to the
+tenant and the user's permissions is the producer's job.
+
 #### Undo instead of a confirm dialog
 
 For an entity the backend soft-deletes, a confirm dialog guards something that can be taken back. Opt in to

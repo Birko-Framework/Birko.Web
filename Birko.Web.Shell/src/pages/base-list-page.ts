@@ -4,6 +4,15 @@ import type { FormSchema } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
+import { getEntityChangeSource, parseEntityChangedEvent } from './live-refresh.js';
+
+/** Opt-in live refresh: reload when the server announces a change to this page's entity type. */
+export interface LiveRefreshOptions {
+  moduleId: string;
+  entityType: string;
+  /** Events closer together than this cause one reload (default 500 ms). */
+  debounceMs?: number;
+}
 
 /**
  * Abstract base class for standard CRUD list pages.
@@ -69,6 +78,18 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
    * Override to add custom per-row actions (e.g. status change, duplicate).
    */
   protected get extraRowActions(): RowAction[] { return []; }
+
+  /**
+   * Reload when another tab or user creates, edits or deletes this page's entity type. Off by default.
+   * Needs the app to have called `setEntityChangeSource(...)` once; opting in without one throws when the page
+   * connects. A burst of events causes one reload, and none happens while the create/edit modal is open: it runs
+   * when the modal closes, so an open form is not disturbed.
+   */
+  protected liveRefresh?: LiveRefreshOptions;
+
+  private _liveUnsubscribe: (() => void) | null = null;
+  private _liveTimer: ReturnType<typeof setTimeout> | null = null;
+  private _livePending = false;
 
   // ── Styles ────────────────────────────────────────────────────────────────
 
@@ -143,9 +164,63 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
     this._wireListEvents();
   }
 
+  override connectedCallback(): Promise<void> {
+    // The base first: its synchronous guards may throw, and must not leave a subscription behind.
+    const connected = super.connectedCallback();
+    this._subscribeLiveRefresh();
+    return connected;
+  }
+
+  override disconnectedCallback(): void {
+    this._stopLiveRefresh();
+    super.disconnectedCallback();
+  }
+
   // ── Private ───────────────────────────────────────────────────────────────
 
+  private _subscribeLiveRefresh(): void {
+    const opts = this.liveRefresh;
+    if (!opts) return;
+    const source = getEntityChangeSource();
+    if (!source) {
+      throw new Error(`${this.constructor.name}: liveRefresh needs an event source — call `
+        + `setEntityChangeSource((h) => sse.on('entity-changed', h)) once at app boot, or remove liveRefresh.`);
+    }
+    this._stopLiveRefresh();
+    this._liveUnsubscribe = source((payload) => {
+      const event = parseEntityChangedEvent(payload);
+      if (!event || event.moduleId !== opts.moduleId || event.entityType !== opts.entityType) return;
+      if (this._liveTimer) clearTimeout(this._liveTimer);
+      this._liveTimer = setTimeout(() => { this._liveTimer = null; this._liveReload(); }, opts.debounceMs ?? 500);
+    });
+  }
+
+  private _stopLiveRefresh(): void {
+    this._liveUnsubscribe?.();
+    this._liveUnsubscribe = null;
+    if (this._liveTimer) clearTimeout(this._liveTimer);
+    this._liveTimer = null;
+    this._livePending = false;
+  }
+
+  private _liveReload(): void {
+    if (!this.isConnected) return;
+    const dlg = this.$('#modal')?.shadowRoot?.querySelector('dialog');
+    if (dlg?.open) {
+      this._livePending = true; // the modal's close event reloads
+      return;
+    }
+    void this.reload();
+  }
+
   private _wireListEvents(): void {
+    const modal = this.$('#modal');
+    if (modal) this.listen(modal, 'close', () => {
+      if (!this._livePending) return;
+      this._livePending = false;
+      void this.reload();
+    });
+
     const table = this.$<BDataTable>('#table');
     if (!table) return;
 

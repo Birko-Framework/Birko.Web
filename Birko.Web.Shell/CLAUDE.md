@@ -188,6 +188,15 @@ type LabelResolver = (key: string | undefined, fallback: string) => string;
 
 Without a resolver, labels are used as-is. With a resolver, it tries to translate `labelKey`/`groupLabelKey` and falls back to the string `label` if the key returns itself (no translation found).
 
+### Live refresh: an opt-in on BaseListPage, the source injected (TASK-583)
+
+`pages/live-refresh.ts` holds `EntityChangedEvent`, its parser and the one app-wide source
+(`setEntityChangeSource(handler => unsubscribe)`). `BaseListPage.liveRefresh` subscribes in `connectedCallback` (after
+the base's guards, so a throw leaves no subscription) and unsubscribes in `disconnectedCallback`. The handler takes
+`unknown` and validates: a malformed payload is ignored, never trusted. Never patch a row from the event — it carries
+ids only, and the reload is what applies permissions. Opting in without a source throws (an opt-in that silently does
+nothing is rule 51's shape). Tests: Playground `live-refresh-smoke.ts`.
+
 ### Delete: confirm by default, Undo by opt-in (TASK-545)
 
 `BaseCrudPage._confirmDelete` serves `BaseListPage` and `BaseSplitPage`. `deleteMode` is `'confirm'` (the dialog)
