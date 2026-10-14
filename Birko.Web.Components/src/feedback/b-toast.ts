@@ -229,8 +229,8 @@ export class BToastItem extends BaseComponent {
     const live = variant === 'error' ? 'assertive' : 'polite';
     return `
       <div class="toast ${variant}" role="${role}" aria-live="${live}">
-        ${icon ? `<span class="icon" aria-hidden="true">${icon}</span>` : ''}
-        <span class="msg">${this.attr('message')}</span>
+        ${icon ? `<span class="icon" aria-hidden="true">${escapeHtml(icon)}</span>` : ''}
+        <span class="msg">${escapeHtml(this.attr('message'))}</span>
         ${this.action ? `<button type="button" class="action">${escapeHtml(this.action.label ?? this.label('label-action', 'bwc.common.undo', 'Undo'))}</button>` : ''}
         <button class="close" aria-label="${this.label('label-dismiss', 'bwc.common.dismiss', 'Dismiss')}">&times;</button>
       </div>

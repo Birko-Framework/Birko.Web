@@ -1507,7 +1507,8 @@ const item = toast.show('Invoice archived', 'success', undefined, {
 item.focusAction(); // only when the control that had focus is gone (e.g. its row was removed)
 ```
 
-No toast disappears while it is hovered or holds focus; when the pointer or focus leaves, it gets what was left of
+The message and `icon` are **text**: markup in them is shown, never parsed, so a server error or a user-supplied
+name is safe to pass (TASK-597). `icon` is a glyph (an emoji or a character). No toast disappears while it is hovered or holds focus; when the pointer or focus leaves, it gets what was left of
 its time, never less than 1 s. `show()` and `notify()` return the `<b-toast-item>`.
 
 **An Undo action must really undo.** Offer it only where the operation can be reversed on the server (a soft delete,
