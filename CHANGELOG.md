@@ -4,6 +4,20 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.12 — 2026-10-18
+
+- **Reorderable tabs, resizable split panels and saved layouts** — Birko TASK-525 (for DraCode STORY-039).
+  - `b-tabs`: `reorderable` adds drag and drop, and Ctrl+Shift+Arrow / Home / End from the keyboard, announced to screen
+    readers. Each move emits `tab-reorder`, and `order` reads and sets the order.
+  - `b-split-panel`: `resizable` adds an ARIA separator for pointer and keyboard. Each change emits `split-resize`.
+    `persist-key` saves the sizes in localStorage, and `sizes` reads and sets them (CSS lengths only; anything else is
+    refused, since a size goes into an inline style).
+  - New `captureLayout` / `applyLayout` save and restore tab order and split sizes by `layout-key`.
+  - Components README § b-tabs, § b-split-panel and § Saving a layout.
+- **`b-tabs`'s labels are text** — Birko TASK-525. **Changed behaviour:** a label's markup used to be parsed (an
+  `onerror` in a label ran), and is now shown as text, as for `b-modal`'s title and `b-toast`'s message. A tab id can no
+  longer break out of its attribute.
+
 ## v0.1.11 — 2026-10-18
 
 - **OAuth redirect sign-in and token refresh in `birko-web-shell/auth`** — Birko TASK-524 (for DraCode STORY-039). New
