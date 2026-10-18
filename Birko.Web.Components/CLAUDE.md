@@ -431,11 +431,11 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-toolbar>` | BToolbar | — | `label` (aria-label); default slot (clusters, gap + wrap) + `end` slot (pushed to far edge) |
 | `<b-modal>` | BModal | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl = `max-width`; `full` = viewport minus `--b-modal-full-inset`, both axes — editor surfaces) |
 | `<b-drawer>` | BDrawer | `open()`, `close()` | `title`, `size` (sm\|md\|lg\|xl\|xxl — no `full`), `modal` |
-| `<b-tabs>` | BTabs | `setTabs([{id,label}])` | `active` |
+| `<b-tabs>` | BTabs | `setTabs([{id,label}])`, `order` (get/set) | `active`, `reorderable` (drag + Ctrl+Shift+Arrow, emits `tab-reorder`) |
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
 | `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
-| `<b-split-panel>` | BSplitPanel | — | `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail` (opt out of the sticky detail column) |
+| `<b-split-panel>` | BSplitPanel | `sizes` (get/set, CSS lengths only) | `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail` (opt out of the sticky detail column), `resizable` (separator, pointer + keyboard, emits `split-resize`), `persist-key` |
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 | `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
 

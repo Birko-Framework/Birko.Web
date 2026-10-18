@@ -1,8 +1,34 @@
 import { BaseComponent, define, findScrollParent } from 'birko-web-core';
 import { escapeAttr } from '../dom-utils';
 
+/** The panel's column sizes, as CSS lengths (`18rem`, `320px`, `1fr`). */
+export interface SplitSizes {
+  master: string;
+  detail: string;
+}
+
+/**
+ * Master/detail split. With `resizable`, a separator between the columns can be dragged, or moved with
+ * the arrow keys (Shift for bigger steps, Home/End for the limits); each change emits `split-resize`
+ * with `{ sizes }`. `persist-key` saves the sizes in localStorage under that key and restores them on
+ * mount; `sizes` reads and sets them (TASK-525). Save a whole layout with `captureLayout`.
+ */
 export class BSplitPanel extends BaseComponent {
-  static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap']; }
+  static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key']; }
+
+  /** The current sizes (the attributes, or their defaults). */
+  get sizes(): SplitSizes {
+    return { master: this.attr('master-width', '18rem'), detail: this.attr('detail-width', '1fr') };
+  }
+
+  /** Sets the sizes. Each must be a CSS length; anything else is refused with a TypeError. Emits nothing. */
+  set sizes(value: SplitSizes) {
+    if (!isSize(value?.master) || !isSize(value?.detail)) {
+      throw new TypeError('b-split-panel sizes must be CSS lengths such as 320px, 18rem or 1fr.');
+    }
+    this.setAttribute('master-width', value.master);
+    this.setAttribute('detail-width', value.detail);
+  }
 
   private _scrollport: HTMLElement | null = null;
   private _scrollportRO: ResizeObserver | null = null;
@@ -21,6 +47,15 @@ export class BSplitPanel extends BaseComponent {
         grid-template-columns: 1fr;
       }
       .split.no-detail .detail { display: none; }
+      .master { position: relative; min-width: 0; }
+      .resizer {
+        position: absolute; top: 0; bottom: 0; width: 0.5rem; z-index: 1;
+        right: calc(-0.5 * var(--_gap, var(--b-space-lg, 1rem)) - 0.25rem);
+        cursor: col-resize; touch-action: none; border-radius: var(--b-radius-sm, 2px);
+      }
+      .resizer:hover, .resizer.dragging { background: var(--b-border); }
+      .resizer:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .split.no-detail .resizer { display: none; }
 
       /* The detail column STICKS to the top of the scrollport (opt out with "static-detail").
          The master can be far taller than the viewport — a 100-row table — and the detail is a
@@ -45,6 +80,7 @@ export class BSplitPanel extends BaseComponent {
          48rem is the old 768px for a default-sized browser. */
       @media (max-width: ${DEFAULT_COLLAPSE_AT}) {
         :host(:not([collapse-at])) .split { grid-template-columns: 1fr; }
+        :host(:not([collapse-at])) .resizer { display: none; }
         ${collapsedDetailReset(':host(:not([collapse-at])) .split > .detail')}
       }
     `;
@@ -70,23 +106,112 @@ export class BSplitPanel extends BaseComponent {
       <style>
         @media (max-width: ${collapseWidth}) {
           .split { grid-template-columns: 1fr !important; }
+          .resizer { display: none !important; }
           ${collapsedDetailReset('.split > .detail', true)}
         }
       </style>
     ` : '';
 
+    const resizer = this.boolAttr('resizable')
+      ? `<div class="resizer" role="separator" aria-orientation="vertical" tabindex="0"
+           aria-label="${escapeAttr(this.attr('resize-label', 'Resize panels'))}"></div>`
+      : '';
+
     return `
       ${breakpoint}
       <div class="split" style="${vars}">
-        <div class="master"><slot name="master"></slot></div>
+        <div class="master"><slot name="master"></slot>${resizer}</div>
         <div class="detail"><slot name="detail"></slot></div>
       </div>
     `;
   }
 
   protected onMount() {
+    this._restoreSizes();
     this._observeDetailSlot();
     this._trackScrollport();
+  }
+
+  protected onUpdated() {
+    const handle = this.$<HTMLElement>('.resizer');
+    const split = this.$<HTMLElement>('.split');
+    const master = this.$<HTMLElement>('.master');
+    if (!handle || !split || !master) return;
+
+    const limits = () => {
+      const total = split.getBoundingClientRect().width;
+      return { min: MIN_COLUMN_PX, max: Math.max(MIN_COLUMN_PX, total - MIN_COLUMN_PX) };
+    };
+    const clamp = (px: number) => { const { min, max } = limits(); return Math.round(Math.min(max, Math.max(min, px))); };
+    const describe = (px: number) => {
+      const { min, max } = limits();
+      handle.setAttribute('aria-valuenow', String(Math.round(px)));
+      handle.setAttribute('aria-valuemin', String(min));
+      handle.setAttribute('aria-valuemax', String(Math.round(max)));
+    };
+    describe(master.getBoundingClientRect().width);
+
+    let start: { x: number; width: number } | null = null;
+    this.listen(handle, 'pointerdown', (e: Event) => {
+      const pe = e as PointerEvent;
+      if (pe.button !== 0) return;
+      pe.preventDefault();
+      // Capture keeps the drag going outside the handle; it throws for a pointer the browser no longer tracks.
+      try { handle.setPointerCapture?.(pe.pointerId); } catch { /* the drag still works while over the handle */ }
+      handle.classList.add('dragging');
+      start = { x: pe.clientX, width: master.getBoundingClientRect().width };
+    });
+    this.listen(handle, 'pointermove', (e: Event) => {
+      if (!start) return;
+      const px = clamp(start.width + (e as PointerEvent).clientX - start.x);
+      // Live feedback without a re-render: only the variable moves until the drag ends.
+      split.style.setProperty('--_master-w', `${px}px`);
+      describe(px);
+    });
+    const end = (e: Event) => {
+      if (!start) return;
+      const px = clamp(start.width + (e as PointerEvent).clientX - start.x);
+      start = null;
+      handle.classList.remove('dragging');
+      this._commit(px);
+    };
+    this.listen(handle, 'pointerup', end);
+    this.listen(handle, 'pointercancel', end);
+    this.listen(handle, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      const width = master.getBoundingClientRect().width;
+      const step = ke.shiftKey ? 64 : 16;
+      const target = ke.key === 'ArrowRight' ? width + step : ke.key === 'ArrowLeft' ? width - step
+        : ke.key === 'Home' ? limits().min : ke.key === 'End' ? limits().max : null;
+      if (target === null) return;
+      ke.preventDefault();
+      this._commit(clamp(target));
+      this.$<HTMLElement>('.resizer')?.focus();
+    });
+  }
+
+  /** Applies a master width chosen by the user: sets it, saves it under `persist-key`, emits `split-resize`. */
+  private _commit(px: number): void {
+    this.setAttribute('master-width', `${px}px`);
+    const sizes = this.sizes;
+    const key = this.attr('persist-key');
+    if (key) {
+      try { localStorage.setItem(storageKey(key), JSON.stringify(sizes)); } catch { /* storage full or blocked */ }
+    }
+    this.emit('split-resize', { sizes });
+  }
+
+  /** Restores sizes saved under `persist-key`. A stored value that is not a CSS length is ignored. */
+  private _restoreSizes(): void {
+    const key = this.attr('persist-key');
+    if (!key) return;
+    let saved: unknown;
+    try { saved = JSON.parse(localStorage.getItem(storageKey(key)) ?? 'null'); } catch { return; }
+    const sizes = saved as Partial<SplitSizes> | null;
+    if (sizes && isSize(sizes.master) && isSize(sizes.detail)) {
+      this.setAttribute('master-width', sizes.master!);
+      this.setAttribute('detail-width', sizes.detail!);
+    }
   }
 
   protected onUnmount() {
@@ -137,6 +262,19 @@ export class BSplitPanel extends BaseComponent {
     update();
     observe();
   }
+}
+
+/** The narrowest a column can be dragged to. */
+const MIN_COLUMN_PX = 120;
+
+const storageKey = (key: string) => `birko-split:${key}`;
+
+/**
+ * A size the panel accepts from a caller or from storage: one CSS length. It is interpolated into an inline
+ * `style`, where escaping alone stops an attribute breakout but not a second declaration (`1px; background: …`).
+ */
+function isSize(value: unknown): value is string {
+  return typeof value === 'string' && /^\d*\.?\d+(px|rem|em|%|fr|vw|ch)$/.test(value.trim());
 }
 
 /** Default collapse breakpoint — 768px at a default 16px browser. See CLAUDE.md § Breakpoints. */

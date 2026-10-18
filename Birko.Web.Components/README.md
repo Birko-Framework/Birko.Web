@@ -75,7 +75,7 @@ Every Presenter surface was checked for undefined `b-*` tags through every shado
 | Category | Entry points |
 |----------|--------------|
 | `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
-| `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour` |
+| `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour`, `birko-web-components/layout/layout-state` |
 | `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
 | `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
 | `nav` | `birko-web-components/nav/b-breadcrumb`, `birko-web-components/nav/b-ribbon`, `birko-web-components/nav/b-sidebar`, `birko-web-components/nav/b-tree-menu` |
@@ -873,7 +873,11 @@ Same API as `b-modal`, except `size` is `sm|md|lg|xl|xxl` (360 / 480 / 640 / 860
 ]);
 ```
 
-Emits: `tab-change` → `{ id }`
+Emits: `tab-change` → `{ tab }`
+
+With `reorderable`, tabs can be dragged into a new order, or moved with Ctrl+Shift+ArrowLeft/Right (Home/End for
+first/last); the move is announced to screen readers. Each move emits `tab-reorder` → `{ order, tab }`. `order` reads
+the tab ids in display order and sets them (unknown ids ignored, tabs missing from it kept after the listed ones).
 
 ### b-confirm-dialog
 
@@ -930,8 +934,27 @@ Master-detail split layout with responsive collapse.
 </b-split-panel>
 ```
 
-Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`
+Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`, `resizable`, `persist-key`, `resize-label`
 Slots: `master`, `detail`
+
+With `resizable`, a separator (`role="separator"`) between the columns can be dragged, or moved with the arrow keys
+(Shift for 64px steps, Home/End for the limits); the master column stays at least 120px, as does the rest. Each change
+emits `split-resize` → `{ sizes }`. `persist-key` saves the sizes in localStorage and restores them on mount. `sizes`
+reads `{ master, detail }` and sets them; only CSS lengths are accepted (`320px`, `18rem`, `1fr`), anything else throws.
+
+### Saving a layout: captureLayout / applyLayout
+
+```typescript
+import { captureLayout, applyLayout } from 'birko-web-components';
+
+// <b-tabs layout-key="editor-tabs" reorderable> … <b-split-panel layout-key="main" resizable> …
+const layout = captureLayout(document);        // { tabs: { 'editor-tabs': [...] }, splits: { main: { master, detail } } }
+await api.put('/me/layout', layout);           // save it wherever the app likes
+applyLayout(await api.get('/me/layout'), document);
+```
+
+Keys with no element, and elements with no saved entry, are skipped; an invalid saved size is ignored.
+`querySelectorAll` does not enter shadow roots: pass a component's `shadowRoot` to reach what it renders.
 
 Side by side, the detail column sticks to the top of the scrolling pane, so a row clicked far down a long
 master opens its detail next to that row rather than off screen above. It is capped at the pane's height
