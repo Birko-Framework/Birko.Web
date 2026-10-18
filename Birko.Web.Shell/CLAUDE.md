@@ -27,6 +27,7 @@ src/
 │   └── shell-wrapper.ts        # createShellWrapper() for persistent shell in router
 ├── auth/
 │   ├── auth-store.ts         # createAuthStore() — JWT parsing, localStorage persistence
+│   ├── auth-session.ts       # readAuthFragment(), createAuthSession() — OAuth redirect sign-in, scheduled refresh
 │   ├── auth-types.ts         # AuthState, AuthStoreConfig
 │   └── auth-guards.ts        # createAuthGuard(), createModuleGuard()
 ├── modules/
@@ -173,10 +174,47 @@ createAuthStore({
 ```
 
 The `setAuth()` function:
-1. Decodes the JWT payload (base64)
+1. Decodes the JWT payload (base64url, via `decodeJwtPayload`)
 2. Extracts claims using the configured mapping
 3. Stores token + extracted fields in the Store
 4. Persists to localStorage (JSON serialization of entire snapshot)
+
+### OAuth redirect sign-in and token refresh (TASK-524)
+
+`auth-session.ts` covers what an OAuth redirect sign-in needs, with no app-specific code:
+
+```typescript
+import { createAuthStore, createAuthSession, readAuthFragment } from 'birko-web-shell/auth';
+
+const auth = createAuthStore();
+const fragment = readAuthFragment();           // #access_token=…&refresh_token=… → cleared from the address bar
+if (fragment) auth.setAuth({ accessToken: fragment.accessToken, refreshToken: fragment.refreshToken });
+
+const session = createAuthSession({
+  auth,
+  refresh: async (refreshToken) => {           // your token endpoint; null = refused, reject = network failure
+    const res = await fetch('/oauth/token', { method: 'POST', body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: 'web' }) });
+    if (!res.ok) return null;
+    const body = await res.json();
+    return { accessToken: body.access_token, refreshToken: body.refresh_token };
+  },
+  onSessionEnded: () => router.navigate('/login'),
+});
+session.start();
+
+const api = new ApiClient({ baseUrl, getToken: session.getToken, onRefreshToken: session.onRefreshToken });
+const ws  = new WsClient({ url, getToken: session.getToken });
+const sse = new SseClient({ url, getToken: session.getToken });
+```
+
+- `readAuthFragment()` returns null and leaves the URL alone for a hash route (`#/orders`) or any fragment without
+  `access_token`; an `error=` fragment (a refused sign-in) is cleared and returns null.
+- The session refreshes `leadMs` (60 s) before the JWT's `exp`, after a 401 (ApiClient's `onRefreshToken`, sharing one
+  in-flight refresh), and `retryMs` (30 s) after a refresh that rejected. A refresh that resolves null clears the store and
+  calls `onSessionEnded`. A refresh without a new refresh token keeps the old one. A delay past `setTimeout`'s
+  ~24.8-day ceiling is capped and re-waited, never fired early.
+- Every client takes `session.getToken`, so all of them send what the store holds.
+- `tokenExpiresAt(token)` and `decodeJwtPayload(token)` read base64url payloads (`setAuth` uses the same decoder).
 
 ### Ribbon builder — i18n integration
 

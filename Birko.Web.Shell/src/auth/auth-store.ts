@@ -1,5 +1,6 @@
 import { Store } from 'birko-web-core/state';
 import type { AuthState, AuthStoreConfig } from './auth-types.js';
+import { decodeJwtPayload } from './auth-session.js';
 
 const DEFAULT_NAME_CLAIM = 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name';
 
@@ -52,15 +53,9 @@ export function createAuthStore(config?: AuthStoreConfig) {
     // Guard the decode: an opaque (non-JWT) token, a missing payload segment, invalid base64,
     // or non-JSON payload must not throw out of setAuth (which would half-write the store and
     // abort the login flow). Keep the token; just derive no claims from a token we can't read.
-    let payload: Record<string, any> = {};
-    try {
-      const segment = jwt.split('.')[1];
-      if (segment) {
-        payload = JSON.parse(atob(segment));
-      }
-    } catch {
-      payload = {};
-    }
+    // decodeJwtPayload reads base64url (TASK-524): a bare atob() threw on a payload segment containing '-' or '_',
+    // so such a token silently yielded no claims at all.
+    const payload: Record<string, any> = decodeJwtPayload(jwt) ?? {};
 
     store.set('token', jwt);
     store.set('refreshToken', data.refreshToken ?? null);
