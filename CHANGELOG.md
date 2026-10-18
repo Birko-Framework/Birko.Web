@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.11 — 2026-10-18
+
+- **OAuth redirect sign-in and token refresh in `birko-web-shell/auth`** — Birko TASK-524 (for DraCode STORY-039). New
+  `readAuthFragment()` reads `#access_token=…&refresh_token=…` after a provider redirect and clears it from the address
+  bar (a hash route is left alone). New `createAuthSession({ auth, refresh })` refreshes ahead of the JWT's `exp`, after a
+  401 (as ApiClient's `onRefreshToken`) and after a network failure, through one pluggable refresh call. Its `getToken`
+  is what ApiClient, WsClient and SseClient send. Also new: `tokenExpiresAt`, `decodeJwtPayload`. **Fixed:**
+  `setAuth` decoded the payload with a bare `atob`, so a token whose payload contains `-` or `_` (base64url) yielded no
+  claims; it now decodes base64url. Shell README § OAuth redirect sign-in.
+
 ## v0.1.10 — 2026-10-14
 
 - **A write a closed tab left mid-send is recovered** — Birko TASK-598. It stayed `syncing` forever: never resent, not
