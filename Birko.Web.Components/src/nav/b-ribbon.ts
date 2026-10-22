@@ -2434,7 +2434,9 @@ export class BRibbon extends BaseComponent {
     const rows = entries.map(e => {
       if ('separator' in e) return '<div class="ribbon-menu-separator" role="separator"></div>';
       const icon = withIcons ? `<span class="ribbon-menu-icon" aria-hidden="true">${e.icon ? escapeHtml(e.icon) : ''}</span>` : '';
-      const shortcut = e.shortcut ? `<kbd class="ribbon-menu-shortcut">${escapeHtml(e.shortcut)}</kbd>` : '';
+      // Hidden from the tree: aria-keyshortcuts announces it, and the visible text made the item's name "Paste as text
+      // Ctrl+Shift+V", so a screen reader said the shortcut twice (found by ribbon-a11y-check at sign-off).
+      const shortcut = e.shortcut ? `<kbd class="ribbon-menu-shortcut" aria-hidden="true">${escapeHtml(e.shortcut)}</kbd>` : '';
       const keyshortcuts = e.shortcut ? ` aria-keyshortcuts="${escapeAttr(e.shortcut.replace(/\s+/g, ''))}"` : '';
       return `<button class="ribbon-menu-item" role="menuitem" tabindex="-1"${e.disabled ? ' aria-disabled="true"' : ''}${keyshortcuts}`
         + ` data-tab="${tabId}" data-group="${groupId}" data-parent="${item.id}" data-menu-item="${escapeAttr(e.id)}">`
