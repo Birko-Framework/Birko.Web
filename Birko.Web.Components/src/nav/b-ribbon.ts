@@ -10,6 +10,8 @@ export interface RibbonTab {
   id: string;
   label: string;
   icon?: string;
+  /** Key tip letter or digit (TASK-736). Unset: the first free letter of the label. */
+  keytip?: string;
   badge?: number;
   disabled?: boolean;
   category?: string;
@@ -47,6 +49,8 @@ export interface RibbonGroup {
   id: string;
   label: string;
   items: RibbonItem[];
+  /** Key tip letter or digit (TASK-736). Unset: the first free letter of the label. */
+  keytip?: string;
   /**
    * Optional glyph naming the group. Shown on the collapsed chunk button when the group degrades to
    * `popup`; unused at the roomier sizes.
@@ -75,6 +79,8 @@ export interface RibbonItem {
   id: string;
   label: string;
   icon?: string;
+  /** Key tip letter or digit (TASK-736). Unset: the first free letter of the label. */
+  keytip?: string;
   href?: string;
   action?: boolean;
   badge?: number;
@@ -111,6 +117,8 @@ export interface RibbonMenuItem {
   id: string;
   label: string;
   icon?: string;
+  /** Key tip letter or digit (TASK-736). Unset: the first free letter of the label. */
+  keytip?: string;
   /** Shown right-aligned, e.g. `Ctrl+Shift+V`. Display only: the app binds the key itself. */
   shortcut?: string;
   disabled?: boolean;
@@ -156,7 +164,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
-    'qat-key', 'qat-position',
+    'qat-key', 'qat-position', 'keytip-shortcut',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -187,6 +195,10 @@ export class BRibbon extends BaseComponent {
   private _qatLoadedKey: string | null = null;
   private _qatRoving = 0;
   private _menuOpener: HTMLElement | null = null;
+  /** Key tip mode (TASK-736): which level is showing, and each badge's letter → the element it acts on. */
+  private _keytipLevel: 'tabs' | 'commands' | 'flyout' | 'menu' | null = null;
+  private _keytipTargets = new Map<string, HTMLElement>();
+  private _keytipScope: HTMLElement | null = null;
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
@@ -580,6 +592,17 @@ export class BRibbon extends BaseComponent {
       .ribbon-qat-more { min-width: 1.25rem; font-size: 0.7em; color: var(--b-text-muted); }
       .ribbon-menu-item[aria-checked="true"] .ribbon-menu-check::before { content: "\\2713"; }
       .ribbon-menu-check { width: 1.25em; text-align: center; flex-shrink: 0; }
+
+      /* ── Key tips (TASK-736; Office's dark squares, picked by the user) — the dark tooltip tokens, dark in every theme ── */
+      .ribbon-keytips { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; background: none; pointer-events: none; overflow: visible; }
+      .ribbon-keytip {
+        position: fixed; transform: translate(-50%, -30%);
+        min-width: 1.1rem; height: 1.1rem; padding: 0 0.2rem; box-sizing: border-box;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--b-tooltip-bg, #1e293b); color: var(--b-tooltip-text, #e2e8f0);
+        border-radius: var(--b-radius-sm, 0.25rem); box-shadow: var(--b-shadow-sm, 0 1px 2px rgba(0,0,0,.25));
+        font: var(--b-font-weight-semibold, 600) var(--b-text-xs, 0.6875rem)/1 var(--b-font-sans, system-ui);
+      }
       .ribbon-item[aria-disabled="true"] {
         opacity: var(--b-disabled-opacity, 0.5); pointer-events: none;
       }
@@ -927,6 +950,22 @@ export class BRibbon extends BaseComponent {
     this._shortcutAC?.abort();
     this._shortcutAC = new AbortController();
     window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (this._keytipLevel && this._keytipKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); }
+    }, { signal: this._shortcutAC.signal, capture: true });
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat || !this._isKeytipCombo(e)) return;
+      if (this._keytipLevel) { this._exitKeytips(); e.preventDefault(); return; }
+      if (!this._keytipsAvailable()) return;
+      e.preventDefault();
+      this._showKeytips('tabs');
+    }, { signal: this._shortcutAC.signal });
+    // A click anywhere, the window losing focus, or a resize ends key tips. `blur` is listened to WITHOUT capture: in
+    // the capture phase window also sees every element's blur, so focus moving into an opened menu ended the mode.
+    const exit = () => { if (this._keytipLevel) this._exitKeytips(); };
+    window.addEventListener('pointerdown', exit, { signal: this._shortcutAC.signal, capture: true });
+    window.addEventListener('resize', exit, { signal: this._shortcutAC.signal });
+    window.addEventListener('blur', (e: FocusEvent) => { if (e.target === window) exit(); }, { signal: this._shortcutAC.signal });
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
       const sc = this._collapseShortcut();
       if (!sc || e.defaultPrevented || e.repeat) return;
       if (e.key.toLowerCase() !== sc.key || e.ctrlKey !== sc.ctrl || e.altKey !== sc.alt
@@ -963,6 +1002,7 @@ export class BRibbon extends BaseComponent {
     return `
       ${this._renderTooltip()}
       ${this._renderSharedMenu()}
+      ${this._renderKeytipLayer()}
       <div class="ribbon" role="toolbar" aria-label="${this.label('label-ribbon', 'bwc.ribbon.title', 'Module ribbon')}">
         ${qat && qatPos === 'above' ? `<div class="ribbon-qat-row above">${qat}</div>` : ''}
         <div class="ribbon-tab-row">
@@ -1077,6 +1117,11 @@ export class BRibbon extends BaseComponent {
     return `<div class="ribbon-qat" role="group" aria-label="${escapeAttr(name)}">${buttons}`
       + `<button class="ribbon-qat-btn ribbon-qat-more" type="button" data-qat-customize aria-haspopup="menu" aria-expanded="false"`
       + ` aria-label="${escapeAttr(customize)}"><span aria-hidden="true">&#9662;</span></button></div>`;
+  }
+
+  /** The key tip badges: a manual popover in the top layer, so they also show over a flyout or a menu. */
+  private _renderKeytipLayer(): string {
+    return `<div class="ribbon-keytips" popover="manual" aria-hidden="true"></div>`;
   }
 
   /** One popover reused for the "add / remove" context menu and the customise menu; filled when it opens. */
@@ -1479,6 +1524,171 @@ export class BRibbon extends BaseComponent {
     this._openSharedMenu(`${defaults}${added}<div class="ribbon-menu-separator" role="separator"></div>${reset}`, button, button);
   }
 
+  // ── Key tips (TASK-736) ────────────────────────────────────────────────────
+
+  /** `keytip-shortcut` parsed. Default Alt+Meta (Alt+Windows key); on a Mac, Ctrl+Option (Ctrl+Alt). `none`: off. */
+  private _keytipCombo(): { mods: Set<string>; key: string | null } | null {
+    const mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+    const raw = (this.getAttribute('keytip-shortcut') ?? (mac ? 'Ctrl+Alt' : 'Alt+Meta')).trim().toLowerCase();
+    if (!raw || raw === 'none') return null;
+    const alias: Record<string, string> = { control: 'ctrl', cmd: 'meta', win: 'meta', windows: 'meta', option: 'alt' };
+    const parts = raw.split('+').map(p => alias[p.trim()] ?? p.trim()).filter(Boolean);
+    const isMod = (p: string) => ['ctrl', 'alt', 'shift', 'meta'].includes(p);
+    const last = parts.at(-1) ?? '';
+    return isMod(last) ? { mods: new Set(parts), key: null } : { mods: new Set(parts.slice(0, -1)), key: last };
+  }
+
+  /** Whether a keydown completes the combo: a modifier-only combo on its last modifier's press, else on the key. */
+  private _isKeytipCombo(e: KeyboardEvent): boolean {
+    const c = this._keytipCombo();
+    if (!c) return false;
+    const held = { ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey };
+    const named = e.key.toLowerCase() === 'control' ? 'ctrl' : e.key.toLowerCase() === 'os' ? 'meta' : e.key.toLowerCase();
+    for (const m of ['ctrl', 'alt', 'shift', 'meta'] as const) if (held[m] !== c.mods.has(m)) return false;
+    return c.key === null ? c.mods.has(named) : named === c.key;
+  }
+
+  /**
+   * Letters for a level: declared tips first (as given, upper-cased), then each label's first free letter or digit
+   * (accents folded), then any free letter or digit. Single characters only, so 36 per level; the rest get none.
+   */
+  private _assignKeytips(entries: Array<{ el: HTMLElement; label: string; keytip?: string }>, used = new Set<string>()) {
+    const out = new Map<string, HTMLElement>();
+    const fold = (t: string) => t.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase();
+    const pending: typeof entries = [];
+    for (const e of entries) {
+      const k = e.keytip ? fold(e.keytip).slice(0, 1) : '';
+      if (k && /[A-Z0-9]/.test(k) && !used.has(k)) { used.add(k); out.set(k, e.el); } else pending.push(e);
+    }
+    const pool = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    for (const e of pending) {
+      const k = [...fold(e.label)].find(ch => /[A-Z0-9]/.test(ch) && !used.has(ch)) ?? [...pool].find(ch => !used.has(ch));
+      if (!k) continue;
+      used.add(k);
+      out.set(k, e.el);
+    }
+    return out;
+  }
+
+  private _itemFor(el: HTMLElement): RibbonItem | undefined {
+    const tab = this._tabs.find(t => t.id === el.dataset.tab);
+    const items = el.dataset.group === '_context' ? this._contextActions : tab?.groups.find(g => g.id === el.dataset.group)?.items ?? [];
+    return items.find(i => i.id === (el.dataset.item ?? el.dataset.arrow));
+  }
+
+  /** Shows the badges of one level: the letter of each target, placed at its bottom edge (tabs) or corner. */
+  private _showKeytips(level: NonNullable<BRibbon['_keytipLevel']>, scope: HTMLElement | null = null) {
+    const layer = this.$<HTMLElement>('.ribbon-keytips');
+    if (!layer) return;
+    let entries: Array<{ el: HTMLElement; label: string; keytip?: string }> = [];
+    const used = new Set<string>();
+    const visible = (el: HTMLElement) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+    let qat = new Map<string, HTMLElement>();
+    if (level === 'tabs') {
+      entries = this.$$<HTMLElement>('.ribbon-tab').filter(visible).map(el => {
+        const tab = this._tabs.find(t => t.id === el.dataset.tab);
+        return { el, label: tab?.label ?? el.textContent ?? '', keytip: tab?.keytip };
+      });
+      // Office numbers the Quick Access Toolbar.
+      this.$$<HTMLElement>('.ribbon-qat-btn:not([data-qat-customize])').filter(visible).slice(0, 9).forEach((el, i) => { qat.set(String(i + 1), el); used.add(String(i + 1)); });
+    } else if (level === 'commands') {
+      entries = this._panelStops().filter(visible).map(el => {
+        if (el.dataset.chunk) {
+          const group = this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')))?.groups.find(g => g.id === el.dataset.chunk);
+          return { el, label: group?.label ?? '', keytip: group?.keytip };
+        }
+        const item = this._itemFor(el);
+        return { el, label: item?.label ?? el.textContent ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
+      });
+    } else if (level === 'flyout' && scope) {
+      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')]
+        .filter(visible).map(el => { const item = this._itemFor(el); return { el, label: item?.label ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip }; });
+    } else if (level === 'menu' && scope) {
+      entries = this._menuItems(scope).map(el => {
+        const owner = this._tabs.find(t => t.id === el.dataset.tab)?.groups.find(g => g.id === el.dataset.group)?.items.find(i => i.id === el.dataset.parent);
+        const choice = owner?.menu?.find(m => !('separator' in m) && m.id === el.dataset.menuItem) as RibbonMenuItem | undefined;
+        return { el, label: choice?.label ?? el.textContent ?? '', keytip: choice?.keytip };
+      });
+    }
+    this._keytipTargets = new Map([...qat, ...this._assignKeytips(entries, used)]);
+    this._keytipLevel = level;
+    this._keytipScope = scope;
+    layer.innerHTML = [...this._keytipTargets].map(([k, el]) => {
+      const rect = el.getBoundingClientRect();
+      // Tabs and toolbar buttons: centred under them. Commands: on the bottom-right corner, half outside, so the badge
+      // does not cover the end of the label.
+      const centred = level === 'tabs' || el.classList.contains('ribbon-qat-btn');
+      const x = centred ? rect.left + rect.width / 2 : rect.right;
+      const y = rect.bottom - (centred ? 2 : 0);
+      return `<span class="ribbon-keytip" data-keytip="${escapeAttr(k)}" style="left:${Math.round(x)}px;top:${Math.round(y)}px">${escapeHtml(k)}</span>`;
+    }).join('');
+    if (!layer.matches(':popover-open')) layer.showPopover();
+  }
+
+  private _exitKeytips() {
+    this._keytipLevel = null;
+    this._keytipScope = null;
+    this._keytipTargets.clear();
+    const layer = this.$<HTMLElement>('.ribbon-keytips');
+    if (layer) { layer.innerHTML = ''; if (layer.matches(':popover-open')) layer.hidePopover(); }
+  }
+
+  /** Whether the ribbon can show key tips now: not in tabs-only mobile layout, and with tabs on screen. */
+  private _keytipsAvailable(): boolean {
+    const tabs = this.$<HTMLElement>('.ribbon-tabs');
+    return !!tabs && tabs.getBoundingClientRect().width > 0;
+  }
+
+  /** One key while key tips show. Returns true when the ribbon consumed it. */
+  private _keytipKey(e: KeyboardEvent): boolean {
+    if (!this._keytipLevel) return false;
+    if (['Shift', 'Control', 'Alt', 'Meta', 'OS'].includes(e.key)) return true; // a lone modifier does not end the mode
+    if (e.key === 'Escape') {
+      const level = this._keytipLevel;
+      if (level === 'menu' || level === 'flyout') {
+        this._keytipScope?.matches(':popover-open') && this._keytipScope.hidePopover();
+        requestAnimationFrame(() => this._showKeytips('commands'));
+      } else if (level === 'commands') {
+        this._showKeytips('tabs');
+      } else {
+        this._exitKeytips();
+      }
+      return true;
+    }
+    const key = e.key.length === 1 ? e.key.normalize('NFD').replace(/\p{Diacritic}/gu, '').toUpperCase() : '';
+    const el = key ? this._keytipTargets.get(key) : undefined;
+    if (!el) { this._exitKeytips(); return key !== ''; } // a letter with no tip is swallowed rather than typed
+    this._actOnKeytip(el);
+    return true;
+  }
+
+  private _actOnKeytip(el: HTMLElement) {
+    if (this._keytipLevel === 'tabs' && el.classList.contains('ribbon-tab')) {
+      const tab = this._tabs.find(t => t.id === el.dataset.tab);
+      if (!tab || this._isPanelless(tab) || this._tabsOnlyMode) { this._exitKeytips(); el.click(); return; }
+      this._selectTab(tab.id);
+      this._hoverTabId = null;
+      this._showTabContent(tab.id);
+      // The panel re-renders and may rescale: place the command tips once it has.
+      requestAnimationFrame(() => requestAnimationFrame(() => this._showKeytips('commands')));
+      return;
+    }
+    if (el.classList.contains('ribbon-chunk')) {
+      el.click();
+      const flyout = el.closest('.ribbon-group')?.querySelector<HTMLElement>('.ribbon-flyout');
+      requestAnimationFrame(() => (flyout?.matches(':popover-open') ? this._showKeytips('flyout', flyout) : this._exitKeytips()));
+      return;
+    }
+    if (el.hasAttribute('data-menu-trigger')) {
+      this._openMenu(el, true);
+      const menu = this.shadowRoot?.getElementById(el.getAttribute('aria-controls') ?? '') ?? null;
+      requestAnimationFrame(() => (menu?.matches(':popover-open') ? this._showKeytips('menu', menu) : this._exitKeytips()));
+      return;
+    }
+    this._exitKeytips();
+    el.click();
+  }
+
   /**
    * When `popover` closes with focus inside it (Escape, a choice that ran, Tab), focus goes back to `opener`. Read on
    * `beforetoggle`, while focus is still where the user left it: by `toggle` the focused command is hidden. A close
@@ -1815,6 +2025,7 @@ export class BRibbon extends BaseComponent {
   }
 
   protected onUnmount() {
+    this._exitKeytips();
     this._shortcutAC?.abort();
     this._shortcutAC = null;
     this._clearTimers();

@@ -1696,7 +1696,7 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`)
+Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off)
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`
 
@@ -1717,6 +1717,18 @@ Users customise the toolbar three ways:
 
 `getQuickAccess()` returns the current list as refs: `qat:<id>` or `item:<tab>/<group>/<item>`. The toolbar is one Tab
 stop with ←/→ inside it, a pressed toggle stays in step with the ribbon, and the toolbar is hidden on narrow screens.
+
+**Key tips.** Alt+Windows key (Ctrl+Option on a Mac), as in Microsoft 365 in the browser, shows a letter on every tab
+and a digit on every Quick Access Toolbar button. The combination works anywhere in the app.
+
+- Pressing a tab's letter opens that tab and shows letters on its commands. A command's letter runs it.
+- A folded group, a split ▾ or a menu command opens one more level, with letters on its own choices.
+- Escape goes back one level. Any other key, a click, or leaving the window ends the mode.
+- While letters show, a pressed letter is never typed into an input.
+- Letters default to the first free letter of each label, with accents folded (Č → C). `keytip` on a tab, group,
+  command or menu choice sets one instead, for example to keep V for Paste in every language.
+- One character per item, so each level has up to 36 (A–Z, 0–9). `keytip-shortcut` rebinds the combination
+  (`Ctrl+Shift+K`) or turns it off.
 
 **Collapsing.** As in Office, double-clicking a tab or pressing Ctrl+F1 switches between the ribbon always shown
 (pinned) and tabs only, where the panel opens over the page when a tab is used. `toggleRibbon()` does the same.

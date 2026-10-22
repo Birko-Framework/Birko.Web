@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,19 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` key tips (2026-10-22, TASK-736)
+
+Levels: tabs (plus toolbar digits) → a tab's commands → a folded group's flyout or a menu's choices. Each Escape goes
+back one level. The badges are spans in one manual popover (`.ribbon-keytips`, top layer), placed from each target's rect,
+in the dark tooltip tokens: the user picked Office's dark squares. Letters are declared `keytip` first, then the label's
+first free letter (NFD-folded), then any free one, with 36 a level and no two-letter tips.
+
+The trigger is app-wide on `window`: bubbling, skipping `defaultPrevented`, with `keytip-shortcut` to change it. While
+active, a capture listener consumes keys, so a letter is never typed.
+
+**`blur` on `window` must not be captured.** In the capture phase window sees every element's blur, so focus moving
+into an opened menu ended key tips. `blur` is listened to without capture, with `e.target === window`.
 
 ### `b-ribbon` Quick Access Toolbar, and a hover preview that swallowed menu choices (2026-10-22, TASK-737)
 
