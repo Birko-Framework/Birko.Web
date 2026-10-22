@@ -4,6 +4,37 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.13 — 2026-10-22
+
+- **`renderEmptyFilter()` on the base pages** — Birko TASK-744 (for Symbio TASK-955). While `requiredFilterSet` is
+  false, `BaseCrudPage`, `BaseListPage` and `BaseSplitPage` show `renderEmptyFilter()`. Its default is the same
+  `<b-card><b-empty>` markup they inlined before, so nothing changes until a page overrides it, for example to put a
+  "Create a building" link in `b-empty`'s slot. Shell README § A prerequisite is missing.
+- **JSON diff** — Birko TASK-725 (for the FinStat web API tester).
+  - New `diffJson(a, b, options)` in `birko-web-core` (also `birko-web-core/diff`). It reports changes by path, a
+    tree and summary counts.
+  - Options: ignored paths with `*` / `[*]` / `**` patterns, per-path normalizers, and arrays compared by index, by
+    key or unordered.
+  - New `<b-json-diff>`: a tree of changes with an "Only changes" toggle, or both bodies side by side with the
+    differing lines marked. Side names are `label-a` / `label-b`.
+- **XML in the diff** — Birko TASK-727. New `xmlToTree` / `xmlToLines`. `b-json-diff format="xml"` compares XML
+  bodies and shows the original XML side by side. Text beside attributes is kept under `#text`.
+- **Hidden screen-reader text no longer stretches the page** — Birko TASK-725. **Fixed:** `b-json-diff` and `b-tabs`
+  inside a scrolling container added a second, window-level scrollbar.
+- **`b-tag-input` keeps focus after a tag is committed** — Birko TASK-729. **Fixed:** after Enter, the next value
+  typed went nowhere.
+- **An Office-like `b-ribbon`** — Birko FEATURE-019, TASK-730 / 731 / 732 / 738.
+  - **Layout.** Groups are one height, rows line up, and group names sit under their group. **Changed look.**
+  - **Keyboard.** The open ribbon is one Tab stop, and the arrow keys move between commands and groups. Folded groups
+    open with Enter, Space or ↓.
+  - **Menus.** New `RibbonItem.menu` (and `split`) for menu buttons and split buttons. A choice emits `item-click`
+    with `parentId`.
+  - **Tooltips.** New `RibbonItem.description` / `shortcut` feed a tooltip. **Changed behaviour:** commands no longer
+    carry a native `title`; their name is in `aria-label` and the tooltip. With a tooltip showing, the first Escape
+    only hides it.
+- **`b-tooltip` themes** — Birko TASK-738. `theme="light"`, `heading` and `shortcut` (as text), and `showFor(anchor,
+  content)` / `hide()` for an element it does not wrap. A `text` given alone behaves as before.
+
 ## v0.1.12 — 2026-10-18
 
 - **Reorderable tabs, resizable split panels and saved layouts** — Birko TASK-525 (for DraCode STORY-039).
