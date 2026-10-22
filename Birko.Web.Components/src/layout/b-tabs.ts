@@ -33,7 +33,7 @@ export class BTabs extends BaseComponent {
 
   static get styles() {
     return `
-      :host { display: block; overflow: visible; }
+      :host { display: block; overflow: visible; position: relative; }
       .tab-bar {
         display: flex; border-bottom: 2px solid var(--b-border);
         gap: 0; overflow-x: auto; overflow-y: hidden;

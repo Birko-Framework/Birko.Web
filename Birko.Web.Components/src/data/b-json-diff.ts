@@ -49,6 +49,7 @@ export class BJsonDiff extends BaseComponent {
     return `
       :host {
         display: block;
+        position: relative;
         font-size: var(--b-text-sm, 0.8125rem);
       }
       :host([size="sm"]) { font-size: var(--b-text-xs, 0.6875rem); }
