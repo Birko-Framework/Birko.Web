@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.17 — 2026-10-22
+
+- **I18n fallback chains** — Birko TASK-750 (for Symbio TASK-953). New `I18nOptions.fallbackChains`, the ordered
+  fallbacks per locale, e.g. `{ cs: ['sk', 'en'] }`: a key missing in Czech comes from Slovak, then English.
+  `setLocale()` and `loadModule()` load the whole chain, root and module bundles; `t()` and plurals take the first
+  locale that has the key. A locale with no entry, and an app that passes no `fallbackChains`, behave exactly as before.
+  Core README § Internationalization.
+
 ## v0.1.16 — 2026-10-22
 
 - **No empty strip above the ribbon** — Birko TASK-749 (reported by the FinStat web tester). **Fixed:** since v0.1.13
