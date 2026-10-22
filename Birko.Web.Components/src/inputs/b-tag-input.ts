@@ -204,7 +204,7 @@ export class BTagInput extends FormControlComponent {
         const parts = text.split(this._splitPattern()).map(p => p.trim()).filter(Boolean);
         for (const p of parts) this._addTag(p);
         this._emitChange();
-        this.update();
+        this._updateKeepingFocus();
       }
     });
 
@@ -271,7 +271,7 @@ export class BTagInput extends FormControlComponent {
     this._buffer = tail;
     if (changed) {
       this._emitChange();
-      this.update();
+      this._updateKeepingFocus();
     } else {
       const input = this.$<HTMLInputElement>('input');
       if (input) input.value = this._buffer;
@@ -289,7 +289,7 @@ export class BTagInput extends FormControlComponent {
     if (this._addTag(tag)) {
       this._emitChange();
     }
-    this.update();
+    this._updateKeepingFocus();
   }
 
   private _addTag(tag: string): boolean {
@@ -313,7 +313,19 @@ export class BTagInput extends FormControlComponent {
     const [removed] = this._tags.splice(index, 1);
     this.emit('remove', { tag: removed, tags: [...this._tags] });
     this._emitChange();
+    this._updateKeepingFocus();
+  }
+
+  /**
+   * Re-render, and give focus back to the input if it was anywhere inside the control. The morph is positional, so a
+   * chip added or removed before the input lands where the input was and the focused element is replaced: the next
+   * value typed went nowhere (only the first of "type, Enter, type, Enter" was kept). A blur-triggered commit does not
+   * refocus, since focus has already left by then, and neither do `setTags()` / `clear()`, which never had it.
+   */
+  private _updateKeepingFocus() {
+    const hadFocus = (this.shadowRoot?.activeElement ?? null) !== null;
     this.update();
+    if (hadFocus) this.$<HTMLInputElement>('input')?.focus();
   }
 
   private _emitChange() {
