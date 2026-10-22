@@ -10,6 +10,11 @@ export interface RibbonTab {
   id: string;
   label: string;
   icon?: string;
+  /**
+   * The contextual set this tab belongs to (TASK-734): shown only while the app shows that set, after the normal tabs,
+   * under the set's colour and name. See {@link BRibbon.setContextualSets}.
+   */
+  contextualSet?: string;
   /** Key tip letter or digit (TASK-736). Unset: the first free letter of the label. */
   keytip?: string;
   badge?: number;
@@ -43,6 +48,19 @@ export interface RibbonTab {
  *
  * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step.
  */
+export type RibbonContextualColor = 'primary' | 'success' | 'warning' | 'danger' | 'info';
+/** How a shown set is marked: `band` (Office: tinted band, name above its tabs), `pill` (name as a pill), `edge` (line). */
+export type RibbonContextualStyle = 'band' | 'pill' | 'edge';
+
+/** Tabs that appear only while something is selected (Office's "Table Design"). */
+export interface RibbonContextualSet {
+  id: string;
+  label: string;
+  color?: RibbonContextualColor;
+  /** Overrides the ribbon's `contextual-style` for this set. */
+  style?: RibbonContextualStyle;
+}
+
 export type RibbonGroupSize = 'large' | 'medium' | 'small' | 'popup';
 
 export interface RibbonGroup {
@@ -171,7 +189,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
-    'qat-key', 'qat-position', 'keytip-shortcut',
+    'qat-key', 'qat-position', 'keytip-shortcut', 'contextual-style',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -179,6 +197,10 @@ export class BRibbon extends BaseComponent {
     'preferred-group-size']; }
 
   private _tabs: RibbonTab[] = [];
+  /** Contextual sets (TASK-734): declared, which are shown, and the normal tab to go back to when one hides. */
+  private _ctxSets: RibbonContextualSet[] = [];
+  private _ctxShown = new Set<string>();
+  private _lastNormalTab: string | null = null;
   /** Toggle states by tab/group/item, seeded from RibbonItem.pressed (see _isPressed). */
   private _pressed = new Map<string, boolean>();
   private _contextActions: RibbonItem[] = [];
@@ -236,6 +258,26 @@ export class BRibbon extends BaseComponent {
   /** Whether collapsed chunks are drawn without their group names — the narrowest row possible. */
   private _compactChunks = false;
   private _measuring = false;
+
+  /**
+   * The contextual sets' colours, one rule set per theme colour. Primary has no alpha tokens, so its tint and border are
+   * its light shade and itself; the others use the -alpha-bg / -alpha-border / -text tokens that pass contrast in every
+   * theme (TASK-599).
+   */
+  private static _ctxCss(): string {
+    return BRibbon.CTX_COLORS.map(c => {
+      const line = `var(--b-color-${c})`;
+      const text = `var(--b-color-${c}-text, var(--b-color-${c}))`;
+      const bg = c === 'primary' ? 'var(--b-color-primary-light)' : `var(--b-color-${c}-alpha-bg)`;
+      const border = c === 'primary' ? 'var(--b-color-primary)' : `var(--b-color-${c}-alpha-border)`;
+      return `
+      .ribbon-ctx-set.color-${c} .ribbon-ctx-name, .ribbon-ctx-set.color-${c} .ribbon-tab { color: ${text}; }
+      .ribbon-ctx-set.color-${c} .ribbon-tab[aria-selected="true"] { border-bottom-color: ${line}; }
+      .ribbon-ctx-set.color-${c}.style-band { border-top-color: ${line}; background: ${bg}; }
+      .ribbon-ctx-set.color-${c}.style-pill .ribbon-ctx-name { background: ${bg}; border-color: ${border}; }
+      .ribbon-ctx-set.color-${c}.style-edge { border-top-color: ${line}; }`;
+    }).join('');
+  }
 
   static get styles() {
     // NO BACKTICKS anywhere below, comments included: this is a template literal, and a stray pair
@@ -303,6 +345,22 @@ export class BRibbon extends BaseComponent {
         font-size: var(--b-text-2xs, 0.625rem); font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
+
+      /* ── Contextual sets (TASK-734): three looks, all kept by the user; contextual-style picks one ── */
+      .ribbon-ctx-set { display: inline-flex; align-self: stretch; flex-shrink: 0; margin-inline-start: var(--b-space-xs, 0.25rem); }
+      .ribbon-ctx-tabs { display: flex; align-items: stretch; }
+      .ribbon-ctx-name { font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-semibold, 600); white-space: nowrap; line-height: 1; }
+      .ribbon-ctx-set.style-band { flex-direction: column; border-top: 3px solid transparent; }
+      .ribbon-ctx-set.style-band .ribbon-ctx-name { text-align: center; padding: 0.125rem var(--b-space-sm, 0.5rem) 0; }
+      .ribbon-ctx-set.style-band .ribbon-ctx-tabs { flex: 1; }
+      .ribbon-ctx-set.style-pill { align-items: center; gap: 0.125rem; }
+      .ribbon-ctx-set.style-pill .ribbon-ctx-name {
+        padding: 0.125rem var(--b-space-sm, 0.5rem); border: 1px solid transparent; border-radius: var(--b-radius-full, 9999px);
+      }
+      .ribbon-ctx-set.style-pill .ribbon-ctx-tabs { align-self: stretch; }
+      .ribbon-ctx-set.style-edge { border-top: 3px solid transparent; }
+      .ribbon-ctx-set.style-edge .ribbon-ctx-name { display: none; }
+      ${BRibbon._ctxCss()}
 
       .ribbon-tab-divider {
         width: 1px; height: 1.25rem; align-self: center; flex-shrink: 0;
@@ -745,6 +803,51 @@ export class BRibbon extends BaseComponent {
   }
 
   /**
+   * Declares the contextual sets: each one's name, theme colour and (optionally) its own style. Their tabs say which set
+   * they belong to with `contextualSet` and stay hidden until {@link showContextual}.
+   */
+  setContextualSets(sets: RibbonContextualSet[]) {
+    this._ctxSets = sets;
+    this.update();
+  }
+
+  /** Shows a set's tabs, after the normal ones. `select` also opens its first tab. */
+  showContextual(id: string, options: { select?: boolean } = {}) {
+    this._ctxShown.add(id);
+    this.update();
+    if (options.select) {
+      const first = this._tabs.find(t => t.contextualSet === id && !t.disabled);
+      if (first) this._selectTab(first.id);
+    }
+  }
+
+  /**
+   * Hides a set's tabs. If one of them was open, the ribbon goes back to the normal tab that was open before it (or the
+   * first tab), and emits `tab-change` (decided by the user).
+   */
+  hideContextual(id: string) {
+    if (!this._ctxShown.delete(id)) return;
+    const active = this._tabs.find(t => t.id === this.attr('active'));
+    if (active?.contextualSet === id) {
+      const back = this._tabs.find(t => t.id === this._lastNormalTab && this._isTabVisible(t))
+        ?? this._tabs.find(t => this._isTabVisible(t));
+      if (back) {
+        this.setAttribute('active', back.id);
+        this.emit('tab-change', { tab: back.id });
+      }
+    }
+    this.update();
+  }
+
+  isContextualShown(id: string): boolean {
+    return this._ctxShown.has(id);
+  }
+
+  private _isTabVisible(tab: RibbonTab): boolean {
+    return !tab.contextualSet || this._ctxShown.has(tab.contextualSet);
+  }
+
+  /**
    * Sets a toggle's state from the app (the selection changed), without emitting `item-click`. In a `toggleGroup`,
    * pressing one releases the others; releasing the one that is on leaves none on. `tabId` narrows an id used in
    * several tabs; without it every match changes.
@@ -1039,21 +1142,7 @@ export class BRibbon extends BaseComponent {
 
           <button class="ribbon-scroll-btn${this._tabScroll.overflowing ? ' reserved' : ''}${this._tabScroll.left ? ' visible' : ''}" id="scroll-left" aria-label="${this.label('label-scroll-tabs-left', 'bwc.ribbon.scrollTabsLeft', 'Scroll tabs left')}">&#9666;</button>
           <div class="ribbon-tabs" role="tablist">
-            ${this._tabs.map((tab, i) => {
-              const isActive = tab.id === active;
-              const badge = tab.badge ? `<span class="ribbon-tab-badge">${tab.badge > 99 ? '99+' : tab.badge}</span>` : '';
-              const icon = tab.icon ? `<span class="ribbon-tab-icon" aria-hidden="true">${tab.icon}</span>` : '';
-              const disabled = tab.disabled ? 'aria-disabled="true"' : '';
-              const prevCat = i > 0 ? this._tabs[i - 1].category : undefined;
-              const divider = tab.category && prevCat && tab.category !== prevCat
-                ? '<span class="ribbon-tab-divider" aria-hidden="true"></span>' : '';
-              return `${divider}<button class="ribbon-tab" role="tab"
-                aria-selected="${isActive}" ${tabsOnly ? '' : 'aria-controls="ribbon-panel"'}
-                id="ribbon-tab-${tab.id}" tabindex="${isActive ? '0' : '-1'}"
-                data-tab="${tab.id}" ${disabled}>
-                ${icon}<span class="ribbon-tab-label">${tab.label}</span>${badge}
-              </button>`;
-            }).join('')}
+            ${this._renderTabStrip(active, tabsOnly)}
           </div>
           <button class="ribbon-scroll-btn${this._tabScroll.overflowing ? ' reserved' : ''}${this._tabScroll.right ? ' visible' : ''}" id="scroll-right" aria-label="${this.label('label-scroll-tabs-right', 'bwc.ribbon.scrollTabsRight', 'Scroll tabs right')}">&#9656;</button>
 
@@ -1083,7 +1172,7 @@ export class BRibbon extends BaseComponent {
             <button class="mobile-dialog-close" id="mobile-dialog-close" aria-label="${this.label('label-close', 'bwc.common.close', 'Close')}">&#10005;</button>
           </div>
           <div class="mobile-dialog-body">
-            ${this._tabs.map(tab => `
+            ${this._tabs.filter(t => this._isTabVisible(t)).map(tab => `
               <div class="mobile-tab-section">
                 <button class="mobile-tab-header ${tab.id === active ? 'active' : ''}" data-mobile-tab="${tab.id}"
                   aria-expanded="${tab.id === active}" aria-controls="mobile-group-${tab.id}">
@@ -1154,6 +1243,47 @@ export class BRibbon extends BaseComponent {
   private _renderSharedMenu(): string {
     return `<div class="ribbon-menu ribbon-shared-menu" popover role="menu"></div>`;
   }
+
+  /** One tab button. `setLabel` names its contextual set for screen readers (the band's name is decoration). */
+  private _renderTabButton(tab: RibbonTab, active: string, tabsOnly: boolean, divider: string, setLabel?: string): string {
+    const isActive = tab.id === active;
+    const badge = tab.badge ? `<span class="ribbon-tab-badge">${tab.badge > 99 ? '99+' : tab.badge}</span>` : '';
+    const icon = tab.icon ? `<span class="ribbon-tab-icon" aria-hidden="true">${tab.icon}</span>` : '';
+    const disabled = tab.disabled ? 'aria-disabled="true"' : '';
+    const described = setLabel ? ` aria-description="${escapeAttr(setLabel)}"` : '';
+    return `${divider}<button class="ribbon-tab" role="tab"
+                aria-selected="${isActive}" ${tabsOnly ? '' : 'aria-controls="ribbon-panel"'}
+                id="ribbon-tab-${tab.id}" tabindex="${isActive ? '0' : '-1'}"
+                data-tab="${tab.id}" ${disabled}${described}>
+                ${icon}<span class="ribbon-tab-label">${tab.label}</span>${badge}
+              </button>`;
+  }
+
+  /** The normal tabs, then each shown contextual set's tabs inside its band, pill or edge (TASK-734). */
+  private _renderTabStrip(active: string, tabsOnly: boolean): string {
+    const normal = this._tabs.filter(t => !t.contextualSet);
+    const out = normal.map((tab, i) => {
+      const prevCat = i > 0 ? normal[i - 1].category : undefined;
+      const divider = tab.category && prevCat && tab.category !== prevCat
+        ? '<span class="ribbon-tab-divider" aria-hidden="true"></span>' : '';
+      return this._renderTabButton(tab, active, tabsOnly, divider);
+    });
+    const defaultStyle = (['band', 'pill', 'edge'] as const).find(v => v === this.attr('contextual-style')) ?? 'band';
+    for (const set of this._ctxSets) {
+      if (!this._ctxShown.has(set.id)) continue;
+      const tabs = this._tabs.filter(t => t.contextualSet === set.id);
+      if (!tabs.length) continue;
+      const color = BRibbon.CTX_COLORS.includes(set.color as RibbonContextualColor) ? set.color : 'primary';
+      const style = (['band', 'pill', 'edge'] as const).find(v => v === set.style) ?? defaultStyle;
+      out.push(`<span class="ribbon-ctx-set style-${style} color-${color}" role="presentation" data-set="${escapeAttr(set.id)}">`
+        + `<span class="ribbon-ctx-name" aria-hidden="true">${escapeHtml(set.label)}</span>`
+        + `<span class="ribbon-ctx-tabs" role="presentation">${tabs.map(t => this._renderTabButton(t, active, tabsOnly, '', set.label)).join('')}</span>`
+        + `</span>`);
+    }
+    return out.join('');
+  }
+
+  private static readonly CTX_COLORS: readonly RibbonContextualColor[] = ['primary', 'success', 'warning', 'danger', 'info'];
 
   /** The one tooltip every command shares (TASK-738): a b-tooltip shown for the command under the pointer or focus. */
   private _renderTooltip(): string {
@@ -2113,6 +2243,7 @@ export class BRibbon extends BaseComponent {
     const tab = this._tabs.find(t => t.id === tabId);
     if (!tab || tab.disabled) return;
 
+    if (!tab.contextualSet) this._lastNormalTab = tabId;
     const changed = tabId !== this.attr('active');
     if (changed) {
       this.setAttribute('active', tabId);

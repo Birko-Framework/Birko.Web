@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `setContextualSets()` / `showContextual()` / `hideContextual()` with `RibbonTab.contextualSet` and `contextual-style` (band\|pill\|edge); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,17 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` contextual tabs, in three switchable looks (2026-10-22, TASK-734)
+
+The user wanted all three previewed looks kept, picked by configuration. `contextual-style` (`band` default, `pill`,
+`edge`) applies per ribbon, and `RibbonContextualSet.style` per set. The colour rules are generated per theme colour by
+`_ctxCss()`, not set through local custom properties: no non-`--b-*` variables. Primary has no alpha tokens, so its tint
+and border are `-light` and itself.
+
+Tabs render as normal tabs, then each shown set's tabs in a `role="presentation"` wrapper inside the tablist. The
+visible name is `aria-hidden`, and each tab carries it as `aria-description`. `_lastNormalTab` remembers where to go
+back to when the open set hides. The band splits the fixed-height tab row (name over tabs) rather than growing it.
 
 ### `b-ribbon` group launcher (2026-10-22, TASK-733)
 
