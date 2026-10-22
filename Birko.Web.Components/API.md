@@ -1276,8 +1276,17 @@ Slot: `trigger` (element that opens the menu).
 ### `<b-tooltip>`
 | Attribute | Values |
 |-----------|--------|
-| `text` | string |
+| `text` | string (markup when used alone; text beside `heading` / `shortcut`) |
+| `heading` | string (text) — bold first line |
+| `shortcut` | string (text) — shown after the heading in brackets |
+| `theme` | `light` — surface-coloured card; default is the dark bubble |
 | `position` | `top` \| `bottom` \| `left` \| `right` |
+
+| Method | Signature |
+|--------|-----------|
+| `showFor` | `(anchor: HTMLElement, content: TooltipContent) => void` — shows next to an element it does not wrap, as a top-layer popover |
+| `hide` | `() => void` |
+| `shown` | `boolean` (getter) |
 
 Slot: default (trigger element).
 

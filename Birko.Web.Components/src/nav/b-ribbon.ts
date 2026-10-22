@@ -1,5 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
+import '../layout/b-tooltip.js';
+import type { BTooltip, TooltipContent } from '../layout/b-tooltip.js';
 import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -86,6 +88,10 @@ export interface RibbonItem {
    */
   menu?: RibbonMenuEntry[];
   split?: boolean;
+  /** One line shown under the name in the command's tooltip, and its accessible description. Text. */
+  description?: string;
+  /** Shown in the tooltip, e.g. `Ctrl+V`, and exposed as aria-keyshortcuts. Display only: the app binds the key. */
+  shortcut?: string;
 }
 
 /** One choice of a {@link RibbonItem.menu}. Label and shortcut are text, never markup. */
@@ -104,8 +110,8 @@ export type RibbonMenuEntry = RibbonMenuItem | { separator: true };
 // ── Component ────────────────────────────────────────────────────────────────
 
 /**
- * The stop nearest to `from` in a direction, by on-screen position: Left/Right take anything whose centre lies
- * that way, weighting vertical distance so the same row wins; Up/Down stay in `from`'s column (its horizontal
+ * The stop nearest to `from` in a direction, by on-screen position: Left/Right take anything wholly beyond it that
+ * way, weighting vertical distance so the same row wins; Up/Down stay in `from`'s column (its horizontal
  * extent), so they never jump to a neighbouring group.
  */
 function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left' | 'right' | 'up' | 'down'): HTMLElement | null {
@@ -122,7 +128,9 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
     const dy = b.top + b.height / 2 - ay;
     let score: number;
     if (dir === 'left' || dir === 'right') {
-      if (dir === 'right' ? dx <= 1 : dx >= -1) continue;
+      // Wholly beyond `from`, not merely centred past it: a wider command BELOW (Copy under Cut) has its centre a
+      // little to the right, and was picked by ArrowRight as if it were the next column.
+      if (dir === 'right' ? b.left < a.right - 2 : b.right > a.left + 2) continue;
       score = Math.abs(dx) + Math.abs(dy) * 4;
     } else {
       if (dir === 'down' ? dy <= 1 : dy >= -1) continue;
@@ -135,7 +143,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 }
 
 export class BRibbon extends BaseComponent {
-  static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only',
+  static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -150,6 +158,11 @@ export class BRibbon extends BaseComponent {
   private _hoverTabId: string | null = null;
   /** The panel stop that holds tabindex 0 (see _stopKey); null means the first. */
   private _rovingKey: string | null = null;
+  /** Hover delay before a command's tooltip shows, unless one was showing a moment ago. */
+  static TOOLTIP_DELAY_MS = 500;
+  private _tipAnchor: HTMLElement | null = null;
+  private _tipTimer: ReturnType<typeof setTimeout> | null = null;
+  private _tipWarmUntil = 0;
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
@@ -683,6 +696,7 @@ export class BRibbon extends BaseComponent {
     const panelTab = this._tabs.find(t => t.id === panelTabId);
 
     return `
+      ${this._renderTooltip()}
       <div class="ribbon" role="toolbar" aria-label="${this.label('label-ribbon', 'bwc.ribbon.title', 'Module ribbon')}">
         <div class="ribbon-tab-row">
           <div class="ribbon-before"><slot name="before-tabs"></slot></div>
@@ -774,6 +788,12 @@ export class BRibbon extends BaseComponent {
     `;
   }
 
+  /** The one tooltip every command shares (TASK-738): a b-tooltip shown for the command under the pointer or focus. */
+  private _renderTooltip(): string {
+    const theme = this.attr('tooltip-theme') || 'light';
+    return `<b-tooltip class="ribbon-tooltip" theme="${escapeAttr(theme)}" position="bottom" aria-hidden="true"></b-tooltip>`;
+  }
+
   private _renderPanel(panelTabId: string, panelTab: RibbonTab | undefined): string {
     const labelledBy = panelTab ? ` aria-labelledby="ribbon-tab-${panelTabId}"` : '';
     return `
@@ -828,7 +848,7 @@ export class BRibbon extends BaseComponent {
       return `
         <div class="ribbon-group size-popup${compact}" role="group" aria-label="${group.label}" data-group="${group.id}">
           <button class="ribbon-chunk" data-chunk="${group.id}"
-            aria-expanded="false" aria-haspopup="true" aria-label="${group.label}" title="${group.label}">
+            aria-expanded="false" aria-haspopup="true" aria-label="${group.label}">
             ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : ''}
             <span class="ribbon-chunk-name">${group.label} &#9662;</span>
           </button>
@@ -850,6 +870,7 @@ export class BRibbon extends BaseComponent {
     const panelInner = this.$<HTMLElement>('.ribbon-panel-inner');
     if (!panelInner || !tab) return;
     const refocus = this._focusInPanel();
+    this._hideTip(); // its anchor is about to be replaced
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
     this._bindChunks();
@@ -895,9 +916,12 @@ export class BRibbon extends BaseComponent {
     const disabled = item.disabled ? 'aria-disabled="true"' : '';
     const data = `data-tab="${tabId}" data-group="${groupId}" data-item="${item.id}"`;
 
-    // `title` matters at the Small variant, where the label is not rendered: an icon-only command with
-    // no accessible name would trade "unreachable" for "unnameable".
-    const named = `title="${item.label}" aria-label="${item.label}"`;
+    // aria-label matters at the Small variant, where the label is not rendered: an icon-only command with no
+    // accessible name would trade "unreachable" for "unnameable". The visible name there is the tooltip's heading
+    // (TASK-738), which replaced the native title: both showed at once, and the title was announced twice.
+    const described = (item.description ? ` aria-description="${escapeAttr(item.description)}"` : '')
+      + (item.shortcut ? ` aria-keyshortcuts="${escapeAttr(item.shortcut.replace(/\s+/g, ''))}"` : '');
+    const named = `aria-label="${item.label}"${described}`;
     const body = `${icon}<span class="ribbon-item-label">${item.label}</span>${badge}`;
 
     if (item.menu?.length) {
@@ -910,7 +934,7 @@ export class BRibbon extends BaseComponent {
       const more = this.label('label-more-options', 'bwc.ribbon.moreOptions', 'More options: {label}', { label: item.label });
       return `<span class="ribbon-split">`
         + `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`
-        + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}" title="${escapeAttr(more)}">`
+        + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}">`
         + `<span class="ribbon-split-arrow-label" aria-hidden="true">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span></button>`
         + `</span>${menu}`;
     }
@@ -919,6 +943,76 @@ export class BRibbon extends BaseComponent {
       return `<a class="${cls}" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`;
     }
     return `<button class="${cls}" ${disabled} ${data} ${named}>${body}</button>`;
+  }
+
+  /** The command, folded group or ▾ part a tooltip is for, or null. Menu choices have none: the menu says it all. */
+  private _tipTarget(node: EventTarget | null): HTMLElement | null {
+    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow') : null;
+    return el && this.shadowRoot?.contains(el) && !el.closest('.ribbon-menu') ? el : null;
+  }
+
+  private _tipContent(el: HTMLElement): TooltipContent | null {
+    const tab = this._tabs.find(t => t.id === el.dataset.tab) ?? this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')));
+    if (el.dataset.chunk) {
+      const group = tab?.groups.find(g => g.id === el.dataset.chunk);
+      return group ? { heading: group.label } : null;
+    }
+    const items = el.dataset.group === '_context' ? this._contextActions : tab?.groups.find(g => g.id === el.dataset.group)?.items ?? [];
+    const item = items.find(i => i.id === (el.dataset.arrow ?? el.dataset.item));
+    if (!item) return null;
+    if (el.dataset.arrow) {
+      return { heading: this.label('label-more-options', 'bwc.ribbon.moreOptions', 'More options: {label}', { label: item.label }) };
+    }
+    return { heading: item.label, text: item.description, shortcut: item.shortcut };
+  }
+
+  private _showTip(el: HTMLElement) {
+    const tip = this.$<HTMLElement>('.ribbon-tooltip') as BTooltip | null;
+    const content = this._tipContent(el);
+    if (!tip || !content) return;
+    this._tipAnchor = el;
+    tip.showFor(el, content);
+  }
+
+  private _hideTip() {
+    if (this._tipTimer) { clearTimeout(this._tipTimer); this._tipTimer = null; }
+    if (this._tipAnchor) this._tipWarmUntil = Date.now() + 300;
+    this._tipAnchor = null;
+    (this.$<HTMLElement>('.ribbon-tooltip') as BTooltip | null)?.hide();
+  }
+
+  /**
+   * Hover shows the tooltip after a delay; once one is up (or was, a moment ago) the next command's shows at once, as
+   * in Office. Keyboard focus shows it at once; Escape, a click, or opening a menu hides it.
+   */
+  private _bindTooltips() {
+    const panel = this.$<HTMLElement>('.ribbon-panel');
+    if (!panel) return;
+    this.listen(panel, 'mouseover', (e: Event) => {
+      const el = this._tipTarget(e.target);
+      if (!el || el === this._tipAnchor) return;
+      if (this._tipTimer) clearTimeout(this._tipTimer);
+      if (this._tipAnchor || Date.now() < this._tipWarmUntil) { this._showTip(el); return; }
+      this._tipTimer = setTimeout(() => { this._tipTimer = null; this._showTip(el); }, BRibbon.TOOLTIP_DELAY_MS);
+    });
+    this.listen(panel, 'mouseout', (e: Event) => {
+      const to = this._tipTarget((e as MouseEvent).relatedTarget);
+      if (to && to === this._tipTarget(e.target)) return; // moving within the same command
+      if (!to) this._hideTip();
+    });
+    this.listen(panel, 'focusin', (e: Event) => {
+      const el = this._tipTarget(e.target);
+      if (el?.matches(':focus-visible')) this._showTip(el); else if (this._tipAnchor) this._hideTip();
+    });
+    this.listen(panel, 'focusout', () => { if (this._tipAnchor) this._hideTip(); });
+    this.listen(panel, 'pointerdown', () => this._hideTip());
+    // Capture, so a visible tooltip takes Escape before the panel's own Escape (back to the tab) sees it.
+    this.listen(panel, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      if (!this._tipAnchor) return;
+      if (ke.key === 'Escape') { ke.preventDefault(); ke.stopImmediatePropagation(); this._hideTip(); this._tipWarmUntil = 0; return; }
+      if (ke.key === 'Enter' || ke.key === ' ') this._hideTip();
+    }, { capture: true });
   }
 
   /**
@@ -1004,6 +1098,7 @@ export class BRibbon extends BaseComponent {
         this._openMenu(trigger, (e as MouseEvent).detail === 0);
       });
       this._returnFocusOnClose(menu, trigger);
+      this.listen(menu, 'beforetoggle', () => this._hideTip());
       this.listen(menu, 'toggle', (e: Event) => {
         trigger.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
       });
@@ -1124,6 +1219,7 @@ export class BRibbon extends BaseComponent {
 
     this._bindChunks();
     this._bindMenus();
+    this._bindTooltips();
 
     // First measure once layout exists. requestAnimationFrame, not now: clientWidth is 0 pre-layout.
     requestAnimationFrame(() => this._measureAndScale());
@@ -1225,6 +1321,7 @@ export class BRibbon extends BaseComponent {
 
   protected onUnmount() {
     this._clearTimers();
+    if (this._tipTimer) { clearTimeout(this._tipTimer); this._tipTimer = null; }
     this._scrollObserver?.disconnect();
     this._scrollObserver = null;
     this._scrollSyncs = [];
@@ -1333,6 +1430,7 @@ export class BRibbon extends BaseComponent {
       // Keep aria in step with whatever opened or closed it — including Escape and light dismiss, which the
       // popover handles itself, so there is no path that leaves the button lying about its state.
       this._returnFocusOnClose(flyout, chunk);
+      this.listen(flyout, 'beforetoggle', () => this._hideTip());
       this.listen(flyout, 'toggle', (e: Event) => {
         chunk.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
       });

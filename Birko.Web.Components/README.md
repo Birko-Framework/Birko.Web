@@ -921,7 +921,15 @@ el.addEventListener('select', e => console.log(e.detail.id));
 <b-tooltip text="Refresh data" position="top">
   <b-button slot="trigger" variant="ghost">⟳</b-button>
 </b-tooltip>
+
+<!-- Light theme, with a heading and a shortcut (all three shown as text in this form) -->
+<b-tooltip theme="light" heading="Paste" shortcut="Ctrl+V" text="Add content from the clipboard.">…</b-tooltip>
 ```
+
+For a trigger it cannot wrap (one inside another component's shadow root), call `showFor(anchor, { heading, text,
+shortcut })` and `hide()`. The tooltip is then a top-layer popover, so it shows above a flyout or menu, and the caller
+owns the timing and sets the anchor's `aria-description`. An IDREF cannot cross into the tooltip's shadow root.
+`b-ribbon` works this way. `text` used alone still inserts markup, as it always has.
 
 ### b-split-panel
 
@@ -1690,6 +1698,12 @@ Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId? }`, `pin` → `{ pinned }`
+
+**Tooltips.** Every command, ▾ part and folded group shows a `b-tooltip` with its name. A command can add
+`description` and `shortcut` (text), which also become its `aria-description` and `aria-keyshortcuts`. The tooltip
+appears after 500 ms of hover, at once when the pointer moves on from a shown one, and at once on keyboard focus.
+Escape dismisses it without moving focus, so with a tooltip up the first Escape only hides it. `tooltip-theme`
+picks the theme, `light` by default. Commands no longer carry a native `title`.
 
 **Menus.** A command with `menu` opens a list of choices. Without `split`, the whole button opens it (shown with ▾).
 With `split: true`, the button runs the command and a separate ▾ part opens the menu. At large size the icon runs the

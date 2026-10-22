@@ -435,7 +435,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-tabs>` | BTabs | `setTabs([{id,label}])`, `order` (get/set) | `active`, `reorderable` (drag + Ctrl+Shift+Arrow, emits `tab-reorder`) |
 | `<b-confirm-dialog>` | BConfirmDialog | `show(): Promise<boolean>` | `title`, `message`, `variant` |
 | `<b-dropdown-menu>` | BDropdownMenu | `setItems([{id,label,icon?,variant?,divider?}])` | `align` |
-| `<b-tooltip>` | BTooltip | — | `text`, `position` (top\|bottom\|left\|right) |
+| `<b-tooltip>` | BTooltip | `showFor(anchor, {heading,text,shortcut})`, `hide()` (anchored, top-layer popover) | `text`, `heading`, `shortcut`, `theme` (light), `position` (top\|bottom\|left\|right) |
 | `<b-split-panel>` | BSplitPanel | `sizes` (get/set, CSS lengths only) | `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail` (opt out of the sticky detail column), `resizable` (separator, pointer + keyboard, emits `split-resize`), `persist-key` |
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 | `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,20 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` tooltips are a themed `b-tooltip`, shown for commands it does not wrap (2026-10-22, TASK-738)
+
+The user asked for b-tooltip with a theme rather than a ribbon-only tooltip. b-tooltip gains `theme="light"`, a
+structured `heading` / `text` / `shortcut` form (all text), and `showFor(anchor, content)` / `hide()`: an anchored mode
+that is a manual popover, so it is drawn over a flyout. The ribbon holds one shared b-tooltip, `light` by default.
+Commands lost their native `title`, which showed alongside the tooltip and was announced twice; they gained
+`aria-description` and `aria-keyshortcuts`. Escape dismisses a shown tooltip first (WCAG 1.4.13, without moving focus).
+
+Also fixed here, from TASK-731: ←/→ took any command whose centre lay that way, so from "Cut" → went to the slightly
+wider "Copy" below it. They now take only commands wholly beyond the current one.
+
+**Hit-testing cannot see a tooltip** (`pointer-events: none`), so "drawn on top" is checked as "in the top layer, opened
+later". Guarded by keyboard-check.mjs (real hover and keys) and tooltip-theme-smoke.
 
 ### `b-ribbon`: split and menu buttons, and popovers that give focus back only if they had it (2026-10-22, TASK-732)
 
