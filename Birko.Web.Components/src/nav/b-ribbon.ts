@@ -811,6 +811,9 @@ export class BRibbon extends BaseComponent {
       .ribbon-menu-check { width: 1.25em; text-align: center; flex-shrink: 0; }
 
       /* ── Key tips (TASK-736; Office's dark squares, picked by the user) — the dark tooltip tokens, dark in every theme ── */
+      /* Out of flow (TASK-749): it shows as a popover anchored to the command (showFor), so its own box is never used, and
+         in flow its empty line box (~21px) pushed every ribbon down below an empty strip, since TASK-738. */
+      .ribbon-tooltip { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; overflow: visible; }
       .ribbon-keytips { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; background: none; pointer-events: none; overflow: visible; }
       .ribbon-keytip {
         position: fixed; transform: translate(-50%, -30%);
