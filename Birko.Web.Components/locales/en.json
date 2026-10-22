@@ -85,7 +85,8 @@
         "qatCustomize": "Customize Quick Access Toolbar",
         "qatAdd": "Add to Quick Access Toolbar",
         "qatRemove": "Remove from Quick Access Toolbar",
-        "qatReset": "Reset to default"
+        "qatReset": "Reset to default",
+        "launcher": "More {label} options"
     },
     "sidebar": {
       "title": "Main navigation",

@@ -1698,7 +1698,7 @@ Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
 Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off)
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`
-Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`, `group-launcher` → `{ tabId, groupId }`
 
 **Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
 icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
@@ -1717,6 +1717,12 @@ Users customise the toolbar three ways:
 
 `getQuickAccess()` returns the current list as refs: `qat:<id>` or `item:<tab>/<group>/<item>`. The toolbar is one Tab
 stop with ←/→ inside it, a pressed toggle stays in step with the ribbon, and the toolbar is hidden on narrow screens.
+
+**Group launcher.** `launcher: true` on a group adds Office's small ↘ beside its name, at the bottom-right corner, for
+"more options" the group's commands have no room for. A click, Enter or its key tip emits `group-launcher` with
+`{ tabId, groupId }`, and the app decides what opens. It is named "More {label} options" (`bwc.ribbon.launcher`), or
+`launcherLabel`, and that name is also its tooltip. When the group folds, the launcher moves into a header at the top
+of the flyout; in the mobile menu it is listed under the group.
 
 **Key tips.** Alt+Windows key (Ctrl+Option on a Mac), as in Microsoft 365 in the browser, shows a letter on every tab
 and a digit on every Quick Access Toolbar button. The combination works anywhere in the app.

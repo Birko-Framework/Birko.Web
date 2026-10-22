@@ -73,6 +73,13 @@ export interface RibbonGroup {
    * flyout, at the cost of another group degrading further.
    */
   minSize?: RibbonGroupSize;
+  /**
+   * A small ↘ button at the group's bottom-right corner (Office's dialog launcher), for "more options" the group's
+   * commands have no room for. A click emits `group-launcher` with `{ tabId, groupId }`; the app decides what opens.
+   * `launcherLabel` names it (tooltip and screen readers); default "More {label} options".
+   */
+  launcher?: boolean;
+  launcherLabel?: string;
 }
 
 export interface RibbonItem {
@@ -566,6 +573,24 @@ export class BRibbon extends BaseComponent {
         box-shadow: inset 0 0 0 1px var(--b-color-primary), var(--b-focus-ring);
       }
       .ribbon-radiogroup { display: contents; }
+
+      /* ── Group launcher (TASK-733): Office's corner arrow beside the group's name ── */
+      .ribbon-group.has-launcher { position: relative; }
+      .ribbon-group.has-launcher > .ribbon-group-label { padding-inline: 1.25rem; }
+      .ribbon-launcher {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 1rem; height: 1rem; padding: 0; border: none; background: none; cursor: pointer;
+        border-radius: var(--b-radius-sm, 0.25rem); color: var(--b-text-muted);
+      }
+      .ribbon-group > .ribbon-launcher { position: absolute; right: 0; bottom: 0; }
+      .ribbon-launcher svg { width: 0.5625rem; height: 0.5625rem; stroke: currentColor; stroke-width: 1.4; fill: none; }
+      .ribbon-launcher:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .ribbon-launcher:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .ribbon-flyout-header {
+        display: flex; align-items: center; justify-content: space-between; gap: var(--b-space-sm, 0.5rem);
+        padding: 0 0 var(--b-space-xs, 0.25rem); margin-bottom: var(--b-space-xs, 0.25rem);
+        border-bottom: 1px solid var(--b-border); font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
+      }
 
       /* ── Quick Access Toolbar (TASK-737; in the tab row before the tabs by default, picked by the user) ── */
       .ribbon-qat { display: flex; align-items: center; gap: 0.125rem; flex-shrink: 0; }
@@ -1089,6 +1114,7 @@ export class BRibbon extends BaseComponent {
                         ${item.label}
                       </${tag}>${choices}`;
                     }).join('')}
+                    ${group.launcher ? `<button class="mobile-item mobile-launcher" data-tab="${tab.id}" data-launcher="${escapeAttr(group.id)}">${escapeHtml(this._launcherLabel(group))}</button>` : ''}
                   `).join('')}
                 </div>
               </div>
@@ -1194,15 +1220,17 @@ export class BRibbon extends BaseComponent {
             <span class="ribbon-chunk-name">${group.label} &#9662;</span>
           </button>
           <div class="ribbon-flyout" popover role="group" aria-label="${group.label}">
+            ${group.launcher ? `<div class="ribbon-flyout-header"><span>${group.label}</span>${this._renderLauncher(tabId, group)}</div>` : ''}
             <div class="ribbon-group-items">${items}</div>
           </div>
         </div>`;
     }
 
     return `
-      <div class="ribbon-group size-${size}" role="group" aria-label="${group.label}" data-group="${group.id}">
+      <div class="ribbon-group size-${size}${group.launcher ? ' has-launcher' : ''}" role="group" aria-label="${group.label}" data-group="${group.id}">
         <span class="ribbon-group-label">${group.label}</span>
         <div class="ribbon-group-items">${items}</div>
+        ${this._renderLauncher(tabId, group)}
       </div>`;
   }
 
@@ -1226,6 +1254,17 @@ export class BRibbon extends BaseComponent {
 
   private _bindPanelItems() {
     this._applyRoving();
+    // Panel launchers only: this runs again on every hover preview, which re-renders the panel but not the mobile list,
+    // so binding `.mobile-launcher` here would stack a listener per preview (it is bound once per render in onUpdated).
+    this.$$<HTMLElement>('.ribbon-panel .ribbon-launcher').forEach(el => {
+      this.listen(el, 'click', (e: Event) => {
+        e.stopPropagation();
+        this.emit('group-launcher', { tabId: el.dataset.tab, groupId: el.dataset.launcher });
+        const flyout = el.closest<HTMLElement>('.ribbon-flyout');
+        if (flyout?.matches(':popover-open')) flyout.hidePopover();
+        if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
+      });
+    });
     const inner = this.$<HTMLElement>('.ribbon-panel-inner');
     if (inner) this.listen(inner, 'focusin', (e: Event) => {
       const stop = this._panelStops().find(el => el === e.target);
@@ -1295,7 +1334,7 @@ export class BRibbon extends BaseComponent {
 
   /** The command, folded group or ▾ part a tooltip is for, or null. Menu choices have none: the menu says it all. */
   private _tipTarget(node: EventTarget | null): HTMLElement | null {
-    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn') : null;
+    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn, .ribbon-launcher') : null;
     return el && this.shadowRoot?.contains(el) && !el.closest('.ribbon-menu') ? el : null;
   }
 
@@ -1304,7 +1343,7 @@ export class BRibbon extends BaseComponent {
       const found = this._resolveRef(el.dataset.qatRef);
       return found ? { heading: found.item.label, text: found.item.description, shortcut: found.item.shortcut } : null;
     }
-    if (el.hasAttribute('data-qat-customize')) return { heading: el.getAttribute('aria-label') ?? '' };
+    if (el.hasAttribute('data-qat-customize') || el.dataset.launcher) return { heading: el.getAttribute('aria-label') ?? '' };
     const tab = this._tabs.find(t => t.id === el.dataset.tab) ?? this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')));
     if (el.dataset.chunk) {
       const group = tab?.groups.find(g => g.id === el.dataset.chunk);
@@ -1597,12 +1636,17 @@ export class BRibbon extends BaseComponent {
           const group = this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')))?.groups.find(g => g.id === el.dataset.chunk);
           return { el, label: group?.label ?? '', keytip: group?.keytip };
         }
+        if (el.dataset.launcher) return { el, label: el.getAttribute('aria-label') ?? '' };
         const item = this._itemFor(el);
         return { el, label: item?.label ?? el.textContent ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
       });
     } else if (level === 'flyout' && scope) {
-      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')]
-        .filter(visible).map(el => { const item = this._itemFor(el); return { el, label: item?.label ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip }; });
+      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-flyout-header > .ribbon-launcher')]
+        .filter(visible).map(el => {
+          if (el.dataset.launcher) return { el, label: el.getAttribute('aria-label') ?? '' };
+          const item = this._itemFor(el);
+          return { el, label: item?.label ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
+        });
     } else if (level === 'menu' && scope) {
       entries = this._menuItems(scope).map(el => {
         const owner = this._tabs.find(t => t.id === el.dataset.tab)?.groups.find(g => g.id === el.dataset.group)?.items.find(i => i.id === el.dataset.parent);
@@ -1731,6 +1775,18 @@ export class BRibbon extends BaseComponent {
       i = j;
     }
     return out;
+  }
+
+  private _launcherLabel(group: RibbonGroup): string {
+    return group.launcherLabel ?? this.label('label-launcher', 'bwc.ribbon.launcher', 'More {label} options', { label: group.label });
+  }
+
+  /** The group's launcher button (TASK-733, Office's corner arrow picked by the user), or nothing. */
+  private _renderLauncher(tabId: string, group: RibbonGroup): string {
+    if (!group.launcher) return '';
+    const name = escapeAttr(this._launcherLabel(group));
+    return `<button class="ribbon-launcher" type="button" data-tab="${tabId}" data-launcher="${escapeAttr(group.id)}" aria-label="${name}">`
+      + `<svg viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path d="M1.5 1.5 L8.5 8.5 M8.5 4 L8.5 8.5 L4 8.5"/></svg></button>`;
   }
 
   /** A command's menu, as a popover. Every choice is a menuitem reached with the arrows (tabindex -1). */
@@ -2008,8 +2064,16 @@ export class BRibbon extends BaseComponent {
       });
     });
 
+    // Mobile launchers: a group's "more options", listed under its commands.
+    this.$$<HTMLElement>('.mobile-launcher').forEach(el => {
+      this.listen(el, 'click', () => {
+        this.emit('group-launcher', { tabId: el.dataset.tab, groupId: el.dataset.launcher });
+        this._closeMobileMenu();
+      });
+    });
+
     // Mobile item clicks
-    this.$$<HTMLElement>('.mobile-item').forEach(el => {
+    this.$$<HTMLElement>('.mobile-item:not(.mobile-launcher)').forEach(el => {
       this.listen(el, 'click', () => {
         const pressed = el.hasAttribute('data-toggle') ? this._clickToggle(el) : null;
         this.emit('item-click', {
@@ -2182,12 +2246,14 @@ export class BRibbon extends BaseComponent {
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-item',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-split-arrow',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-chunk',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-launcher',
     ].join(', '));
   }
 
   /** Identity of a stop that survives a re-render: the same command, or the same folded group. */
   private _stopKey(el: HTMLElement): string {
     if (el.dataset.chunk) return `chunk:${el.dataset.chunk}`;
+    if (el.dataset.launcher) return `launcher:${el.dataset.launcher}`;
     if (el.dataset.arrow) return `arrow:${el.dataset.group}/${el.dataset.arrow}`;
     return `item:${el.dataset.group}/${el.dataset.item}`;
   }
@@ -2215,7 +2281,7 @@ export class BRibbon extends BaseComponent {
   }
 
   private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
-    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
+    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-flyout-header > .ribbon-launcher, :scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
     if (!items.includes(target)) return;
     const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
