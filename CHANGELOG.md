@@ -4,6 +4,36 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.14 — 2026-10-22
+
+The rest of the Office-like `b-ribbon` (Birko FEATURE-019), signed off by the user. Nothing changes for an app that
+uses none of the new options, apart from the two looks marked **Changed look**.
+
+- **Toggle buttons** — TASK-739. `RibbonItem.toggle` / `pressed`, and `toggleGroup` for one-of sets (alignment).
+  `item-click` carries `pressed`; `setPressed()` / `isPressed()`.
+- **Collapse** — TASK-735. Double-click a tab, or Ctrl+F1 anywhere in the app (`collapse-shortcut` rebinds it or
+  turns it off); `toggleRibbon()`.
+- **Quick Access Toolbar** — TASK-737. Opt-in with `setQuickAccess(items)`: favourite commands before the tabs
+  (`qat-position` above / below), added and removed by right-click, kept per `qat-key`; `quick-access-change`.
+- **Key tips** — TASK-736. Alt+Windows key (Ctrl+Option on a Mac) shows letters to reach every tab, command and menu
+  choice by keyboard; `keytip` overrides a letter, `keytip-shortcut` rebinds or turns it off.
+- **Dialog launcher** — TASK-733. `RibbonGroup.launcher` adds Office's corner arrow; it emits `group-launcher`.
+- **Contextual tabs** — TASK-734. `RibbonTab.contextualSet` with `setContextualSets()` / `showContextual()` /
+  `hideContextual()`, in three looks (`contextual-style` band / pill / edge).
+- **Galleries** — TASK-740. `RibbonItem.gallery`: a row of visual choices with a full grid behind it, in three looks
+  (`gallery-style` framed / open / dropdown); `setGallerySelection()`.
+- **Input boxes** — TASK-741. `RibbonItem.field`: a text or number box or a dropdown (free values per dropdown), in
+  three caption looks (`field-caption`); `item-change` reports a value; `setFieldValue()` / `getFieldValue()`.
+  `b-select` gets `no-clear`.
+- **Group spacing** — TASK-730. **Changed look:** the divider sits halfway between groups, and the gap is narrower
+  (`--b-ribbon-group-gap` is now `var(--b-space-lg)`, 16px, was 24px). A group narrower than its name centres its
+  commands (TASK-746). **Changed look.**
+- **Folding** — **Fixed** (TASK-746): between about 470 and 525px groups stayed larger than fitted and the last one was
+  cut off by up to 49px. A folded group without an icon shows its initial instead of an empty button (TASK-743).
+- **Every size is a token** — TASK-747. 21 new `--b-ribbon-*` tokens in `css/tokens.css`, defaulting to the old
+  values; measured unchanged.
+- **Screen readers** — **Fixed:** a menu choice announced its shortcut twice.
+
 ## v0.1.13 — 2026-10-22
 
 - **`renderEmptyFilter()` on the base pages** — Birko TASK-744 (for Symbio TASK-955). While `requiredFilterSet` is
