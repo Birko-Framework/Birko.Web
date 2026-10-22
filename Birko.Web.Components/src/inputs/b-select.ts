@@ -11,7 +11,7 @@ interface Option {
 
 export class BSelect extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'creatable', 'allow-free-text', 'label-no-matches', 'label-create', 'hint', 'description', 'bare'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'creatable', 'allow-free-text', 'label-no-matches', 'label-create', 'hint', 'description', 'bare', 'no-clear'];
   }
 
   private _options: Option[] = [];
@@ -289,7 +289,7 @@ export class BSelect extends FormControlComponent {
                  ${disabled ? 'disabled' : ''}
                  ${fieldAria({ uid: this.uid, error, description, required, bare, label })}
                  autocomplete="off" />
-          ${value ? clearButton('combo-clear', t('bwc.common.clear', undefined, 'Clear')) : ''}
+          ${value && !this.boolAttr('no-clear') ? clearButton('combo-clear', t('bwc.common.clear', undefined, 'Clear')) : ''}
           <span class="combo-arrow">&#9660;</span>
         </div>
         <div class="dropdown" popover="manual" id="${this.uid}-listbox" role="listbox"
@@ -460,7 +460,7 @@ export class BSelect extends FormControlComponent {
     const combo = this.$<HTMLElement>('.combo');
     if (combo) {
       const clearBtn = combo.querySelector('.combo-clear');
-      if (val && !clearBtn) {
+      if (val && !clearBtn && !this.boolAttr('no-clear')) {
         const arrow = combo.querySelector('.combo-arrow');
         if (arrow) {
           arrow.insertAdjacentHTML('beforebegin', clearButton('combo-clear', t('bwc.common.clear', undefined, 'Clear')));

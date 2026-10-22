@@ -397,7 +397,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
-| `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled` |
+| `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled`, `no-clear` |
 | `<b-button>` | BButton | — | `variant`, `size`, `type`, `disabled`, `loading` |
 | `<b-checkbox>` | BCheckbox | — | `checked`, `indeterminate`, `disabled`, `name`, `label` |
 | `<b-switch>` | BSwitch | — | `checked`, `disabled`, `name`, `label` |
@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `setContextualSets()` / `showContextual()` / `hideContextual()` with `RibbonTab.contextualSet` and `contextual-style` (band\|pill\|edge); `RibbonItem.gallery` with `setGallerySelection()` and `gallery-style` (framed\|open\|dropdown); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `setContextualSets()` / `showContextual()` / `hideContextual()` with `RibbonTab.contextualSet` and `contextual-style` (band\|pill\|edge); `RibbonItem.gallery` with `setGallerySelection()` and `gallery-style` (framed\|open\|dropdown); `RibbonItem.field` with `setFieldValue()`, `item-change` and `field-caption` (none\|beside\|above); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,24 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` inputs, in three switchable looks (2026-10-22, TASK-741)
+
+`RibbonItem.field` renders a bare, small `b-input` or `b-select` with `data-field-control`. The user kept all three
+caption looks: `field-caption` none (default), beside, above. A dropdown takes free text per item (`freeText`).
+
+- **Focus.** The box's host is not focusable, so `_focusStop()` focuses the control inside it, and `_applyRoving()`
+  puts the roving index there. Every focus move onto a panel stop goes through `_focusStop()`.
+- **Keys.** The panel's keydown hands a box's keys to `_fieldKey()`, which leaves the arrows alone. A capture
+  listener records whether the box's own list was open, so the Escape that closes it does not also leave.
+- **State.** Values live in `_fieldValues` (as typed) and `_fieldCommitted` (reported), so a re-render keeps a draft.
+  The ribbon swallows the box's own `change`: b-input sends one per keystroke, and b-select one while its choices
+  are filled in. The ribbon reports `item-change` instead.
+- **Unpinned.** The ribbon neither collapses nor previews another tab while a box has focus.
+- **b-select.** New `no-clear`: the clear (×) took most of a three-character box.
+
+Playground `ribbon-scaling-smoke` now retries its flyout click while the flyout did not stay open: another suite's
+auto popover can close it, not only a modal.
 
 ### `b-ribbon` galleries, in three switchable looks (2026-10-22, TASK-740)
 

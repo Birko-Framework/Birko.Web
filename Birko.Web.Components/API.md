@@ -211,6 +211,7 @@ the schema path adopts and which it deliberately ignores.
 | `creatable` | boolean — offer "Create “…”" when the query names no option; Enter or a click commits it as the value. Implies combobox mode |
 | `label-create` | string — overrides the create row's verb (default: the `bwc.select.create` key) |
 | `allow-free-text` | boolean — the typed text itself is the value, committed on Enter **or on close** (Escape included) |
+| `no-clear` | boolean — no clear (×) button in combobox mode |
 | `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
 | `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
@@ -1322,6 +1323,7 @@ Slot: `brand`.
 | `expanded` | boolean |
 | `pinned` | boolean |
 | `tabs-only` | boolean (pure tab-strip nav — no panel, no expand/pin controls) |
+| `field-caption` | `none` (default) \| `beside` \| `above` — how a `RibbonItem.field` box is captioned |
 | `label-*` | i18n overrides: `label-ribbon`, `label-open-nav`, `label-expand`, `label-collapse`, `label-pin`, `label-unpin`, `label-navigation`, `label-actions`, `label-close`, `label-scroll-tabs-{left,right}`, `label-scroll-groups-{left,right}` |
 
 Both the tab strip and the panel scroll horizontally when they overflow, with chevron buttons as the
@@ -1338,6 +1340,8 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 |--------|-----------|
 | `setTabs` | `(tabs: RibbonTab[]) => void` |
 | `setContextActions` | `(items: RibbonItem[]) => void` |
+| `setFieldValue` | `(itemId: string, value: string, tabId?: string) => void` — no event |
+| `getFieldValue` | `(itemId: string, tabId?: string) => string \| null` |
 | `expand` / `collapse` / `toggleExpand` | `() => void` |
 | `pin` / `unpin` / `togglePin` | `() => void` |
 
@@ -1345,6 +1349,7 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 |-------|--------|
 | `tab-change` | `{ tab }` |
 | `item-click` | `{ id, moduleId?, optionId? }` |
+| `item-change` | `{ tabId, groupId, itemId, value }` — a `RibbonItem.field` box's committed value |
 | `expand` | `{ expanded }` |
 | `pin` | `{ pinned }` |
 

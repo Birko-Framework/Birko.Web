@@ -2,6 +2,9 @@ import { BaseComponent, define } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import '../layout/b-tooltip.js';
 import type { BTooltip, TooltipContent } from '../layout/b-tooltip.js';
+import '../inputs/b-input.js';
+import '../inputs/b-select.js';
+import type { BSelect } from '../inputs/b-select.js';
 import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -72,6 +75,35 @@ export interface RibbonGallery {
   columns?: number;
   /** Overrides the ribbon's `gallery-style`. */
   style?: RibbonGalleryStyle;
+}
+
+export type RibbonFieldCaption = 'none' | 'beside' | 'above';
+
+export interface RibbonFieldOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * A small input inside the ribbon (TASK-741), like Office's font name and size boxes: a text or number box, or a
+ * dropdown. A committed value (Enter, a pick, or leaving the box) emits `item-change` with `value`.
+ */
+export interface RibbonField {
+  type: 'text' | 'number' | 'select';
+  /** The initial value. Later changes: {@link BRibbon.setFieldValue}. */
+  value?: string;
+  /** A dropdown's choices. */
+  options?: RibbonFieldOption[];
+  /** A dropdown that also takes a typed value not in its list (Font size 13). */
+  freeText?: boolean;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  /** Width in characters (default 8). */
+  width?: number;
+  /** Overrides the ribbon's `field-caption`. */
+  caption?: RibbonFieldCaption;
 }
 
 export type RibbonContextualColor = 'primary' | 'success' | 'warning' | 'danger' | 'info';
@@ -157,6 +189,8 @@ export interface RibbonItem {
   pressed?: boolean;
   /** Makes this command a gallery of visual choices (TASK-740). See {@link RibbonGallery}. */
   gallery?: RibbonGallery;
+  /** Makes this command an input box or dropdown (TASK-741). See {@link RibbonField}. */
+  field?: RibbonField;
   /**
    * Commands of one ribbon group sharing this name form a set where exactly one is on (alignment left / centre /
    * right): pressing one turns the others off, and pressing the one that is on keeps it on. A screen reader hears a
@@ -217,7 +251,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
-    'qat-key', 'qat-position', 'keytip-shortcut', 'contextual-style', 'gallery-style',
+    'qat-key', 'qat-position', 'keytip-shortcut', 'contextual-style', 'gallery-style', 'field-caption',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -232,6 +266,11 @@ export class BRibbon extends BaseComponent {
   /** Gallery state by tab/group/item: the current choice (seeded from gallery.selected) and the inline row's offset. */
   private _gallerySel = new Map<string, string>();
   private _galleryOffset = new Map<string, number>();
+  /** Input values by tab/group/item: as typed, and as last committed (what Escape puts back). */
+  private _fieldValues = new Map<string, string>();
+  private _fieldCommitted = new Map<string, string>();
+  /** Whether the input a key went to had its own list open (read in capture, before the list closes on Escape). */
+  private _fieldListWasOpen = false;
   /** Toggle states by tab/group/item, seeded from RibbonItem.pressed (see _isPressed). */
   private _pressed = new Map<string, boolean>();
   private _contextActions: RibbonItem[] = [];
@@ -664,6 +703,16 @@ export class BRibbon extends BaseComponent {
       .ribbon-radiogroup { display: contents; }
 
       /* ── Galleries (TASK-740): framed / open / dropdown, all kept by the user ── */
+      /* Inputs (TASK-741): a box in one of the command rows, captioned as field-caption says. Width in characters. */
+      .ribbon-field { display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); align-self: center; }
+      .ribbon-field.caption-above { flex-direction: column; align-items: flex-start; gap: 0.0625rem; grid-row: span 2; justify-content: center; }
+      .ribbon-field-caption { font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-secondary); white-space: nowrap; }
+      .ribbon-field-control { display: block; width: calc(var(--b-ribbon-field-chars, 8) * 1ch + 2rem); }
+      /* Beside: across the column, caption left and box right, so boxes of one width line up as Office's Height / Width. */
+      .ribbon-field.caption-beside { justify-self: stretch; justify-content: space-between; }
+      .ribbon-group.size-small .ribbon-field.caption-beside .ribbon-field-caption { display: none; }
+      .mobile-field { display: flex; justify-content: space-between; padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); }
+      .mobile-field .ribbon-field-caption { font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text); }
       .ribbon-gallery { display: inline-flex; align-items: stretch; gap: 0.125rem; grid-row: 1 / -1; }
       .ribbon-gallery-row { display: flex; gap: 0.125rem; }
       .ribbon-gallery-tile, .ribbon-gallery-current {
@@ -863,6 +912,8 @@ export class BRibbon extends BaseComponent {
     this._pressed.clear(); // new data: its `pressed` values are the state again
     this._gallerySel.clear();
     this._galleryOffset.clear();
+    this._fieldValues.clear();
+    this._fieldCommitted.clear();
     if (!this.attr('active') && tabs.length > 0) {
       this.setAttribute('active', tabs[0].id);
     }
@@ -958,6 +1009,41 @@ export class BRibbon extends BaseComponent {
       }
     }
     return null;
+  }
+
+  /** Sets a ribbon input's value (TASK-741) without an event. The boxes on screen change in place. */
+  setFieldValue(itemId: string, value: string, tabId?: string) {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        if (!group.items.some(i => i.id === itemId && i.field)) continue;
+        const key = this._pressKey(tab.id, group.id, itemId);
+        this._fieldValues.set(key, value);
+        this._fieldCommitted.set(key, value);
+        this._fieldControls(tab.id, group.id, itemId).forEach(el => { (el as HTMLElement & { value: string }).value = value; });
+      }
+    }
+  }
+
+  /** A ribbon input's committed value, or null when there is no such input. */
+  getFieldValue(itemId: string, tabId?: string): string | null {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        const item = group.items.find(i => i.id === itemId && i.field);
+        if (item) return this._fieldCommitted.get(this._pressKey(tab.id, group.id, item.id)) ?? item.field?.value ?? '';
+      }
+    }
+    return null;
+  }
+
+  private _fieldValue(tabId: string, groupId: string, item: RibbonItem): string {
+    return this._fieldValues.get(this._pressKey(tabId, groupId, item.id)) ?? item.field?.value ?? '';
+  }
+
+  /** Every box of one input: in the panel, in a flyout and in the mobile list. */
+  private _fieldControls(tabId: string, groupId: string, itemId: string): HTMLElement[] {
+    return this.$$<HTMLElement>(`[data-field-control][data-tab="${CSS.escape(tabId)}"][data-group="${CSS.escape(groupId)}"][data-item="${CSS.escape(itemId)}"]`);
   }
 
   private _galleryChoice(tabId: string, groupId: string, item: RibbonItem): string {
@@ -1302,6 +1388,7 @@ export class BRibbon extends BaseComponent {
                           <button class="mobile-item mobile-subitem mobile-gallery" role="radio" aria-checked="${c.id === current}"
                             data-tab="${tab.id}" data-group="${group.id}" data-gallery="${item.id}" data-choice="${escapeAttr(c.id)}">${escapeHtml(c.label)}</button>`).join('');
                       }
+                      if (item.field) return this._renderField(tab.id, group.id, item, true);
                       const toggle = this._isToggle(item)
                         ? ` data-toggle ${item.toggleGroup ? 'role="radio" aria-checked' : 'aria-pressed'}="${this._isPressed(tab.id, group.id, item)}"` : '';
                       return `<${tag} class="mobile-item" ${href}${toggle}
@@ -1481,7 +1568,7 @@ export class BRibbon extends BaseComponent {
     this._bindPanelItems();
     this._bindChunks();
     this._bindMenus();
-    if (refocus) this._rovingStop()?.focus();
+    if (refocus) this._focusStop(this._rovingStop());
     // Different tab, different group widths — so both the chevrons AND the scaling have to re-evaluate.
     // Queued rather than immediate: _measureAndScale re-renders, and _queueSync coalesces into one frame
     // (the _measuring guard stops the nested call recursing).
@@ -1492,6 +1579,7 @@ export class BRibbon extends BaseComponent {
   private _bindPanelItems() {
     this._applyRoving();
     this._bindGalleries();
+    this._bindFields('.ribbon-panel .ribbon-field-control');
     // Panel launchers only: this runs again on every hover preview, which re-renders the panel but not the mobile list,
     // so binding `.mobile-launcher` here would stack a listener per preview (it is bound once per render in onUpdated).
     this.$$<HTMLElement>('.ribbon-panel .ribbon-launcher').forEach(el => {
@@ -1585,8 +1673,121 @@ export class BRibbon extends BaseComponent {
     return `<span class="ribbon-gallery style-${style}" ${data}>${inline}${grid}</span>`;
   }
 
+  private _fieldCaption(item: RibbonItem): RibbonFieldCaption {
+    const pick = (v: unknown) => (['none', 'beside', 'above'] as const).find(x => x === v);
+    return pick(item.field?.caption) ?? pick(this.attr('field-caption')) ?? 'none';
+  }
+
+  /**
+   * An input (TASK-741): a bare, small b-input or b-select, captioned in the look `field-caption` picks (all three kept
+   * by the user): `none` (Office: the tooltip and the accessible name say what it is), `beside` or `above`. The box's
+   * value is rendered from `_fieldValues`, so a re-render (a resize, a hover preview) keeps what was typed.
+   */
+  private _renderField(tabId: string, groupId: string, item: RibbonItem, mobile = false): string {
+    const f = item.field!;
+    const caption = mobile ? 'beside' : this._fieldCaption(item);
+    const num = (name: string, v: number | undefined) => (v === undefined || !Number.isFinite(v) ? '' : ` ${name}="${v}"`);
+    const attrs = `class="${mobile ? 'mobile-field-control' : 'ribbon-field-control'}" bare size="sm" label="${escapeAttr(item.label)}"`
+      + ` value="${escapeAttr(this._fieldValue(tabId, groupId, item))}"${f.placeholder ? ` placeholder="${escapeAttr(f.placeholder)}"` : ''}`
+      + `${item.disabled ? ' disabled' : ''} style="--b-ribbon-field-chars:${Math.max(2, Math.min(40, Math.round(f.width ?? 8)))}"`
+      + ` data-tab="${tabId}" data-group="${groupId}" data-item="${escapeAttr(item.id)}" data-field-control`;
+    const control = f.type === 'select'
+      ? `<b-select ${attrs}${f.freeText ? ' searchable allow-free-text no-clear' : ''}></b-select>`
+      : `<b-input ${attrs} type="${f.type === 'number' ? 'number' : 'text'}"${num('min', f.min)}${num('max', f.max)}${num('step', f.step)}></b-input>`;
+    const cap = caption === 'none' ? '' : `<span class="ribbon-field-caption" aria-hidden="true">${escapeHtml(item.label)}</span>`;
+    return `<span class="ribbon-field${mobile ? ' mobile-field' : ''} caption-${caption}">${cap}${control}</span>`;
+  }
+
+  /** The focusable element inside an input's box. */
+  private _fieldInner(el: HTMLElement): HTMLElement | null {
+    return el.shadowRoot?.querySelector<HTMLElement>('input, select') ?? null;
+  }
+
+  /** Focuses a panel stop. An input's box is a component whose host is not focusable, so its inner control takes it. */
+  private _focusStop(el: HTMLElement | null | undefined) {
+    if (!el) return;
+    if (el.hasAttribute('data-field-control')) this._fieldInner(el)?.focus(); else el.focus();
+  }
+
+  private _fieldFocused(): boolean {
+    return !!(this.shadowRoot?.activeElement as HTMLElement | null | undefined)?.hasAttribute('data-field-control');
+  }
+
+  /** Wires the boxes `selector` finds: their choices, their value as typed, and the commit on leaving. */
+  private _bindFields(selector: string) {
+    this.$$<HTMLElement>(selector).forEach(el => {
+      const item = this._itemFor(el);
+      const f = item?.field;
+      const { tab, group } = el.dataset;
+      if (!item || !f || !tab || !group) return;
+      const key = this._pressKey(tab, group, item.id);
+      let seeding = false;
+      // The box's own `change` is the ribbon's to report: b-input sends one per keystroke, so it is a draft until
+      // committed, and a dropdown's pick commits at once. Neither leaves the ribbon under that name, including the
+      // ones b-select sends while its choices and value are filled in below.
+      this.listen(el, 'change', (e: Event) => {
+        e.stopPropagation();
+        if (seeding) return;
+        this._fieldValues.set(key, String((e as CustomEvent<{ value?: unknown }>).detail?.value ?? ''));
+        if (f.type === 'select') this._commitField(el, !f.freeText);
+      });
+      if (f.type === 'select') {
+        const value = this._fieldValue(tab, group, item);
+        seeding = true;
+        (el as unknown as BSelect).setOptions(f.options ?? []);
+        (el as unknown as BSelect).value = value;
+        seeding = false;
+      }
+      this.listen(el, 'focusout', () => this._commitField(el, false));
+    });
+    if (selector.includes('ribbon-field-control')) this._applyRoving(); // a dropdown re-rendered its inner control
+  }
+
+  /**
+   * Reports an input's value when it differs from the last one reported, and shows it in the input's other boxes.
+   * An explicit commit (Enter, a pick) closes a folded group's flyout, and an unpinned ribbon, as a command does;
+   * leaving the box does not.
+   */
+  private _commitField(el: HTMLElement, explicit: boolean) {
+    const item = this._itemFor(el);
+    const { tab, group } = el.dataset;
+    if (!item?.field || !tab || !group) return;
+    const key = this._pressKey(tab, group, item.id);
+    const value = this._fieldValues.get(key) ?? item.field.value ?? '';
+    if (value === (this._fieldCommitted.get(key) ?? item.field.value ?? '')) return;
+    this._fieldCommitted.set(key, value);
+    this._fieldControls(tab, group, item.id).forEach(other => {
+      if (other !== el) (other as HTMLElement & { value: string }).value = value;
+    });
+    this.emit('item-change', { tabId: tab, groupId: group, itemId: item.id, value });
+    if (!explicit || el.classList.contains('mobile-field-control')) return;
+    el.closest<HTMLElement>('.ribbon-flyout:popover-open')?.hidePopover();
+    if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
+  }
+
+  /**
+   * Keys inside an input edit it: the arrows, Home and End move the caret, step the number or walk the list, so they
+   * never move between commands, and Tab leaves the ribbon as from any command. Enter commits. Escape puts the
+   * committed value back and returns to the tab, unless it only closed the box's own list.
+   */
+  private _fieldKey(ke: KeyboardEvent, el: HTMLElement) {
+    if (ke.key === 'Enter') { this._commitField(el, true); return; }
+    if (ke.key !== 'Escape' || this._fieldListWasOpen) return;
+    const item = this._itemFor(el);
+    const { tab, group } = el.dataset;
+    if (!item?.field || !tab || !group) return;
+    const key = this._pressKey(tab, group, item.id);
+    const committed = this._fieldCommitted.get(key) ?? item.field.value ?? '';
+    this._fieldValues.set(key, committed);
+    (el as HTMLElement & { value: string }).value = committed;
+    if (el.closest('.ribbon-flyout')) return; // the flyout closes itself and gives focus back to its button
+    ke.preventDefault();
+    this.$<HTMLElement>(`#ribbon-tab-${this.attr('active')}`)?.focus();
+  }
+
   private _renderItem(tabId: string, groupId: string, item: RibbonItem): string {
     if (item.gallery?.items.length) return this._renderGallery(tabId, groupId, item);
+    if (item.field) return this._renderField(tabId, groupId, item);
     const cls = [
       'ribbon-item',
       item.active ? 'active' : '',
@@ -1633,7 +1834,7 @@ export class BRibbon extends BaseComponent {
   /** The command, folded group or ▾ part a tooltip is for, or null. Menu choices have none: the menu says it all. */
   private _tipTarget(node: EventTarget | null): HTMLElement | null {
     // Gallery tiles show their name already, so they get no tooltip (it also took the first Escape in the grid).
-    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn, .ribbon-launcher, .ribbon-gallery-btn, .ribbon-gallery-current') : null;
+    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn, .ribbon-launcher, .ribbon-gallery-btn, .ribbon-gallery-current, .ribbon-field-control') : null;
     return el && this.shadowRoot?.contains(el) && !el.closest('.ribbon-menu') ? el : null;
   }
 
@@ -1661,6 +1862,8 @@ export class BRibbon extends BaseComponent {
     const tip = this.$<HTMLElement>('.ribbon-tooltip') as BTooltip | null;
     const content = this._tipContent(el);
     if (!tip || !content) return;
+    // Not over a box being typed in: the tooltip would sit on its list.
+    if (el.hasAttribute('data-field-control') && el === this.shadowRoot?.activeElement) return;
     this._tipAnchor = el;
     tip.showFor(el, content);
   }
@@ -1823,7 +2026,7 @@ export class BRibbon extends BaseComponent {
     const { tab, group, item } = el.dataset;
     if (!tab || !group || !item || group === '_context') return null;
     const found = this._resolveRef(`item:${tab}/${group}/${item}`);
-    if (!found || (found.item.menu?.length && !found.item.split) || found.item.href) return null;
+    if (!found || (found.item.menu?.length && !found.item.split) || found.item.href || found.item.field) return null;
     return `item:${tab}/${group}/${item}`;
   }
 
@@ -2031,7 +2234,7 @@ export class BRibbon extends BaseComponent {
         return { el, label: item?.label ?? el.textContent ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
       });
     } else if (level === 'flyout' && scope) {
-      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-flyout-header > .ribbon-launcher, :scope .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-gallery-tiles > .ribbon-gallery-tile, :scope .ribbon-gallery > .ribbon-gallery-current, :scope .ribbon-gallery-btn')]
+      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-group-items > .ribbon-field > .ribbon-field-control, :scope > .ribbon-flyout-header > .ribbon-launcher, :scope .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-gallery-tiles > .ribbon-gallery-tile, :scope .ribbon-gallery > .ribbon-gallery-current, :scope .ribbon-gallery-btn')]
         .filter(visible).map(el => {
           if (el.dataset.launcher) return { el, label: el.getAttribute('aria-label') ?? '' };
           if (el.dataset.gallery) return { el, label: el.getAttribute('aria-label') ?? '', keytip: this._galleryKeytip(el) };
@@ -2124,6 +2327,13 @@ export class BRibbon extends BaseComponent {
       this._openMenu(el, true);
       const menu = this.shadowRoot?.getElementById(el.getAttribute('aria-controls') ?? '') ?? null;
       requestAnimationFrame(() => (menu?.matches(':popover-open') ? this._showKeytips('menu', menu) : this._exitKeytips()));
+      return;
+    }
+    if (el.hasAttribute('data-field-control')) {
+      // Office: the box takes focus with its text selected, ready to type over.
+      this._exitKeytips();
+      this._focusStop(el);
+      (this._fieldInner(el) as HTMLInputElement | null)?.select?.();
       return;
     }
     this._exitKeytips();
@@ -2309,7 +2519,7 @@ export class BRibbon extends BaseComponent {
       } else if (ke.key === 'ArrowDown') {
         ke.preventDefault();
         // Into the panel at its one Tab stop: the command last focused there, else the first.
-        this._rovingStop()?.focus();
+        this._focusStop(this._rovingStop());
         return;
       }
 
@@ -2331,6 +2541,7 @@ export class BRibbon extends BaseComponent {
       if (menu) { this._menuKey(ke, menu, target); return; }
       const grid = target.closest<HTMLElement>('.ribbon-gallery-grid');
       if (grid) { this._gridKey(ke, grid, target); return; }
+      if (target.hasAttribute('data-field-control')) { this._fieldKey(ke, target); return; }
       // Alt+ArrowDown opens a command's menu from the command itself or from its ▾ part, as in Office.
       if (ke.key === 'ArrowDown' && ke.altKey) {
         const trigger = target.matches('[data-menu-trigger]') ? target
@@ -2368,11 +2579,17 @@ export class BRibbon extends BaseComponent {
         return;
       }
       ke.preventDefault();
-      next?.focus();
+      this._focusStop(next);
     });
+    // Capture: whether an input's own list was open, before its Escape closes it.
+    if (panelEl) this.listen(panelEl, 'keydown', (e: Event) => {
+      const target = e.target as HTMLElement;
+      this._fieldListWasOpen = target.hasAttribute('data-field-control') && !!target.shadowRoot?.querySelector(':popover-open');
+    }, { capture: true });
 
     // Panel item clicks
     this._bindPanelItems();
+    this._bindFields('.mobile-field-control');
 
     this._bindChunks();
     this._bindMenus();
@@ -2394,6 +2611,7 @@ export class BRibbon extends BaseComponent {
 
     const maybeCollapse = () => {
       this._clearTimers();
+      if (this._fieldFocused()) return; // the pointer left while typing: the box stays
       if (!overTab && !overPanel && !this.boolAttr('pinned') && this.boolAttr('expanded')) {
         this._collapseTimer = setTimeout(() => {
           this.collapse();
@@ -2419,6 +2637,7 @@ export class BRibbon extends BaseComponent {
         const tabId = btn.dataset.tab!;
         // Panelless tab: nothing to preview or expand — the tab IS the link.
         if (this._isPanelless(this._tabs.find(t => t.id === tabId))) return;
+        if (this._fieldFocused()) return; // a preview would replace the box being typed in
         this._hoverTabId = tabId;
         // Show hovered tab's panel content
         this._showTabContent(tabId);
@@ -2506,7 +2725,7 @@ export class BRibbon extends BaseComponent {
   protected update(): void {
     const refocus = this._focusInPanel();
     super.update();
-    if (refocus) this._rovingStop()?.focus();
+    if (refocus) this._focusStop(this._rovingStop());
   }
 
   // ── Private ────────────────────────────────────────────────────────────────
@@ -2653,6 +2872,7 @@ export class BRibbon extends BaseComponent {
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-row > .ribbon-gallery-tile',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery > .ribbon-gallery-current',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-btn',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-field > .ribbon-field-control',
     ].join(', '));
   }
 
@@ -2676,7 +2896,12 @@ export class BRibbon extends BaseComponent {
 
   private _applyRoving() {
     const current = this._rovingStop();
-    for (const el of this._panelStops()) el.tabIndex = el === current ? 0 : -1;
+    for (const el of this._panelStops()) {
+      const index = el === current ? 0 : -1;
+      // An input's host is not focusable: the roving index goes on the control inside it.
+      if (el.hasAttribute('data-field-control')) this._fieldInner(el)?.setAttribute('tabindex', String(index));
+      else el.tabIndex = index;
+    }
   }
 
   /** Whether focus is on a panel stop — checked before a re-render that replaces it, to put it back after. */
@@ -2687,11 +2912,11 @@ export class BRibbon extends BaseComponent {
 
   private _focusFlyout(chunk: HTMLElement) {
     const flyout = chunk.closest('.ribbon-group')?.querySelector<HTMLElement>('.ribbon-flyout');
-    if (flyout?.matches(':popover-open')) flyout.querySelector<HTMLElement>('.ribbon-item')?.focus();
+    if (flyout?.matches(':popover-open')) this._focusStop(flyout.querySelector<HTMLElement>('.ribbon-item, .ribbon-field-control'));
   }
 
   private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
-    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-flyout-header > .ribbon-launcher, :scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-group-items > .ribbon-gallery > .ribbon-gallery-current, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-btn')];
+    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-flyout-header > .ribbon-launcher, :scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-group-items > .ribbon-field > .ribbon-field-control, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-group-items > .ribbon-gallery > .ribbon-gallery-current, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-btn')];
     if (!items.includes(target)) return;
     const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
@@ -2702,7 +2927,7 @@ export class BRibbon extends BaseComponent {
     else if (dirs[ke.key]) next = nearestInDirection(target, items, dirs[ke.key]);
     else return; // Escape: the popover closes itself and gives focus back to its button
     ke.preventDefault();
-    next?.focus();
+    this._focusStop(next);
   }
 
   /**

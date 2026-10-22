@@ -345,6 +345,8 @@ filter box in a hurry, least of all on a phone keyboard.
 <b-select label="Menu group" name="menuGroup" searchable creatable></b-select>
 ```
 
+`no-clear` hides the clear (×) button of a searchable select, for a box too narrow to give it room (the ribbon's).
+
 `creatable` adds a **Create “…”** row whenever the query names no existing option (same fold, so
 `pritahy` selects `Príťahy` rather than creating a near-duplicate). Choosing it, or pressing **Enter**,
 adds the value as an option and selects it — reported by the ordinary `change`, with **no** `create`
@@ -1696,9 +1698,9 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off), `contextual-style` (`band` default \| `pill` \| `edge`), `gallery-style` (`framed` default \| `open` \| `dropdown`)
-Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`, `setContextualSets(sets)`, `showContextual(id, { select? })`, `hideContextual(id)`, `isContextualShown(id)`, `setGallerySelection(itemId, choiceId)`, `getGallerySelection(itemId)`
-Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`, `group-launcher` → `{ tabId, groupId }`
+Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off), `contextual-style` (`band` default \| `pill` \| `edge`), `gallery-style` (`framed` default \| `open` \| `dropdown`), `field-caption` (`none` default \| `beside` \| `above`)
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`, `setContextualSets(sets)`, `showContextual(id, { select? })`, `hideContextual(id)`, `isContextualShown(id)`, `setGallerySelection(itemId, choiceId)`, `getGallerySelection(itemId)`, `setFieldValue(itemId, value)`, `getFieldValue(itemId)`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`, `group-launcher` → `{ tabId, groupId }`, `item-change` → `{ tabId, groupId, itemId, value }`
 
 **Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
 icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
@@ -1736,6 +1738,29 @@ stop with ←/→ inside it, a pressed toggle stays in step with the ribbon, and
 - Small groups show two tiles inline. A folded group's flyout holds the gallery, and its grid opens over the flyout.
 - Tiles are a radio group, and each is a key-tip target. The mobile menu lists the choices as radios. A tile's
   preview and label are text.
+
+**Inputs.** A command with `field` is a small box, like Office's font name and size:
+
+```typescript
+{ id: 'font-size', label: 'Font size', field: { type: 'select', freeText: true, width: 3, value: '11',
+  options: [{ value: '10', label: '10' }, { value: '11', label: '11' }] } }
+{ id: 'height', label: 'Height', field: { type: 'number', value: '2.5', min: 0, step: 0.1, width: 4 } }
+```
+
+- `type` is `text`, `number` or `select`; the box is a bare, small `b-input` or `b-select`. `freeText` lets a dropdown
+  take a value not in its list. `width` is in characters (default 8).
+- A committed value emits `item-change`: Enter, a dropdown's pick, or leaving the box. The same value is not
+  reported twice. `setFieldValue()` sets one from the app without an event.
+- An arrow key moves into a box from a command. Inside, the arrows, Home and End edit it; Tab leaves the ribbon;
+  Escape puts back the last reported value and returns to the tab.
+- `field-caption` picks the look, and `field.caption` overrides it per box:
+  - `none` (Office: the tooltip and the accessible name say what the box is, the default);
+  - `beside` (a caption left of the box, like Height / Width; hidden in a small group);
+  - `above` (a caption over the box, taking two rows).
+- A box keeps what was typed when the ribbon re-renders. An unpinned ribbon stays open while a box has focus, and
+  closes after Enter or a pick, as after a command. A folded group's flyout holds its boxes and closes on Enter.
+- A box has a key tip: it takes focus with its text selected. The mobile menu lists the boxes. A box cannot be added
+  to the Quick Access Toolbar.
 
 **Contextual tabs.** Tabs that appear only while something is selected, like Office's "Table Design":
 
