@@ -360,7 +360,7 @@ export class BRibbon extends BaseComponent {
         display: flex; align-items: center;
         height: var(--b-ribbon-tab-height, 2.75rem);
         background: var(--b-bg-elevated);
-        border-bottom: 1px solid var(--b-border);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
         padding: 0;
       }
       .ribbon-before { display: flex; align-items: center; height: 100%; flex-shrink: 0; }
@@ -376,7 +376,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-scroll-btn {
         display: none; background: var(--b-bg-elevated); border: none; cursor: pointer;
         color: var(--b-text-muted); padding: 0 var(--b-space-xs, 0.25rem);
-        font-size: 0.75rem; flex-shrink: 0; align-items: center; justify-content: center;
+        font-size: var(--b-ribbon-scroll-glyph, 0.75rem); flex-shrink: 0; align-items: center; justify-content: center;
         z-index: 1;
       }
       /* Once a track overflows at all, BOTH slots are reserved and only their VISIBILITY changes —
@@ -395,8 +395,8 @@ export class BRibbon extends BaseComponent {
         background: none; border: none; cursor: pointer;
         font-size: var(--b-text-sm, 0.8125rem); font-weight: var(--b-font-weight-medium, 500);
         color: var(--b-text-muted); white-space: nowrap;
-        border-bottom: 2px solid transparent;
-        margin-bottom: -1px;
+        border-bottom: var(--b-border-width-thick, 2px) solid transparent;
+        margin-bottom: calc(var(--b-border-width, 1px) * -1);
         transition: color var(--b-transition, 150ms ease), border-color var(--b-transition, 150ms ease);
       }
       .ribbon-tab:hover { color: var(--b-text); }
@@ -409,7 +409,7 @@ export class BRibbon extends BaseComponent {
       }
       .ribbon-tab-icon { font-size: var(--b-icon-base, 1rem); }
       .ribbon-tab-badge {
-        min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem;
+        min-width: var(--b-ribbon-tab-badge-size, 1.125rem); height: var(--b-ribbon-tab-badge-size, 1.125rem); padding: 0 var(--b-space-xs, 0.25rem);
         border-radius: var(--b-radius-full, 9999px);
         background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse));
         font-size: var(--b-text-2xs, 0.625rem); font-weight: var(--b-font-weight-bold, 700);
@@ -420,20 +420,20 @@ export class BRibbon extends BaseComponent {
       .ribbon-ctx-set { display: inline-flex; align-self: stretch; flex-shrink: 0; margin-inline-start: var(--b-space-xs, 0.25rem); }
       .ribbon-ctx-tabs { display: flex; align-items: stretch; }
       .ribbon-ctx-name { font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-semibold, 600); white-space: nowrap; line-height: 1; }
-      .ribbon-ctx-set.style-band { flex-direction: column; border-top: 3px solid transparent; }
-      .ribbon-ctx-set.style-band .ribbon-ctx-name { text-align: center; padding: 0.125rem var(--b-space-sm, 0.5rem) 0; }
+      .ribbon-ctx-set.style-band { flex-direction: column; border-top: var(--b-ribbon-context-accent, 3px) solid transparent; }
+      .ribbon-ctx-set.style-band .ribbon-ctx-name { text-align: center; padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem) 0; }
       .ribbon-ctx-set.style-band .ribbon-ctx-tabs { flex: 1; }
-      .ribbon-ctx-set.style-pill { align-items: center; gap: 0.125rem; }
+      .ribbon-ctx-set.style-pill { align-items: center; gap: var(--b-space-2xs, 0.125rem); }
       .ribbon-ctx-set.style-pill .ribbon-ctx-name {
-        padding: 0.125rem var(--b-space-sm, 0.5rem); border: 1px solid transparent; border-radius: var(--b-radius-full, 9999px);
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem); border: var(--b-border-width, 1px) solid transparent; border-radius: var(--b-radius-full, 9999px);
       }
       .ribbon-ctx-set.style-pill .ribbon-ctx-tabs { align-self: stretch; }
-      .ribbon-ctx-set.style-edge { border-top: 3px solid transparent; }
+      .ribbon-ctx-set.style-edge { border-top: var(--b-ribbon-context-accent, 3px) solid transparent; }
       .ribbon-ctx-set.style-edge .ribbon-ctx-name { display: none; }
       ${BRibbon._ctxCss()}
 
       .ribbon-tab-divider {
-        width: 1px; height: 1.25rem; align-self: center; flex-shrink: 0;
+        width: var(--b-border-width, 1px); height: var(--b-ribbon-tab-divider-height, 1.25rem); align-self: center; flex-shrink: 0;
         background: var(--b-border); margin: 0 var(--b-space-xs, 0.25rem);
       }
 
@@ -453,7 +453,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-panel {
         max-height: 0; overflow: hidden;
         background: var(--b-bg-elevated);
-        border-bottom: 1px solid var(--b-border);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
         transition: max-height var(--b-transition-slow, 300ms ease);
         /* Flex row so the scroll chevrons can flank the scrolling inner track. */
         display: flex; align-items: stretch;
@@ -547,7 +547,7 @@ export class BRibbon extends BaseComponent {
       /* Large: 32px icon above the label, one item per column. */
       .ribbon-group.size-large .ribbon-group-items { align-items: flex-start; }
       .ribbon-group.size-large .ribbon-item {
-        flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center;
+        flex-direction: column; gap: var(--b-space-2xs, 0.125rem); min-width: var(--b-ribbon-item-min-width, 3.25rem); text-align: center;
       }
       .ribbon-group.size-large .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
 
@@ -575,7 +575,7 @@ export class BRibbon extends BaseComponent {
          overflow menu that dumps every leftover command into one list. */
       .ribbon-chunk {
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: 0.125rem; min-width: var(--b-ribbon-chunk-width);
+        gap: var(--b-space-2xs, 0.125rem); min-width: var(--b-ribbon-chunk-width);
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
         border: none; background: none; cursor: pointer;
         border-radius: var(--b-radius, 0.375rem);
@@ -609,14 +609,14 @@ export class BRibbon extends BaseComponent {
          brings Escape + light dismiss with it. Positioned from the chunk rect in _bindChunks. */
       .ribbon-flyout {
         position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300);
-        background: var(--b-bg-elevated); border: 1px solid var(--b-border);
+        background: var(--b-bg-elevated); border: var(--b-border-width, 1px) solid var(--b-border);
         border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
         padding: var(--b-space-sm, 0.5rem);
       }
       .ribbon-flyout::backdrop { background: none; }
-      .ribbon-flyout { max-width: min(92vw, 32rem); max-height: 60vh; overflow: auto; }
+      .ribbon-flyout { max-width: min(92vw, var(--b-ribbon-flyout-max-width, 32rem)); max-height: var(--b-ribbon-popup-max-height, 60vh); overflow: auto; }
       .ribbon-flyout .ribbon-group-items { display: flex; align-items: flex-start; }
-      .ribbon-flyout .ribbon-item { flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center; }
+      .ribbon-flyout .ribbon-item { flex-direction: column; gap: var(--b-space-2xs, 0.125rem); min-width: var(--b-ribbon-item-min-width, 3.25rem); text-align: center; }
       .ribbon-flyout .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
 
       /* ── Split and menu buttons (TASK-732, option A picked by the user: the divider shows on hover) ──
@@ -627,7 +627,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-split-arrow {
         display: inline-flex; align-items: center; justify-content: center; gap: var(--b-space-xs, 0.25rem);
         padding: 0 var(--b-space-xs, 0.25rem);
-        border: none; border-left: 1px solid transparent; background: none; cursor: pointer;
+        border: none; border-left: var(--b-border-width, 1px) solid transparent; background: none; cursor: pointer;
         border-radius: 0 var(--b-radius, 0.375rem) var(--b-radius, 0.375rem) 0;
         font: inherit; font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-muted);
         white-space: nowrap;
@@ -648,9 +648,9 @@ export class BRibbon extends BaseComponent {
       .ribbon-group.size-large .ribbon-split-main .ribbon-item-label,
       .ribbon-flyout .ribbon-split-main .ribbon-item-label { display: none; }
       .ribbon-group.size-large .ribbon-split-arrow, .ribbon-flyout .ribbon-split-arrow {
-        border-left: 0; border-top: 1px solid transparent;
+        border-left: 0; border-top: var(--b-border-width, 1px) solid transparent;
         border-radius: 0 0 var(--b-radius, 0.375rem) var(--b-radius, 0.375rem);
-        padding: 0.125rem var(--b-space-sm, 0.5rem) var(--b-space-xs, 0.25rem);
+        padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem) var(--b-space-xs, 0.25rem);
         color: var(--b-text-secondary); font-weight: var(--b-font-weight-medium, 500);
       }
       .ribbon-group.size-large .ribbon-split:hover > .ribbon-split-arrow,
@@ -663,8 +663,8 @@ export class BRibbon extends BaseComponent {
          the flyout's DOM descendant, so opening it keeps the flyout open (the popover ancestor chain). */
       .ribbon-menu {
         position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300);
-        min-width: 12rem; max-height: 60vh; overflow: auto;
-        background: var(--b-bg-elevated); border: 1px solid var(--b-border);
+        min-width: var(--b-ribbon-menu-min-width, 12rem); max-height: var(--b-ribbon-popup-max-height, 60vh); overflow: auto;
+        background: var(--b-bg-elevated); border: var(--b-border-width, 1px) solid var(--b-border);
         border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
         padding: var(--b-space-xs, 0.25rem);
       }
@@ -686,7 +686,7 @@ export class BRibbon extends BaseComponent {
         margin-inline-start: auto; padding-inline-start: var(--b-space-lg, 1rem);
         font: inherit; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
       }
-      .ribbon-menu-separator { height: 1px; background: var(--b-border); margin: var(--b-space-xs, 0.25rem) 0; }
+      .ribbon-menu-separator { height: var(--b-border-width, 1px); background: var(--b-border); margin: var(--b-space-xs, 0.25rem) 0; }
       .mobile-subitem { padding-inline-start: calc(var(--b-space-md, 0.75rem) * 2.5); }
       .mobile-item-heading { padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-muted); }
 
@@ -709,30 +709,30 @@ export class BRibbon extends BaseComponent {
       .ribbon-item[aria-pressed="true"], .ribbon-item[aria-checked="true"],
       .mobile-item[aria-pressed="true"], .mobile-item[aria-checked="true"] {
         background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
-        box-shadow: inset 0 0 0 1px var(--b-color-primary);
+        box-shadow: inset 0 0 0 var(--b-border-width, 1px) var(--b-color-primary);
       }
       .ribbon-item[aria-pressed="true"]:focus-visible, .ribbon-item[aria-checked="true"]:focus-visible {
-        box-shadow: inset 0 0 0 1px var(--b-color-primary), var(--b-focus-ring);
+        box-shadow: inset 0 0 0 var(--b-border-width, 1px) var(--b-color-primary), var(--b-focus-ring);
       }
       .ribbon-radiogroup { display: contents; }
 
       /* ── Galleries (TASK-740): framed / open / dropdown, all kept by the user ── */
       /* Inputs (TASK-741): a box in one of the command rows, captioned as field-caption says. Width in characters. */
       .ribbon-field { display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); align-self: center; }
-      .ribbon-field.caption-above { flex-direction: column; align-items: flex-start; gap: 0.0625rem; grid-row: span 2; justify-content: center; }
+      .ribbon-field.caption-above { flex-direction: column; align-items: flex-start; gap: calc(var(--b-space-2xs, 0.125rem) / 2); grid-row: span 2; justify-content: center; }
       .ribbon-field-caption { font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-secondary); white-space: nowrap; }
-      .ribbon-field-control { display: block; width: calc(var(--b-ribbon-field-chars, 8) * 1ch + 2rem); }
+      .ribbon-field-control { display: block; width: calc(var(--b-ribbon-field-chars, 8) * 1ch + var(--b-ribbon-field-padding, 2rem)); }
       /* Beside: across the column, caption left and box right, so boxes of one width line up as Office's Height / Width. */
       .ribbon-field.caption-beside { justify-self: stretch; justify-content: space-between; }
       .ribbon-group.size-small .ribbon-field.caption-beside .ribbon-field-caption { display: none; }
       .mobile-field { display: flex; justify-content: space-between; padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); }
       .mobile-field .ribbon-field-caption { font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text); }
-      .ribbon-gallery { display: inline-flex; align-items: stretch; gap: 0.125rem; grid-row: 1 / -1; }
-      .ribbon-gallery-row { display: flex; gap: 0.125rem; }
+      .ribbon-gallery { display: inline-flex; align-items: stretch; gap: var(--b-space-2xs, 0.125rem); grid-row: 1 / -1; }
+      .ribbon-gallery-row { display: flex; gap: var(--b-space-2xs, 0.125rem); }
       .ribbon-gallery-tile, .ribbon-gallery-current {
-        display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem;
-        width: 4rem; min-height: 2.75rem; padding: 0.125rem; box-sizing: border-box;
-        border: 1px solid transparent; border-radius: var(--b-radius-sm, 0.25rem); background: none; cursor: pointer;
+        display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--b-space-2xs, 0.125rem);
+        width: var(--b-ribbon-gallery-tile-width, 4rem); min-height: var(--b-ribbon-gallery-tile-height, 2.75rem); padding: var(--b-space-2xs, 0.125rem); box-sizing: border-box;
+        border: var(--b-border-width, 1px) solid transparent; border-radius: var(--b-radius-sm, 0.25rem); background: none; cursor: pointer;
         color: var(--b-text-secondary); font: inherit;
       }
       .ribbon-gallery-tile:hover, .ribbon-gallery-current:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
@@ -741,60 +741,60 @@ export class BRibbon extends BaseComponent {
         border-color: var(--b-color-primary); background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
       }
       .ribbon-gallery-preview { font-size: var(--b-text-base, 0.875rem); font-weight: var(--b-font-weight-semibold, 600); line-height: 1; }
-      .ribbon-gallery-name { font-size: 0.625rem; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ribbon-gallery-name { font-size: var(--b-text-2xs, 0.625rem); line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .ribbon-gallery-btn {
         display: inline-flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer;
-        color: var(--b-text-muted); font: inherit; font-size: 0.625rem; border-radius: var(--b-radius-sm, 0.25rem);
+        color: var(--b-text-muted); font: inherit; font-size: var(--b-text-2xs, 0.625rem); border-radius: var(--b-radius-sm, 0.25rem);
       }
       .ribbon-gallery-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-gallery-btn[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
-      .ribbon-gallery.style-framed { border: 1px solid var(--b-border); border-radius: var(--b-radius-sm, 0.25rem); background: var(--b-bg); padding: 0.125rem; }
-      .ribbon-gallery.style-framed .ribbon-gallery-ctl { display: flex; flex-direction: column; border-left: 1px solid var(--b-border); margin-left: 0.125rem; }
-      .ribbon-gallery.style-framed .ribbon-gallery-ctl .ribbon-gallery-btn { flex: 1; width: 1rem; border-radius: 0; font-size: var(--b-text-xs, 0.6875rem); }
+      .ribbon-gallery.style-framed { border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius-sm, 0.25rem); background: var(--b-bg); padding: var(--b-space-2xs, 0.125rem); }
+      .ribbon-gallery.style-framed .ribbon-gallery-ctl { display: flex; flex-direction: column; border-left: var(--b-border-width, 1px) solid var(--b-border); margin-left: var(--b-space-2xs, 0.125rem); }
+      .ribbon-gallery.style-framed .ribbon-gallery-ctl .ribbon-gallery-btn { flex: 1; width: var(--b-ribbon-gallery-button-width, 1rem); border-radius: 0; font-size: var(--b-text-xs, 0.6875rem); }
       .ribbon-gallery.style-open { flex-direction: column; align-items: center; }
       .ribbon-gallery.style-open .ribbon-gallery-line { display: flex; align-items: stretch; }
-      .ribbon-gallery.style-open .ribbon-gallery-line > .ribbon-gallery-btn { width: 1rem; font-size: var(--b-text-sm, 0.8125rem); }
-      .ribbon-gallery-more { padding: 0 var(--b-space-xs, 0.25rem); border: 1px solid var(--b-border) !important; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-secondary); }
+      .ribbon-gallery.style-open .ribbon-gallery-line > .ribbon-gallery-btn { width: var(--b-ribbon-gallery-button-width, 1rem); font-size: var(--b-text-sm, 0.8125rem); }
+      .ribbon-gallery-more { padding: 0 var(--b-space-xs, 0.25rem); border: var(--b-border-width, 1px) solid var(--b-border) !important; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-secondary); }
       .ribbon-gallery-current { border-color: var(--b-border); }
       .ribbon-group.size-small .ribbon-gallery-row > .ribbon-gallery-tile:nth-child(n+3) { display: none; }
       .ribbon-gallery-grid {
         position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300); padding: var(--b-space-xs, 0.25rem);
-        background: var(--b-bg-elevated); border: 1px solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
-        box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1)); max-height: 60vh; overflow: auto;
+        background: var(--b-bg-elevated); border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
+        box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1)); max-height: var(--b-ribbon-popup-max-height, 60vh); overflow: auto;
       }
       .ribbon-gallery-grid::backdrop { background: none; }
-      .ribbon-gallery-grid .ribbon-gallery-tiles { display: grid; grid-template-columns: repeat(var(--b-ribbon-gallery-columns, 4), 4rem); gap: 0.25rem; }
+      .ribbon-gallery-grid .ribbon-gallery-tiles { display: grid; grid-template-columns: repeat(var(--b-ribbon-gallery-columns, 4), var(--b-ribbon-gallery-tile-width, 4rem)); gap: var(--b-space-xs, 0.25rem); }
 
       /* ── Group launcher (TASK-733): Office's corner arrow beside the group's name ── */
       .ribbon-group.has-launcher { position: relative; }
-      .ribbon-group.has-launcher > .ribbon-group-label { padding-inline: 1.25rem; }
+      .ribbon-group.has-launcher > .ribbon-group-label { padding-inline: calc(var(--b-ribbon-launcher-size, 1rem) + var(--b-space-xs, 0.25rem)); }
       .ribbon-launcher {
         display: inline-flex; align-items: center; justify-content: center;
-        width: 1rem; height: 1rem; padding: 0; border: none; background: none; cursor: pointer;
+        width: var(--b-ribbon-launcher-size, 1rem); height: var(--b-ribbon-launcher-size, 1rem); padding: 0; border: none; background: none; cursor: pointer;
         border-radius: var(--b-radius-sm, 0.25rem); color: var(--b-text-muted);
       }
       .ribbon-group > .ribbon-launcher { position: absolute; right: 0; bottom: 0; }
-      .ribbon-launcher svg { width: 0.5625rem; height: 0.5625rem; stroke: currentColor; stroke-width: 1.4; fill: none; }
+      .ribbon-launcher svg { width: var(--b-ribbon-launcher-glyph, 0.5625rem); height: var(--b-ribbon-launcher-glyph, 0.5625rem); stroke: currentColor; stroke-width: 1.4; fill: none; }
       .ribbon-launcher:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-launcher:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .ribbon-flyout-header {
         display: flex; align-items: center; justify-content: space-between; gap: var(--b-space-sm, 0.5rem);
         padding: 0 0 var(--b-space-xs, 0.25rem); margin-bottom: var(--b-space-xs, 0.25rem);
-        border-bottom: 1px solid var(--b-border); font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border); font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
       }
 
       /* ── Quick Access Toolbar (TASK-737; in the tab row before the tabs by default, picked by the user) ── */
-      .ribbon-qat { display: flex; align-items: center; gap: 0.125rem; flex-shrink: 0; }
+      .ribbon-qat { display: flex; align-items: center; gap: var(--b-space-2xs, 0.125rem); flex-shrink: 0; }
       .ribbon-tab-row > .ribbon-qat {
         padding-inline-end: var(--b-space-sm, 0.5rem); margin-inline-end: var(--b-space-xs, 0.25rem);
-        border-inline-end: 1px solid var(--b-border);
+        border-inline-end: var(--b-border-width, 1px) solid var(--b-border);
       }
-      .ribbon-qat-row { display: flex; padding: 0.125rem var(--b-space-sm, 0.5rem); background: var(--b-bg-secondary); }
-      .ribbon-qat-row.above { border-bottom: 1px solid var(--b-border); }
-      .ribbon-qat-row.below { border-top: 1px solid var(--b-border); }
+      .ribbon-qat-row { display: flex; padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem); background: var(--b-bg-secondary); }
+      .ribbon-qat-row.above { border-bottom: var(--b-border-width, 1px) solid var(--b-border); }
+      .ribbon-qat-row.below { border-top: var(--b-border-width, 1px) solid var(--b-border); }
       .ribbon-qat-btn {
         display: inline-flex; align-items: center; justify-content: center;
-        min-width: 1.75rem; height: 1.75rem; padding: 0 0.25rem;
+        min-width: var(--b-ribbon-qat-button-size, 1.75rem); height: var(--b-ribbon-qat-button-size, 1.75rem); padding: 0 var(--b-space-xs, 0.25rem);
         border: none; background: none; cursor: pointer; border-radius: var(--b-radius, 0.375rem);
         color: var(--b-text-secondary); font: inherit; font-size: var(--b-icon-base, 1rem);
       }
@@ -802,10 +802,10 @@ export class BRibbon extends BaseComponent {
       .ribbon-qat-btn:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .ribbon-qat-btn[aria-pressed="true"] {
         background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
-        box-shadow: inset 0 0 0 1px var(--b-color-primary);
+        box-shadow: inset 0 0 0 var(--b-border-width, 1px) var(--b-color-primary);
       }
       .ribbon-qat-btn[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
-      .ribbon-qat-more { min-width: 1.25rem; font-size: 0.7em; color: var(--b-text-muted); }
+      .ribbon-qat-more { min-width: var(--b-ribbon-qat-more-width, 1.25rem); font-size: 0.7em; color: var(--b-text-muted); }
       .ribbon-menu-item[aria-checked="true"] .ribbon-menu-check::before { content: "\\2713"; }
       .ribbon-menu-check { width: 1.25em; text-align: center; flex-shrink: 0; }
 
@@ -813,7 +813,7 @@ export class BRibbon extends BaseComponent {
       .ribbon-keytips { position: fixed; inset: 0; margin: 0; padding: 0; border: 0; background: none; pointer-events: none; overflow: visible; }
       .ribbon-keytip {
         position: fixed; transform: translate(-50%, -30%);
-        min-width: 1.1rem; height: 1.1rem; padding: 0 0.2rem; box-sizing: border-box;
+        min-width: var(--b-ribbon-keytip-size, 1.1rem); height: var(--b-ribbon-keytip-size, 1.1rem); padding: 0 var(--b-ribbon-badge-padding, 0.2rem); box-sizing: border-box;
         display: inline-flex; align-items: center; justify-content: center;
         background: var(--b-tooltip-bg, #1e293b); color: var(--b-tooltip-text, #e2e8f0);
         border-radius: var(--b-radius-sm, 0.25rem); box-shadow: var(--b-shadow-sm, 0 1px 2px rgba(0,0,0,.25));
@@ -826,10 +826,10 @@ export class BRibbon extends BaseComponent {
       .ribbon-item.variant-danger { color: var(--b-color-danger); }
       .ribbon-item-icon { font-size: var(--b-icon-base, 1rem); }
       .ribbon-item-badge {
-        min-width: 1rem; height: 1rem; padding: 0 0.2rem;
+        min-width: var(--b-ribbon-item-badge-size, 1rem); height: var(--b-ribbon-item-badge-size, 1rem); padding: 0 var(--b-ribbon-badge-padding, 0.2rem);
         border-radius: var(--b-radius-full, 9999px);
         background: var(--b-color-danger); color: var(--b-text-on-danger, var(--b-text-inverse));
-        font-size: 0.5625rem; font-weight: var(--b-font-weight-bold, 700);
+        font-size: var(--b-ribbon-item-badge-text, 0.5625rem); font-weight: var(--b-font-weight-bold, 700);
         display: inline-flex; align-items: center; justify-content: center; line-height: 1;
       }
 
@@ -843,8 +843,8 @@ export class BRibbon extends BaseComponent {
          tighter, centred look from a live preview). Out of flow, so it adds no width the measure pass cannot see. */
       .ribbon-group + .ribbon-group { position: relative; }
       .ribbon-group + .ribbon-group::before {
-        content: ''; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--b-border);
-        left: calc(var(--b-ribbon-gap-now) / -2 - 0.5px);
+        content: ''; position: absolute; top: 0; bottom: 0; width: var(--b-border-width, 1px); background: var(--b-border);
+        left: calc(var(--b-ribbon-gap-now) / -2 - var(--b-border-width, 1px) / 2);
       }
 
       /* ── Mobile ── */
@@ -870,7 +870,7 @@ export class BRibbon extends BaseComponent {
       .mobile-dialog-header {
         display: flex; align-items: center; justify-content: space-between;
         padding: var(--b-space-md, 0.75rem) var(--b-space-lg, 1rem);
-        border-bottom: 1px solid var(--b-border);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
         font-weight: var(--b-font-weight-bold, 700);
         font-size: var(--b-text-lg, 1rem);
       }
@@ -880,7 +880,7 @@ export class BRibbon extends BaseComponent {
         border-radius: var(--b-radius, 0.375rem);
       }
       .mobile-dialog-close:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
-      .mobile-dialog-body { padding: var(--b-space-sm, 0.5rem); overflow-y: auto; height: calc(100% - 3rem); }
+      .mobile-dialog-body { padding: var(--b-space-sm, 0.5rem); overflow-y: auto; height: calc(100% - var(--b-ribbon-mobile-header-height, 3rem)); }
       .mobile-tab-section { margin-bottom: var(--b-space-sm, 0.5rem); }
       .mobile-tab-header {
         display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);

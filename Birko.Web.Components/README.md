@@ -1843,6 +1843,16 @@ icon shows its initial in a small tile instead (the name stays the button's acce
 panel is as tall as what it shows: it gets shorter as groups fold. A group's commands are centred over its name, so a
 group narrower than its name splits the extra space evenly.
 
+**Sizes are tokens.** Every length in the ribbon's stylesheet comes from a `--b-*` token, so a theme or an app can
+retune it. Shared ones (`--b-space-*`, `--b-text-*`, `--b-border-width*`, `--b-radius*`) plus the ribbon's own in
+`css/tokens.css`: `--b-ribbon-tab-height`, `-panel-height`, `-group-gap`, `-item-gap`, `-icon-large`, `-icon-small`,
+`-chunk-width`, `-item-min-width`, `-flyout-max-width`, `-menu-min-width`, `-popup-max-height`, `-tab-badge-size`,
+`-tab-divider-height`, `-context-accent`, `-scroll-glyph`, `-item-badge-size`, `-item-badge-text`, `-badge-padding`,
+`-keytip-size`, `-qat-button-size`, `-qat-more-width`, `-launcher-size`, `-launcher-glyph`, `-gallery-tile-width`,
+`-gallery-tile-height`, `-gallery-button-width`, `-field-padding`, `-mobile-header-height`. Left literal on purpose:
+the `@media` breakpoints (a media query cannot read a custom property), `em` sizes that scale with their own text,
+and the 92vw cap that keeps a flyout on a phone screen.
+
 ### b-tree-menu
 
 Hierarchical tree menu with unlimited nesting depth, expand/collapse, keyboard navigation, and guide lines.

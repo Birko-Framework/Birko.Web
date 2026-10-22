@@ -223,6 +223,27 @@
   --b-ribbon-icon-large: 2rem;        /* 32px — Large variant, icon above label */
   --b-ribbon-icon-small: 1rem;        /* 16px — Medium + Small variants */
   --b-ribbon-chunk-width: 3.5rem;     /* 56px — collapsed group's Popup button */
+  --b-ribbon-item-min-width: 3.25rem;  /* 52px — a Large command, and one in a folded group's flyout */
+  --b-ribbon-flyout-max-width: 32rem;  /* 512px — a folded group's flyout (and never past 92vw) */
+  --b-ribbon-menu-min-width: 12rem;    /* 192px — a command's menu */
+  --b-ribbon-tab-badge-size: 1.125rem; /* 18px — count badge on a tab */
+  --b-ribbon-tab-divider-height: 1.25rem; /* 20px — divider between tab sets */
+  --b-ribbon-context-accent: 3px;      /* contextual tab set's coloured edge (band and edge styles) */
+  --b-ribbon-scroll-glyph: 0.75rem;    /* 12px — tab-strip scroll arrows */
+  --b-ribbon-item-badge-size: 1rem;    /* 16px — count badge on a command */
+  --b-ribbon-item-badge-text: 0.5625rem; /* 9px — its digits */
+  --b-ribbon-badge-padding: 0.2rem;    /* inline padding of command badges and key tips */
+  --b-ribbon-keytip-size: 1.1rem;      /* key tip badge */
+  --b-ribbon-qat-button-size: 1.75rem; /* 28px — Quick Access Toolbar button */
+  --b-ribbon-qat-more-width: 1.25rem;  /* 20px — its customise ▾ */
+  --b-ribbon-launcher-size: 1rem;      /* 16px — a group's dialog launcher (corner arrow) */
+  --b-ribbon-launcher-glyph: 0.5625rem; /* 9px — the arrow inside it */
+  --b-ribbon-gallery-tile-width: 4rem; /* 64px — gallery tile, inline and in the grid */
+  --b-ribbon-gallery-tile-height: 2.75rem; /* 44px — its minimum height */
+  --b-ribbon-gallery-button-width: 1rem; /* 16px — a gallery's step / expand buttons */
+  --b-ribbon-field-padding: 2rem;      /* 32px — an input box's width beyond its characters (padding, ▾) */
+  --b-ribbon-popup-max-height: 60vh;  /* a flyout, menu or gallery grid scrolls past this */
+  --b-ribbon-mobile-header-height: 3rem; /* 48px — the mobile menu's header, which the list below it clears */
 
   /* ── Split panel (rem — scales with font size) ── */
   /* Gap between the sticky detail column and the top of the scrolling pane. Also its bottom

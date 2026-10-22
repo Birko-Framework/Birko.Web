@@ -617,6 +617,14 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: every size is a token (2026-10-22, TASK-747)
+
+Asked by the user. 82 literal lengths became tokens: shared ones where the value already existed (`--b-space-2xs`,
+`--b-space-xs`, `--b-text-2xs`, `--b-border-width`, `--b-border-width-thick`) and 21 new `--b-ribbon-*` ones in
+`css/tokens.css`, each defaulting to the old value. Measured unchanged: 24 states in light and dark, pixel-identical,
+with identical computed styles on all 435 shadow elements. Playground `ribbon-tokens-smoke` fails on any literal length
+outside its allowlist (`@media`, `em`, the 92vw cap); keep it green when adding ribbon CSS.
+
 ### `b-ribbon`: the fold decision counts the real gap (2026-10-22, TASK-746)
 
 `_measureAndScale` read `--b-ribbon-group-gap` with `parseFloat`, so `1.5rem` counted as 1.5px a gap. Between 470 and
