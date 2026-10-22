@@ -32,7 +32,8 @@ src/
 │   └── scroll.ts            # findScrollParent(), visibleBounds() — FLATTENED-tree walk (assignedSlot),
 │                            #   so slotted page content finds the shell's pane, not documentElement
 ├── diff/
-│   └── json-diff.ts         # diffJson(), matchJsonPath(), formatJsonPath() — structural JSON compare, no DOM
+│   ├── json-diff.ts         # diffJson(), matchJsonPath(), formatJsonPath() — structural JSON compare, no DOM
+│   └── xml-tree.ts          # xmlToTree(), xmlToLines() — an XML body as a diffJson tree / as path-tagged lines (DOMParser)
 ├── offline/
 │   ├── action-queue.ts      # ActionQueue — offline mutation queue (built on storage/idb)
 │   └── sync-manager.ts      # SyncManager — drains the queue when back online
@@ -146,6 +147,10 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
   would then mean different things depending on where the object sits
 - Below a paired array (`key` / `unordered`) a node's `path` is its side-B position and `oldSegments` its side-A one.
   A path alone is not unique there: a removed item sits at its side-A index, which a pair may hold on side B
+- `xmlToTree` and `xmlToLines` share one reading (`shapeOf`) of an element: list, object, text or nil. Never decide list
+  detection in one of them only, or the lines mark paths the tree does not have
+- XML text is never dropped: text beside attributes or elements goes under `textKey`. The tester's original port
+  lost `<Price currency="EUR">10</Price>`'s `10`, and a diff cannot report a value it never read
 
 ### Router rules
 - Hash-based (`#/path`): `window.location.hash = '#/path'` to navigate

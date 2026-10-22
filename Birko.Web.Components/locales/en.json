@@ -198,6 +198,7 @@
       },
       "jsonDiff": {
         "title": "JSON diff",
+        "titleXml": "XML diff",
         "sideA": "A",
         "sideB": "B",
         "root": "root",
@@ -208,6 +209,7 @@
         "noDifferences": "No differences",
         "empty": "(empty)",
         "parseError": "{side}: JSON parse error: {message}",
+        "notXml": "{side}: not XML",
         "countAdded": "{count} added",
         "countRemoved": "{count} removed",
         "countChanged": "{count} changed",

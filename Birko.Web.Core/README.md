@@ -10,7 +10,7 @@ birko-web-core/state     # Signal, Store, persistSet/Get/Remove (local), session
 birko-web-core/http      # ApiClient, SseClient, unwrapList, apiErrorMessage, PagedResult
 birko-web-core/router    # Router, link
 birko-web-core/storage   # IndexedDbStore, CacheStore + low-level IDB helpers (openDatabase, idbRequest, …)
-birko-web-core/diff      # diffJson, matchJsonPath, formatJsonPath — structural JSON comparison (no DOM)
+birko-web-core/diff      # diffJson, matchJsonPath, formatJsonPath, xmlToTree, xmlToLines — structural JSON / XML comparison
 ```
 
 ## Quick start
@@ -273,6 +273,37 @@ and `**.Url` is one at any depth. A malformed pattern throws.
   `oldSegments` giving its side-A position. A removed item is listed under its side-A index.
 - `summary` counts an added or removed object once, not per key. `matchJsonPath(pattern, segments)` and
   `formatJsonPath(segments)` are exported for callers that build their own rules.
+
+### Comparing XML (xmlToTree)
+
+`xmlToTree(text, options?)` reads an XML body as a JSON-like tree, so `diffJson` compares XML too. It returns
+`null` when the text is not XML. It uses `DOMParser`, so unlike `diffJson` it needs a browser (or a DOM).
+
+```ts
+import { diffJson, xmlToTree } from 'birko-web-core';
+
+xmlToTree('<R xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><Ico>1</Ico><Nil xsi:nil="true"/>'
+  + '<Contacts><Contact><Type>Phone</Type></Contact></Contacts><Price currency="EUR">10</Price></R>');
+// { Ico: '1', Nil: null, Contacts: [{ Type: 'Phone' }], Price: { '@currency': 'EUR', '#text': '10' } }
+
+diffJson(xmlToTree(a), xmlToTree(b));
+```
+
+- The result is the **root element's content**: a JSON body has no root name.
+- A text-only element is a string, an empty one `''`, `xsi:nil="true"` is `null`. Attributes are `@name`, and
+  namespace declarations and `xsi:*` attributes are dropped. Text beside attributes or child elements is kept under
+  `#text`, never dropped.
+- **A list** is an element whose children all share one name, and either there are several of them, or the child has
+  element children, or its name is a simple-array item name. So `<Contacts><Contact>…</Contact></Contacts>` is a list
+  with one item too, and `<TurnoverCategory><Year>2024</Year></TurnoverCategory>` stays an object. A name repeated
+  among other fields keeps every occurrence, as an array.
+- Options: `simpleItemNames` (default XmlSerializer's `string`, `int`, `long`, `decimal`, `double`, `boolean`,
+  `dateTime`), `nilAsNull` (default `true`), `attributePrefix` (default `'@'`), `textKey` (default `'#text'`).
+- **Every value is a string**, so the tree of an XML body does not equal the JSON body of the same data (`"3"` vs
+  `3`). Compare XML with XML.
+
+`xmlToLines(text, options?)` pretty-prints the same body, one element per line, and gives each line the tree paths
+it shows. That is how `b-json-diff format="xml"` marks the original XML.
 
 ## State
 

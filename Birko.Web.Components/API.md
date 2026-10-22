@@ -1007,14 +1007,15 @@ Compares two JSON bodies, side A ("old") and side B ("new"), with `diffJson` fro
 | `label-a` / `label-b` | side names (default `A` / `B`), e.g. environment names |
 | `view` | `tree` (default) \| `split` — reflected when the user switches |
 | `only-changes` | boolean — tree view hides equal and ignored rows; reflected when toggled |
+| `format` | `json` (default) \| `xml` — how a string body is read; with `xml` the split view shows the original XML. Changing it re-reads the bodies |
 | `size` | `sm` \| (default) \| `lg` — text scale |
 | `max-height` | string (CSS length; body becomes the scroll container) |
-| `label-title`, `label-view-tree`, `label-view-split`, `label-only-changes`, `label-expand`, `label-collapse`, `label-no-data`, `label-no-differences`, `label-parse-error`, `label-count-*`, `label-change-count`, `label-status-*` | text overrides (`bwc.jsonDiff.*`) |
+| `label-title`, `label-view-tree`, `label-view-split`, `label-only-changes`, `label-expand`, `label-collapse`, `label-no-data`, `label-no-differences`, `label-parse-error`, `label-not-xml`, `label-count-*`, `label-change-count`, `label-status-*` | text overrides (`bwc.jsonDiff.*`) |
 
 | Method | Signature |
 |--------|-----------|
 | `setData` | `(a: unknown \| string, b: unknown \| string) => void` (strings are parsed) |
-| `setOptions` | `(options: JsonDiffOptions) => void` — `ignore`, `normalize`, `arrays` |
+| `setOptions` | `(options: JsonDiffViewOptions) => void` — `ignore`, `normalize`, `arrays`, and `xml` (`XmlTreeOptions`) |
 | `getResult` | `() => JsonDiffResult \| null` (null before both sides are set, on a parse error, or a bad pattern) |
 | `expandAll` / `collapseAll` | `() => void` |
 

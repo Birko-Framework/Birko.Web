@@ -457,7 +457,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
 | `<b-object-tree>` | BObjectTree | `setData(obj)`, `getData()`, `expandAll()`, `collapseAll()` | `expanded-depth`, `max-depth`, `size`, `show-types`, `show-header`, `header-title`, `no-copy`, `no-expand-actions`, `max-height`, `sticky-header` (page) |
 | `<b-json-viewer>` | BJsonViewer | `setData(obj\|string)`, `getData()` | `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `max-height`, `sticky-header` (page) |
-| `<b-json-diff>` | BJsonDiff | `setData(a, b)`, `setOptions(JsonDiffOptions)`, `getResult()`, `expandAll()`, `collapseAll()` | `label-a`, `label-b`, `view` (tree\|split), `only-changes`, `size`, `max-height`; emits `diff-computed`, `view-change`, `only-changes-change`, `toggle` |
+| `<b-json-diff>` | BJsonDiff | `setData(a, b)`, `setOptions(JsonDiffViewOptions)`, `getResult()`, `expandAll()`, `collapseAll()` | `label-a`, `label-b`, `view` (tree\|split), `only-changes`, `format` (json\|xml — XML split view shows the original XML), `size`, `max-height`; emits `diff-computed`, `view-change`, `only-changes-change`, `toggle` |
 | `<b-xml-viewer>` | BXmlViewer | `setSource(xml)`, `setDocument(doc)`, `getSource()`, `expandAll()`, `collapseAll()` | `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`, `max-height`, `sticky-header` (page) |
 
 ### Feedback (6)

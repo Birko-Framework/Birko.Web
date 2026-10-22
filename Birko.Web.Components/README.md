@@ -1497,7 +1497,16 @@ el.setData(responseA, responseB);   // objects, or strings (parsed; a parse erro
 el.addEventListener('diff-computed', (e) => console.log(e.detail.summary));
 ```
 
-Attributes: `label-a`, `label-b` (side names, default `A` / `B`), `view` (`tree` | `split`), `only-changes`, `size`, `max-height`, `label-title`, and `label-*` overrides for every string (`bwc.jsonDiff.*`)
+**XML.** With `format="xml"`, a string body is read with `xmlToTree` (birko-web-core) and diffed the same way. The tree
+view is unchanged, and the side-by-side view shows the **original XML**, pretty-printed, with the changed lines marked.
+`setOptions({ xml: { simpleItemNames, nilAsNull, attributePrefix, textKey } })` sets how XML is read. A string that is
+not XML shows "not XML" and its raw text for that side.
+
+```html
+<b-json-diff format="xml" label-a="production" label-b="localhost"></b-json-diff>
+```
+
+Attributes: `label-a`, `label-b` (side names, default `A` / `B`), `view` (`tree` | `split`), `only-changes`, `format` (`json` | `xml`), `size`, `max-height`, `label-title`, and `label-*` overrides for every string (`bwc.jsonDiff.*`)
 Emits: `diff-computed` → `{ equal, summary, changes }`, `view-change` → `{ view }`, `only-changes-change` → `{ onlyChanges }`, `toggle` → `{ path, expanded }`
 
 ### b-xml-viewer

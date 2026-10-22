@@ -1,6 +1,7 @@
 import {
-  BaseComponent, define, diffJson, formatJsonPath,
+  BaseComponent, define, diffJson, formatJsonPath, xmlToTree, xmlToLines,
   type JsonDiffNode, type JsonDiffOptions, type JsonDiffResult, type JsonDiffSummary, type JsonPathSegment,
+  type XmlTreeOptions,
 } from 'birko-web-core';
 import { escapeHtml, escapeAttr, isActivationKey } from '../dom-utils';
 import {
@@ -11,7 +12,13 @@ import {
 } from '../shared-styles';
 
 type View = 'tree' | 'split';
-type Side = { data: unknown; raw: string; error: string | null };
+/** The body as given: `xml` holds the text of a side read in `format="xml"`, so the split view can show it as XML. */
+type Side = { data: unknown; raw: string; error: string | null; errorKind?: 'json' | 'xml'; xml?: string };
+
+/** `diffJson`'s options, plus how `format="xml"` reads a string body. */
+export interface JsonDiffViewOptions extends JsonDiffOptions {
+  xml?: XmlTreeOptions;
+}
 type LineMark = 'added' | 'removed' | 'changed' | 'ignored';
 
 /**
@@ -26,12 +33,13 @@ const INLINE_MAX = 120;
 
 /**
  * Compares two JSON bodies — side A ("old") and side B ("new") — as a tree of changes or side by side.
- * The comparison is `diffJson` from birko-web-core; `setOptions` takes its options (ignored paths,
+ * With `format="xml"` a string body is read with `xmlToTree` instead of `JSON.parse`, and the side-by-side view shows
+ * the original XML. The comparison is `diffJson` from birko-web-core; `setOptions` takes its options (ignored paths,
  * normalizers, array matching).
  */
 export class BJsonDiff extends BaseComponent {
   static get observedAttributes() {
-    return ['view', 'only-changes', 'label-a', 'label-b', 'label-title', 'size', 'max-height'];
+    return ['view', 'only-changes', 'format', 'label-a', 'label-b', 'label-title', 'size', 'max-height'];
   }
 
   static get sharedStyles() {
@@ -40,7 +48,8 @@ export class BJsonDiff extends BaseComponent {
 
   private _a: Side | null = null;
   private _b: Side | null = null;
-  private _options: JsonDiffOptions = {};
+  private _options: JsonDiffViewOptions = {};
+  private _inputs: [unknown, unknown] | null = null;
   private _result: JsonDiffResult | null = null;
   private _optionsError: string | null = null;
   private _expanded = new Set<string>();
@@ -163,17 +172,41 @@ export class BJsonDiff extends BaseComponent {
     `;
   }
 
-  /** Sets both bodies and compares them. A string is parsed as JSON; a parse error is shown for that side. */
+  /**
+   * Sets both bodies and compares them. A string is parsed as JSON, or as XML with `format="xml"`; a side that does not
+   * parse shows its error and raw text.
+   */
   setData(a: unknown, b: unknown) {
-    this._a = this._side(a);
-    this._b = this._side(b);
+    this._inputs = [a, b];
+    this._read();
     this._compute(true);
   }
 
-  /** Sets the comparison options (ignored paths, normalizers, array matching) and compares again. */
-  setOptions(options: JsonDiffOptions) {
+  /** Sets the comparison options (ignored paths, normalizers, array matching, `xml` reading) and compares again. */
+  setOptions(options: JsonDiffViewOptions) {
     this._options = options ?? {};
+    this._read();
     this._compute(true);
+  }
+
+  attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    // A format switch re-reads the bodies; everything else only re-renders.
+    if (name === 'format' && oldValue !== newValue && this._inputs) {
+      this._read();
+      this._compute(true);
+      return;
+    }
+    super.attributeChangedCallback(name, oldValue, newValue);
+  }
+
+  private get _format(): 'json' | 'xml' {
+    return this.attr('format') === 'xml' ? 'xml' : 'json';
+  }
+
+  private _read() {
+    if (!this._inputs) return;
+    this._a = this._side(this._inputs[0]);
+    this._b = this._side(this._inputs[1]);
   }
 
   /** The last comparison, or `null` before both sides are set or when a side does not parse. */
@@ -202,6 +235,12 @@ export class BJsonDiff extends BaseComponent {
   }
 
   private _side(value: unknown): Side {
+    if (typeof value === 'string' && this._format === 'xml') {
+      const data = xmlToTree(value, this._options.xml);
+      return data === null
+        ? { data: undefined, raw: value, error: 'not XML', errorKind: 'xml' }
+        : { data, raw: value, error: null, xml: value };
+    }
     if (typeof value !== 'string') {
       let raw: string;
       try { raw = JSON.stringify(value, null, 2) ?? String(value); } catch { raw = String(value); }
@@ -210,7 +249,7 @@ export class BJsonDiff extends BaseComponent {
     try {
       return { data: JSON.parse(value), raw: value, error: null };
     } catch (err) {
-      return { data: undefined, raw: value, error: err instanceof Error ? err.message : String(err) };
+      return { data: undefined, raw: value, error: err instanceof Error ? err.message : String(err), errorKind: 'json' };
     }
   }
 
@@ -219,7 +258,8 @@ export class BJsonDiff extends BaseComponent {
     this._optionsError = null;
     if (this._a && this._b && !this._a.error && !this._b.error) {
       try {
-        this._result = diffJson(this._a.data, this._b.data, this._options);
+        const { xml: _xml, ...diffOptions } = this._options;
+        this._result = diffJson(this._a.data, this._b.data, diffOptions);
       } catch (err) {
         this._optionsError = err instanceof Error ? err.message : String(err);
       }
@@ -246,7 +286,7 @@ export class BJsonDiff extends BaseComponent {
   render() {
     const view = this._view;
     const onlyChanges = this.boolAttr('only-changes');
-    const title = this.label('label-title', 'bwc.jsonDiff.title', 'JSON diff');
+    const title = this._title();
     const pressed = (on: boolean) => `aria-pressed="${on}"`;
     const treeActions = view === 'tree'
       ? `<button class="toolbar-btn only-changes" type="button" ${pressed(onlyChanges)}>${escapeHtml(this.label('label-only-changes', 'bwc.jsonDiff.onlyChanges', 'Only changes'))}</button>
@@ -269,6 +309,11 @@ export class BJsonDiff extends BaseComponent {
     `;
   }
 
+  private _title() {
+    return this._format === 'xml'
+      ? this.label('label-title', 'bwc.jsonDiff.titleXml', 'XML diff')
+      : this.label('label-title', 'bwc.jsonDiff.title', 'JSON diff');
+  }
   private _labelA() { return this.label('label-a', 'bwc.jsonDiff.sideA', 'A'); }
   private _labelB() { return this.label('label-b', 'bwc.jsonDiff.sideB', 'B'); }
 
@@ -296,14 +341,16 @@ export class BJsonDiff extends BaseComponent {
       return `<p class="message">${escapeHtml(this.label('label-no-data', 'bwc.jsonDiff.noData', 'Nothing to compare'))}</p>`;
     }
     const errors: string[] = [];
-    if (this._a.error) errors.push(this._parseError(this._labelA(), this._a.error));
-    if (this._b.error) errors.push(this._parseError(this._labelB(), this._b.error));
+    if (this._a.error) errors.push(this._parseError(this._labelA(), this._a));
+    if (this._b.error) errors.push(this._parseError(this._labelB(), this._b));
     if (this._optionsError) errors.push(`<p class="error" role="alert">${escapeHtml(this._optionsError)}</p>`);
     return errors.length ? errors.join('') : null;
   }
 
-  private _parseError(side: string, message: string): string {
-    const text = this.label('label-parse-error', 'bwc.jsonDiff.parseError', '{side}: JSON parse error: {message}', { side, message });
+  private _parseError(label: string, side: Side): string {
+    const text = side.errorKind === 'xml'
+      ? this.label('label-not-xml', 'bwc.jsonDiff.notXml', '{side}: not XML', { side: label })
+      : this.label('label-parse-error', 'bwc.jsonDiff.parseError', '{side}: JSON parse error: {message}', { side: label, message: side.error ?? '' });
     return `<p class="error" role="alert">${escapeHtml(text)}</p>`;
   }
 
@@ -321,7 +368,7 @@ export class BJsonDiff extends BaseComponent {
     const top = tree.children && tree.type !== 'value' && tree.status !== 'changed' && tree.status !== 'ignored'
       ? this._renderChildren(tree, onlyChanges)
       : this._renderNode(tree, onlyChanges);
-    return `${legend}<div role="tree" aria-label="${escapeAttr(this.label('label-title', 'bwc.jsonDiff.title', 'JSON diff'))}">${top}</div>`;
+    return `${legend}<div role="tree" aria-label="${escapeAttr(this._title())}">${top}</div>`;
   }
 
   private _renderChildren(node: JsonDiffNode, onlyChanges: boolean): string {
@@ -426,17 +473,36 @@ export class BJsonDiff extends BaseComponent {
     }
     const problem = this._optionsError ? `<p class="error" role="alert">${escapeHtml(this._optionsError)}</p>` : '';
     return `${problem}<div class="split">
-      ${this._renderPane(this._labelA(), this._a, marksA)}
-      ${this._renderPane(this._labelB(), this._b, marksB)}
+      ${this._renderPane('a', this._labelA(), this._a, marksA)}
+      ${this._renderPane('b', this._labelB(), this._b, marksB)}
     </div>`;
   }
 
-  private _renderPane(label: string, side: Side, marks: Map<string, LineMark>): string {
-    const id = `${this.uid}-pane-${label === this._labelA() ? 'a' : 'b'}`;
+  private _renderPane(which: 'a' | 'b', label: string, side: Side, marks: Map<string, LineMark>): string {
+    const id = `${this.uid}-pane-${which}`;
     const body = side.error
-      ? `${this._parseError(label, side.error)}<pre><code>${escapeHtml(side.raw)}</code></pre>`
-      : `<pre><code>${this._prettyLines(side.data, marks)}</code></pre>`;
+      ? `${this._parseError(label, side)}<pre><code>${escapeHtml(side.raw)}</code></pre>`
+      : `<pre><code>${side.xml !== undefined ? this._xmlLines(side.xml, marks) : this._prettyLines(side.data, marks)}</code></pre>`;
     return `<section class="pane" aria-labelledby="${id}"><h3 id="${id}">${escapeHtml(label)}</h3>${body}</section>`;
+  }
+
+  /**
+   * The original XML, pretty-printed, each line marked by the paths it shows. A line inside a marked element (an added
+   * subtree, a value replaced by a container) takes the nearest marked ancestor's mark.
+   */
+  private _xmlLines(xml: string, marks: Map<string, LineMark>): string {
+    const lines = xmlToLines(xml, this._options.xml) ?? [];
+    const markOf = (segs: JsonPathSegment[]): LineMark | undefined => {
+      for (let n = segs.length; n >= 0; n--) {
+        const m = marks.get(formatJsonPath(segs.slice(0, n)));
+        if (m) return m;
+      }
+      return undefined;
+    };
+    return lines.map((line) => {
+      const mark = line.paths.map(markOf).find((m) => m !== undefined);
+      return `<span class="line${mark ? ` mk-${mark}` : ''}">${escapeHtml(line.text)}</span>`;
+    }).join('');
   }
 
   /** Pretty-prints a value one line per span, each line marked by the status of the path it belongs to. */
