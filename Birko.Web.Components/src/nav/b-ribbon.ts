@@ -586,6 +586,14 @@ export class BRibbon extends BaseComponent {
          title/aria-label, so no button becomes anonymous -- the same trade the small variant makes. */
       .ribbon-group.size-popup.compact .ribbon-chunk { min-width: 0; }
       .ribbon-group.size-popup.compact .ribbon-chunk-name { display: none; }
+      /* An icon-less group's initial, shown only where the name is not (TASK-743). */
+      .ribbon-chunk-initial { display: none; }
+      .ribbon-group.size-popup.compact .ribbon-chunk-initial {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: var(--b-ribbon-icon-small); height: var(--b-ribbon-icon-small); padding: var(--b-space-2xs, 0.125rem);
+        border-radius: var(--b-radius-sm, 0.25rem); background: var(--b-bg-tertiary); color: var(--b-text);
+        font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-semibold, 600); line-height: 1;
+      }
       .ribbon-group.size-popup { position: relative; }
       /* A folded group is one full-height button, as Office's collapsed groups are. Basis auto, not 0: with every
          group folded, a zero basis left nothing to set the row's height and the buttons collapsed to 7px. */
@@ -1549,7 +1557,7 @@ export class BRibbon extends BaseComponent {
         <div class="ribbon-group size-popup${compact}" role="group" aria-label="${group.label}" data-group="${group.id}">
           <button class="ribbon-chunk" data-chunk="${group.id}"
             aria-expanded="false" aria-haspopup="true" aria-label="${group.label}">
-            ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : ''}
+            ${group.icon ? `<span class="ribbon-chunk-icon" aria-hidden="true">${group.icon}</span>` : this._chunkInitial(group)}
             <span class="ribbon-chunk-name">${group.label} &#9662;</span>
           </button>
           <div class="ribbon-flyout" popover role="group" aria-label="${group.label}">
@@ -1565,6 +1573,16 @@ export class BRibbon extends BaseComponent {
         <div class="ribbon-group-items">${items}</div>
         ${this._renderLauncher(tabId, group)}
       </div>`;
+  }
+
+  /**
+   * What a compact folded group shows when it has no icon: its initial in a small tile (TASK-743, picked by the user
+   * from a live preview over a generic glyph). Compact drops the name, so without this the button was empty, 7px tall.
+   */
+  private _chunkInitial(group: RibbonGroup): string {
+    const text = group.label.replace(/<[^>]*>/g, '').trim();
+    const initial = Array.from(text)[0]?.toLocaleUpperCase() ?? '';
+    return initial ? `<span class="ribbon-chunk-initial" aria-hidden="true">${escapeHtml(initial)}</span>` : '';
   }
 
   private _showTabContent(tabId: string) {

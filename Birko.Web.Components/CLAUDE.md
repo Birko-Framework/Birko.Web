@@ -617,6 +617,12 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: a compact folded group without an icon shows its initial (2026-10-22, TASK-743)
+
+Compact chunks drop the name, so an icon-less group was an empty 7px button. `_chunkInitial()` renders the label's first
+letter (tags stripped, escaped) in `.ribbon-chunk-initial`, shown only under `.compact`. The user picked it from a live
+preview over a generic glyph, and kept the panel content-sized over Office's one height.
+
 ### `b-ribbon` group dividers sit halfway between groups (2026-10-22, TASK-730 follow-up)
 
 The divider was the next group's `border-left`: 1px from its first command and 21px from the previous group's last

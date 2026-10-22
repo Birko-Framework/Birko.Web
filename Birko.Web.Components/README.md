@@ -1838,6 +1838,10 @@ goes back to the tab. A folded group's button opens with Enter, Space or ↓ and
 arrows work too; Escape closes the flyout and focus returns to the button. Focus stays on its command when the ribbon
 re-renders as it scales.
 
+When even folded groups do not fit, their buttons drop the group name and show the group's `icon`. A group without an
+icon shows its initial in a small tile instead (the name stays the button's accessible name and tooltip). The open
+panel is as tall as what it shows: it gets shorter as groups fold.
+
 ### b-tree-menu
 
 Hierarchical tree menu with unlimited nesting depth, expand/collapse, keyboard navigation, and guide lines.
