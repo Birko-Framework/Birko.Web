@@ -472,7 +472,9 @@ export class BRibbon extends BaseComponent {
            group's border-left) run the full panel height instead of stopping at each group's own content.
            Measured before (TASK-730): the Home tab's six groups were 97, 95, 94, 68, 71 and 97px tall. */
         display: flex; align-items: stretch;
-        gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
+        /* The gap in force, read by the group divider below as well as by the row. */
+        --b-ribbon-gap-now: var(--b-ribbon-group-gap, var(--b-space-lg, 1rem));
+        gap: var(--b-ribbon-gap-now);
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         /* CONTENT-SIZED, with --b-ribbon-panel-height acting as a CEILING on .ribbon-panel rather than
            as this element's height. The panel then fits whichever variant is currently rendered: a
@@ -502,8 +504,8 @@ export class BRibbon extends BaseComponent {
       /* Gap tightens as the row does, mirroring the Avalonia panel's EffectiveGap. Not cosmetic: the gap
          sets the row's hard minimum, so collapsed chunks sitting a full group-gap apart waste exactly the
          width the collapse just bought. The tightest variant present wins, so the popup rule comes last. */
-      .ribbon-panel-inner:has(> .ribbon-group.size-small) { gap: calc(var(--b-ribbon-group-gap) * 0.5); }
-      .ribbon-panel-inner:has(> .ribbon-group.size-popup) { gap: calc(var(--b-ribbon-group-gap) * 0.25); }
+      .ribbon-panel-inner:has(> .ribbon-group.size-small) { --b-ribbon-gap-now: calc(var(--b-ribbon-group-gap, var(--b-space-lg, 1rem)) * 0.5); }
+      .ribbon-panel-inner:has(> .ribbon-group.size-popup) { --b-ribbon-gap-now: calc(var(--b-ribbon-group-gap, var(--b-space-lg, 1rem)) * 0.25); }
 
       /* ── Groups ── */
       .ribbon-group {
@@ -824,7 +826,14 @@ export class BRibbon extends BaseComponent {
          --b-ribbon-group-gap of padding-left, so the real inter-group spacing was double the gap while the
          measure pass (which measures a group with no preceding sibling, so no padding applies) assumed
          single. That under-count made the pass under-degrade and clip the row. One mechanism, one number. */
-      .ribbon-group + .ribbon-group { border-left: 1px solid var(--b-border); }
+      /* Drawn halfway into the gap, not on the group's edge: as a border-left it touched the next group's first command
+         (1px) while the whole gap (21px) sat after the previous group's last one (TASK-730, the user picked Office's
+         tighter, centred look from a live preview). Out of flow, so it adds no width the measure pass cannot see. */
+      .ribbon-group + .ribbon-group { position: relative; }
+      .ribbon-group + .ribbon-group::before {
+        content: ''; position: absolute; top: 0; bottom: 0; width: 1px; background: var(--b-border);
+        left: calc(var(--b-ribbon-gap-now) / -2 - 0.5px);
+      }
 
       /* ── Mobile ── */
       .mobile-hamburger {

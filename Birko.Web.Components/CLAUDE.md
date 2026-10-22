@@ -617,6 +617,13 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon` group dividers sit halfway between groups (2026-10-22, TASK-730 follow-up)
+
+The divider was the next group's `border-left`: 1px from its first command and 21px from the previous group's last
+one. It is now a `::before` halfway into `--b-ribbon-gap-now`, the gap in force (it tightens with small and folded
+rows). It is out of flow, so the measure pass sees no extra width. The user picked Office's tighter spacing from a
+live preview, as a token: `--b-ribbon-group-gap` is `var(--b-space-lg)` (16px), was 1.5rem.
+
 ### `b-ribbon` inputs, in three switchable looks (2026-10-22, TASK-741)
 
 `RibbonItem.field` renders a bare, small `b-input` or `b-select` with `data-field-control`. The user kept all three
