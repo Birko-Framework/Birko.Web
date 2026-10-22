@@ -617,6 +617,14 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: the fold decision counts the real gap (2026-10-22, TASK-746)
+
+`_measureAndScale` read `--b-ribbon-group-gap` with `parseFloat`, so `1.5rem` counted as 1.5px a gap. Between 470 and
+525px it kept groups larger than fitted, and the panel clipped up to 49px of the last group. The probe now takes the
+token as a width and reads pixels. Folding sooner exposed a group narrower than its name, with all the extra space
+before the next divider: `.ribbon-group-items` is centred (the user picked Office's look from a live preview).
+Below about 230px six folded, compact groups still do not fit; there is no smaller variant.
+
 ### `b-ribbon`: a compact folded group without an icon shows its initial (2026-10-22, TASK-743)
 
 Compact chunks drop the name, so an icon-less group was an empty 7px button. `_chunkInitial()` renders the label's first

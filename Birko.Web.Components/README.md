@@ -1840,7 +1840,8 @@ re-renders as it scales.
 
 When even folded groups do not fit, their buttons drop the group name and show the group's `icon`. A group without an
 icon shows its initial in a small tile instead (the name stays the button's accessible name and tooltip). The open
-panel is as tall as what it shows: it gets shorter as groups fold.
+panel is as tall as what it shows: it gets shorter as groups fold. A group's commands are centred over its name, so a
+group narrower than its name splits the extra space evenly.
 
 ### b-tree-menu
 

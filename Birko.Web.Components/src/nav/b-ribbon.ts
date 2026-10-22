@@ -533,6 +533,10 @@ export class BRibbon extends BaseComponent {
         gap: var(--b-ribbon-item-gap, var(--b-space-xs, 0.25rem));
         /* Fills the stretched group, so every group's command area has one height and its label one baseline. */
         flex: 1;
+        /* Centred over the group's name when the name is the wider of the two (a small group's icons under
+           "Records"): the space then splits evenly instead of all sitting before the next divider (TASK-746, the
+           user picked Office's centring from a live preview). Columns of a medium or small group move as a block. */
+        justify-content: center;
       }
 
       /* ── Size variants (STORY-049) ────────────────────────────────────────────
@@ -2994,19 +2998,23 @@ export class BRibbon extends BaseComponent {
       return { widths, scalingPriority: group.scalingPriority ?? 0, minSize: group.minSize ?? 'popup' };
     });
 
+    // The gap token in pixels, whatever its unit (rem, var(), calc()): the probe takes it as a width. It used to be
+    // read with parseFloat, so `1.5rem` counted as 1.5px a gap; the row was under-counted by nearly a gap per group,
+    // kept groups larger than fitted, and clipped up to 49px of the last group (TASK-746).
+    probe.innerHTML = '';
+    probe.style.width = 'var(--b-ribbon-group-gap, var(--b-space-lg, 1rem))';
+    const tokenGap = probe.getBoundingClientRect().width;
     probe.remove();
 
     // The FULL token gap, not the live computed one: the rendered gap tightens once groups collapse, and
     // deciding against the tightened value could under-degrade and clip. Deciding against the larger value
     // is conservative — the row it picks then fits with room to spare. Same split as the Avalonia panel.
-    // SEPARATOR_SLACK is added per gap because the probe measures each group ALONE: it cannot see the 1px
-    // border `.ribbon-group + .ribbon-group` adds to every group after the first, nor the sub-pixel rounding
-    // between getBoundingClientRect and layout. Six groups under-counted by ~14px, which overflowed a 420px
-    // track -- and the panel is overflow:hidden, so the surplus is clipped, not merely untidy. Charged to the
-    // gap rather than deducted from the available width, since that is where the cost actually lives.
-    const SEPARATOR_SLACK = 3;
-    const gap = (parseFloat(getComputedStyle(this).getPropertyValue('--b-ribbon-group-gap'))
-      || parseFloat(getComputedStyle(track).columnGap || '0') || 0) + SEPARATOR_SLACK;
+    // ROUNDING_SLACK is added per gap because the probe measures each group ALONE: it cannot see the sub-pixel
+    // rounding between getBoundingClientRect and layout. (The divider was once a 1px border it could not see
+    // either; it is drawn out of flow now.) The panel is overflow:hidden, so an under-count is clipped, not merely
+    // untidy. Charged to the gap rather than deducted from the available width, since that is where the cost lives.
+    const ROUNDING_SLACK = 3;
+    const gap = (tokenGap || parseFloat(getComputedStyle(track).columnGap || '0') || 0) + ROUNDING_SLACK;
     const preferred = (this.attr('preferred-group-size') || 'medium') as never;
     const next = resolveRibbonSizes(metrics, available, preferred, gap);
 
