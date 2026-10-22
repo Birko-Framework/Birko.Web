@@ -1,4 +1,5 @@
 import { BaseComponent, define } from 'birko-web-core';
+import { escapeHtml, escapeAttr } from '../dom-utils';
 import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -78,7 +79,27 @@ export interface RibbonItem {
   disabled?: boolean;
   active?: boolean;
   variant?: 'primary' | 'danger';
+  /**
+   * Options this command opens as a menu. Without `split` the whole button opens it (a menu button, shown with ▾);
+   * with `split` the button runs the command and a separate ▾ part opens the menu (Office's "Paste ▾"). A choice
+   * emits `item-click` with the choice's id as `itemId` and this command's id as `parentId`.
+   */
+  menu?: RibbonMenuEntry[];
+  split?: boolean;
 }
+
+/** One choice of a {@link RibbonItem.menu}. Label and shortcut are text, never markup. */
+export interface RibbonMenuItem {
+  id: string;
+  label: string;
+  icon?: string;
+  /** Shown right-aligned, e.g. `Ctrl+Shift+V`. Display only: the app binds the key itself. */
+  shortcut?: string;
+  disabled?: boolean;
+}
+
+/** A menu entry: a choice, or a divider line between sets of choices. */
+export type RibbonMenuEntry = RibbonMenuItem | { separator: true };
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -400,6 +421,77 @@ export class BRibbon extends BaseComponent {
       .ribbon-flyout .ribbon-item { flex-direction: column; gap: 0.125rem; min-width: 3.25rem; text-align: center; }
       .ribbon-flyout .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
 
+      /* ── Split and menu buttons (TASK-732, option A picked by the user: the divider shows on hover) ──
+         A split button is two buttons in one frame: the command, and a narrow ▾ part that opens its menu. At large
+         size (and in a flyout) the parts stack as in Office: the icon runs the command, "Label ▾" below opens. */
+      .ribbon-split { display: inline-flex; align-items: stretch; border-radius: var(--b-radius, 0.375rem); }
+      .ribbon-split > .ribbon-split-main { border-radius: var(--b-radius, 0.375rem) 0 0 var(--b-radius, 0.375rem); }
+      .ribbon-split-arrow {
+        display: inline-flex; align-items: center; justify-content: center; gap: var(--b-space-xs, 0.25rem);
+        padding: 0 var(--b-space-xs, 0.25rem);
+        border: none; border-left: 1px solid transparent; background: none; cursor: pointer;
+        border-radius: 0 var(--b-radius, 0.375rem) var(--b-radius, 0.375rem) 0;
+        font: inherit; font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-muted);
+        white-space: nowrap;
+      }
+      .ribbon-split:hover > .ribbon-split-main, .ribbon-split:hover > .ribbon-split-arrow { background: var(--b-bg-tertiary); }
+      .ribbon-split:hover > .ribbon-split-arrow,
+      .ribbon-split:focus-within > .ribbon-split-arrow { border-left-color: var(--b-border); }
+      .ribbon-split-arrow:hover { color: var(--b-text); }
+      .ribbon-split-arrow:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .ribbon-split-arrow[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
+      .ribbon-split-arrow-label { display: none; }
+      .ribbon-caret { font-size: 0.7em; color: var(--b-text-muted); }
+      .ribbon-group.size-large .ribbon-split, .ribbon-flyout .ribbon-split { flex-direction: column; }
+      .ribbon-group.size-large .ribbon-split > .ribbon-split-main,
+      .ribbon-flyout .ribbon-split > .ribbon-split-main {
+        border-radius: var(--b-radius, 0.375rem) var(--b-radius, 0.375rem) 0 0; padding-bottom: 0;
+      }
+      .ribbon-group.size-large .ribbon-split-main .ribbon-item-label,
+      .ribbon-flyout .ribbon-split-main .ribbon-item-label { display: none; }
+      .ribbon-group.size-large .ribbon-split-arrow, .ribbon-flyout .ribbon-split-arrow {
+        border-left: 0; border-top: 1px solid transparent;
+        border-radius: 0 0 var(--b-radius, 0.375rem) var(--b-radius, 0.375rem);
+        padding: 0.125rem var(--b-space-sm, 0.5rem) var(--b-space-xs, 0.25rem);
+        color: var(--b-text-secondary); font-weight: var(--b-font-weight-medium, 500);
+      }
+      .ribbon-group.size-large .ribbon-split:hover > .ribbon-split-arrow,
+      .ribbon-group.size-large .ribbon-split:focus-within > .ribbon-split-arrow,
+      .ribbon-flyout .ribbon-split:hover > .ribbon-split-arrow,
+      .ribbon-flyout .ribbon-split:focus-within > .ribbon-split-arrow { border-top-color: var(--b-border); }
+      .ribbon-group.size-large .ribbon-split-arrow-label, .ribbon-flyout .ribbon-split-arrow-label { display: inline; }
+
+      /* The menu is a POPOVER for the same reason as the flyout: the panel clips on both axes. Inside a flyout it is
+         the flyout's DOM descendant, so opening it keeps the flyout open (the popover ancestor chain). */
+      .ribbon-menu {
+        position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300);
+        min-width: 12rem; max-height: 60vh; overflow: auto;
+        background: var(--b-bg-elevated); border: 1px solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
+        padding: var(--b-space-xs, 0.25rem);
+      }
+      .ribbon-menu::backdrop { background: none; }
+      .ribbon-menu-item {
+        display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); width: 100%;
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border: none; background: none; border-radius: var(--b-radius-sm, 0.25rem); cursor: pointer;
+        font: inherit; font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text); text-align: start;
+        white-space: nowrap;
+      }
+      .ribbon-menu-item:hover, .ribbon-menu-item:focus-visible {
+        background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); outline: none;
+      }
+      .ribbon-menu-item[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); cursor: default; }
+      .ribbon-menu-item[aria-disabled="true"]:hover { background: none; color: var(--b-text); }
+      .ribbon-menu-icon { width: 1.25em; text-align: center; flex-shrink: 0; }
+      .ribbon-menu-shortcut {
+        margin-inline-start: auto; padding-inline-start: var(--b-space-lg, 1rem);
+        font: inherit; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
+      }
+      .ribbon-menu-separator { height: 1px; background: var(--b-border); margin: var(--b-space-xs, 0.25rem) 0; }
+      .mobile-subitem { padding-inline-start: calc(var(--b-space-md, 0.75rem) * 2.5); }
+      .mobile-item-heading { padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text-muted); }
+
       /* ── Items ── */
       .ribbon-item {
         display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem);
@@ -656,11 +748,21 @@ export class BRibbon extends BaseComponent {
                     ${group.items.map(item => {
                       const tag = item.href ? 'a' : 'button';
                       const href = item.href ? `href="${item.href}"` : '';
+                      // A menu's choices are listed under their command; a menu-only command is just their heading.
+                      const choices = (item.menu ?? []).filter((e): e is RibbonMenuItem => !('separator' in e)).map(m => `
+                        <button class="mobile-item mobile-subitem" ${m.disabled ? 'disabled' : ''}
+                          data-tab="${tab.id}" data-group="${group.id}" data-item="${escapeAttr(m.id)}" data-parent="${item.id}">
+                          ${m.icon ? `<span aria-hidden="true">${escapeHtml(m.icon)}</span>` : ''}
+                          ${escapeHtml(m.label)}
+                        </button>`).join('');
+                      if (item.menu?.length && !item.split) {
+                        return `<div class="mobile-item-heading">${item.label}</div>${choices}`;
+                      }
                       return `<${tag} class="mobile-item" ${href}
                         data-tab="${tab.id}" data-group="${group.id}" data-item="${item.id}">
                         ${item.icon ? `<span aria-hidden="true">${item.icon}</span>` : ''}
                         ${item.label}
-                      </${tag}>`;
+                      </${tag}>${choices}`;
                     }).join('')}
                   `).join('')}
                 </div>
@@ -751,6 +853,7 @@ export class BRibbon extends BaseComponent {
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
     this._bindChunks();
+    this._bindMenus();
     if (refocus) this._rovingStop()?.focus();
     // Different tab, different group widths — so both the chevrons AND the scaling have to re-evaluate.
     // Queued rather than immediate: _measureAndScale re-renders, and _queueSync coalesces into one frame
@@ -768,7 +871,7 @@ export class BRibbon extends BaseComponent {
       this._rovingKey = this._stopKey(stop);
       this._applyRoving();
     });
-    this.$$<HTMLElement>('.ribbon-panel .ribbon-item').forEach(el => {
+    this.$$<HTMLElement>('.ribbon-panel .ribbon-item:not([data-menu-trigger])').forEach(el => {
       this.listen(el, 'click', (e: Event) => {
         const target = e.currentTarget as HTMLElement;
         this.emit('item-click', {
@@ -797,10 +900,127 @@ export class BRibbon extends BaseComponent {
     const named = `title="${item.label}" aria-label="${item.label}"`;
     const body = `${icon}<span class="ribbon-item-label">${item.label}</span>${badge}`;
 
+    if (item.menu?.length) {
+      const menuId = `${this.uid}-menu-${groupId}-${item.id}`;
+      const trigger = `data-menu-trigger aria-haspopup="menu" aria-expanded="false" aria-controls="${escapeAttr(menuId)}"`;
+      const menu = this._renderMenu(menuId, tabId, groupId, item);
+      if (!item.split) {
+        return `<button class="${cls} has-menu" ${disabled} ${data} ${named} ${trigger}>${icon}<span class="ribbon-item-label">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span>${badge}</button>${menu}`;
+      }
+      const more = this.label('label-more-options', 'bwc.ribbon.moreOptions', 'More options: {label}', { label: item.label });
+      return `<span class="ribbon-split">`
+        + `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`
+        + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}" title="${escapeAttr(more)}">`
+        + `<span class="ribbon-split-arrow-label" aria-hidden="true">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span></button>`
+        + `</span>${menu}`;
+    }
+
     if (item.href && !item.action) {
       return `<a class="${cls}" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`;
     }
     return `<button class="${cls}" ${disabled} ${data} ${named}>${body}</button>`;
+  }
+
+  /**
+   * When `popover` closes with focus inside it (Escape, a choice that ran, Tab), focus goes back to `opener`. Read on
+   * `beforetoggle`, while focus is still where the user left it: by `toggle` the focused command is hidden. A close
+   * that focus had already left — a click elsewhere, another popover or modal opening — leaves focus alone; checking
+   * only "is focus outside the ribbon" at `toggle` time pulled it back from wherever the page had put it.
+   */
+  private _returnFocusOnClose(popover: HTMLElement, opener: HTMLElement) {
+    let hadFocus = false;
+    this.listen(popover, 'beforetoggle', (e: Event) => {
+      if ((e as ToggleEvent).newState !== 'closed') return;
+      const active = this.shadowRoot?.activeElement ?? null;
+      hadFocus = !!active && popover.contains(active);
+    });
+    this.listen(popover, 'toggle', (e: Event) => {
+      if ((e as ToggleEvent).newState !== 'closed' || !hadFocus) return;
+      hadFocus = false;
+      const active = this.shadowRoot?.activeElement ?? null;
+      const page = document.activeElement;
+      // Still inside the hidden popover, or dropped to <body>: nobody else has taken it, so give it back.
+      if ((active && popover.contains(active)) || !page || page === document.body) opener.focus();
+    });
+  }
+
+  /** A command's menu, as a popover. Every choice is a menuitem reached with the arrows (tabindex -1). */
+  private _renderMenu(menuId: string, tabId: string, groupId: string, item: RibbonItem): string {
+    const entries = item.menu ?? [];
+    const withIcons = entries.some(e => !('separator' in e) && e.icon);
+    const rows = entries.map(e => {
+      if ('separator' in e) return '<div class="ribbon-menu-separator" role="separator"></div>';
+      const icon = withIcons ? `<span class="ribbon-menu-icon" aria-hidden="true">${e.icon ? escapeHtml(e.icon) : ''}</span>` : '';
+      const shortcut = e.shortcut ? `<kbd class="ribbon-menu-shortcut">${escapeHtml(e.shortcut)}</kbd>` : '';
+      const keyshortcuts = e.shortcut ? ` aria-keyshortcuts="${escapeAttr(e.shortcut.replace(/\s+/g, ''))}"` : '';
+      return `<button class="ribbon-menu-item" role="menuitem" tabindex="-1"${e.disabled ? ' aria-disabled="true"' : ''}${keyshortcuts}`
+        + ` data-tab="${tabId}" data-group="${groupId}" data-parent="${item.id}" data-menu-item="${escapeAttr(e.id)}">`
+        + `${icon}<span class="ribbon-menu-label">${escapeHtml(e.label)}</span>${shortcut}</button>`;
+    }).join('');
+    return `<div class="ribbon-menu" id="${escapeAttr(menuId)}" popover role="menu" aria-label="${escapeAttr(item.label)}">${rows}</div>`;
+  }
+
+  /** Opens a command's menu under its trigger (the whole split frame for a split button), inside the viewport. */
+  private _openMenu(trigger: HTMLElement, focusFirst: boolean) {
+    const menu = this.shadowRoot?.getElementById(trigger.getAttribute('aria-controls') ?? '');
+    if (!menu || trigger.getAttribute('aria-disabled') === 'true') return;
+    if (menu.matches(':popover-open')) { menu.hidePopover(); return; }
+    const anchor = (trigger.closest('.ribbon-split') as HTMLElement | null) ?? trigger;
+    const rect = anchor.getBoundingClientRect();
+    menu.style.left = `${rect.left}px`;
+    menu.style.top = `${rect.bottom + 2}px`;
+    menu.showPopover();
+    const box = menu.getBoundingClientRect();
+    if (box.right > window.innerWidth - 4) menu.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
+    if (box.bottom > window.innerHeight - 4) menu.style.top = `${Math.max(4, rect.top - box.height - 2)}px`;
+    if (focusFirst) this._menuItems(menu)[0]?.focus();
+  }
+
+  private _menuItems(menu: HTMLElement): HTMLElement[] {
+    return [...menu.querySelectorAll<HTMLElement>('.ribbon-menu-item')].filter(el => el.getAttribute('aria-disabled') !== 'true');
+  }
+
+  private _menuKey(ke: KeyboardEvent, menu: HTMLElement, target: HTMLElement) {
+    const items = this._menuItems(menu);
+    const i = items.indexOf(target);
+    let next: HTMLElement | undefined;
+    if (ke.key === 'ArrowDown') next = items[(i + 1) % items.length];
+    else if (ke.key === 'ArrowUp') next = items[(i - 1 + items.length) % items.length];
+    else if (ke.key === 'Home') next = items[0];
+    else if (ke.key === 'End') next = items.at(-1);
+    else if (ke.key === 'Tab') { ke.preventDefault(); menu.hidePopover(); return; }
+    else return; // Escape: the popover closes itself; its toggle listener gives focus back to the trigger
+    ke.preventDefault();
+    next?.focus();
+  }
+
+  private _bindMenus() {
+    this.$$<HTMLElement>('[data-menu-trigger]').forEach(trigger => {
+      const menu = this.shadowRoot?.getElementById(trigger.getAttribute('aria-controls') ?? '');
+      if (!menu) return;
+      this.listen(trigger, 'click', (e: Event) => {
+        e.stopPropagation();
+        // Opened by Enter or Space (a click with no pointer): move into it, as a menu button does.
+        this._openMenu(trigger, (e as MouseEvent).detail === 0);
+      });
+      this._returnFocusOnClose(menu, trigger);
+      this.listen(menu, 'toggle', (e: Event) => {
+        trigger.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
+      });
+    });
+    this.$$<HTMLElement>('.ribbon-menu-item').forEach(el => {
+      this.listen(el, 'click', (e: Event) => {
+        e.stopPropagation();
+        if (el.getAttribute('aria-disabled') === 'true') return;
+        this.emit('item-click', {
+          tabId: el.dataset.tab, groupId: el.dataset.group, itemId: el.dataset.menuItem, parentId: el.dataset.parent,
+        });
+        el.closest<HTMLElement>('.ribbon-menu')?.hidePopover();
+        const flyout = el.closest<HTMLElement>('.ribbon-flyout');
+        if (flyout?.matches(':popover-open')) flyout.hidePopover();
+        if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
+      });
+    });
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -857,6 +1077,14 @@ export class BRibbon extends BaseComponent {
     if (panelEl) this.listen(panelEl, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       const target = ke.target as HTMLElement;
+      const menu = target.closest<HTMLElement>('.ribbon-menu');
+      if (menu) { this._menuKey(ke, menu, target); return; }
+      // Alt+ArrowDown opens a command's menu from the command itself or from its ▾ part, as in Office.
+      if (ke.key === 'ArrowDown' && ke.altKey) {
+        const trigger = target.matches('[data-menu-trigger]') ? target
+          : target.closest('.ribbon-split')?.querySelector<HTMLElement>('[data-menu-trigger]');
+        if (trigger) { ke.preventDefault(); this._openMenu(trigger, true); return; }
+      }
       const flyout = target.closest<HTMLElement>('.ribbon-flyout');
       if (flyout) { this._flyoutKey(ke, flyout, target); return; }
 
@@ -895,6 +1123,7 @@ export class BRibbon extends BaseComponent {
     this._bindPanelItems();
 
     this._bindChunks();
+    this._bindMenus();
 
     // First measure once layout exists. requestAnimationFrame, not now: clientWidth is 0 pre-layout.
     requestAnimationFrame(() => this._measureAndScale());
@@ -987,6 +1216,7 @@ export class BRibbon extends BaseComponent {
           tabId: el.dataset.tab,
           groupId: el.dataset.group,
           itemId: el.dataset.item,
+          ...(el.dataset.parent ? { parentId: el.dataset.parent } : {}),
         });
         this._closeMobileMenu();
       });
@@ -1102,13 +1332,9 @@ export class BRibbon extends BaseComponent {
 
       // Keep aria in step with whatever opened or closed it — including Escape and light dismiss, which the
       // popover handles itself, so there is no path that leaves the button lying about its state.
+      this._returnFocusOnClose(flyout, chunk);
       this.listen(flyout, 'toggle', (e: Event) => {
-        const open = (e as ToggleEvent).newState === 'open';
-        chunk.setAttribute('aria-expanded', String(open));
-        // Closed with focus inside it (Escape, or a command that ran): focus goes back to its button. At this
-        // point activeElement may still name the now-hidden command, so "inside" counts as lost.
-        const active = this.shadowRoot?.activeElement ?? null;
-        if (!open && (!active || flyout.contains(active))) chunk.focus();
+        chunk.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
       });
 
       this.listen(chunk, 'click', (e: Event) => {
@@ -1132,8 +1358,8 @@ export class BRibbon extends BaseComponent {
       });
     });
 
-    // Invoking from a flyout dismisses it, as Office does.
-    this.$$<HTMLElement>('.ribbon-flyout .ribbon-item').forEach(el => {
+    // Invoking from a flyout dismisses it, as Office does. Opening a menu from it does not.
+    this.$$<HTMLElement>('.ribbon-flyout .ribbon-item:not([data-menu-trigger])').forEach(el => {
       this.listen(el, 'click', () => {
         const flyout = el.closest('.ribbon-flyout') as HTMLElement | null;
         if (flyout?.matches(':popover-open')) flyout.hidePopover();
@@ -1144,13 +1370,19 @@ export class BRibbon extends BaseComponent {
   /** The panel's keyboard stops in reading order: each visible command and each folded group's button. The
    *  commands inside a flyout are not stops: they are reached by opening it. */
   private _panelStops(): HTMLElement[] {
-    return this.$$<HTMLElement>(
-      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-item, .ribbon-panel-inner > .ribbon-group > .ribbon-chunk');
+    return this.$$<HTMLElement>([
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-item',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-item',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-split-arrow',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-chunk',
+    ].join(', '));
   }
 
   /** Identity of a stop that survives a re-render: the same command, or the same folded group. */
   private _stopKey(el: HTMLElement): string {
-    return el.dataset.chunk ? `chunk:${el.dataset.chunk}` : `item:${el.dataset.group}/${el.dataset.item}`;
+    if (el.dataset.chunk) return `chunk:${el.dataset.chunk}`;
+    if (el.dataset.arrow) return `arrow:${el.dataset.group}/${el.dataset.arrow}`;
+    return `item:${el.dataset.group}/${el.dataset.item}`;
   }
 
   /** The stop holding tabindex 0: the one focused last, else the first (also when the last one is gone). */
@@ -1176,7 +1408,7 @@ export class BRibbon extends BaseComponent {
   }
 
   private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
-    const items = [...flyout.querySelectorAll<HTMLElement>('.ribbon-item')];
+    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
     if (!items.includes(target)) return;
     const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',

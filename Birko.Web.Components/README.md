@@ -1689,7 +1689,25 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
-Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId }`, `pin` → `{ pinned }`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId? }`, `pin` → `{ pinned }`
+
+**Menus.** A command with `menu` opens a list of choices. Without `split`, the whole button opens it (shown with ▾).
+With `split: true`, the button runs the command and a separate ▾ part opens the menu. At large size the icon runs the
+command and "Label ▾" underneath opens the menu, as in Office. A choice emits `item-click` with its own id as `itemId`
+and the command's id as `parentId`. Entries are `{ id, label, icon?, shortcut?, disabled? }` or `{ separator: true }`.
+Labels and shortcuts are text, and the shortcut is only displayed: bind the key in the app.
+
+```typescript
+{ id: 'paste', label: 'Paste', icon: '📋', split: true, menu: [
+  { id: 'paste-text', label: 'Paste as text', shortcut: 'Ctrl+Shift+V' },
+  { separator: true },
+  { id: 'paste-special', label: 'Paste special…' },
+] }
+```
+
+Enter or Space on ▾ (or on a menu-only command), and Alt+↓ on the command, open the menu at its first choice. ↑/↓ move
+and wrap, skipping disabled choices; Home/End; Enter runs a choice; Escape or Tab closes and focus returns to the
+button. A menu closed by a click elsewhere leaves focus where the click put it.
 
 Keyboard: the tabs are one Tab stop (←/→, Home/End), and so is the open panel. ↓ from a tab enters the panel at the command
 focused there last. In the panel, ←/→ move to the nearest command that way, across groups, wrapping at the ends; ↑/↓

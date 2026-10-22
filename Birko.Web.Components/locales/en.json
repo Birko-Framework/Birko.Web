@@ -79,7 +79,8 @@
       "collapse": "Collapse ribbon",
       "pin": "Pin ribbon open",
       "unpin": "Unpin ribbon",
-      "navigation": "Navigation"
+      "navigation": "Navigation",
+        "moreOptions": "More options: {label}"
     },
     "sidebar": {
       "title": "Main navigation",

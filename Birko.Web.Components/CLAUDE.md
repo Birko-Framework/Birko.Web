@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,22 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon`: split and menu buttons, and popovers that give focus back only if they had it (2026-10-22, TASK-732)
+
+`RibbonItem.menu` makes a command open a menu, and `split: true` keeps the command and adds a ▾ part (option A, picked
+by the user: the divider shows on hover). A choice emits `item-click` with `itemId` = the choice and `parentId` = the
+command. Menus are popovers, like the flyouts, and a menu inside a flyout is its DOM descendant so the flyout stays open.
+Labels are escaped.
+
+**Focus return is read on `beforetoggle`.** TASK-731's flyout gave focus back to its button on any close while focus was
+outside the ribbon. A flyout closed by a click elsewhere, or by another popover or modal opening, therefore pulled focus
+out of the page, and verify.mjs's gallery and modal-focus suites lost their focus checks. `_returnFocusOnClose` now
+records whether focus was inside when the close starts, and restores it only if nobody has taken it since.
+
+**Popover checks do not belong in verify.mjs.** It runs every suite in one page at once, an auto popover closes every
+other one, and a modal closes them all. Opening menus there broke `ribbon-scaling-smoke`'s flyout checks
+intermittently. `ribbon-menu-smoke` therefore opens nothing, and open/close/focus is in `keyboard-check.mjs`.
 
 ### `b-ribbon`: the panel is one Tab stop and the arrows move by position (2026-10-22, TASK-731)
 
