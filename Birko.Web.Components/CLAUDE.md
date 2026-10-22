@@ -617,6 +617,14 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: groups are one height, rows line up, labels sit below (2026-10-22, TASK-730)
+
+Measured: the Home tab's six groups were 98/96/92/68/72/98px tall, so the separators (each group's border-left) ended at
+different heights, and rows drifted by up to 6px with icon sizes. Groups now stretch to the tallest, medium and small
+groups have three equal rows that commands fill, and the label is drawn under its group (`order: 2`) while staying first
+in the markup, so a screen reader still meets the group name first. Picked by the user from a live preview (FEATURE-019
+D1). Guarded by Playground `ribbon-layout-smoke` at three widths.
+
 ### `b-modal` has no Tab trap of its own — it pinned focus on Close (2026-10-12, TASK-568)
 
 `b-modal` trapped Tab with `dlg.querySelectorAll(…)`, which searches **its shadow tree only**. A modal's content

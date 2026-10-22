@@ -230,7 +230,10 @@ export class BRibbon extends BaseComponent {
         box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
       }
       .ribbon-panel-inner {
-        display: flex; align-items: flex-start;
+        /* stretch, not flex-start: every group takes the tallest group's height, so the separators (each
+           group's border-left) run the full panel height instead of stopping at each group's own content.
+           Measured before (TASK-730): the Home tab's six groups were 97, 95, 94, 68, 71 and 97px tall. */
+        display: flex; align-items: stretch;
         gap: var(--b-ribbon-group-gap, var(--b-space-xl, 1.5rem));
         padding: var(--b-space-sm, 0.5rem) var(--b-space-lg, 1rem);
         /* CONTENT-SIZED, with --b-ribbon-panel-height acting as a CEILING on .ribbon-panel rather than
@@ -269,12 +272,13 @@ export class BRibbon extends BaseComponent {
         display: flex; flex-direction: column; gap: var(--b-space-xs, 0.25rem);
         flex-shrink: 0; min-width: 0;
       }
+      /* The label is FIRST in the markup, so a screen reader meets the group's name before its commands, and is
+         drawn LAST (order) so it sits centred under the group, as in Office (TASK-730, picked from a live preview). */
       .ribbon-group-label {
+        order: 2;
+        text-align: center;
         font-size: var(--b-text-xs, 0.6875rem);
         color: var(--b-text-muted);
-        text-transform: uppercase;
-        letter-spacing: var(--b-letter-spacing-caps, 0.03125rem);
-        font-weight: var(--b-font-weight-semibold, 600);
         line-height: 1;
         /* Horizontal padding MATCHES .ribbon-item's, so the group label lines up with the commands it
            names instead of sitting further left than all of them. It used to be --b-space-xs against the
@@ -287,6 +291,8 @@ export class BRibbon extends BaseComponent {
       .ribbon-group-items {
         display: flex; align-items: center;
         gap: var(--b-ribbon-item-gap, var(--b-space-xs, 0.25rem));
+        /* Fills the stretched group, so every group's command area has one height and its label one baseline. */
+        flex: 1;
       }
 
       /* ── Size variants (STORY-049) ────────────────────────────────────────────
@@ -302,11 +308,15 @@ export class BRibbon extends BaseComponent {
       .ribbon-group.size-large .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
 
       /* Medium (the default look): 16px icon, label to its right, three per column. */
+      /* Three EQUAL rows of the shared command area, not "auto" ones sized by their content: auto rows drifted
+         with each command's icon, so "Delete" sat lower than "Cut" in the next group. A group with fewer than
+         three commands leaves its last rows empty instead of spreading the ones it has. Commands fill their row
+         (stretch): centred, they still differed by the 1-2px their icons differ by. */
       .ribbon-group.size-medium .ribbon-group-items,
       .ribbon-group.size-small .ribbon-group-items {
         display: grid; grid-auto-flow: column;
-        grid-template-rows: repeat(3, auto);
-        justify-items: start;
+        grid-template-rows: repeat(3, 1fr);
+        justify-items: start; align-items: stretch;
       }
       .ribbon-group.size-medium .ribbon-item-icon,
       .ribbon-group.size-small .ribbon-item-icon { font-size: var(--b-ribbon-icon-small); }
@@ -337,6 +347,9 @@ export class BRibbon extends BaseComponent {
       .ribbon-group.size-popup.compact .ribbon-chunk { min-width: 0; }
       .ribbon-group.size-popup.compact .ribbon-chunk-name { display: none; }
       .ribbon-group.size-popup { position: relative; }
+      /* A folded group is one full-height button, as Office's collapsed groups are. Basis auto, not 0: with every
+         group folded, a zero basis left nothing to set the row's height and the buttons collapsed to 7px. */
+      .ribbon-group.size-popup > .ribbon-chunk { flex: 1 0 auto; }
       /* A POPOVER, not an absolutely-positioned child. The panel clips on both axes -- .ribbon-panel is
          overflow:hidden for its max-height collapse, and .ribbon-panel-inner became overflow:hidden when the
          scroller was removed -- and an absolutely-positioned element cannot escape an overflow:hidden
