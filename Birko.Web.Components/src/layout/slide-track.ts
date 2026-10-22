@@ -26,6 +26,15 @@ const DRAG_THRESHOLD_PX = 5;
 const FLICK_PX = 40;
 /** Fallback settle delay for engines without `scrollend`. */
 const SETTLE_MS = 150;
+/**
+ * Whether the engine fires `scrollend`. Where it does, it is the only settle signal: the `scroll` debounce also fired
+ * whenever the main thread stalled for SETTLE_MS during a smooth scroll (a busy page), settling on whatever slide the
+ * scroll had reached, so the index jumped and `slide-change` and the announcement fired for a slide nobody chose
+ * (TASK-745, measured under the Playground's grid benchmark and locale switches).
+ */
+const HAS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window;
+/** How many times a programmatic scroll that the engine ended short of its slide is re-issued before settling there. */
+const MAX_RESUMES = 3;
 
 export function prefersReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -35,6 +44,13 @@ export class SlideTrack {
   private _settleTimer: ReturnType<typeof setTimeout> | null = null;
   private _drag: { x: number; scroll: number; from: number; moved: boolean; id: number } | null = null;
   private _suppressClick = false;
+  /**
+   * Where the last smooth programmatic scroll is going, until it arrives or the user takes over. Measured: under a long
+   * main-thread stall Chrome ends a smooth scroll early, firing `scrollend` at the start, then the scroll carries on;
+   * settling there jumped the index back and announced a slide nobody chose (TASK-745). A settle short of the target,
+   * with no user input since, re-issues the scroll instead.
+   */
+  private _pending: { index: number; resumes: number } | null = null;
 
   constructor(private readonly o: SlideTrackOptions) {}
 
@@ -73,6 +89,7 @@ export class SlideTrack {
     const slide = slides[i];
     if (!slide) return;
     const behavior: ScrollBehavior = smooth && !prefersReducedMotion() ? 'smooth' : 'auto';
+    this._pending = behavior === 'smooth' ? { index: i, resumes: 0 } : null;
     this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior });
     if (behavior === 'auto') this.scheduleSettle(0);
   }
@@ -80,8 +97,10 @@ export class SlideTrack {
   /** Wire scroll settling and mouse drag. Call after every render, with the component's `listen`. */
   bind(listen: Listen): void {
     const vp = this.o.viewport;
-    listen(vp, 'scroll', () => { if (!this._drag) this.scheduleSettle(SETTLE_MS); }, { passive: true });
+    if (!HAS_SCROLLEND) listen(vp, 'scroll', () => { if (!this._drag) this.scheduleSettle(SETTLE_MS); }, { passive: true });
     listen(vp, 'scrollend', () => { if (!this._drag) this.scheduleSettle(0); });
+    // The user taking over: wherever their scroll comes to rest is the answer, not the last programmatic target.
+    for (const ev of ['pointerdown', 'wheel', 'touchstart', 'keydown']) listen(vp, ev, () => { this._pending = null; }, { passive: true });
 
     listen(vp, 'pointerdown', (e) => {
       const pe = e as PointerEvent;
@@ -134,7 +153,16 @@ export class SlideTrack {
     if (this._settleTimer) clearTimeout(this._settleTimer);
     this._settleTimer = setTimeout(() => {
       this._settleTimer = null;
-      this.o.onSettle(this.nearestIndex());
+      const at = this.nearestIndex();
+      const pending = this._pending;
+      const slide = pending ? this.o.slides()[pending.index] : undefined;
+      if (pending && slide && at !== pending.index && pending.resumes < MAX_RESUMES) {
+        pending.resumes++;
+        this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        return;
+      }
+      this._pending = null;
+      this.o.onSettle(at);
     }, ms);
   }
 

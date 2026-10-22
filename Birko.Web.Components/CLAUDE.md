@@ -617,6 +617,20 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-carousel` / `b-gallery`: a busy page no longer settles a scroll on the wrong slide (2026-10-22, TASK-745)
+
+Found by chasing a flaky Playground suite: carousel-smoke was clean alone (0/20) and failed beside the grid benchmark
+and the locale switches. `SlideTrack` had two ways to settle a programmatic smooth scroll on a slide nobody chose,
+both under a main-thread stall. Either way the index jumped, `slide-change` fired, and the announcement spoke.
+
+1. Its 150ms `scroll` debounce fired mid-scroll. It is now only the fallback for engines without `scrollend`.
+2. Chrome ended the smooth scroll early: `scrollend` at the start, then the scroll carried on. `scrollTo()` now
+   records its target, and a settle short of it with no user input since re-issues the scroll (at most 3 times).
+   Pointer, wheel, touch or key input on the viewport clears the target, so the user's own scroll still wins.
+
+Playground `carousel-smoke` stalls the main thread mid-scroll (fails 5/5 on the code before) and checks a user
+takeover.
+
 ### `b-ribbon`: link commands in the Quick Access Toolbar (2026-10-22, TASK-748)
 
 Asked for by the FinStat web tester, whose endpoint commands are all links. `_refFor` excluded every `href` item, so
