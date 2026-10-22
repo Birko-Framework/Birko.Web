@@ -86,7 +86,11 @@
         "qatAdd": "Add to Quick Access Toolbar",
         "qatRemove": "Remove from Quick Access Toolbar",
         "qatReset": "Reset to default",
-        "launcher": "More {label} options"
+        "launcher": "More {label} options",
+        "galleryAll": "Show all: {label}",
+        "galleryPrev": "Previous choices",
+        "galleryNext": "More choices",
+        "galleryMore": "More"
     },
     "sidebar": {
       "title": "Main navigation",

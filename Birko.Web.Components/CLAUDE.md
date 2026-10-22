@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `setContextualSets()` / `showContextual()` / `hideContextual()` with `RibbonTab.contextualSet` and `contextual-style` (band\|pill\|edge); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; key tips on `keytip-shortcut` (default Alt+Meta / Ctrl+Alt) with `keytip` overrides; `RibbonGroup.launcher` / `launcherLabel` emit `group-launcher`; `setContextualSets()` / `showContextual()` / `hideContextual()` with `RibbonTab.contextualSet` and `contextual-style` (band\|pill\|edge); `RibbonItem.gallery` with `setGallerySelection()` and `gallery-style` (framed\|open\|dropdown); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,19 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` galleries, in three switchable looks (2026-10-22, TASK-740)
+
+`RibbonItem.gallery` renders a radiogroup of tiles in the look `gallery-style` picks. The user kept all three: framed
+(default), open, dropdown. The full grid is a popover inside the gallery, so in a flyout it is the flyout's descendant
+and keeps it open. A pick re-renders the panel (the highlight moves) and puts focus back on the gallery. It also sets
+the mobile radios directly, since the mobile list is part of the full render, not the panel's.
+
+Tiles get no tooltip: they show their name. A tooltip would repeat it and take the first Escape in the grid. State:
+`_gallerySel` / `_galleryOffset` by tab/group/item, cleared by `setTabs`.
+
+Playground `ribbon-scaling-smoke` now waits for no open modal before its flyout check. A modal from another suite
+(gallery-smoke's zoom) closes every popover, and failed it about one run in three as the page grew.
 
 ### `b-ribbon` contextual tabs, in three switchable looks (2026-10-22, TASK-734)
 

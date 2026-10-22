@@ -48,6 +48,32 @@ export interface RibbonTab {
  *
  * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step.
  */
+/** One tile of a gallery: `preview` is a short text or glyph drawn large (Aa, H1); text, never markup. */
+export interface RibbonGalleryItem {
+  id: string;
+  label: string;
+  preview?: string;
+  keytip?: string;
+}
+
+export type RibbonGalleryStyle = 'framed' | 'open' | 'dropdown';
+
+/**
+ * A row of choices inside the ribbon with a full grid behind it (Office's Styles). Picking a tile makes it the current
+ * choice and emits `item-click` with the choice as `itemId` and this command as `parentId`.
+ */
+export interface RibbonGallery {
+  items: RibbonGalleryItem[];
+  /** The current choice. Later changes: {@link BRibbon.setGallerySelection}. */
+  selected?: string;
+  /** Tiles shown inline (default 4; small groups show 2). */
+  visible?: number;
+  /** Columns of the full grid (default 4). */
+  columns?: number;
+  /** Overrides the ribbon's `gallery-style`. */
+  style?: RibbonGalleryStyle;
+}
+
 export type RibbonContextualColor = 'primary' | 'success' | 'warning' | 'danger' | 'info';
 /** How a shown set is marked: `band` (Office: tinted band, name above its tabs), `pill` (name as a pill), `edge` (line). */
 export type RibbonContextualStyle = 'band' | 'pill' | 'edge';
@@ -129,6 +155,8 @@ export interface RibbonItem {
    */
   toggle?: boolean;
   pressed?: boolean;
+  /** Makes this command a gallery of visual choices (TASK-740). See {@link RibbonGallery}. */
+  gallery?: RibbonGallery;
   /**
    * Commands of one ribbon group sharing this name form a set where exactly one is on (alignment left / centre /
    * right): pressing one turns the others off, and pressing the one that is on keeps it on. A screen reader hears a
@@ -189,7 +217,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
-    'qat-key', 'qat-position', 'keytip-shortcut', 'contextual-style',
+    'qat-key', 'qat-position', 'keytip-shortcut', 'contextual-style', 'gallery-style',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -201,6 +229,9 @@ export class BRibbon extends BaseComponent {
   private _ctxSets: RibbonContextualSet[] = [];
   private _ctxShown = new Set<string>();
   private _lastNormalTab: string | null = null;
+  /** Gallery state by tab/group/item: the current choice (seeded from gallery.selected) and the inline row's offset. */
+  private _gallerySel = new Map<string, string>();
+  private _galleryOffset = new Map<string, number>();
   /** Toggle states by tab/group/item, seeded from RibbonItem.pressed (see _isPressed). */
   private _pressed = new Map<string, boolean>();
   private _contextActions: RibbonItem[] = [];
@@ -632,6 +663,45 @@ export class BRibbon extends BaseComponent {
       }
       .ribbon-radiogroup { display: contents; }
 
+      /* ── Galleries (TASK-740): framed / open / dropdown, all kept by the user ── */
+      .ribbon-gallery { display: inline-flex; align-items: stretch; gap: 0.125rem; grid-row: 1 / -1; }
+      .ribbon-gallery-row { display: flex; gap: 0.125rem; }
+      .ribbon-gallery-tile, .ribbon-gallery-current {
+        display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.125rem;
+        width: 4rem; min-height: 2.75rem; padding: 0.125rem; box-sizing: border-box;
+        border: 1px solid transparent; border-radius: var(--b-radius-sm, 0.25rem); background: none; cursor: pointer;
+        color: var(--b-text-secondary); font: inherit;
+      }
+      .ribbon-gallery-tile:hover, .ribbon-gallery-current:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .ribbon-gallery-tile:focus-visible, .ribbon-gallery-current:focus-visible, .ribbon-gallery-btn:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .ribbon-gallery-tile.selected {
+        border-color: var(--b-color-primary); background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
+      }
+      .ribbon-gallery-preview { font-size: var(--b-text-base, 0.875rem); font-weight: var(--b-font-weight-semibold, 600); line-height: 1; }
+      .ribbon-gallery-name { font-size: 0.625rem; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ribbon-gallery-btn {
+        display: inline-flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer;
+        color: var(--b-text-muted); font: inherit; font-size: 0.625rem; border-radius: var(--b-radius-sm, 0.25rem);
+      }
+      .ribbon-gallery-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .ribbon-gallery-btn[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
+      .ribbon-gallery.style-framed { border: 1px solid var(--b-border); border-radius: var(--b-radius-sm, 0.25rem); background: var(--b-bg); padding: 0.125rem; }
+      .ribbon-gallery.style-framed .ribbon-gallery-ctl { display: flex; flex-direction: column; border-left: 1px solid var(--b-border); margin-left: 0.125rem; }
+      .ribbon-gallery.style-framed .ribbon-gallery-ctl .ribbon-gallery-btn { flex: 1; width: 1rem; border-radius: 0; font-size: var(--b-text-xs, 0.6875rem); }
+      .ribbon-gallery.style-open { flex-direction: column; align-items: center; }
+      .ribbon-gallery.style-open .ribbon-gallery-line { display: flex; align-items: stretch; }
+      .ribbon-gallery.style-open .ribbon-gallery-line > .ribbon-gallery-btn { width: 1rem; font-size: var(--b-text-sm, 0.8125rem); }
+      .ribbon-gallery-more { padding: 0 var(--b-space-xs, 0.25rem); border: 1px solid var(--b-border) !important; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-secondary); }
+      .ribbon-gallery-current { border-color: var(--b-border); }
+      .ribbon-group.size-small .ribbon-gallery-row > .ribbon-gallery-tile:nth-child(n+3) { display: none; }
+      .ribbon-gallery-grid {
+        position: fixed; inset: auto; margin: 0; z-index: var(--b-z-dropdown, 300); padding: var(--b-space-xs, 0.25rem);
+        background: var(--b-bg-elevated); border: 1px solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
+        box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1)); max-height: 60vh; overflow: auto;
+      }
+      .ribbon-gallery-grid::backdrop { background: none; }
+      .ribbon-gallery-grid .ribbon-gallery-tiles { display: grid; grid-template-columns: repeat(var(--b-ribbon-gallery-columns, 4), 4rem); gap: 0.25rem; }
+
       /* ── Group launcher (TASK-733): Office's corner arrow beside the group's name ── */
       .ribbon-group.has-launcher { position: relative; }
       .ribbon-group.has-launcher > .ribbon-group-label { padding-inline: 1.25rem; }
@@ -791,6 +861,8 @@ export class BRibbon extends BaseComponent {
   setTabs(tabs: RibbonTab[]) {
     this._tabs = tabs;
     this._pressed.clear(); // new data: its `pressed` values are the state again
+    this._gallerySel.clear();
+    this._galleryOffset.clear();
     if (!this.attr('active') && tabs.length > 0) {
       this.setAttribute('active', tabs[0].id);
     }
@@ -861,6 +933,35 @@ export class BRibbon extends BaseComponent {
       }
     }
     this._syncPressed();
+  }
+
+  /** Sets a gallery's current choice from the app (its selection changed), without emitting `item-click`. */
+  setGallerySelection(itemId: string, choiceId: string | null, tabId?: string) {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        if (!group.items.some(i => i.id === itemId && i.gallery)) continue;
+        const key = this._pressKey(tab.id, group.id, itemId);
+        if (choiceId === null) this._gallerySel.set(key, ''); else this._gallerySel.set(key, choiceId);
+      }
+    }
+    this.update();
+  }
+
+  /** A gallery's current choice, or null. */
+  getGallerySelection(itemId: string, tabId?: string): string | null {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        const item = group.items.find(i => i.id === itemId && i.gallery);
+        if (item) return this._galleryChoice(tab.id, group.id, item) || null;
+      }
+    }
+    return null;
+  }
+
+  private _galleryChoice(tabId: string, groupId: string, item: RibbonItem): string {
+    return this._gallerySel.get(this._pressKey(tabId, groupId, item.id)) ?? item.gallery?.selected ?? '';
   }
 
   /** Whether a toggle is on. */
@@ -1195,6 +1296,12 @@ export class BRibbon extends BaseComponent {
                       if (item.menu?.length && !item.split) {
                         return `<div class="mobile-item-heading">${item.label}</div>${choices}`;
                       }
+                      if (item.gallery?.items.length) {
+                        const current = this._galleryChoice(tab.id, group.id, item);
+                        return `<div class="mobile-item-heading">${item.label}</div>` + item.gallery.items.map(c => `
+                          <button class="mobile-item mobile-subitem mobile-gallery" role="radio" aria-checked="${c.id === current}"
+                            data-tab="${tab.id}" data-group="${group.id}" data-gallery="${item.id}" data-choice="${escapeAttr(c.id)}">${escapeHtml(c.label)}</button>`).join('');
+                      }
                       const toggle = this._isToggle(item)
                         ? ` data-toggle ${item.toggleGroup ? 'role="radio" aria-checked' : 'aria-pressed'}="${this._isPressed(tab.id, group.id, item)}"` : '';
                       return `<${tag} class="mobile-item" ${href}${toggle}
@@ -1384,6 +1491,7 @@ export class BRibbon extends BaseComponent {
 
   private _bindPanelItems() {
     this._applyRoving();
+    this._bindGalleries();
     // Panel launchers only: this runs again on every hover preview, which re-renders the panel but not the mobile list,
     // so binding `.mobile-launcher` here would stack a listener per preview (it is bound once per render in onUpdated).
     this.$$<HTMLElement>('.ribbon-panel .ribbon-launcher').forEach(el => {
@@ -1418,7 +1526,67 @@ export class BRibbon extends BaseComponent {
     });
   }
 
+  private _galleryStyle(item: RibbonItem): RibbonGalleryStyle {
+    const pick = (v: unknown) => (['framed', 'open', 'dropdown'] as const).find(x => x === v);
+    return pick(item.gallery?.style) ?? pick(this.attr('gallery-style')) ?? 'framed';
+  }
+
+  private _renderGalleryTile(tabId: string, groupId: string, item: RibbonItem, choice: RibbonGalleryItem, selected: string, inGrid: boolean): string {
+    const on = choice.id === selected;
+    return `<button class="ribbon-gallery-tile${on ? ' selected' : ''}" type="button" role="radio" aria-checked="${on}"`
+      + ` aria-label="${escapeAttr(choice.label)}" data-tab="${tabId}" data-group="${groupId}" data-gallery="${item.id}" data-choice="${escapeAttr(choice.id)}"`
+      + `${inGrid ? ' tabindex="-1"' : ''}>`
+      + `<span class="ribbon-gallery-preview" aria-hidden="true">${escapeHtml(choice.preview ?? choice.label.slice(0, 2))}</span>`
+      + `<span class="ribbon-gallery-name" aria-hidden="true">${escapeHtml(choice.label)}</span></button>`;
+  }
+
+  /**
+   * A gallery (TASK-740), in the look `gallery-style` picks (all three kept by the user): `framed` (Office: a framed
+   * row with ▲ ▼ ▾ beside it), `open` (‹ › around the row, "More ▾" under it) or `dropdown` (the current choice only).
+   * The full grid is a popover inside the gallery, so inside a flyout it is the flyout's descendant and keeps it open.
+   */
+  private _renderGallery(tabId: string, groupId: string, item: RibbonItem): string {
+    const g = item.gallery!;
+    const style = this._galleryStyle(item);
+    const key = this._pressKey(tabId, groupId, item.id);
+    const selected = this._galleryChoice(tabId, groupId, item);
+    const visible = Math.max(1, g.visible ?? 4);
+    const offset = Math.min(this._galleryOffset.get(key) ?? 0, Math.max(0, g.items.length - visible));
+    const gridId = `${this.uid}-gallery-${groupId}-${item.id}`;
+    const name = escapeAttr(item.label);
+    const data = `data-tab="${tabId}" data-group="${groupId}" data-gallery="${item.id}"`;
+    const expand = (cls: string, label: string, body: string) =>
+      `<button class="ribbon-gallery-btn ${cls}" type="button" ${data} data-gallery-expand aria-haspopup="dialog" aria-expanded="false"`
+      + ` aria-controls="${escapeAttr(gridId)}" aria-label="${escapeAttr(label)}">${body}</button>`;
+    const showAll = this.label('label-gallery-all', 'bwc.ribbon.galleryAll', 'Show all: {label}', { label: item.label });
+    const grid = `<div class="ribbon-gallery-grid" id="${escapeAttr(gridId)}" popover role="radiogroup" aria-label="${name}"`
+      + ` style="--b-ribbon-gallery-columns:${Math.max(1, Math.min(12, g.columns ?? 4))}">`
+      + `<div class="ribbon-gallery-tiles">${g.items.map(c => this._renderGalleryTile(tabId, groupId, item, c, selected, true)).join('')}</div></div>`;
+    let inline: string;
+    if (style === 'dropdown') {
+      const current = g.items.find(c => c.id === selected) ?? g.items[0];
+      inline = current ? expand('ribbon-gallery-current', showAll,
+        `<span class="ribbon-gallery-preview" aria-hidden="true">${escapeHtml(current.preview ?? current.label.slice(0, 2))}</span>`
+        + `<span class="ribbon-gallery-name" aria-hidden="true">${escapeHtml(current.label)} &#9662;</span>`) : '';
+    } else {
+      const tiles = g.items.slice(offset, offset + visible).map(c => this._renderGalleryTile(tabId, groupId, item, c, selected, false)).join('');
+      const atStart = offset === 0;
+      const atEnd = offset + visible >= g.items.length;
+      const prev = this.label('label-gallery-prev', 'bwc.ribbon.galleryPrev', 'Previous choices');
+      const next = this.label('label-gallery-next', 'bwc.ribbon.galleryNext', 'More choices');
+      const step = (dir: string, label: string, glyph: string, off: boolean) =>
+        `<button class="ribbon-gallery-btn" type="button" ${data} data-gallery-step="${dir}" aria-label="${escapeAttr(label)}"${off ? ' aria-disabled="true"' : ''}>${glyph}</button>`;
+      inline = style === 'framed'
+        ? `<span class="ribbon-gallery-row" role="radiogroup" aria-label="${name}">${tiles}</span>`
+          + `<span class="ribbon-gallery-ctl">${step('-1', prev, '&#9650;', atStart)}${step('1', next, '&#9660;', atEnd)}${expand('', showAll, '&#9662;')}</span>`
+        : `<span class="ribbon-gallery-line">${step('-1', prev, '&#8249;', atStart)}<span class="ribbon-gallery-row" role="radiogroup" aria-label="${name}">${tiles}</span>${step('1', next, '&#8250;', atEnd)}</span>`
+          + expand('ribbon-gallery-more', showAll, `${escapeHtml(this.label('label-gallery-more', 'bwc.ribbon.galleryMore', 'More'))} &#9662;`);
+    }
+    return `<span class="ribbon-gallery style-${style}" ${data}>${inline}${grid}</span>`;
+  }
+
   private _renderItem(tabId: string, groupId: string, item: RibbonItem): string {
+    if (item.gallery?.items.length) return this._renderGallery(tabId, groupId, item);
     const cls = [
       'ribbon-item',
       item.active ? 'active' : '',
@@ -1464,7 +1632,8 @@ export class BRibbon extends BaseComponent {
 
   /** The command, folded group or ▾ part a tooltip is for, or null. Menu choices have none: the menu says it all. */
   private _tipTarget(node: EventTarget | null): HTMLElement | null {
-    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn, .ribbon-launcher') : null;
+    // Gallery tiles show their name already, so they get no tooltip (it also took the first Escape in the grid).
+    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn, .ribbon-launcher, .ribbon-gallery-btn, .ribbon-gallery-current') : null;
     return el && this.shadowRoot?.contains(el) && !el.closest('.ribbon-menu') ? el : null;
   }
 
@@ -1473,7 +1642,7 @@ export class BRibbon extends BaseComponent {
       const found = this._resolveRef(el.dataset.qatRef);
       return found ? { heading: found.item.label, text: found.item.description, shortcut: found.item.shortcut } : null;
     }
-    if (el.hasAttribute('data-qat-customize') || el.dataset.launcher) return { heading: el.getAttribute('aria-label') ?? '' };
+    if (el.hasAttribute('data-qat-customize') || el.dataset.launcher || el.dataset.gallery) return { heading: el.getAttribute('aria-label') ?? '' };
     const tab = this._tabs.find(t => t.id === el.dataset.tab) ?? this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')));
     if (el.dataset.chunk) {
       const group = tab?.groups.find(g => g.id === el.dataset.chunk);
@@ -1563,6 +1732,89 @@ export class BRibbon extends BaseComponent {
     const check = checked === undefined ? '' : `<span class="ribbon-menu-check" aria-hidden="true"></span>`;
     return `<button class="ribbon-menu-item" role="${role}" tabindex="-1"${checked === undefined ? '' : ` aria-checked="${checked}"`}`
       + ` data-qat-action="${action}" data-ref="${escapeAttr(ref)}">${check}<span class="ribbon-menu-label">${escapeHtml(label)}</span></button>`;
+  }
+
+  /** Arrow keys inside a gallery's grid: by one across, by a row up and down; Home / End. Escape closes it natively. */
+  private _gridKey(ke: KeyboardEvent, grid: HTMLElement, target: HTMLElement) {
+    const tiles = [...grid.querySelectorAll<HTMLElement>('.ribbon-gallery-tile')];
+    const i = tiles.indexOf(target);
+    if (i < 0) return;
+    const cols = parseInt(grid.style.getPropertyValue('--b-ribbon-gallery-columns') || '4', 10) || 4;
+    const next = ({ ArrowRight: i + 1, ArrowLeft: i - 1, ArrowDown: i + cols, ArrowUp: i - cols, Home: 0, End: tiles.length - 1 } as Record<string, number>)[ke.key];
+    if (next === undefined) return;
+    ke.preventDefault();
+    tiles[Math.max(0, Math.min(tiles.length - 1, next))]?.focus();
+  }
+
+  private _openGalleryGrid(trigger: HTMLElement, focus: boolean) {
+    const grid = this.shadowRoot?.getElementById(trigger.getAttribute('aria-controls') ?? '');
+    if (!grid) return;
+    if (grid.matches(':popover-open')) { grid.hidePopover(); return; }
+    const anchor = (trigger.closest('.ribbon-gallery') as HTMLElement | null) ?? trigger;
+    const rect = anchor.getBoundingClientRect();
+    grid.style.left = `${rect.left}px`;
+    grid.style.top = `${rect.top}px`;
+    grid.showPopover();
+    const box = grid.getBoundingClientRect();
+    if (box.right > window.innerWidth - 4) grid.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
+    if (box.bottom > window.innerHeight - 4) grid.style.top = `${Math.max(4, window.innerHeight - box.height - 4)}px`;
+    if (focus) (grid.querySelector<HTMLElement>('.ribbon-gallery-tile.selected') ?? grid.querySelector<HTMLElement>('.ribbon-gallery-tile'))?.focus();
+  }
+
+  private _pickGallery(el: HTMLElement) {
+    const tab = this._tabs.find(t => t.id === el.dataset.tab);
+    const group = tab?.groups.find(gr => gr.id === el.dataset.group);
+    const item = group?.items.find(i => i.id === el.dataset.gallery);
+    const choice = el.dataset.choice;
+    if (!tab || !group || !item?.gallery || !choice) return;
+    this._gallerySel.set(this._pressKey(tab.id, group.id, item.id), choice);
+    const hadFocus = !!this.shadowRoot?.activeElement && !el.classList.contains('mobile-gallery');
+    const grid = el.closest<HTMLElement>('.ribbon-gallery-grid');
+    if (grid?.matches(':popover-open')) grid.hidePopover();
+    const flyout = el.closest<HTMLElement>('.ribbon-flyout');
+    if (flyout?.matches(':popover-open')) flyout.hidePopover();
+    this.emit('item-click', { tabId: tab.id, groupId: group.id, itemId: choice, parentId: item.id });
+    // The mobile list is part of the full render, not the panel's: keep its radios in step here.
+    this.$$<HTMLElement>(`.mobile-gallery[data-tab="${CSS.escape(tab.id)}"][data-group="${CSS.escape(group.id)}"][data-gallery="${CSS.escape(item.id)}"]`)
+      .forEach(m => m.setAttribute('aria-checked', String(m.dataset.choice === choice)));
+    // Re-render so the highlight moves; that replaces the focused tile, so put focus back on the gallery: on the
+    // picked tile when the row shows it, else on its expand button.
+    this._showTabContent(this._hoverTabId ?? this.attr('active'));
+    if (hadFocus && !flyout) {
+      const sel = `.ribbon-panel-inner .ribbon-gallery[data-group="${CSS.escape(group.id)}"][data-gallery="${CSS.escape(item.id)}"]`;
+      const back = this.$<HTMLElement>(`${sel} .ribbon-gallery-row > [data-choice="${CSS.escape(choice)}"]`)
+        ?? this.$<HTMLElement>(`${sel} [data-gallery-expand]`);
+      back?.focus();
+    }
+    if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
+  }
+
+  private _bindGalleries() {
+    this.$$<HTMLElement>('.ribbon-panel .ribbon-gallery-tile').forEach(el =>
+      this.listen(el, 'click', (e: Event) => { e.stopPropagation(); this._pickGallery(el); }));
+    this.$$<HTMLElement>('.ribbon-panel [data-gallery-step]').forEach(el =>
+      this.listen(el, 'click', (e: Event) => {
+        e.stopPropagation();
+        if (el.getAttribute('aria-disabled') === 'true') return;
+        const tab = this._tabs.find(t => t.id === el.dataset.tab);
+        const item = tab?.groups.find(gr => gr.id === el.dataset.group)?.items.find(i => i.id === el.dataset.gallery);
+        if (!tab || !item?.gallery) return;
+        const key = this._pressKey(tab.id, el.dataset.group!, item.id);
+        const visible = Math.max(1, item.gallery.visible ?? 4);
+        const max = Math.max(0, item.gallery.items.length - visible);
+        const now = this._galleryOffset.get(key) ?? 0;
+        this._galleryOffset.set(key, Math.max(0, Math.min(max, now + Number(el.dataset.galleryStep) * visible)));
+        this._rovingKey = this._stopKey(el);
+        this._showTabContent(this._hoverTabId ?? this.attr('active'));
+      }));
+    this.$$<HTMLElement>('.ribbon-panel [data-gallery-expand]').forEach(el => {
+      const grid = this.shadowRoot?.getElementById(el.getAttribute('aria-controls') ?? '');
+      if (!grid) return;
+      this._returnFocusOnClose(grid, el);
+      this.listen(grid, 'beforetoggle', () => this._hideTip());
+      this.listen(grid, 'toggle', (e: Event) => el.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open')));
+      this.listen(el, 'click', (e: Event) => { e.stopPropagation(); this._openGalleryGrid(el, (e as MouseEvent).detail === 0); });
+    });
   }
 
   /** The ref a panel command (or its split main part) would have in the toolbar, or null when it cannot be added. */
@@ -1739,6 +1991,13 @@ export class BRibbon extends BaseComponent {
     return out;
   }
 
+  /** A gallery tile's declared key tip, if any; the gallery's buttons have none. */
+  private _galleryKeytip(el: HTMLElement): string | undefined {
+    if (!el.dataset.choice) return undefined;
+    const item = this._tabs.find(t => t.id === el.dataset.tab)?.groups.find(gr => gr.id === el.dataset.group)?.items.find(i => i.id === el.dataset.gallery);
+    return item?.gallery?.items.find(c => c.id === el.dataset.choice)?.keytip;
+  }
+
   private _itemFor(el: HTMLElement): RibbonItem | undefined {
     const tab = this._tabs.find(t => t.id === el.dataset.tab);
     const items = el.dataset.group === '_context' ? this._contextActions : tab?.groups.find(g => g.id === el.dataset.group)?.items ?? [];
@@ -1767,13 +2026,15 @@ export class BRibbon extends BaseComponent {
           return { el, label: group?.label ?? '', keytip: group?.keytip };
         }
         if (el.dataset.launcher) return { el, label: el.getAttribute('aria-label') ?? '' };
+        if (el.dataset.gallery) return { el, label: el.getAttribute('aria-label') ?? '', keytip: this._galleryKeytip(el) };
         const item = this._itemFor(el);
         return { el, label: item?.label ?? el.textContent ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
       });
     } else if (level === 'flyout' && scope) {
-      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-flyout-header > .ribbon-launcher')]
+      entries = [...scope.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-flyout-header > .ribbon-launcher, :scope .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-gallery-tiles > .ribbon-gallery-tile, :scope .ribbon-gallery > .ribbon-gallery-current, :scope .ribbon-gallery-btn')]
         .filter(visible).map(el => {
           if (el.dataset.launcher) return { el, label: el.getAttribute('aria-label') ?? '' };
+          if (el.dataset.gallery) return { el, label: el.getAttribute('aria-label') ?? '', keytip: this._galleryKeytip(el) };
           const item = this._itemFor(el);
           return { el, label: item?.label ?? '', keytip: el.dataset.arrow ? undefined : item?.keytip };
         });
@@ -1851,6 +2112,12 @@ export class BRibbon extends BaseComponent {
       el.click();
       const flyout = el.closest('.ribbon-group')?.querySelector<HTMLElement>('.ribbon-flyout');
       requestAnimationFrame(() => (flyout?.matches(':popover-open') ? this._showKeytips('flyout', flyout) : this._exitKeytips()));
+      return;
+    }
+    if (el.hasAttribute('data-gallery-expand')) {
+      this._openGalleryGrid(el, true);
+      const grid = this.shadowRoot?.getElementById(el.getAttribute('aria-controls') ?? '') ?? null;
+      requestAnimationFrame(() => (grid?.matches(':popover-open') ? this._showKeytips('flyout', grid) : this._exitKeytips()));
       return;
     }
     if (el.hasAttribute('data-menu-trigger')) {
@@ -2062,6 +2329,8 @@ export class BRibbon extends BaseComponent {
       const target = ke.target as HTMLElement;
       const menu = target.closest<HTMLElement>('.ribbon-menu');
       if (menu) { this._menuKey(ke, menu, target); return; }
+      const grid = target.closest<HTMLElement>('.ribbon-gallery-grid');
+      if (grid) { this._gridKey(ke, grid, target); return; }
       // Alt+ArrowDown opens a command's menu from the command itself or from its ▾ part, as in Office.
       if (ke.key === 'ArrowDown' && ke.altKey) {
         const trigger = target.matches('[data-menu-trigger]') ? target
@@ -2203,7 +2472,10 @@ export class BRibbon extends BaseComponent {
     });
 
     // Mobile item clicks
-    this.$$<HTMLElement>('.mobile-item:not(.mobile-launcher)').forEach(el => {
+    this.$$<HTMLElement>('.mobile-gallery').forEach(el => {
+      this.listen(el, 'click', () => { this._pickGallery(el); this._closeMobileMenu(); });
+    });
+    this.$$<HTMLElement>('.mobile-item:not(.mobile-launcher):not(.mobile-gallery)').forEach(el => {
       this.listen(el, 'click', () => {
         const pressed = el.hasAttribute('data-toggle') ? this._clickToggle(el) : null;
         this.emit('item-click', {
@@ -2378,6 +2650,9 @@ export class BRibbon extends BaseComponent {
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-split-arrow',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-chunk',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-launcher',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-row > .ribbon-gallery-tile',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery > .ribbon-gallery-current',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-btn',
     ].join(', '));
   }
 
@@ -2385,6 +2660,10 @@ export class BRibbon extends BaseComponent {
   private _stopKey(el: HTMLElement): string {
     if (el.dataset.chunk) return `chunk:${el.dataset.chunk}`;
     if (el.dataset.launcher) return `launcher:${el.dataset.launcher}`;
+    if (el.dataset.gallery) {
+      const part = el.dataset.choice ? `c:${el.dataset.choice}` : el.dataset.galleryStep ? `s:${el.dataset.galleryStep}` : 'x';
+      return `gallery:${el.dataset.group}/${el.dataset.gallery}/${part}`;
+    }
     if (el.dataset.arrow) return `arrow:${el.dataset.group}/${el.dataset.arrow}`;
     return `item:${el.dataset.group}/${el.dataset.item}`;
   }
@@ -2412,7 +2691,7 @@ export class BRibbon extends BaseComponent {
   }
 
   private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
-    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-flyout-header > .ribbon-launcher, :scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
+    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-flyout-header > .ribbon-launcher, :scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-row > .ribbon-gallery-tile, :scope > .ribbon-group-items > .ribbon-gallery > .ribbon-gallery-current, :scope > .ribbon-group-items > .ribbon-gallery .ribbon-gallery-btn')];
     if (!items.includes(target)) return;
     const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',

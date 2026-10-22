@@ -1696,8 +1696,8 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off), `contextual-style` (`band` default \| `pill` \| `edge`)
-Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`, `setContextualSets(sets)`, `showContextual(id, { select? })`, `hideContextual(id)`, `isContextualShown(id)`
+Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`), `keytip-shortcut` (default `Alt+Meta`, on a Mac `Ctrl+Alt`; `none` turns it off), `contextual-style` (`band` default \| `pill` \| `edge`), `gallery-style` (`framed` default \| `open` \| `dropdown`)
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`, `setContextualSets(sets)`, `showContextual(id, { select? })`, `hideContextual(id)`, `isContextualShown(id)`, `setGallerySelection(itemId, choiceId)`, `getGallerySelection(itemId)`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`, `group-launcher` → `{ tabId, groupId }`
 
 **Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
@@ -1717,6 +1717,25 @@ Users customise the toolbar three ways:
 
 `getQuickAccess()` returns the current list as refs: `qat:<id>` or `item:<tab>/<group>/<item>`. The toolbar is one Tab
 stop with ←/→ inside it, a pressed toggle stays in step with the ribbon, and the toolbar is hidden on narrow screens.
+
+**Galleries.** A command with `gallery` is a row of visual choices with a full grid behind it, like Office's Styles:
+
+```typescript
+{ id: 'styles', label: 'Styles', gallery: { selected: 'normal', visible: 4, columns: 4, items: [
+  { id: 'normal', label: 'Normal', preview: 'Aa' }, { id: 'h1', label: 'Heading 1', preview: 'H1' }, …] } }
+```
+
+- Picking a tile makes it the current choice and emits `item-click` with the choice as `itemId` and the gallery as
+  `parentId`. `setGallerySelection()` sets it from the app without an event.
+- `gallery-style` picks the look, and `gallery.style` overrides it per gallery:
+  - `framed` (Office: a framed row with ▲ ▼ ▾ beside it, the default);
+  - `open` (‹ › around the row, "More ▾" under it);
+  - `dropdown` (the current choice only).
+- The ▾ (or More, or the dropdown tile) opens the full grid. Arrows move by one, or by a row up and down; Enter
+  picks; Escape closes.
+- Small groups show two tiles inline. A folded group's flyout holds the gallery, and its grid opens over the flyout.
+- Tiles are a radio group, and each is a key-tip target. The mobile menu lists the choices as radios. A tile's
+  preview and label are text.
 
 **Contextual tabs.** Tabs that appear only while something is selected, like Office's "Table Design":
 
