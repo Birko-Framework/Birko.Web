@@ -181,6 +181,8 @@ export class BRibbon extends BaseComponent {
   private _shortcutAC: AbortController | null = null;
   /** Quick Access Toolbar (TASK-737): the app's default commands, and the user's list of refs once customised. */
   private _qatDefaults: RibbonItem[] = [];
+  /** Whether the app asked for a toolbar at all (setQuickAccess with a list). Off: no toolbar, no "Add" menu. */
+  private _qatEnabled = false;
   private _qatRefs: string[] | null = null;
   private _qatLoadedKey: string | null = null;
   private _qatRoving = 0;
@@ -725,10 +727,13 @@ export class BRibbon extends BaseComponent {
   /**
    * The Quick Access Toolbar's default commands: always-visible icon buttons, each emitting `item-click` with
    * `source: 'qat'`. The user can hide them, add ribbon commands (context menu on a command) and remove them; with
-   * `qat-key` that choice is saved in localStorage. An empty list and no saved choice show no toolbar.
+   * `qat-key` that choice is saved in localStorage. The toolbar is opt-in: until an app calls this, there is no toolbar
+   * and no "Add to Quick Access Toolbar" on a command. `[]` gives an empty toolbar the user can fill; `null` turns it
+   * off again.
    */
-  setQuickAccess(items: RibbonItem[]) {
-    this._qatDefaults = items;
+  setQuickAccess(items: RibbonItem[] | null) {
+    this._qatEnabled = items !== null;
+    this._qatDefaults = items ?? [];
     this._loadQat();
     this.update();
   }
@@ -1060,7 +1065,7 @@ export class BRibbon extends BaseComponent {
    */
   private _renderQat(): string {
     const entries = this._qatVisible();
-    if (!entries.length && !this._qatDefaults.length) return '';
+    if (!this._qatEnabled) return '';
     const name = this.label('label-quick-access', 'bwc.ribbon.quickAccess', 'Quick Access Toolbar');
     const customize = this.label('label-qat-customize', 'bwc.ribbon.qatCustomize', 'Customize Quick Access Toolbar');
     const buttons = entries.map(({ ref, item, tabId, groupId }) => {
@@ -1403,6 +1408,7 @@ export class BRibbon extends BaseComponent {
     // Right-click, Shift+F10 or the menu key (all fire contextmenu) on a command: add it; on a toolbar button: remove it.
     for (const area of this.$$<HTMLElement>('.ribbon-panel, .ribbon-qat')) {
       this.listen(area, 'contextmenu', (e: Event) => {
+        if (!this._qatEnabled) return; // no toolbar asked for: the browser's own menu, as before
         const me = e as MouseEvent;
         const el = (me.target as Element).closest<HTMLElement>('.ribbon-item, .ribbon-qat-btn');
         if (!el || el.closest('.ribbon-menu') || el.hasAttribute('data-qat-customize')) return;

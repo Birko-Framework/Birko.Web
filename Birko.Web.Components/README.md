@@ -1704,6 +1704,9 @@ Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId,
 icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
 `"below"` under the ribbon. Each button emits `item-click` with `source: 'qat'`.
 
+It is opt-in: until the app calls `setQuickAccess()`, there is no toolbar and no "Add" entry on a right-click.
+`setQuickAccess([])` gives an empty toolbar the user can fill, and `setQuickAccess(null)` turns it off.
+
 Users customise the toolbar three ways:
 
 - Right-clicking a ribbon command (or Shift+F10 / the menu key) offers **Add to Quick Access Toolbar**. On a toolbar
