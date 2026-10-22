@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.15 — 2026-10-22
+
+- **Links in the Quick Access Toolbar** — Birko TASK-748 (for the FinStat web tester). A link command (`href`, no
+  `action`) can be added to `b-ribbon`'s toolbar, by the user or as an app default. There it stays a link: a click
+  follows it and emits `item-click` with `source: 'qat'`, and middle-click or "open in new tab" work as on the ribbon
+  command. A disabled one does nothing. Input boxes still cannot be added.
+
 ## v0.1.14 — 2026-10-22
 
 The rest of the Office-like `b-ribbon` (Birko FEATURE-019), signed off by the user. Nothing changes for an app that
