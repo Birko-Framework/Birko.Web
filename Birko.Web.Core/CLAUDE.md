@@ -31,6 +31,8 @@ src/
 │   ├── search-text.ts       # foldForSearch(), matchesSearch() — diacritics-insensitive matching
 │   └── scroll.ts            # findScrollParent(), visibleBounds() — FLATTENED-tree walk (assignedSlot),
 │                            #   so slotted page content finds the shell's pane, not documentElement
+├── diff/
+│   └── json-diff.ts         # diffJson(), matchJsonPath(), formatJsonPath() — structural JSON compare, no DOM
 ├── offline/
 │   ├── action-queue.ts      # ActionQueue — offline mutation queue (built on storage/idb)
 │   └── sync-manager.ts      # SyncManager — drains the queue when back online
@@ -134,6 +136,16 @@ Consumers in `Birko.Web.Components`: the 15 value-bearing `b-*` inputs. See that
   `POST`), otherwise `dead`. Never resend a plain `POST` or a `PATCH` on recovery — "may have landed" is the user's
   call. The lock (`navigator.locks`, `birko-sync:<queue name>`) is also what stops two tabs sending the same
   pending action, which they did before it; a fake queue in a test needs `getAll()` and `name`, or `locks: null`
+
+### Diff rules
+- `diffJson` is pure: no DOM, no globals, and it does not mutate its inputs. Keep it that way. It runs in tests and
+  workers, and `b-json-diff` is only one consumer
+- **Every pattern is parsed up front**, so a malformed one throws at the call. A typo must not quietly match nothing,
+  because an ignore rule that matches nothing reads as a real difference
+- A pattern matches the **whole** path (`*` is one segment, `**` any depth). Do not make it match a suffix: `*.Url`
+  would then mean different things depending on where the object sits
+- Below a paired array (`key` / `unordered`) a node's `path` is its side-B position and `oldSegments` its side-A one.
+  A path alone is not unique there: a removed item sits at its side-A index, which a pair may hold on side B
 
 ### Router rules
 - Hash-based (`#/path`): `window.location.hash = '#/path'` to navigate

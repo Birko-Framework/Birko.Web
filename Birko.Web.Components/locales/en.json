@@ -195,6 +195,31 @@
         "thisMonth": "This month",
         "lastMonth": "Last month",
         "thisYear": "This year"
+      },
+      "jsonDiff": {
+        "title": "JSON diff",
+        "sideA": "A",
+        "sideB": "B",
+        "root": "root",
+        "viewTree": "Tree",
+        "viewSplit": "Side by side",
+        "onlyChanges": "Only changes",
+        "noData": "Nothing to compare",
+        "noDifferences": "No differences",
+        "empty": "(empty)",
+        "parseError": "{side}: JSON parse error: {message}",
+        "countAdded": "{count} added",
+        "countRemoved": "{count} removed",
+        "countChanged": "{count} changed",
+        "changeCount": {
+          "one": "({count} change)",
+          "other": "({count} changes)"
+        },
+        "statusAdded": "added",
+        "statusRemoved": "removed",
+        "statusChanged": "changed",
+        "statusModified": "contains changes",
+        "statusIgnored": "ignored"
       }
     }
   },

@@ -10,6 +10,7 @@ birko-web-core/state     # Signal, Store, persistSet/Get/Remove (local), session
 birko-web-core/http      # ApiClient, SseClient, unwrapList, apiErrorMessage, PagedResult
 birko-web-core/router    # Router, link
 birko-web-core/storage   # IndexedDbStore, CacheStore + low-level IDB helpers (openDatabase, idbRequest, …)
+birko-web-core/diff      # diffJson, matchJsonPath, formatJsonPath — structural JSON comparison (no DOM)
 ```
 
 ## Quick start
@@ -236,6 +237,42 @@ own locale first.
 Most callers should reach for **`b-input type="decimal"`** in `Birko.Web.Components`, which renders the right
 attributes and enforces `min`/`max`/`step` on top of this. Use `parseDecimal` directly for hand-rolled
 controls that cannot use a shadow-DOM component.
+
+## Comparing JSON (diffJson)
+
+`diffJson(a, b, options?)` compares two JSON values structurally. Side A is the "old" value, side B the "new"
+one. It has no DOM, so it runs in tests and workers too. `b-json-diff` in Birko.Web.Components renders its
+result.
+
+```ts
+import { diffJson } from 'birko-web-core';
+
+const r = diffJson(production, localhost, {
+  ignore: ['**.Url', 'Items[*].Ref'],
+  normalize: [{ path: '**.Link', normalize: (v) => typeof v === 'string' ? v.replace(/[?&]ref=[^&]*/, '') : v }],
+  arrays: [{ path: 'Items', key: 'Id' }, { path: 'Tags', match: 'unordered' }],
+});
+
+r.equal;     // false
+r.summary;   // { added: 1, removed: 0, changed: 2, total: 3 }
+r.changes;   // [{ kind: 'changed', path: 'Items[1].Price', segments: ['Items', 1, 'Price'], oldValue: 10, newValue: 12, oldPath: 'Items[0].Price' }, …]
+r.tree;      // JsonDiffNode: the union of both values, each node 'equal' | 'added' | 'removed' | 'changed' | 'modified' | 'ignored'
+```
+
+**Paths** read like property access: `Items[2].Ref`. A key that is not an identifier is quoted (`["a.b"]`) and the
+root is `''`. **Patterns** (in `ignore`, `normalize` and `arrays`) add wildcards: `*` is any one segment, `[*]` any
+one index, `**` any number of segments. A pattern matches the **whole** path, so `*.Url` is a `Url` one level down
+and `**.Url` is one at any depth. A malformed pattern throws.
+
+- `ignore`: these paths are not compared. They stay in the tree as `ignored` and are never counted.
+- `normalize`: each `{ path, normalize(value, path) }` maps a value on both sides before the comparison. Several
+  matching normalizers chain in order. A change still reports the values as received.
+- `arrays`: by default item *n* is compared with item *n*. `match: 'unordered'` pairs each item of B with an equal
+  item of A. `key: 'Id'` (or a function) pairs items by that value, so a reordered list diffs record by record.
+  Items without a key fall back to unordered. A pair is reported at its side-B index, with `oldPath` /
+  `oldSegments` giving its side-A position. A removed item is listed under its side-A index.
+- `summary` counts an added or removed object once, not per key. `matchJsonPath(pattern, segments)` and
+  `formatJsonPath(segments)` are exported for callers that build their own rules.
 
 ## State
 

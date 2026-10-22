@@ -76,7 +76,7 @@ Every Presenter surface was checked for undefined `b-*` tags through every shado
 |----------|--------------|
 | `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
 | `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour`, `birko-web-components/layout/layout-state` |
-| `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
+| `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-diff`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
 | `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
 | `nav` | `birko-web-components/nav/b-breadcrumb`, `birko-web-components/nav/b-ribbon`, `birko-web-components/nav/b-sidebar`, `birko-web-components/nav/b-tree-menu` |
 | `command` | `birko-web-components/command/b-command-palette` |
@@ -1477,6 +1477,28 @@ import { BJsonViewer } from 'birko-web-components';
 
 Attributes: `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `max-height`, `sticky-header` (`page`), `label-expand`, `label-collapse`, `label-copy`, `label-copied`
 Emits: `copy` → `{ text }`, `copy-error`
+
+### b-json-diff
+
+Compares two JSON bodies: a tree of changes (added / removed / changed, with an "Only changes" toggle) or both bodies
+side by side with the differing lines marked. The comparison is `diffJson` from `birko-web-core`, and `setOptions`
+takes its options.
+
+```html
+<b-json-diff label-a="production" label-b="localhost" max-height="480px"></b-json-diff>
+```
+
+```typescript
+import { BJsonDiff } from 'birko-web-components';
+
+const el = document.querySelector('b-json-diff') as BJsonDiff;
+el.setOptions({ ignore: ['**.Url'], arrays: [{ path: 'Items', key: 'Id' }] });
+el.setData(responseA, responseB);   // objects, or strings (parsed; a parse error is shown for that side)
+el.addEventListener('diff-computed', (e) => console.log(e.detail.summary));
+```
+
+Attributes: `label-a`, `label-b` (side names, default `A` / `B`), `view` (`tree` | `split`), `only-changes`, `size`, `max-height`, `label-title`, and `label-*` overrides for every string (`bwc.jsonDiff.*`)
+Emits: `diff-computed` → `{ equal, summary, changes }`, `view-change` → `{ view }`, `only-changes-change` → `{ onlyChanges }`, `toggle` → `{ path, expanded }`
 
 ### b-xml-viewer
 

@@ -10,6 +10,7 @@
     "./http": "./src/http/index.ts",
     "./storage": "./src/storage/index.ts",
     "./pwa": "./src/pwa/index.ts",
+    "./diff": "./src/diff/index.ts",
     "./pwa/build-sw.mjs": "./pwa/build-sw.mjs"
   }
 }

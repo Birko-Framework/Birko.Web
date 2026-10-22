@@ -9,3 +9,4 @@ export * from './device/index.js';
 export * from './dom/index.js';
 export * from './pwa/index.js';
 export * from './css/index.js';
+export * from './diff/index.js';

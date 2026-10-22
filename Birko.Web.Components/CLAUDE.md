@@ -18,7 +18,7 @@ src/
 │                    # b-button-group, b-toolbar
 ├── data/            # b-table, b-editable-table, b-data-table, b-pagination,
 │                    # b-badge, b-tag, b-chart, b-kanban, b-pre, b-code-block,
-│                    # b-definition-list, b-object-tree, b-json-viewer, b-xml-viewer
+│                    # b-definition-list, b-object-tree, b-json-viewer, b-json-diff, b-xml-viewer
 ├── feedback/        # b-toast (+ toast manager), b-spinner, b-progress, b-empty, b-skeleton, b-stale-banner
 ├── dialogs/         # imperative helpers (NOT components): confirm/confirmDelete/alert/prompt/
 │                    # choose/promptForm/busy/notify — a lean subpath over the components below
@@ -165,7 +165,7 @@ When a component exposes a `size` attribute, it falls into one of five distinct 
 | Category | What `sm` / `md` / `lg` control | Tokens | Components |
 |---|---|---|---|
 | **Vertical footprint** | `min-height` of the chrome | `--b-control-min-height-sm/-md/-lg` | form inputs (via `formControlSheet` + `comboControlSheet`), `b-tag-input` |
-| **Text scale** | inner `font-size` only | `--b-text-xs / -sm / -base` | `b-pre`, `b-code-block`, `b-object-tree`, `b-json-viewer`, `b-xml-viewer`, `b-definition-list` |
+| **Text scale** | inner `font-size` only | `--b-text-xs / -sm / -base` | `b-pre`, `b-code-block`, `b-object-tree`, `b-json-viewer`, `b-json-diff`, `b-xml-viewer`, `b-definition-list` |
 | **Width** | `max-width` / `width` of the panel | `--b-{modal,drawer}-width-{sm,md,lg,xl,xxl}` | `b-modal`, `b-drawer` (extend to `xl`/`xxl`; `b-modal` adds `full` — viewport minus `--b-modal-full-inset` in both axes) |
 | **Shape weight** | diameter / track thickness | component-specific | `b-spinner` (diameter), `b-progress` (linear: track height; circular: ring diameter) |
 | **Inline chip / button** | `padding` + `font-size` | `--b-space-*` + `--b-text-*` | `b-button`, `b-badge`, `b-tag` |
@@ -439,7 +439,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 | `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
 
-### Data (15)
+### Data (16)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-table>` | BTable | `setColumns()`, `setData()`, `setIdField()` | `loading`, `striped`, `hoverable`, `label-no-data` |
@@ -456,6 +456,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
 | `<b-object-tree>` | BObjectTree | `setData(obj)`, `getData()`, `expandAll()`, `collapseAll()` | `expanded-depth`, `max-depth`, `size`, `show-types`, `show-header`, `header-title`, `no-copy`, `no-expand-actions`, `max-height`, `sticky-header` (page) |
 | `<b-json-viewer>` | BJsonViewer | `setData(obj\|string)`, `getData()` | `src`, `expanded-depth`, `max-depth`, `size`, `show-types`, `no-copy`, `max-height`, `sticky-header` (page) |
+| `<b-json-diff>` | BJsonDiff | `setData(a, b)`, `setOptions(JsonDiffOptions)`, `getResult()`, `expandAll()`, `collapseAll()` | `label-a`, `label-b`, `view` (tree\|split), `only-changes`, `size`, `max-height`; emits `diff-computed`, `view-change`, `only-changes-change`, `toggle` |
 | `<b-xml-viewer>` | BXmlViewer | `setSource(xml)`, `setDocument(doc)`, `getSource()`, `expandAll()`, `collapseAll()` | `src`, `expanded-depth`, `max-depth`, `size`, `no-copy`, `max-height`, `sticky-header` (page) |
 
 ### Feedback (6)

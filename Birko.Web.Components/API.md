@@ -999,6 +999,32 @@ Composes `<b-object-tree>` with JSON-specific UX.
 | `copy` | `{ text }` |
 | `copy-error` | `{}` |
 
+### `<b-json-diff>`
+Compares two JSON bodies, side A ("old") and side B ("new"), with `diffJson` from `birko-web-core`.
+
+| Attribute | Values |
+|-----------|--------|
+| `label-a` / `label-b` | side names (default `A` / `B`), e.g. environment names |
+| `view` | `tree` (default) \| `split` — reflected when the user switches |
+| `only-changes` | boolean — tree view hides equal and ignored rows; reflected when toggled |
+| `size` | `sm` \| (default) \| `lg` — text scale |
+| `max-height` | string (CSS length; body becomes the scroll container) |
+| `label-title`, `label-view-tree`, `label-view-split`, `label-only-changes`, `label-expand`, `label-collapse`, `label-no-data`, `label-no-differences`, `label-parse-error`, `label-count-*`, `label-change-count`, `label-status-*` | text overrides (`bwc.jsonDiff.*`) |
+
+| Method | Signature |
+|--------|-----------|
+| `setData` | `(a: unknown \| string, b: unknown \| string) => void` (strings are parsed) |
+| `setOptions` | `(options: JsonDiffOptions) => void` — `ignore`, `normalize`, `arrays` |
+| `getResult` | `() => JsonDiffResult \| null` (null before both sides are set, on a parse error, or a bad pattern) |
+| `expandAll` / `collapseAll` | `() => void` |
+
+| Event | Detail |
+|-------|--------|
+| `diff-computed` | `{ equal, summary, changes }` — after every comparison |
+| `view-change` | `{ view }` |
+| `only-changes-change` | `{ onlyChanges }` |
+| `toggle` | `{ path, expanded }` |
+
 ### `<b-xml-viewer>`
 Collapsible XML tree via DOMParser.
 
