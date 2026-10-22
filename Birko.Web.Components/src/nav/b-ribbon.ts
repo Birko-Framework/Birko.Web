@@ -797,6 +797,7 @@ export class BRibbon extends BaseComponent {
         min-width: var(--b-ribbon-qat-button-size, 1.75rem); height: var(--b-ribbon-qat-button-size, 1.75rem); padding: 0 var(--b-space-xs, 0.25rem);
         border: none; background: none; cursor: pointer; border-radius: var(--b-radius, 0.375rem);
         color: var(--b-text-secondary); font: inherit; font-size: var(--b-icon-base, 1rem);
+        box-sizing: border-box; text-decoration: none; /* a link command (TASK-748) sized and drawn as a button */
       }
       .ribbon-qat-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-qat-btn:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
@@ -1441,8 +1442,11 @@ export class BRibbon extends BaseComponent {
     const buttons = entries.map(({ ref, item, tabId, groupId }) => {
       const on = tabId && groupId && this._isToggle(item) ? ` aria-pressed="${this._isPressed(tabId, groupId, item)}"` : '';
       const glyph = item.icon ? item.icon : escapeHtml(item.label.slice(0, 1));
-      return `<button class="ribbon-qat-btn" type="button" data-qat-ref="${escapeAttr(ref)}" aria-label="${escapeAttr(item.label)}"${on}`
-        + `${item.disabled ? ' aria-disabled="true"' : ''}><span aria-hidden="true">${glyph}</span></button>`;
+      const attrs = `class="ribbon-qat-btn" data-qat-ref="${escapeAttr(ref)}" aria-label="${escapeAttr(item.label)}"${on}`
+        + `${item.disabled ? ' aria-disabled="true"' : ''}`;
+      // A link command stays a link (TASK-748): middle-click and "open in new tab" work as on the ribbon command.
+      if (item.href && !item.action) return `<a ${attrs} href="${escapeAttr(item.href)}"><span aria-hidden="true">${glyph}</span></a>`;
+      return `<button ${attrs} type="button"><span aria-hidden="true">${glyph}</span></button>`;
     }).join('');
     return `<div class="ribbon-qat" role="group" aria-label="${escapeAttr(name)}">${buttons}`
       + `<button class="ribbon-qat-btn ribbon-qat-more" type="button" data-qat-customize aria-haspopup="menu" aria-expanded="false"`
@@ -2057,7 +2061,8 @@ export class BRibbon extends BaseComponent {
     const { tab, group, item } = el.dataset;
     if (!tab || !group || !item || group === '_context') return null;
     const found = this._resolveRef(`item:${tab}/${group}/${item}`);
-    if (!found || (found.item.menu?.length && !found.item.split) || found.item.href || found.item.field) return null;
+    // Links can be added (TASK-748, asked for by the FinStat web tester, whose endpoint commands are all links).
+    if (!found || (found.item.menu?.length && !found.item.split) || found.item.field) return null;
     return `item:${tab}/${group}/${item}`;
   }
 
@@ -2086,7 +2091,7 @@ export class BRibbon extends BaseComponent {
     }
     buttons.forEach(b => this.listen(b, 'click', (e: Event) => {
       e.stopPropagation();
-      if (b.getAttribute('aria-disabled') === 'true') return;
+      if (b.getAttribute('aria-disabled') === 'true') { e.preventDefault(); return; } // a disabled link must not navigate
       if (b.hasAttribute('data-qat-customize')) { this._openCustomize(b); return; }
       const ref = b.dataset.qatRef ?? '';
       const found = this._resolveRef(ref);

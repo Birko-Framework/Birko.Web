@@ -617,6 +617,14 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: link commands in the Quick Access Toolbar (2026-10-22, TASK-748)
+
+Asked for by the FinStat web tester, whose endpoint commands are all links. `_refFor` excluded every `href` item, so
+"Add to Quick Access Toolbar" never appeared on them; no reason was recorded beyond the toolbar rendering buttons.
+A link command (`href && !action`) now renders as `<a class="ribbon-qat-btn">` with border-box sizing and no
+underline, so it matches the buttons. The click handler still emits `item-click` (`source: 'qat'`) and blocks a
+disabled link. Fields stay excluded.
+
 ### `b-ribbon`: every size is a token (2026-10-22, TASK-747)
 
 Asked by the user. 82 literal lengths became tokens: shared ones where the value already existed (`--b-space-2xs`,

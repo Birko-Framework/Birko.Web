@@ -1704,7 +1704,9 @@ Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId,
 
 **Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
 icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
-`"below"` under the ribbon. Each button emits `item-click` with `source: 'qat'`.
+`"below"` under the ribbon. Each button emits `item-click` with `source: 'qat'`. A link command (`href`, no `action`),
+added by the user or given as a default, stays a link there: a click follows it and reports `item-click`, and
+middle-click or "open in new tab" work as on the ribbon command. Input boxes cannot be added.
 
 It is opt-in: until the app calls `setQuickAccess()`, there is no toolbar and no "Add" entry on a right-click.
 `setQuickAccess([])` gives an empty toolbar the user can fill, and `setQuickAccess(null)` turns it off.
