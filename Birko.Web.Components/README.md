@@ -1691,6 +1691,13 @@ Slots: `before-tabs`, `after-tabs`
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId }`, `pin` → `{ pinned }`
 
+Keyboard: the tabs are one Tab stop (←/→, Home/End), and so is the open panel. ↓ from a tab enters the panel at the command
+focused there last. In the panel, ←/→ move to the nearest command that way, across groups, wrapping at the ends; ↑/↓
+stay in the column, and ↑ from the top row returns to the tab. Home/End go to the first and last command, and Escape
+goes back to the tab. A folded group's button opens with Enter, Space or ↓ and moves focus into its flyout, where the
+arrows work too; Escape closes the flyout and focus returns to the button. Focus stays on its command when the ribbon
+re-renders as it scales.
+
 ### b-tree-menu
 
 Hierarchical tree menu with unlimited nesting depth, expand/collapse, keyboard navigation, and guide lines.

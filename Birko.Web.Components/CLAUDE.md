@@ -617,6 +617,16 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### `b-ribbon`: the panel is one Tab stop and the arrows move by position (2026-10-22, TASK-731)
+
+Every command used to be a Tab stop, and ←/→ walked a flat list of every `.ribbon-item`. That list included the commands
+inside CLOSED flyouts, so focus went nowhere, and it skipped folded groups' buttons. Now the panel's stops are the visible
+commands plus each folded group's button, under one roving tabindex. `nearestInDirection` picks by rect: ←/→ any way,
+same row preferred, wrapping at the ends; ↑/↓ within the column, and ↑ off the top goes to the tab. Both re-render paths
+(`update()` and `_showTabContent`) put focus back on the same command. Enter, Space or ↓ on a folded group focuses its
+first command. Escape closes the flyout through the popover's own close request, a task later, and focus returns to the
+button. Guarded by Playground `keyboard-check.mjs` with real key presses: 17 checks fail on the old ribbon.
+
 ### `b-ribbon`: groups are one height, rows line up, labels sit below (2026-10-22, TASK-730)
 
 Measured: the Home tab's six groups were 98/96/92/68/72/98px tall, so the separators (each group's border-left) ended at

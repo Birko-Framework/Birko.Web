@@ -82,6 +82,37 @@ export interface RibbonItem {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * The stop nearest to `from` in a direction, by on-screen position: Left/Right take anything whose centre lies
+ * that way, weighting vertical distance so the same row wins; Up/Down stay in `from`'s column (its horizontal
+ * extent), so they never jump to a neighbouring group.
+ */
+function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left' | 'right' | 'up' | 'down'): HTMLElement | null {
+  const a = from.getBoundingClientRect();
+  const ax = a.left + a.width / 2;
+  const ay = a.top + a.height / 2;
+  let best: HTMLElement | null = null;
+  let bestScore = Infinity;
+  for (const el of stops) {
+    if (el === from) continue;
+    const b = el.getBoundingClientRect();
+    if (b.width === 0 && b.height === 0) continue;
+    const dx = b.left + b.width / 2 - ax;
+    const dy = b.top + b.height / 2 - ay;
+    let score: number;
+    if (dir === 'left' || dir === 'right') {
+      if (dir === 'right' ? dx <= 1 : dx >= -1) continue;
+      score = Math.abs(dx) + Math.abs(dy) * 4;
+    } else {
+      if (dir === 'down' ? dy <= 1 : dy >= -1) continue;
+      if (b.right <= a.left || b.left >= a.right) continue;
+      score = Math.abs(dy) + Math.abs(dx) * 4;
+    }
+    if (score < bestScore) { bestScore = score; best = el; }
+  }
+  return best;
+}
+
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
@@ -96,6 +127,8 @@ export class BRibbon extends BaseComponent {
   private _collapseTimer: ReturnType<typeof setTimeout> | null = null;
   private _mobileOpen = false;
   private _hoverTabId: string | null = null;
+  /** The panel stop that holds tabindex 0 (see _stopKey); null means the first. */
+  private _rovingKey: string | null = null;
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
@@ -714,9 +747,11 @@ export class BRibbon extends BaseComponent {
     const tab = this._tabs.find(t => t.id === tabId);
     const panelInner = this.$<HTMLElement>('.ribbon-panel-inner');
     if (!panelInner || !tab) return;
+    const refocus = this._focusInPanel();
     panelInner.innerHTML = this._renderPanelInner(tab);
     this._bindPanelItems();
     this._bindChunks();
+    if (refocus) this._rovingStop()?.focus();
     // Different tab, different group widths — so both the chevrons AND the scaling have to re-evaluate.
     // Queued rather than immediate: _measureAndScale re-renders, and _queueSync coalesces into one frame
     // (the _measuring guard stops the nested call recursing).
@@ -725,6 +760,14 @@ export class BRibbon extends BaseComponent {
   }
 
   private _bindPanelItems() {
+    this._applyRoving();
+    const inner = this.$<HTMLElement>('.ribbon-panel-inner');
+    if (inner) this.listen(inner, 'focusin', (e: Event) => {
+      const stop = this._panelStops().find(el => el === e.target);
+      if (!stop) return;
+      this._rovingKey = this._stopKey(stop);
+      this._applyRoving();
+    });
     this.$$<HTMLElement>('.ribbon-panel .ribbon-item').forEach(el => {
       this.listen(el, 'click', (e: Event) => {
         const target = e.currentTarget as HTMLElement;
@@ -795,9 +838,8 @@ export class BRibbon extends BaseComponent {
         ke.preventDefault(); next = tabs.length - 1;
       } else if (ke.key === 'ArrowDown') {
         ke.preventDefault();
-        // Move focus into panel first item
-        const firstItem = this.$<HTMLElement>('.ribbon-panel .ribbon-item');
-        firstItem?.focus();
+        // Into the panel at its one Tab stop: the command last focused there, else the first.
+        this._rovingStop()?.focus();
         return;
       }
 
@@ -807,26 +849,46 @@ export class BRibbon extends BaseComponent {
       }
     });
 
-    // Panel keyboard: Escape returns to tab row
+    // Panel keyboard (TASK-731). The panel is ONE Tab stop (roving tabindex); the arrows move between commands by
+    // where they are on screen, so they cross group boundaries and follow a group's columns at every size. It used
+    // to walk every .ribbon-item in a flat list: that included the commands inside CLOSED flyouts (focus went
+    // nowhere) and skipped the folded groups' own buttons, and every command was a Tab stop of its own.
     const panelEl = this.$('.ribbon-panel');
     if (panelEl) this.listen(panelEl, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
+      const target = ke.target as HTMLElement;
+      const flyout = target.closest<HTMLElement>('.ribbon-flyout');
+      if (flyout) { this._flyoutKey(ke, flyout, target); return; }
+
+      const stops = this._panelStops();
+      if (!stops.includes(target)) return;
+      const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
+        ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+      };
+      let next: HTMLElement | null | undefined;
       if (ke.key === 'Escape') {
+        next = this.$<HTMLElement>(`#ribbon-tab-${this.attr('active')}`);
+      } else if (ke.key === 'Home') {
+        next = stops[0];
+      } else if (ke.key === 'End') {
+        next = stops.at(-1);
+      } else if (ke.key === 'ArrowDown' && target.classList.contains('ribbon-chunk')) {
         ke.preventDefault();
-        const active = this.attr('active');
-        this.$<HTMLElement>(`#ribbon-tab-${active}`)?.focus();
+        target.click();
+        this._focusFlyout(target);
+        return;
+      } else if (dirs[ke.key]) {
+        const dir = dirs[ke.key];
+        next = nearestInDirection(target, stops, dir);
+        // Left/Right wrap at the ends; Up from the top row goes back to the active tab, as in Office.
+        if (!next && dir === 'right') next = stops[0];
+        if (!next && dir === 'left') next = stops.at(-1);
+        if (!next && dir === 'up') next = this.$<HTMLElement>(`#ribbon-tab-${this.attr('active')}`);
+      } else {
+        return;
       }
-      // Left/Right between items
-      if (ke.key === 'ArrowRight' || ke.key === 'ArrowLeft') {
-        ke.preventDefault();
-        const items = this.$$<HTMLElement>('.ribbon-panel .ribbon-item');
-        const idx = Array.from(items).indexOf(ke.target as HTMLElement);
-        if (idx < 0) return;
-        const next = ke.key === 'ArrowRight'
-          ? (idx + 1) % items.length
-          : (idx - 1 + items.length) % items.length;
-        items[next]?.focus();
-      }
+      ke.preventDefault();
+      next?.focus();
     });
 
     // Panel item clicks
@@ -939,6 +1001,13 @@ export class BRibbon extends BaseComponent {
     this._panelSync = null;
   }
 
+  /** A morph can replace the focused command (a scaling change re-renders the row): put focus back on it. */
+  protected update(): void {
+    const refocus = this._focusInPanel();
+    super.update();
+    if (refocus) this._rovingStop()?.focus();
+  }
+
   // ── Private ────────────────────────────────────────────────────────────────
 
   private _selectTab(tabId: string) {
@@ -1034,7 +1103,12 @@ export class BRibbon extends BaseComponent {
       // Keep aria in step with whatever opened or closed it — including Escape and light dismiss, which the
       // popover handles itself, so there is no path that leaves the button lying about its state.
       this.listen(flyout, 'toggle', (e: Event) => {
-        chunk.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
+        const open = (e as ToggleEvent).newState === 'open';
+        chunk.setAttribute('aria-expanded', String(open));
+        // Closed with focus inside it (Escape, or a command that ran): focus goes back to its button. At this
+        // point activeElement may still name the now-hidden command, so "inside" counts as lost.
+        const active = this.shadowRoot?.activeElement ?? null;
+        if (!open && (!active || flyout.contains(active))) chunk.focus();
       });
 
       this.listen(chunk, 'click', (e: Event) => {
@@ -1053,6 +1127,8 @@ export class BRibbon extends BaseComponent {
         if (box.right > window.innerWidth - 4) {
           flyout.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
         }
+        // Opened by Enter or Space (a click with no pointer): move into it, as a menu button does.
+        if ((e as MouseEvent).detail === 0) this._focusFlyout(chunk);
       });
     });
 
@@ -1063,6 +1139,55 @@ export class BRibbon extends BaseComponent {
         if (flyout?.matches(':popover-open')) flyout.hidePopover();
       });
     });
+  }
+
+  /** The panel's keyboard stops in reading order: each visible command and each folded group's button. The
+   *  commands inside a flyout are not stops: they are reached by opening it. */
+  private _panelStops(): HTMLElement[] {
+    return this.$$<HTMLElement>(
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-item, .ribbon-panel-inner > .ribbon-group > .ribbon-chunk');
+  }
+
+  /** Identity of a stop that survives a re-render: the same command, or the same folded group. */
+  private _stopKey(el: HTMLElement): string {
+    return el.dataset.chunk ? `chunk:${el.dataset.chunk}` : `item:${el.dataset.group}/${el.dataset.item}`;
+  }
+
+  /** The stop holding tabindex 0: the one focused last, else the first (also when the last one is gone). */
+  private _rovingStop(): HTMLElement | undefined {
+    const stops = this._panelStops();
+    return stops.find(el => this._stopKey(el) === this._rovingKey) ?? stops[0];
+  }
+
+  private _applyRoving() {
+    const current = this._rovingStop();
+    for (const el of this._panelStops()) el.tabIndex = el === current ? 0 : -1;
+  }
+
+  /** Whether focus is on a panel stop — checked before a re-render that replaces it, to put it back after. */
+  private _focusInPanel(): boolean {
+    const active = this.shadowRoot?.activeElement as HTMLElement | null | undefined;
+    return !!active && this._panelStops().includes(active);
+  }
+
+  private _focusFlyout(chunk: HTMLElement) {
+    const flyout = chunk.closest('.ribbon-group')?.querySelector<HTMLElement>('.ribbon-flyout');
+    if (flyout?.matches(':popover-open')) flyout.querySelector<HTMLElement>('.ribbon-item')?.focus();
+  }
+
+  private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
+    const items = [...flyout.querySelectorAll<HTMLElement>('.ribbon-item')];
+    if (!items.includes(target)) return;
+    const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
+      ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',
+    };
+    let next: HTMLElement | null | undefined;
+    if (ke.key === 'Home') next = items[0];
+    else if (ke.key === 'End') next = items.at(-1);
+    else if (dirs[ke.key]) next = nearestInDirection(target, items, dirs[ke.key]);
+    else return; // Escape: the popover closes itself and gives focus back to its button
+    ke.preventDefault();
+    next?.focus();
   }
 
   /**
