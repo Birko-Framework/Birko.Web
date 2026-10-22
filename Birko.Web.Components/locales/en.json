@@ -80,7 +80,12 @@
       "pin": "Pin ribbon open",
       "unpin": "Unpin ribbon",
       "navigation": "Navigation",
-        "moreOptions": "More options: {label}"
+        "moreOptions": "More options: {label}",
+        "quickAccess": "Quick Access Toolbar",
+        "qatCustomize": "Customize Quick Access Toolbar",
+        "qatAdd": "Add to Quick Access Toolbar",
+        "qatRemove": "Remove from Quick Access Toolbar",
+        "qatReset": "Reset to default"
     },
     "sidebar": {
       "title": "Main navigation",

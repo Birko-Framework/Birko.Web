@@ -1696,9 +1696,24 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`
-Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`
-Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId?, pressed? }`, `pin` → `{ pinned }`
+Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`, `qat-key`, `qat-position` (`tabs` default \| `above` \| `below`)
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`
+
+**Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
+icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
+`"below"` under the ribbon. Each button emits `item-click` with `source: 'qat'`.
+
+Users customise the toolbar three ways:
+
+- Right-clicking a ribbon command (or Shift+F10 / the menu key) offers **Add to Quick Access Toolbar**. On a toolbar
+  button it offers **Remove**. Menu-only commands and links cannot be added.
+- The ▾ button shows or hides each command and has **Reset to default**. A re-shown default goes back to its place.
+- With `qat-key`, the choice is saved in localStorage under `birko-ribbon-qat:<key>`. A stored value that is not a
+  list of known commands is ignored.
+
+`getQuickAccess()` returns the current list as refs: `qat:<id>` or `item:<tab>/<group>/<item>`. The toolbar is one Tab
+stop with ←/→ inside it, a pressed toggle stays in step with the ribbon, and the toolbar is hidden on narrow screens.
 
 **Collapsing.** As in Office, double-clicking a tab or pressing Ctrl+F1 switches between the ribbon always shown
 (pinned) and tabs only, where the panel opens over the page when a tab is used. `toggleRibbon()` does the same.

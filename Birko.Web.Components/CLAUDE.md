@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `setQuickAccess()` / `getQuickAccess()` with `qat-key` / `qat-position` for the Quick Access Toolbar; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,19 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` Quick Access Toolbar, and a hover preview that swallowed menu choices (2026-10-22, TASK-737)
+
+Favourite commands in the tab row before the tabs (the user's pick of three positions; `qat-position` moves it). The
+app's defaults come from `setQuickAccess`. The user adds commands from a context menu and hides or resets them from
+▾. With `qat-key` the list is stored as refs (`qat:<id>`, `item:<tab>/<group>/<item>`), each validated against a pattern
+and resolved against real commands on load. Both menus use one shared popover, filled when it opens.
+
+**A shared, filled-on-open menu must be excluded from re-binding.** `_showTabContent` (hover preview, scaling) re-runs
+`_bindMenus`, which bound the ribbon-menu click handler (stopPropagation, emit item-click, close) onto every
+`.ribbon-menu-item` in the shadow root. That included an OPEN shared menu, so a hover across a tab, 200 ms before a choice,
+swallowed the choice and emitted a stray item-click. The selector now excludes `.ribbon-shared-menu`. keyboard-check
+hovers a tab with the menu open and is red without the exclusion.
 
 ### `b-ribbon` collapses by double-click and an app-wide Ctrl+F1 (2026-10-22, TASK-735)
 

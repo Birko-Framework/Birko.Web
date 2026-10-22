@@ -156,6 +156,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 
 export class BRibbon extends BaseComponent {
   static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
+    'qat-key', 'qat-position',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -178,6 +179,12 @@ export class BRibbon extends BaseComponent {
   private _tipTimer: ReturnType<typeof setTimeout> | null = null;
   private _tipWarmUntil = 0;
   private _shortcutAC: AbortController | null = null;
+  /** Quick Access Toolbar (TASK-737): the app's default commands, and the user's list of refs once customised. */
+  private _qatDefaults: RibbonItem[] = [];
+  private _qatRefs: string[] | null = null;
+  private _qatLoadedKey: string | null = null;
+  private _qatRoving = 0;
+  private _menuOpener: HTMLElement | null = null;
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
@@ -545,6 +552,32 @@ export class BRibbon extends BaseComponent {
         box-shadow: inset 0 0 0 1px var(--b-color-primary), var(--b-focus-ring);
       }
       .ribbon-radiogroup { display: contents; }
+
+      /* ── Quick Access Toolbar (TASK-737; in the tab row before the tabs by default, picked by the user) ── */
+      .ribbon-qat { display: flex; align-items: center; gap: 0.125rem; flex-shrink: 0; }
+      .ribbon-tab-row > .ribbon-qat {
+        padding-inline-end: var(--b-space-sm, 0.5rem); margin-inline-end: var(--b-space-xs, 0.25rem);
+        border-inline-end: 1px solid var(--b-border);
+      }
+      .ribbon-qat-row { display: flex; padding: 0.125rem var(--b-space-sm, 0.5rem); background: var(--b-bg-secondary); }
+      .ribbon-qat-row.above { border-bottom: 1px solid var(--b-border); }
+      .ribbon-qat-row.below { border-top: 1px solid var(--b-border); }
+      .ribbon-qat-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 1.75rem; height: 1.75rem; padding: 0 0.25rem;
+        border: none; background: none; cursor: pointer; border-radius: var(--b-radius, 0.375rem);
+        color: var(--b-text-secondary); font: inherit; font-size: var(--b-icon-base, 1rem);
+      }
+      .ribbon-qat-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .ribbon-qat-btn:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .ribbon-qat-btn[aria-pressed="true"] {
+        background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
+        box-shadow: inset 0 0 0 1px var(--b-color-primary);
+      }
+      .ribbon-qat-btn[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
+      .ribbon-qat-more { min-width: 1.25rem; font-size: 0.7em; color: var(--b-text-muted); }
+      .ribbon-menu-item[aria-checked="true"] .ribbon-menu-check::before { content: "\\2713"; }
+      .ribbon-menu-check { width: 1.25em; text-align: center; flex-shrink: 0; }
       .ribbon-item[aria-disabled="true"] {
         opacity: var(--b-disabled-opacity, 0.5); pointer-events: none;
       }
@@ -632,6 +665,7 @@ export class BRibbon extends BaseComponent {
          so the ribbon collapses earlier for a reader who scaled their font up. */
       @media (max-width: 48rem) {
         .ribbon-tabs { display: none; }
+        .ribbon-qat, .ribbon-qat-row { display: none; }
         .ribbon-panel { display: none; }
         .ribbon-ctrl { display: none; }
         .ribbon-scroll-btn { display: none !important; }
@@ -686,6 +720,88 @@ export class BRibbon extends BaseComponent {
       }
     }
     return false;
+  }
+
+  /**
+   * The Quick Access Toolbar's default commands: always-visible icon buttons, each emitting `item-click` with
+   * `source: 'qat'`. The user can hide them, add ribbon commands (context menu on a command) and remove them; with
+   * `qat-key` that choice is saved in localStorage. An empty list and no saved choice show no toolbar.
+   */
+  setQuickAccess(items: RibbonItem[]) {
+    this._qatDefaults = items;
+    this._loadQat();
+    this.update();
+  }
+
+  /** The toolbar's commands as refs: `qat:<id>` for a default, `item:<tab>/<group>/<item>` for a ribbon command. */
+  getQuickAccess(): string[] {
+    return this._qatVisible().map(e => e.ref);
+  }
+
+  private static readonly QAT_REF = /^(qat:[^\s/]{1,200}|item:[^\s/]{1,200}\/[^\s/]{1,200}\/[^\s/]{1,200})$/;
+
+  private _qatStorageKey(): string | null {
+    const key = this.attr('qat-key');
+    return key ? `birko-ribbon-qat:${key}` : null;
+  }
+
+  /** Reads the saved choice once per key. Anything that is not a list of well-formed refs is ignored, not trusted. */
+  private _loadQat() {
+    const key = this._qatStorageKey();
+    if (key === this._qatLoadedKey) return;
+    this._qatLoadedKey = key;
+    this._qatRefs = null;
+    if (!key) return;
+    let saved: unknown = null;
+    try { saved = JSON.parse(localStorage.getItem(key) ?? 'null'); } catch { return; }
+    if (!Array.isArray(saved)) return;
+    this._qatRefs = [...new Set(saved.filter((r): r is string => typeof r === 'string' && BRibbon.QAT_REF.test(r)))].slice(0, 50);
+  }
+
+  private _saveQat() {
+    const key = this._qatStorageKey();
+    if (key && this._qatRefs) {
+      try { localStorage.setItem(key, JSON.stringify(this._qatRefs)); } catch { /* storage full or blocked */ }
+    }
+    this.emit('quick-access-change', { refs: this.getQuickAccess() });
+  }
+
+  private _resolveRef(ref: string): { item: RibbonItem; tabId?: string; groupId?: string } | null {
+    if (ref.startsWith('qat:')) {
+      const item = this._qatDefaults.find(i => i.id === ref.slice(4));
+      return item ? { item } : null;
+    }
+    const [tabId, groupId, itemId] = ref.slice(5).split('/');
+    const item = this._tabs.find(t => t.id === tabId)?.groups.find(g => g.id === groupId)?.items.find(i => i.id === itemId);
+    return item ? { item, tabId, groupId } : null;
+  }
+
+  /** What the toolbar shows: the user's list (unknown refs skipped), or every default until it is customised. */
+  private _qatVisible(): Array<{ ref: string; item: RibbonItem; tabId?: string; groupId?: string }> {
+    const refs = this._qatRefs ?? this._qatDefaults.map(i => `qat:${i.id}`);
+    return refs.map(ref => ({ ref, r: this._resolveRef(ref) }))
+      .filter((e): e is { ref: string; r: { item: RibbonItem; tabId?: string; groupId?: string } } => !!e.r)
+      .map(e => ({ ref: e.ref, ...e.r }));
+  }
+
+  /**
+   * Adds a ref. A re-shown default goes back among the defaults in their declared order, as Office places a re-checked
+   * command; anything else goes at the end.
+   */
+  private _insertQatRef(refs: string[], ref: string): string[] {
+    if (!ref.startsWith('qat:')) return [...refs, ref];
+    const order = (r: string) => this._qatDefaults.findIndex(i => `qat:${i.id}` === r);
+    const mine = order(ref);
+    const at = refs.findIndex(r => r.startsWith('qat:') && order(r) > mine);
+    if (at >= 0) return [...refs.slice(0, at), ref, ...refs.slice(at)];
+    const lastDefault = refs.reduce((last, r, i) => (r.startsWith('qat:') ? i : last), -1);
+    return [...refs.slice(0, lastDefault + 1), ref, ...refs.slice(lastDefault + 1)];
+  }
+
+  private _qatEdit(change: (refs: string[]) => string[]) {
+    this._qatRefs = change(this._qatRefs ?? this._qatDefaults.map(i => `qat:${i.id}`));
+    this._saveQat();
+    this.update();
   }
 
   private _pressKey(tabId: string, groupId: string, itemId: string) { return `${tabId}/${groupId}/${itemId}`; }
@@ -799,6 +915,8 @@ export class BRibbon extends BaseComponent {
   }
 
   protected onMount() {
+    this._loadQat();
+    if (this._qatRefs) this.update();
     // App-wide (decided by the user): the key works wherever focus is. On window, bubbling, so an app that handles the
     // same key first and calls preventDefault() keeps it; `collapse-shortcut="none"` turns it off entirely.
     this._shortcutAC?.abort();
@@ -816,6 +934,7 @@ export class BRibbon extends BaseComponent {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   render() {
+    this._loadQat(); // a changed qat-key reads its own saved choice
     const active = this.attr('active');
     const expanded = this.boolAttr('expanded');
     const pinned = this.boolAttr('pinned');
@@ -834,11 +953,16 @@ export class BRibbon extends BaseComponent {
       ? this._hoverTabId : active;
     const panelTab = this._tabs.find(t => t.id === panelTabId);
 
+    const qatPos = this.attr('qat-position') === 'above' || this.attr('qat-position') === 'below' ? this.attr('qat-position') : 'tabs';
+    const qat = tabsOnly ? '' : this._renderQat();
     return `
       ${this._renderTooltip()}
+      ${this._renderSharedMenu()}
       <div class="ribbon" role="toolbar" aria-label="${this.label('label-ribbon', 'bwc.ribbon.title', 'Module ribbon')}">
+        ${qat && qatPos === 'above' ? `<div class="ribbon-qat-row above">${qat}</div>` : ''}
         <div class="ribbon-tab-row">
           <div class="ribbon-before"><slot name="before-tabs"></slot></div>
+          ${qat && qatPos === 'tabs' ? qat : ''}
 
           <button class="mobile-hamburger" id="mobile-hamburger" aria-label="${this.label('label-open-nav', 'bwc.ribbon.openNav', 'Open navigation menu')}">&#9776;</button>
           <span class="mobile-active-label">${activeLabel}</span>
@@ -881,6 +1005,7 @@ export class BRibbon extends BaseComponent {
         </div>
 
         ${tabsOnly ? '' : this._renderPanel(panelTabId, panelTab)}
+        ${qat && qatPos === 'below' ? `<div class="ribbon-qat-row below">${qat}</div>` : ''}
 
         <dialog class="mobile-dialog" id="mobile-dialog" aria-labelledby="mobile-dialog-title">
           <div class="mobile-dialog-header">
@@ -927,6 +1052,31 @@ export class BRibbon extends BaseComponent {
         </dialog>
       </div>
     `;
+  }
+
+  /**
+   * The Quick Access Toolbar: favourite commands as icon buttons plus a ▾ that customises it. One Tab stop; ←/→
+   * move inside it. Empty (no defaults, nothing added) renders nothing.
+   */
+  private _renderQat(): string {
+    const entries = this._qatVisible();
+    if (!entries.length && !this._qatDefaults.length) return '';
+    const name = this.label('label-quick-access', 'bwc.ribbon.quickAccess', 'Quick Access Toolbar');
+    const customize = this.label('label-qat-customize', 'bwc.ribbon.qatCustomize', 'Customize Quick Access Toolbar');
+    const buttons = entries.map(({ ref, item, tabId, groupId }) => {
+      const on = tabId && groupId && this._isToggle(item) ? ` aria-pressed="${this._isPressed(tabId, groupId, item)}"` : '';
+      const glyph = item.icon ? item.icon : escapeHtml(item.label.slice(0, 1));
+      return `<button class="ribbon-qat-btn" type="button" data-qat-ref="${escapeAttr(ref)}" aria-label="${escapeAttr(item.label)}"${on}`
+        + `${item.disabled ? ' aria-disabled="true"' : ''}><span aria-hidden="true">${glyph}</span></button>`;
+    }).join('');
+    return `<div class="ribbon-qat" role="group" aria-label="${escapeAttr(name)}">${buttons}`
+      + `<button class="ribbon-qat-btn ribbon-qat-more" type="button" data-qat-customize aria-haspopup="menu" aria-expanded="false"`
+      + ` aria-label="${escapeAttr(customize)}"><span aria-hidden="true">&#9662;</span></button></div>`;
+  }
+
+  /** One popover reused for the "add / remove" context menu and the customise menu; filled when it opens. */
+  private _renderSharedMenu(): string {
+    return `<div class="ribbon-menu ribbon-shared-menu" popover role="menu"></div>`;
   }
 
   /** The one tooltip every command shares (TASK-738): a b-tooltip shown for the command under the pointer or focus. */
@@ -1095,11 +1245,16 @@ export class BRibbon extends BaseComponent {
 
   /** The command, folded group or ▾ part a tooltip is for, or null. Menu choices have none: the menu says it all. */
   private _tipTarget(node: EventTarget | null): HTMLElement | null {
-    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow') : null;
+    const el = node instanceof Element ? node.closest<HTMLElement>('.ribbon-item, .ribbon-chunk, .ribbon-split-arrow, .ribbon-qat-btn') : null;
     return el && this.shadowRoot?.contains(el) && !el.closest('.ribbon-menu') ? el : null;
   }
 
   private _tipContent(el: HTMLElement): TooltipContent | null {
+    if (el.dataset.qatRef) {
+      const found = this._resolveRef(el.dataset.qatRef);
+      return found ? { heading: found.item.label, text: found.item.description, shortcut: found.item.shortcut } : null;
+    }
+    if (el.hasAttribute('data-qat-customize')) return { heading: el.getAttribute('aria-label') ?? '' };
     const tab = this._tabs.find(t => t.id === el.dataset.tab) ?? this._tabs.find(t => t.id === (this._hoverTabId ?? this.attr('active')));
     if (el.dataset.chunk) {
       const group = tab?.groups.find(g => g.id === el.dataset.chunk);
@@ -1134,8 +1289,10 @@ export class BRibbon extends BaseComponent {
    * in Office. Keyboard focus shows it at once; Escape, a click, or opening a menu hides it.
    */
   private _bindTooltips() {
-    const panel = this.$<HTMLElement>('.ribbon-panel');
-    if (!panel) return;
+    for (const area of this.$$<HTMLElement>('.ribbon-panel, .ribbon-qat')) this._bindTooltipArea(area);
+  }
+
+  private _bindTooltipArea(panel: HTMLElement) {
     this.listen(panel, 'mouseover', (e: Event) => {
       const el = this._tipTarget(e.target);
       if (!el || el === this._tipAnchor) return;
@@ -1161,6 +1318,159 @@ export class BRibbon extends BaseComponent {
       if (ke.key === 'Escape') { ke.preventDefault(); ke.stopImmediatePropagation(); this._hideTip(); this._tipWarmUntil = 0; return; }
       if (ke.key === 'Enter' || ke.key === ' ') this._hideTip();
     }, { capture: true });
+  }
+
+  /** Opens the shared menu filled with `html`, under `anchor` (or at a point), focusing its first item. */
+  private _openSharedMenu(html: string, anchor: HTMLElement | { x: number; y: number }, opener: HTMLElement) {
+    const menu = this.$<HTMLElement>('.ribbon-shared-menu');
+    if (!menu) return;
+    if (menu.matches(':popover-open')) menu.hidePopover();
+    menu.innerHTML = html;
+    menu.setAttribute('aria-label', opener.getAttribute('aria-label') ?? '');
+    this._menuOpener = opener;
+    this._hideTip();
+    const at = anchor instanceof HTMLElement ? { x: anchor.getBoundingClientRect().left, y: anchor.getBoundingClientRect().bottom + 2 } : anchor;
+    menu.style.left = `${at.x}px`;
+    menu.style.top = `${at.y}px`;
+    menu.showPopover();
+    const box = menu.getBoundingClientRect();
+    if (box.right > window.innerWidth - 4) menu.style.left = `${Math.max(4, window.innerWidth - box.width - 4)}px`;
+    if (box.bottom > window.innerHeight - 4) menu.style.top = `${Math.max(4, at.y - box.height - 4)}px`;
+    this._menuItems(menu)[0]?.focus();
+  }
+
+  private _menuRow(action: string, ref: string, label: string, checked?: boolean): string {
+    const role = checked === undefined ? 'menuitem' : 'menuitemcheckbox';
+    const check = checked === undefined ? '' : `<span class="ribbon-menu-check" aria-hidden="true"></span>`;
+    return `<button class="ribbon-menu-item" role="${role}" tabindex="-1"${checked === undefined ? '' : ` aria-checked="${checked}"`}`
+      + ` data-qat-action="${action}" data-ref="${escapeAttr(ref)}">${check}<span class="ribbon-menu-label">${escapeHtml(label)}</span></button>`;
+  }
+
+  /** The ref a panel command (or its split main part) would have in the toolbar, or null when it cannot be added. */
+  private _refFor(el: HTMLElement): string | null {
+    if (el.dataset.qatRef) return el.dataset.qatRef;
+    const { tab, group, item } = el.dataset;
+    if (!tab || !group || !item || group === '_context') return null;
+    const found = this._resolveRef(`item:${tab}/${group}/${item}`);
+    if (!found || (found.item.menu?.length && !found.item.split) || found.item.href) return null;
+    return `item:${tab}/${group}/${item}`;
+  }
+
+  private _bindQat() {
+    const qat = this.$<HTMLElement>('.ribbon-qat');
+    const buttons = this.$$<HTMLElement>('.ribbon-qat-btn');
+    this._qatRoving = Math.min(this._qatRoving, Math.max(0, buttons.length - 1));
+    buttons.forEach((b, i) => { b.tabIndex = i === this._qatRoving ? 0 : -1; });
+    if (qat) {
+      this.listen(qat, 'keydown', (e: Event) => {
+        const ke = e as KeyboardEvent;
+        const i = buttons.indexOf(ke.target as HTMLElement);
+        if (i < 0) return;
+        const next = ke.key === 'ArrowRight' ? (i + 1) % buttons.length : ke.key === 'ArrowLeft' ? (i - 1 + buttons.length) % buttons.length
+          : ke.key === 'Home' ? 0 : ke.key === 'End' ? buttons.length - 1 : -1;
+        if (next < 0) return;
+        ke.preventDefault();
+        this._qatRoving = next;
+        buttons.forEach((b, j) => { b.tabIndex = j === next ? 0 : -1; });
+        buttons[next].focus();
+      });
+      this.listen(qat, 'focusin', (e: Event) => {
+        const i = buttons.indexOf(e.target as HTMLElement);
+        if (i >= 0) { this._qatRoving = i; buttons.forEach((b, j) => { b.tabIndex = j === i ? 0 : -1; }); }
+      });
+    }
+    buttons.forEach(b => this.listen(b, 'click', (e: Event) => {
+      e.stopPropagation();
+      if (b.getAttribute('aria-disabled') === 'true') return;
+      if (b.hasAttribute('data-qat-customize')) { this._openCustomize(b); return; }
+      const ref = b.dataset.qatRef ?? '';
+      const found = this._resolveRef(ref);
+      if (!found) return;
+      let pressed: boolean | null = null;
+      if (found.tabId && found.groupId && this._isToggle(found.item)) {
+        const group = this._tabs.find(t => t.id === found.tabId)!.groups.find(g => g.id === found.groupId)!;
+        pressed = found.item.toggleGroup ? true : !this._isPressed(found.tabId, found.groupId, found.item);
+        this._setPressedState(found.tabId, group, found.item, pressed);
+        this._syncPressed();
+        b.setAttribute('aria-pressed', String(pressed));
+      }
+      this.emit('item-click', {
+        ...(found.tabId ? { tabId: found.tabId, groupId: found.groupId } : {}),
+        itemId: found.item.id, source: 'qat', ...(pressed === null ? {} : { pressed }),
+      });
+    }));
+
+    // Right-click, Shift+F10 or the menu key (all fire contextmenu) on a command: add it; on a toolbar button: remove it.
+    for (const area of this.$$<HTMLElement>('.ribbon-panel, .ribbon-qat')) {
+      this.listen(area, 'contextmenu', (e: Event) => {
+        const me = e as MouseEvent;
+        const el = (me.target as Element).closest<HTMLElement>('.ribbon-item, .ribbon-qat-btn');
+        if (!el || el.closest('.ribbon-menu') || el.hasAttribute('data-qat-customize')) return;
+        const ref = this._refFor(el);
+        if (!ref) return;
+        me.preventDefault();
+        const inBar = this.getQuickAccess().includes(ref);
+        const html = inBar
+          ? this._menuRow('remove', ref, this.label('label-qat-remove', 'bwc.ribbon.qatRemove', 'Remove from Quick Access Toolbar'))
+          : this._menuRow('add', ref, this.label('label-qat-add', 'bwc.ribbon.qatAdd', 'Add to Quick Access Toolbar'));
+        const at = me.clientX || me.clientY ? { x: me.clientX, y: me.clientY } : el;
+        this._openSharedMenu(html, at, el);
+      });
+    }
+
+    const menu = this.$<HTMLElement>('.ribbon-shared-menu');
+    if (!menu) return;
+    this.listen(menu, 'keydown', (e: Event) => {
+      const ke = e as KeyboardEvent;
+      const target = ke.target as HTMLElement;
+      if (ke.key === 'Escape') return; // the popover closes itself
+      this._menuKey(ke, menu, target);
+    });
+    this.listen(menu, 'click', (e: Event) => {
+      const el = (e.target as Element).closest<HTMLElement>('[data-qat-action]');
+      if (!el) return;
+      const ref = el.dataset.ref ?? '';
+      const action = el.dataset.qatAction;
+      menu.hidePopover();
+      if (action === 'add') this._qatEdit(refs => refs.includes(ref) ? refs : [...refs, ref]);
+      else if (action === 'remove') this._qatEdit(refs => refs.filter(x => x !== ref));
+      else if (action === 'toggle') this._qatEdit(refs => refs.includes(ref) ? refs.filter(x => x !== ref) : this._insertQatRef(refs, ref));
+      else if (action === 'reset') {
+        this._qatRefs = null;
+        const key = this._qatStorageKey();
+        if (key) { try { localStorage.removeItem(key); } catch { /* blocked */ } }
+        this.emit('quick-access-change', { refs: this.getQuickAccess() });
+        this.update();
+      }
+      this.$<HTMLElement>('.ribbon-qat-more')?.focus();
+    });
+    let hadFocus = false;
+    this.listen(menu, 'beforetoggle', (e: Event) => {
+      if ((e as ToggleEvent).newState !== 'closed') return;
+      const active = this.shadowRoot?.activeElement ?? null;
+      hadFocus = !!active && menu.contains(active);
+    });
+    this.listen(menu, 'toggle', (e: Event) => {
+      const open = (e as ToggleEvent).newState === 'open';
+      this.$<HTMLElement>('.ribbon-qat-more')?.setAttribute('aria-expanded', String(open && this._menuOpener?.hasAttribute('data-qat-customize')));
+      if (open || !hadFocus) return;
+      hadFocus = false;
+      const active = this.shadowRoot?.activeElement ?? null;
+      const page = document.activeElement;
+      if ((active && menu.contains(active)) || !page || page === document.body) {
+        (this._menuOpener?.isConnected ? this._menuOpener : this.$<HTMLElement>('.ribbon-qat-more'))?.focus();
+      }
+    });
+  }
+
+  /** The ▾ menu: each default as a checkbox (shown or hidden), the added commands, and Reset. */
+  private _openCustomize(button: HTMLElement) {
+    const shown = new Set(this.getQuickAccess());
+    const defaults = this._qatDefaults.map(i => this._menuRow('toggle', `qat:${i.id}`, i.label, shown.has(`qat:${i.id}`))).join('');
+    const added = this._qatVisible().filter(e => e.ref.startsWith('item:'))
+      .map(e => this._menuRow('toggle', e.ref, e.item.label, true)).join('');
+    const reset = this._menuRow('reset', '', this.label('label-qat-reset', 'bwc.ribbon.qatReset', 'Reset to default'));
+    this._openSharedMenu(`${defaults}${added}<div class="ribbon-menu-separator" role="separator"></div>${reset}`, button, button);
   }
 
   /**
@@ -1272,7 +1582,10 @@ export class BRibbon extends BaseComponent {
         trigger.setAttribute('aria-expanded', String((e as ToggleEvent).newState === 'open'));
       });
     });
-    this.$$<HTMLElement>('.ribbon-menu-item').forEach(el => {
+    // Commands' menus only. The shared menu (Quick Access Toolbar) is filled when it opens and handles its own clicks;
+    // _showTabContent re-runs this binding on a hover preview, which bound these handlers onto an OPEN shared menu,
+    // so its choice was swallowed here (stopPropagation) and reported as a meaningless item-click.
+    this.$$<HTMLElement>('.ribbon-menu:not(.ribbon-shared-menu) .ribbon-menu-item').forEach(el => {
       this.listen(el, 'click', (e: Event) => {
         e.stopPropagation();
         if (el.getAttribute('aria-disabled') === 'true') return;
@@ -1393,6 +1706,7 @@ export class BRibbon extends BaseComponent {
     this._bindChunks();
     this._bindMenus();
     this._bindTooltips();
+    this._bindQat();
 
     // First measure once layout exists. requestAnimationFrame, not now: clientWidth is 0 pre-layout.
     requestAnimationFrame(() => this._measureAndScale());
