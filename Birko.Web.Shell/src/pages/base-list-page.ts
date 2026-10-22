@@ -125,10 +125,7 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
       <div class="list-page">
         ${this.renderPageHeader()}
         ${this.renderFilterRow()}
-        ${this.requiredFilterSet
-          ? this.renderContent()
-          : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
-        }
+        ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}

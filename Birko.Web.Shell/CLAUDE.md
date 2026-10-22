@@ -226,6 +226,13 @@ type LabelResolver = (key: string | undefined, fallback: string) => string;
 
 Without a resolver, labels are used as-is. With a resolver, it tries to translate `labelKey`/`groupLabelKey` and falls back to the string `label` if the key returns itself (no translation found).
 
+### The empty-filter state is one overridable method (TASK-744, for Symbio TASK-955)
+
+`renderEmptyFilter()` on `BaseCrudPage` is what the crud, list and split pages show while `requiredFilterSet` is false.
+The three render methods used to inline the same `<b-card><b-empty>` string, so a consumer could add an action ("Create
+a building") only by overriding `render()`. The default returns exactly that string; keep it so, since every
+existing page renders it. Tests: Playground `empty-filter-smoke`.
+
 ### Live refresh: an opt-in on BaseListPage, the source injected (TASK-583)
 
 `pages/live-refresh.ts` holds `EntityChangedEvent`, its parser and the one app-wide source

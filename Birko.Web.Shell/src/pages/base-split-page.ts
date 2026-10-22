@@ -298,10 +298,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
       <div class="split-page">
         ${this.renderPageHeader()}
         ${this.renderFilterRow()}
-        ${this.requiredFilterSet
-          ? this.renderContent()
-          : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
-        }
+        ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}

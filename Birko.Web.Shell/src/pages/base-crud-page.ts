@@ -190,6 +190,15 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected get emptyFilterMessage(): string { return 'Select a filter to continue'; }
 
   /**
+   * What the page shows instead of its content while `requiredFilterSet` is false. Default: a card with a
+   * <b-empty> carrying `emptyFilterMessage`. Override to offer an action, e.g. a link that creates the missing
+   * prerequisite (b-empty renders its slot below the message).
+   */
+  protected renderEmptyFilter(): string {
+    return `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`;
+  }
+
+  /**
    * Hint shown as a tooltip on the create button while it is disabled because
    * `requiredFilterSet` is `false` (i.e. a prerequisite selection/page is missing).
    * Defaults to `emptyFilterMessage`; override for button-specific wording.
@@ -514,10 +523,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       <div class="base-page">
         ${this.renderPageHeader()}
         ${this.renderFilterRow()}
-        ${this.requiredFilterSet
-          ? this.renderContent()
-          : `<b-card><b-empty message="${this.emptyFilterMessage}"></b-empty></b-card>`
-        }
+        ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
           <b-modal id="modal" title=""${sizeAttr}>
             ${this.renderModalBody()}

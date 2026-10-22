@@ -741,6 +741,22 @@ class OrdersPage extends BaseListPage<Order> {
 - A page that overrides `renderPageHeader()` keeps the button by calling `this.renderTourButton()` in its markup.
 - `BaseDetailPage` and `BaseFormModal` do not extend `BasePage` and render no page header, so they have no tour button.
 
+### A prerequisite is missing (`requiredFilterSet`)
+
+While `requiredFilterSet` is `false`, `BaseCrudPage`, `BaseListPage` and `BaseSplitPage` show `renderEmptyFilter()`
+instead of their content. By default that is a card with a `<b-empty>` carrying `emptyFilterMessage`. Override it to
+offer an action; `b-empty` renders its slot below the message:
+
+```typescript
+class RoomsPage extends BaseListPage<Room> {
+  protected override get requiredFilterSet() { return this.buildings.length > 0; }
+  protected override get emptyFilterMessage() { return 'This works per building — create one first'; }
+  protected override renderEmptyFilter() {
+    return `<b-card><b-empty message="${this.emptyFilterMessage}"><a href="#/buildings/new">Create a building</a></b-empty></b-card>`;
+  }
+}
+```
+
 ### BaseListPage\<T\>
 
 Provides a full CRUD list page: auto-fetching data table, search, toolbar actions, create/edit modal, delete confirmation, permission checks.
