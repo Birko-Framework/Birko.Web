@@ -189,6 +189,19 @@ const unsub = onI18nChange(() => console.log('locale changed'));
 unsub();
 ```
 
+**Fallback chains.** A missing key falls back to `fallbackLocale` (default `en`). A locale can name its own ordered
+fallbacks instead, so a Czech UI tries Slovak before English:
+
+```typescript
+const i18n = new I18n({ fallbackChains: { cs: ['sk', 'en'], sk: ['en'] } });
+await i18n.setLocale('cs');   // loads cs.json, sk.json and en.json
+```
+
+`setLocale()` and `loadModule()` load the bundle (root and `modules/<id>/`) for the locale and for every locale in its
+chain. `t()`, plurals included, takes the first locale in order that has the key, and returns the key when none
+does. A plural uses the rules of the locale it was found in. A locale with no entry, and an app that passes no
+`fallbackChains`, behave as before.
+
 **API surface:**
 
 | Export | Purpose |

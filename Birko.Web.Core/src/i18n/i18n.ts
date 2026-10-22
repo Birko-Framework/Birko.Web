@@ -8,8 +8,13 @@ export type Messages = Record<string, unknown>;
 export interface I18nOptions {
   /** Default locale to use on first load. */
   defaultLocale?: string;
-  /** Fallback locale when a key is missing in the active locale. */
+  /** Fallback locale when a key is missing in the active locale (and no `fallbackChains` entry names its fallbacks). */
   fallbackLocale?: string;
+  /**
+   * Per active locale, the ordered locales to try when a key is missing: `{ cs: ['sk', 'en'] }` makes a Czech UI fall
+   * back to Slovak, then English. A locale with no entry falls back to `fallbackLocale`, as before.
+   */
+  fallbackChains?: Record<string, string[]>;
   /** LocalStorage key to persist the chosen locale. Empty string disables persistence. */
   storageKey?: string;
   /** Build version string appended to locale fetch URLs for cache-busting. */
@@ -22,14 +27,18 @@ export class I18n {
   private _locale: Signal<string>;
   private _messages = new Map<string, Messages>();
   private _fallbackLocale: string;
+  private _fallbackChains: Record<string, string[]>;
   private _storageKey: string;
   private _loadedModules = new Set<string>();
+  /** `module|locale` pairs already merged, so a locale switch loads a module's chain bundles once each. */
+  private _loadedModuleLocales = new Set<string>();
   private _basePath = '/locales';
   private _version: string;
 
   constructor(options: I18nOptions = {}) {
-    const { defaultLocale = 'en', fallbackLocale = 'en', storageKey = '', version = '' } = options;
+    const { defaultLocale = 'en', fallbackLocale = 'en', fallbackChains = {}, storageKey = '', version = '' } = options;
     this._fallbackLocale = fallbackLocale;
+    this._fallbackChains = fallbackChains;
     this._storageKey = storageKey;
     this._version = version;
     // Restore the previously persisted locale so the user's language survives a reload. Guard the
@@ -54,17 +63,18 @@ export class I18n {
   }
 
   async setLocale(locale: string): Promise<void> {
-    // Load core translations
+    const chain = this._chainFor(locale);
+    // Load core translations: the locale's, then each of its fallbacks'
     await this._loadBundle(locale, `${this._basePath}/${locale}.json`);
-    if (locale !== this._fallbackLocale) {
-      await this._loadBundle(this._fallbackLocale, `${this._basePath}/${this._fallbackLocale}.json`);
-    }
+    for (const fb of chain) await this._loadBundle(fb, `${this._basePath}/${fb}.json`);
 
-    // Reload already-loaded module translations for new locale
+    // Reload already-loaded module translations for the new locale; a fallback's only if not merged yet, so a
+    // consumer without fallbackChains fetches exactly what it did before (its fallback came with loadModule).
     await Promise.all(
-      [...this._loadedModules].map(id =>
-        this._loadBundle(locale, `${this._basePath}/modules/${id}/${locale}.json`)
-      )
+      [...this._loadedModules].flatMap(id => [
+        this._loadModuleBundle(id, locale, true),
+        ...chain.map(fb => this._loadModuleBundle(id, fb, false)),
+      ])
     );
 
     this._locale.update(() => locale);
@@ -89,15 +99,19 @@ export class I18n {
     // Try plural resolution first (when params has 'count')
     let value: string | null = null;
     if (params && typeof params === 'object' && 'count' in params) {
-      value = this._resolvePlural(key, locale, Number(params.count))
-           ?? this._resolvePlural(key, this._fallbackLocale, Number(params.count));
+      for (const l of [locale, ...this._chainFor(locale)]) {
+        value = this._resolvePlural(key, l, Number(params.count));
+        if (value !== null) break;
+      }
     }
 
-    // Standard resolution
+    // Standard resolution: the locale, then its fallbacks in order; the first hit wins
     if (value === null) {
-      value = this._resolve(key, locale)
-           ?? this._resolve(key, this._fallbackLocale)
-           ?? key;
+      for (const l of [locale, ...this._chainFor(locale)]) {
+        value = this._resolve(key, l);
+        if (value !== null) break;
+      }
+      value ??= key;
     }
 
     return interpolate(value, params);
@@ -110,10 +124,8 @@ export class I18n {
     this._loadedModules.add(moduleId);
 
     const locale = this._locale.value;
-    await this._loadBundle(locale, `${this._basePath}/modules/${moduleId}/${locale}.json`);
-    if (locale !== this._fallbackLocale) {
-      await this._loadBundle(this._fallbackLocale, `${this._basePath}/modules/${moduleId}/${this._fallbackLocale}.json`);
-    }
+    await this._loadModuleBundle(moduleId, locale, true);
+    for (const fb of this._chainFor(locale)) await this._loadModuleBundle(moduleId, fb, true);
   }
 
   // ── Manual message injection ──
@@ -125,6 +137,20 @@ export class I18n {
   }
 
   // ── Internal ──
+
+  /** The locales to try after `locale`, in order: its `fallbackChains` entry, else `[fallbackLocale]`; never itself. */
+  private _chainFor(locale: string): string[] {
+    const chain = this._fallbackChains[locale] ?? [this._fallbackLocale];
+    return [...new Set(chain)].filter(l => l && l !== locale);
+  }
+
+  /** One module bundle; `always` re-fetches it (as a locale switch did), otherwise only when not merged yet. */
+  private async _loadModuleBundle(moduleId: string, locale: string, always: boolean): Promise<void> {
+    const key = `${moduleId}|${locale}`;
+    if (!always && this._loadedModuleLocales.has(key)) return;
+    this._loadedModuleLocales.add(key);
+    await this._loadBundle(locale, `${this._basePath}/modules/${moduleId}/${locale}.json`);
+  }
 
   private _resolve(key: string, locale: string): string | null {
     const bundle = this._messages.get(locale);
