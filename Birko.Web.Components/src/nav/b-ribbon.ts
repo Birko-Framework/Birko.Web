@@ -92,6 +92,18 @@ export interface RibbonItem {
   description?: string;
   /** Shown in the tooltip, e.g. `Ctrl+V`, and exposed as aria-keyshortcuts. Display only: the app binds the key. */
   shortcut?: string;
+  /**
+   * An on/off command (Bold). A click flips it and emits `item-click` with `pressed`. Not combined with `menu`.
+   * `pressed` is the initial state; {@link BRibbon.setPressed} changes it later without an event.
+   */
+  toggle?: boolean;
+  pressed?: boolean;
+  /**
+   * Commands of one ribbon group sharing this name form a set where exactly one is on (alignment left / centre /
+   * right): pressing one turns the others off, and pressing the one that is on keeps it on. A screen reader hears a
+   * radio group named after the ribbon group. Implies `toggle`.
+   */
+  toggleGroup?: string;
 }
 
 /** One choice of a {@link RibbonItem.menu}. Label and shortcut are text, never markup. */
@@ -151,6 +163,8 @@ export class BRibbon extends BaseComponent {
     'preferred-group-size']; }
 
   private _tabs: RibbonTab[] = [];
+  /** Toggle states by tab/group/item, seeded from RibbonItem.pressed (see _isPressed). */
+  private _pressed = new Map<string, boolean>();
   private _contextActions: RibbonItem[] = [];
   private _expandTimer: ReturnType<typeof setTimeout> | null = null;
   private _collapseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -519,6 +533,17 @@ export class BRibbon extends BaseComponent {
       .ribbon-item:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .ribbon-item:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
       .ribbon-item.active { background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); }
+      /* A pressed toggle (TASK-739, option A picked by the user): the accent tint plus a thin accent outline, drawn as an
+         inset shadow so pressing never shifts the layout. The outline is what tells "on" apart from "active". */
+      .ribbon-item[aria-pressed="true"], .ribbon-item[aria-checked="true"],
+      .mobile-item[aria-pressed="true"], .mobile-item[aria-checked="true"] {
+        background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
+        box-shadow: inset 0 0 0 1px var(--b-color-primary);
+      }
+      .ribbon-item[aria-pressed="true"]:focus-visible, .ribbon-item[aria-checked="true"]:focus-visible {
+        box-shadow: inset 0 0 0 1px var(--b-color-primary), var(--b-focus-ring);
+      }
+      .ribbon-radiogroup { display: contents; }
       .ribbon-item[aria-disabled="true"] {
         opacity: var(--b-disabled-opacity, 0.5); pointer-events: none;
       }
@@ -622,6 +647,7 @@ export class BRibbon extends BaseComponent {
 
   setTabs(tabs: RibbonTab[]) {
     this._tabs = tabs;
+    this._pressed.clear(); // new data: its `pressed` values are the state again
     if (!this.attr('active') && tabs.length > 0) {
       this.setAttribute('active', tabs[0].id);
     }
@@ -631,6 +657,75 @@ export class BRibbon extends BaseComponent {
   setContextActions(items: RibbonItem[]) {
     this._contextActions = items;
     this.update();
+  }
+
+  /**
+   * Sets a toggle's state from the app (the selection changed), without emitting `item-click`. In a `toggleGroup`,
+   * pressing one releases the others; releasing the one that is on leaves none on. `tabId` narrows an id used in
+   * several tabs; without it every match changes.
+   */
+  setPressed(itemId: string, pressed: boolean, tabId?: string) {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        const item = group.items.find(i => i.id === itemId);
+        if (item) this._setPressedState(tab.id, group, item, pressed);
+      }
+    }
+    this._syncPressed();
+  }
+
+  /** Whether a toggle is on. */
+  isPressed(itemId: string, tabId?: string): boolean {
+    for (const tab of this._tabs) {
+      if (tabId && tab.id !== tabId) continue;
+      for (const group of tab.groups) {
+        const item = group.items.find(i => i.id === itemId);
+        if (item && this._isPressed(tab.id, group.id, item)) return true;
+      }
+    }
+    return false;
+  }
+
+  private _pressKey(tabId: string, groupId: string, itemId: string) { return `${tabId}/${groupId}/${itemId}`; }
+
+  private _isToggle(item: RibbonItem) { return !item.menu?.length && (item.toggle || !!item.toggleGroup); }
+
+  /** The state lives here, seeded from `item.pressed`: the caller's objects are never written to. */
+  private _isPressed(tabId: string, groupId: string, item: RibbonItem): boolean {
+    return this._pressed.get(this._pressKey(tabId, groupId, item.id)) ?? !!item.pressed;
+  }
+
+  private _setPressedState(tabId: string, group: RibbonGroup, item: RibbonItem, pressed: boolean) {
+    if (item.toggleGroup && pressed) {
+      for (const other of group.items) {
+        if (other !== item && other.toggleGroup === item.toggleGroup) this._pressed.set(this._pressKey(tabId, group.id, other.id), false);
+      }
+    }
+    this._pressed.set(this._pressKey(tabId, group.id, item.id), pressed);
+  }
+
+  /** Writes the current states onto the rendered buttons (panel, flyouts, mobile list) without a re-render. */
+  private _syncPressed() {
+    this.$$<HTMLElement>('[data-toggle]').forEach(el => {
+      const tab = this._tabs.find(t => t.id === el.dataset.tab);
+      const group = tab?.groups.find(g => g.id === el.dataset.group);
+      const item = group?.items.find(i => i.id === el.dataset.item);
+      if (!tab || !group || !item) return;
+      el.setAttribute(el.getAttribute('role') === 'radio' ? 'aria-checked' : 'aria-pressed', String(this._isPressed(tab.id, group.id, item)));
+    });
+  }
+
+  /** A click on a toggle: flip it (or select it, in a set) and report the new state. */
+  private _clickToggle(el: HTMLElement): boolean | null {
+    const tab = this._tabs.find(t => t.id === el.dataset.tab);
+    const group = tab?.groups.find(g => g.id === el.dataset.group);
+    const item = group?.items.find(i => i.id === el.dataset.item);
+    if (!tab || !group || !item || !this._isToggle(item)) return null;
+    const next = item.toggleGroup ? true : !this._isPressed(tab.id, group.id, item);
+    this._setPressedState(tab.id, group, item, next);
+    this._syncPressed();
+    return next;
   }
 
   /**
@@ -772,7 +867,9 @@ export class BRibbon extends BaseComponent {
                       if (item.menu?.length && !item.split) {
                         return `<div class="mobile-item-heading">${item.label}</div>${choices}`;
                       }
-                      return `<${tag} class="mobile-item" ${href}
+                      const toggle = this._isToggle(item)
+                        ? ` data-toggle ${item.toggleGroup ? 'role="radio" aria-checked' : 'aria-pressed'}="${this._isPressed(tab.id, group.id, item)}"` : '';
+                      return `<${tag} class="mobile-item" ${href}${toggle}
                         data-tab="${tab.id}" data-group="${group.id}" data-item="${item.id}">
                         ${item.icon ? `<span aria-hidden="true">${item.icon}</span>` : ''}
                         ${item.label}
@@ -834,7 +931,7 @@ export class BRibbon extends BaseComponent {
    * its items at `large` — lossless, and the group keeps its position in the row.
    */
   private _renderGroup(tabId: string, group: RibbonGroup, size: string, compactChunk = false): string {
-    const items = group.items.map(item => this._renderItem(tabId, group.id, item)).join('');
+    const items = this._renderGroupItems(tabId, group);
 
     if (size === 'popup') {
       // Explicit argument, NEVER this._compactChunks. The measure pass renders through here, and reading the
@@ -895,10 +992,13 @@ export class BRibbon extends BaseComponent {
     this.$$<HTMLElement>('.ribbon-panel .ribbon-item:not([data-menu-trigger])').forEach(el => {
       this.listen(el, 'click', (e: Event) => {
         const target = e.currentTarget as HTMLElement;
+        if (target.getAttribute('aria-disabled') === 'true') return;
+        const pressed = target.hasAttribute('data-toggle') ? this._clickToggle(target) : null;
         this.emit('item-click', {
           tabId: target.dataset.tab,
           groupId: target.dataset.group,
           itemId: target.dataset.item,
+          ...(pressed === null ? {} : { pressed }),
         });
         if (!this.boolAttr('pinned')) { this._hoverTabId = null; this.collapse(); }
       });
@@ -914,7 +1014,11 @@ export class BRibbon extends BaseComponent {
     const icon = item.icon ? `<span class="ribbon-item-icon" aria-hidden="true">${item.icon}</span>` : '';
     const badge = item.badge ? `<span class="ribbon-item-badge">${item.badge > 99 ? '99+' : item.badge}</span>` : '';
     const disabled = item.disabled ? 'aria-disabled="true"' : '';
-    const data = `data-tab="${tabId}" data-group="${groupId}" data-item="${item.id}"`;
+    let data = `data-tab="${tabId}" data-group="${groupId}" data-item="${item.id}"`;
+    if (this._isToggle(item)) {
+      const on = String(this._isPressed(tabId, groupId, item));
+      data += item.toggleGroup ? ` data-toggle role="radio" aria-checked="${on}"` : ` data-toggle aria-pressed="${on}"`;
+    }
 
     // aria-label matters at the Small variant, where the label is not rendered: an icon-only command with no
     // accessible name would trade "unreachable" for "unnameable". The visible name there is the tooltip's heading
@@ -1036,6 +1140,27 @@ export class BRibbon extends BaseComponent {
       // Still inside the hidden popover, or dropped to <body>: nobody else has taken it, so give it back.
       if ((active && popover.contains(active)) || !page || page === document.body) opener.focus();
     });
+  }
+
+  /**
+   * A group's commands. Consecutive members of one `toggleGroup` are wrapped in a radiogroup with display: contents,
+   * so they keep their grid cells (and their place in the arrow-key order) while a screen reader hears a set.
+   */
+  private _renderGroupItems(tabId: string, group: RibbonGroup): string {
+    let out = '';
+    let i = 0;
+    while (i < group.items.length) {
+      const set = group.items[i].toggleGroup;
+      if (!set || group.items[i].menu?.length) { out += this._renderItem(tabId, group.id, group.items[i]); i++; continue; }
+      let j = i;
+      let members = '';
+      while (j < group.items.length && group.items[j].toggleGroup === set && !group.items[j].menu?.length) {
+        members += this._renderItem(tabId, group.id, group.items[j]); j++;
+      }
+      out += `<span class="ribbon-radiogroup" role="radiogroup" aria-label="${escapeAttr(group.label)}">${members}</span>`;
+      i = j;
+    }
+    return out;
   }
 
   /** A command's menu, as a popover. Every choice is a menuitem reached with the arrows (tabindex -1). */
@@ -1308,11 +1433,13 @@ export class BRibbon extends BaseComponent {
     // Mobile item clicks
     this.$$<HTMLElement>('.mobile-item').forEach(el => {
       this.listen(el, 'click', () => {
+        const pressed = el.hasAttribute('data-toggle') ? this._clickToggle(el) : null;
         this.emit('item-click', {
           tabId: el.dataset.tab,
           groupId: el.dataset.group,
           itemId: el.dataset.item,
           ...(el.dataset.parent ? { parentId: el.dataset.parent } : {}),
+          ...(pressed === null ? {} : { pressed }),
         });
         this._closeMobileMenu();
       });
@@ -1470,6 +1597,7 @@ export class BRibbon extends BaseComponent {
   private _panelStops(): HTMLElement[] {
     return this.$$<HTMLElement>([
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-item',
+      '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-item',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-group-items > .ribbon-split > .ribbon-split-arrow',
       '.ribbon-panel-inner > .ribbon-group > .ribbon-chunk',
@@ -1506,7 +1634,7 @@ export class BRibbon extends BaseComponent {
   }
 
   private _flyoutKey(ke: KeyboardEvent, flyout: HTMLElement, target: HTMLElement) {
-    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
+    const items = [...flyout.querySelectorAll<HTMLElement>(':scope > .ribbon-group-items > .ribbon-item, :scope > .ribbon-group-items > .ribbon-radiogroup > .ribbon-item, :scope > .ribbon-group-items > .ribbon-split > *')];
     if (!items.includes(target)) return;
     const dirs: Record<string, 'left' | 'right' | 'up' | 'down'> = {
       ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down',

@@ -1696,8 +1696,14 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`
-Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId? }`, `pin` → `{ pinned }`
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`
+Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId?, pressed? }`, `pin` → `{ pinned }`
+
+**Toggles.** `toggle: true` makes an on/off command (Bold). `pressed` sets its starting state, and a click flips it
+and reports `pressed` in `item-click`. Commands of one group sharing a `toggleGroup` name form a set where exactly
+one is on (alignment): pressing one releases the others. A screen reader hears a radio group named after the ribbon
+group. `setPressed()` changes a state from the app without an event, for example when the selection changes. The
+ribbon keeps the state itself and never writes to your objects. A new `setTabs()` takes its `pressed` values again.
 
 **Tooltips.** Every command, ▾ part and folded group shows a `b-tooltip` with its name. A command can add
 `description` and `shortcut` (text), which also become its `aria-description` and `aria-keyshortcuts`. The tooltip

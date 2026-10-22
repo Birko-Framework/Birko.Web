@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,15 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` toggle buttons and one-of sets (2026-10-22, TASK-739)
+
+`toggle` gives a command `aria-pressed` and a pressed look: the accent tint plus a 1px accent outline drawn as an inset
+shadow, option A picked by the user, so nothing shifts. A click flips it and `item-click` carries `pressed`. Members of one
+`toggleGroup` become `role="radio"` inside a `radiogroup` wrapper with `display: contents`, so they keep their grid cells
+and their place in the arrow-key stops, and exactly one stays on. State is the ribbon's own (`_pressed`, seeded from
+`RibbonItem.pressed`, reset by `setTabs`); the caller's objects are never written. `setPressed()` is silent, so an app
+syncing from its selection does not loop. Guarded by Playground `ribbon-toggle-smoke` and keyboard-check.
 
 ### `b-ribbon` tooltips are a themed `b-tooltip`, shown for commands it does not wrap (2026-10-22, TASK-738)
 
