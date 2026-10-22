@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.16 — 2026-10-22
+
+- **No empty strip above the ribbon** — Birko TASK-749 (reported by the FinStat web tester). **Fixed:** since v0.1.13
+  every `b-ribbon` had an empty strip, about 21px, above its tabs. Ribbons are that much shorter now, and what is
+  below them moves up.
+- **Carousels and galleries keep the slide chosen on a busy page** — Birko TASK-745. **Fixed:** when the page was busy
+  during a smooth scroll, `b-carousel` and `b-gallery` could settle on a slide nobody chose. The index jumped,
+  `slide-change` fired and the slide was announced. A scroll the browser ends early is now resumed; the user's own
+  swipe or scroll still wins.
+
 ## v0.1.15 — 2026-10-22
 
 - **Links in the Quick Access Toolbar** — Birko TASK-748 (for the FinStat web tester). A link command (`href`, no
