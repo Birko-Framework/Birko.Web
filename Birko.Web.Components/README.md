@@ -1696,8 +1696,14 @@ Office-style ribbon header with module tabs, grouped items, and context actions.
 
 Attributes: `active` (tab id)
 Slots: `before-tabs`, `after-tabs`
-Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`
+Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `Ctrl+Shift+F1`), `tooltip-theme`
+Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId, groupId, itemId, parentId?, pressed? }`, `pin` → `{ pinned }`
+
+**Collapsing.** As in Office, double-clicking a tab or pressing Ctrl+F1 switches between the ribbon always shown
+(pinned) and tabs only, where the panel opens over the page when a tab is used. `toggleRibbon()` does the same.
+Ctrl+F1 works anywhere in the app. A key press the app has already handled (`preventDefault()`) is left alone, and
+`collapse-shortcut` rebinds the key or turns it off.
 
 **Toggles.** `toggle: true` makes an on/off command (Bold). `pressed` sets its starting state, and a click flips it
 and reports `pressed` in `item-click`. Commands of one group sharing a `toggleGroup` name form a set where exactly

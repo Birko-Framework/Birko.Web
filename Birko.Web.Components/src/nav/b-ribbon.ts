@@ -155,7 +155,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
 }
 
 export class BRibbon extends BaseComponent {
-  static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme',
+  static get observedAttributes() { return ['active', 'expanded', 'pinned', 'tabs-only', 'tooltip-theme', 'collapse-shortcut',
     'label-ribbon', 'label-open-nav', 'label-expand', 'label-collapse',
     'label-pin', 'label-unpin', 'label-navigation', 'label-actions', 'label-close',
     'label-scroll-tabs-left', 'label-scroll-tabs-right',
@@ -177,6 +177,7 @@ export class BRibbon extends BaseComponent {
   private _tipAnchor: HTMLElement | null = null;
   private _tipTimer: ReturnType<typeof setTimeout> | null = null;
   private _tipWarmUntil = 0;
+  private _shortcutAC: AbortController | null = null;
   private _scrollSyncs: Array<() => void> = [];
   private _scrollObserver: ResizeObserver | null = null;
   private _panelSync: (() => void) | null = null;
@@ -769,6 +770,49 @@ export class BRibbon extends BaseComponent {
     if (this.boolAttr('pinned')) this.unpin(); else this.pin();
   }
 
+  /**
+   * Office's "collapse the ribbon" (double-click a tab, Ctrl+F1): between the panel always shown (pinned) and tabs
+   * only, where the panel opens over the page when a tab is used (unpinned). Toggling `expanded` alone would undo
+   * itself on a collapsed ribbon: the double-click's own first click expands it again.
+   */
+  toggleRibbon() {
+    if (this._tabsOnlyMode) return;
+    if (this.boolAttr('pinned')) { this.unpin(); this.collapse(); } else { this.pin(); }
+  }
+
+  /** `collapse-shortcut` parsed: default Ctrl+F1, `none` (or empty) turns it off. */
+  private _collapseShortcut(): { key: string; ctrl: boolean; alt: boolean; shift: boolean; meta: boolean } | null {
+    const raw = (this.getAttribute('collapse-shortcut') ?? 'Ctrl+F1').trim();
+    if (!raw || raw.toLowerCase() === 'none') return null;
+    const parts = raw.split('+').map(p => p.trim().toLowerCase()).filter(Boolean);
+    const key = parts.pop();
+    if (!key) return null;
+    return {
+      key, ctrl: parts.includes('ctrl') || parts.includes('control'), alt: parts.includes('alt'),
+      shift: parts.includes('shift'), meta: parts.includes('meta') || parts.includes('cmd'),
+    };
+  }
+
+  private _shortcutLabel(): string {
+    const raw = (this.getAttribute('collapse-shortcut') ?? 'Ctrl+F1').trim();
+    return !raw || raw.toLowerCase() === 'none' ? '' : raw;
+  }
+
+  protected onMount() {
+    // App-wide (decided by the user): the key works wherever focus is. On window, bubbling, so an app that handles the
+    // same key first and calls preventDefault() keeps it; `collapse-shortcut="none"` turns it off entirely.
+    this._shortcutAC?.abort();
+    this._shortcutAC = new AbortController();
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      const sc = this._collapseShortcut();
+      if (!sc || e.defaultPrevented || e.repeat) return;
+      if (e.key.toLowerCase() !== sc.key || e.ctrlKey !== sc.ctrl || e.altKey !== sc.alt
+        || e.shiftKey !== sc.shift || e.metaKey !== sc.meta) return;
+      e.preventDefault();
+      this.toggleRibbon();
+    }, { signal: this._shortcutAC.signal });
+  }
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   render() {
@@ -824,8 +868,8 @@ export class BRibbon extends BaseComponent {
           ${tabsOnly ? '' : `
           <button class="ribbon-ctrl" id="ribbon-toggle"
             aria-label="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}"
-            aria-expanded="${expanded}"
-            title="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}">
+            aria-expanded="${expanded}"${this._shortcutLabel() ? ` aria-keyshortcuts="${escapeAttr(this._shortcutLabel().replace(/ctrl/i, 'Control'))}"` : ''}
+            title="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}${this._shortcutLabel() ? ` (${escapeAttr(this._shortcutLabel())})` : ''}">
             ${expanded ? '&#9650;' : '&#9660;'}
           </button>
           <button class="ribbon-ctrl" id="ribbon-pin"
@@ -1254,9 +1298,13 @@ export class BRibbon extends BaseComponent {
     this._setupScroll(tabTrack, this.$<HTMLElement>('#scroll-left'), this.$<HTMLElement>('#scroll-right'), this._tabScroll);
     this._observeScrollTracks([tabTrack, panelTrack]); // panel observed for RESIZE, not for scrolling
 
-    // Tab clicks
+    // Tab clicks; a double-click collapses or brings back the ribbon, as in Office (TASK-735)
     this.$$<HTMLElement>('.ribbon-tab').forEach(btn => {
       this.listen(btn, 'click', () => this._selectTab(btn.dataset.tab!));
+      this.listen(btn, 'dblclick', () => {
+        if (this._isPanelless(this._tabs.find(t => t.id === btn.dataset.tab))) return;
+        this.toggleRibbon();
+      });
     });
 
     // Tab keyboard navigation
@@ -1447,6 +1495,8 @@ export class BRibbon extends BaseComponent {
   }
 
   protected onUnmount() {
+    this._shortcutAC?.abort();
+    this._shortcutAC = null;
     this._clearTimers();
     if (this._tipTimer) { clearTimeout(this._tipTimer); this._tipTimer = null; }
     this._scrollObserver?.disconnect();

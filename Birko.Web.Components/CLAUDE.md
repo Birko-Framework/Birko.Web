@@ -490,7 +490,7 @@ All render in the browser **top layer** (`<dialog>.showModal()`), so z-index nev
 |-----|-------|-------------|
 | `<b-sidebar>` | BSidebar | `setItems(SidebarItem[])` |
 | `<b-breadcrumb>` | BBreadcrumb | `setItems([{label, href?}])` |
-| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
+| `<b-ribbon>` | BRibbon | `setTabs(RibbonTab[])`, `setContextActions([])`, `pin()`, `unpin()`; `RibbonItem.menu` (+ `split`) for menu and split buttons, choices emit `item-click` with `parentId`; `RibbonItem.description` / `shortcut` and `tooltip-theme` for the shared b-tooltip; `RibbonItem.toggle` / `toggleGroup` / `pressed` with `setPressed()` / `isPressed()` for toggles and one-of sets; `toggleRibbon()` (double-click a tab, app-wide `collapse-shortcut`, default Ctrl+F1); `tabs-only` attribute forces pure tab-strip mode (no panel, no expand/pin). Per-tab: `RibbonTab.noPanel` — explicit, or auto when a tab's groups hold exactly one plain nav link (its panel would only duplicate the tab click); when every tab is panelless the whole ribbon renders tabs-only |
 | `<b-tree-menu>` | BTreeMenu | `setItems(TreeMenuItem[])`, `expandAll()`, `collapseAll()`, `reveal(id)` |
 
 ### Command (1)
@@ -616,6 +616,15 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-ribbon` collapses by double-click and an app-wide Ctrl+F1 (2026-10-22, TASK-735)
+
+`toggleRibbon()` switches between pinned (panel always shown) and tabs only (unpinned, collapsed: the panel opens over
+the page when a tab is used). That is Office's "collapse the ribbon". It is not `toggleExpand()`, because on a
+collapsed ribbon the double-click's own first click expands it again. Ctrl+F1 is app-wide by the user's decision: a
+`window` keydown listener added in `onMount` and aborted in `onUnmount`. It is bubbling, so an app's own handler that calls
+`preventDefault()` wins, and `collapse-shortcut` rebinds the key or turns it off (`none`). The collapse button shows the
+shortcut and exposes it as `aria-keyshortcuts`.
 
 ### `b-ribbon` toggle buttons and one-of sets (2026-10-22, TASK-739)
 
