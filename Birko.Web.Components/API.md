@@ -1342,8 +1342,8 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 | `setContextActions` | `(items: RibbonItem[]) => void` |
 | `setFieldValue` | `(itemId: string, value: string, tabId?: string) => void` — no event |
 | `getFieldValue` | `(itemId: string, tabId?: string) => string \| null` |
-| `expand` / `collapse` / `toggleExpand` | `() => void` |
-| `pin` / `unpin` / `togglePin` | `() => void` |
+| `expand` / `collapse` / `toggleExpand` | `() => void` — `collapse()` also unpins: collapsed and unpinned are one state (FEATURE-019 D6) |
+| `pin` / `unpin` / `togglePin` | `() => void` — `pin()` opens the panel, `unpin()` collapses it |
 
 | Event | Detail |
 |-------|--------|

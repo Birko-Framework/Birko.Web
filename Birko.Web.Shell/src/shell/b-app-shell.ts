@@ -57,6 +57,10 @@ export abstract class BAppShell extends BSidebarAppShell {
    * restored-open panel closes again on the first mouse-out. Restoring it anyway is the honest reading of
    * "it was open when I left" and costs nothing, so the state is not conditioned on `pinned`.
    *
+   * The two are saved apart, but the ribbon keeps them one state (FEATURE-019 D6 changed 2026-10-23): a
+   * restored "pinned, not expanded" opens the panel, where it used to come back as a pinned ribbon showing
+   * only its tabs.
+   *
    * Hover expand/collapse updates this field without calling `update()`, so tracking it cannot cause a
    * render storm on mouse movement — but it DOES write localStorage per toggle, which is why the setter
    * below skips the write when the value has not actually changed.
@@ -145,8 +149,9 @@ export abstract class BAppShell extends BSidebarAppShell {
     // panel open when navigating within a category. It is gone because `expanded` is now rendered
     // (see `_ribbonExpanded`), which preserves the panel across a morph directly.
     //
-    // Re-adding it would be actively harmful now: on a pinned ribbon the user can close the panel, and
-    // this method runs on every re-render — so it would re-open the panel the user just closed.
+    // Re-adding it would be actively harmful now: the user can collapse the ribbon (which also unpins it,
+    // FEATURE-019 D6 changed 2026-10-23), and this method runs on every re-render — so it would re-open the
+    // panel the user just closed.
   }
 
   refreshStatusBar(): void {

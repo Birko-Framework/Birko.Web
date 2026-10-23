@@ -467,6 +467,8 @@ export class BRibbon extends BaseComponent {
         z-index: var(--b-z-dropdown, 300);
         box-shadow: var(--b-shadow-md, 0 4px 6px -1px rgba(0,0,0,.1));
       }
+      /* The pin on the panel an unpinned ribbon opens over the page, at its bottom right as Office's (D6, 2026-10-23). */
+      .ribbon-panel-pin { align-self: flex-end; flex-shrink: 0; margin: var(--b-space-xs, 0.25rem); }
       .ribbon-panel-inner {
         /* stretch, not flex-start: every group takes the tallest group's height, so the separators (each
            group's border-left) run the full panel height instead of stopping at each group's own content.
@@ -1238,7 +1240,15 @@ export class BRibbon extends BaseComponent {
     if (this._tabsOnlyMode) return;
     this.setAttribute('expanded', ''); this.emit('expand', { expanded: true });
   }
-  collapse() { this.removeAttribute('expanded'); this.emit('expand', { expanded: false }); }
+  /**
+   * Collapses the panel. Collapsed and unpinned are one state, as Office's (FEATURE-019 D6, changed by the user
+   * 2026-10-23): collapsing a pinned ribbon unpins it, so there is no "pinned, but only the tabs" ribbon, which read as
+   * broken. The panel of an unpinned ribbon opened over the page (expand) is still collapsed in this sense.
+   */
+  collapse() {
+    if (this.boolAttr('pinned')) { this.removeAttribute('pinned'); this.emit('pin', { pinned: false }); }
+    this.removeAttribute('expanded'); this.emit('expand', { expanded: false });
+  }
 
   toggleExpand() {
     if (this.boolAttr('expanded')) this.collapse(); else this.expand();
@@ -1248,7 +1258,20 @@ export class BRibbon extends BaseComponent {
     if (this._tabsOnlyMode) return;
     this.setAttribute('pinned', ''); this.expand(); this.emit('pin', { pinned: true });
   }
-  unpin() { this.removeAttribute('pinned'); this.emit('pin', { pinned: false }); }
+  /** Unpins, which collapses to the tabs (D6 changed 2026-10-23). */
+  unpin() { this.collapse(); }
+
+  /**
+   * Keeps pinned and expanded one state whatever sets the attributes (D6 changed 2026-10-23): an app shell that saves
+   * them apart restored "pinned, not expanded" on load, the third state the user found. A ribbon pinned without its
+   * panel opens it; a pinned ribbon whose panel an app closes is unpinned.
+   */
+  override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
+    super.attributeChangedCallback(name, oldValue, newValue);
+    if (oldValue === newValue || this._tabsOnlyMode) return;
+    if (name === 'pinned' && newValue !== null && !this.boolAttr('expanded')) this.expand();
+    else if (name === 'expanded' && newValue === null && this.boolAttr('pinned')) this.collapse();
+  }
 
   togglePin() {
     if (this.boolAttr('pinned')) this.unpin(); else this.pin();
@@ -1261,7 +1284,7 @@ export class BRibbon extends BaseComponent {
    */
   toggleRibbon() {
     if (this._tabsOnlyMode) return;
-    if (this.boolAttr('pinned')) { this.unpin(); this.collapse(); } else { this.pin(); }
+    if (this.boolAttr('pinned')) this.unpin(); else this.pin(); // unpin collapses (D6 changed 2026-10-23)
   }
 
   /** `collapse-shortcut` parsed: default Ctrl+F1, `none` (or empty) turns it off. */
@@ -1360,18 +1383,12 @@ export class BRibbon extends BaseComponent {
 
           <div class="ribbon-after"><slot name="after-tabs"></slot></div>
 
-          ${tabsOnly ? '' : `
+          ${tabsOnly || !pinned ? '' : `
           <button class="ribbon-ctrl" id="ribbon-toggle"
-            aria-label="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}"
-            aria-expanded="${expanded}"${this._shortcutLabel() ? ` aria-keyshortcuts="${escapeAttr(this._shortcutLabel().replace(/ctrl/i, 'Control'))}"` : ''}
-            title="${expanded ? this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon') : this.label('label-expand', 'bwc.ribbon.expand', 'Expand ribbon')}${this._shortcutLabel() ? ` (${escapeAttr(this._shortcutLabel())})` : ''}">
-            ${expanded ? '&#9650;' : '&#9660;'}
-          </button>
-          <button class="ribbon-ctrl" id="ribbon-pin"
-            aria-label="${pinned ? this.label('label-unpin', 'bwc.ribbon.unpin', 'Unpin ribbon') : this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}"
-            aria-pressed="${pinned}"
-            title="${pinned ? this.label('label-unpin', 'bwc.ribbon.unpin', 'Unpin ribbon') : this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}">
-            ${pinned ? '&#128204;' : '&#128205;'}
+            aria-label="${this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon')}"
+            aria-expanded="true"${this._shortcutLabel() ? ` aria-keyshortcuts="${escapeAttr(this._shortcutLabel().replace(/ctrl/i, 'Control'))}"` : ''}
+            title="${this.label('label-collapse', 'bwc.ribbon.collapse', 'Collapse ribbon')}${this._shortcutLabel() ? ` (${escapeAttr(this._shortcutLabel())})` : ''}">
+            &#9650;
           </button>`}
         </div>
 
@@ -1520,6 +1537,9 @@ export class BRibbon extends BaseComponent {
         <div class="ribbon-panel-inner">
           ${panelTab ? this._renderPanelInner(panelTab) : '<slot name="empty"></slot>'}
         </div>
+        ${this.boolAttr('pinned') ? '' : `<button class="ribbon-ctrl ribbon-panel-pin" id="ribbon-pin"
+          aria-label="${this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}"
+          title="${this.label('label-pin', 'bwc.ribbon.pin', 'Pin ribbon open')}">&#128204;</button>`}
       </div>
     `;
   }
@@ -2642,9 +2662,12 @@ export class BRibbon extends BaseComponent {
 
     // Expand/collapse toggle
     const toggleBtn = this.$('#ribbon-toggle');
-    if (toggleBtn) this.listen(toggleBtn, 'click', () => this.toggleExpand());
+    // One control at a time, where Office puts it (D6 changed by the user, 2026-10-23): pinned, the tab row has the
+    // collapse arrow (Office's collapse: it unpins, as a double-click and Ctrl+F1 do); collapsed, the panel a tab opens
+    // over the page has the pin.
+    if (toggleBtn) this.listen(toggleBtn, 'click', () => this.toggleRibbon());
     const pinBtn = this.$('#ribbon-pin');
-    if (pinBtn) this.listen(pinBtn, 'click', () => this.togglePin());
+    if (pinBtn) this.listen(pinBtn, 'click', (e: Event) => { e.stopPropagation(); this.pin(); });
 
     // Hover expand/collapse (desktop only) — per-tab hover with panel content preview
     let overTab = false;

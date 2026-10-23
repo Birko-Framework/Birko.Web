@@ -756,6 +756,14 @@ collapsed ribbon the double-click's own first click expands it again. Ctrl+F1 is
 `preventDefault()` wins, and `collapse-shortcut` rebinds the key or turns it off (`none`). The collapse button shows the
 shortcut and exposes it as `aria-keyshortcuts`.
 
+**D6 changed by the user (2026-10-23): collapsed and unpinned are ONE state.** A pinned ribbon showing only its tabs read
+as broken, and three routes reached it: the collapse arrow (it called `toggleExpand()`), an app restoring `pinned`
+without `expanded` (b-app-shell saves them apart), and an app calling `collapse()`. Now `collapse()` unpins, `unpin()`
+collapses, `pin()` expands, the arrow calls `toggleRibbon()`, and an `attributeChangedCallback` keeps the two attributes
+in step whoever sets them (`pinned` added → expand; `expanded` removed while pinned → unpin). One control at a time, as
+Office: the tab row has the arrow only while pinned; while collapsed the panel a tab opens has the pin
+(`.ribbon-panel-pin`, bottom right). `toggleExpand()` / `togglePin()` remain, under the same invariant.
+
 ### `b-ribbon` toggle buttons and one-of sets (2026-10-22, TASK-739)
 
 `toggle` gives a command `aria-pressed` and a pressed look: the accent tint plus a 1px accent outline drawn as an inset
