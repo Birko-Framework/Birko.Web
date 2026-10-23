@@ -584,6 +584,9 @@ the same thing — `FormControlComponent.requiredMessage()` resolves `common.req
 **New validation messages go in `common.*`; everything else goes in `bwc.*`.**
 
 The canonical English key set is shipped at `locales/en.json` — copy it as a starter for other locales.
+A key goes in en.json at exactly the path `src/` reads it: the playground's `locale-keys-check.mjs` fails on a key
+`src/` reads that en.json lacks, and on an en.json key nothing reads (TASK-765: b-json-diff's block sat inside
+`bwc.daterange`'s braces, so it never translated and nothing said so).
 
 **Control-side validation messages are i18n'd, not just overridable.** `b-input`'s decimal-mode messages
 (`common.badDecimal` / `.rangeUnderflow` / `.rangeOverflow` / `.stepMismatch`) and

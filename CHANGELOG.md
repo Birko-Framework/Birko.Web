@@ -4,6 +4,18 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.18 — 2026-10-23
+
+- **b-json-diff translates** — Birko TASK-765 (reported by Symbio TASK-953). **Fixed:** `locales/en.json` had the
+  `jsonDiff` block nested inside `bwc.daterange`, so it shipped as `bwc.daterange.jsonDiff.*` while `b-json-diff`
+  reads `bwc.jsonDiff.*`. Every b-json-diff string showed its English default in every locale. The block is now
+  `bwc.jsonDiff`, with its keys and values unchanged. **Consumers:** if you copied en.json's structure, move your own
+  `bwc.daterange.jsonDiff` block to `bwc.jsonDiff` in each locale. Under the old path it was never read, so moving it
+  is what makes those translations show.
+- **Six keys added to en.json** that the code read and the bundle lacked: `common.yes` / `common.no` (boolean
+  cells), `common.module` / `common.navigation` (Shell's module commands; without a bundle they showed the raw key)
+  and `bwc.ribbon.scrollTabsLeft` / `scrollTabsRight`. A locale parity check will report them as new.
+
 ## v0.1.17 — 2026-10-22
 
 - **I18n fallback chains** — Birko TASK-750 (for Symbio TASK-953). New `I18nOptions.fallbackChains`, the ordered

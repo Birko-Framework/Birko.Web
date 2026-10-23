@@ -90,7 +90,9 @@
         "galleryAll": "Show all: {label}",
         "galleryPrev": "Previous choices",
         "galleryNext": "More choices",
-        "galleryMore": "More"
+        "galleryMore": "More",
+        "scrollTabsLeft": "Scroll tabs left",
+        "scrollTabsRight": "Scroll tabs right"
     },
     "sidebar": {
       "title": "Main navigation",
@@ -206,37 +208,41 @@
         "thisMonth": "This month",
         "lastMonth": "Last month",
         "thisYear": "This year"
-      },
-      "jsonDiff": {
-        "title": "JSON diff",
-        "titleXml": "XML diff",
-        "sideA": "A",
-        "sideB": "B",
-        "root": "root",
-        "viewTree": "Tree",
-        "viewSplit": "Side by side",
-        "onlyChanges": "Only changes",
-        "noData": "Nothing to compare",
-        "noDifferences": "No differences",
-        "empty": "(empty)",
-        "parseError": "{side}: JSON parse error: {message}",
-        "notXml": "{side}: not XML",
-        "countAdded": "{count} added",
-        "countRemoved": "{count} removed",
-        "countChanged": "{count} changed",
-        "changeCount": {
-          "one": "({count} change)",
-          "other": "({count} changes)"
-        },
-        "statusAdded": "added",
-        "statusRemoved": "removed",
-        "statusChanged": "changed",
-        "statusModified": "contains changes",
-        "statusIgnored": "ignored"
       }
+    },
+    "jsonDiff": {
+      "title": "JSON diff",
+      "titleXml": "XML diff",
+      "sideA": "A",
+      "sideB": "B",
+      "root": "root",
+      "viewTree": "Tree",
+      "viewSplit": "Side by side",
+      "onlyChanges": "Only changes",
+      "noData": "Nothing to compare",
+      "noDifferences": "No differences",
+      "empty": "(empty)",
+      "parseError": "{side}: JSON parse error: {message}",
+      "notXml": "{side}: not XML",
+      "countAdded": "{count} added",
+      "countRemoved": "{count} removed",
+      "countChanged": "{count} changed",
+      "changeCount": {
+        "one": "({count} change)",
+        "other": "({count} changes)"
+      },
+      "statusAdded": "added",
+      "statusRemoved": "removed",
+      "statusChanged": "changed",
+      "statusModified": "contains changes",
+      "statusIgnored": "ignored"
     }
   },
   "common": {
+    "yes": "Yes",
+    "no": "No",
+    "module": "Module",
+    "navigation": "Navigation",
     "required": "{label} is required",
     "requiredNoLabel": "Please fill out this field.",
     "badDecimal": "Enter a number.",
