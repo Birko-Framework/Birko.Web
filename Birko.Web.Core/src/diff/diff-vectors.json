@@ -1,0 +1,730 @@
+{
+  "about": [
+    "Shared test vectors for diffJson / matchJsonPath / formatJsonPath (json-diff.ts) and xmlToTree / xmlToLines (xml-tree.ts).",
+    "The web engine is the engine of record. These vectors are run by the Birko.Web.Playground suite diff-vectors-smoke",
+    "and by the C# port in Birko.Xaml.Core (tests/Birko.Xaml.Core.Tests), so the two engines cannot drift.",
+    "Changing the engine's behaviour means changing a vector here, in the same commit.",
+    "",
+    "json[].options.normalize entries name an op instead of a function: trim, lower (strings only), replace (every match",
+    "of the regex `pattern` in a string, replaced by the literal `with`), round (numbers to `digits` places, half up).",
+    "Anything else passes through unchanged. json[].options.arrays[].key is a property name only.",
+    "",
+    "json[].expect.changes: kind, path, and oldPath / oldValue / newValue only where the engine sets them.",
+    "json[].expect.tree: every node, depth first, as [status, path]. Order is part of the contract: side B's keys in",
+    "JavaScript's own-key order (integer-like keys ascending first, then insertion order), then side A's removed keys;",
+    "for a paired array, side B's items, then side A's unpaired items.",
+    "xmlLines[].expect: null when the text is not XML."
+  ],
+  "paths": {
+    "format": [
+      { "segments": ["Items", 2, "Ref", "a.b", 0], "expect": "Items[2].Ref[\"a.b\"][0]" },
+      { "segments": [], "expect": "" },
+      { "segments": [0, "a"], "expect": "[0].a" },
+      { "segments": ["o", "a b"], "expect": "o[\"a b\"]" },
+      { "segments": ["$ok", "_k", "x9"], "expect": "$ok._k.x9" },
+      { "segments": ["1x"], "expect": "[\"1x\"]" },
+      { "segments": ["q\"x"], "expect": "[\"q\\\"x\"]" },
+      { "segments": ["čas"], "expect": "[\"čas\"]" },
+      { "segments": [""], "expect": "[\"\"]" }
+    ],
+    "match": [
+      { "pattern": "*.Url", "segments": ["A", "Url"], "expect": true },
+      { "pattern": "*.Url", "segments": ["A", "B", "Url"], "expect": false },
+      { "pattern": "*.Url", "segments": ["Url"], "expect": false },
+      { "pattern": "**.Url", "segments": ["Url"], "expect": true },
+      { "pattern": "**.Url", "segments": ["A", 0, "Url"], "expect": true },
+      { "pattern": "**", "segments": [], "expect": true },
+      { "pattern": "**", "segments": ["a", 1], "expect": true },
+      { "pattern": "a.**.b", "segments": ["a", "b"], "expect": true },
+      { "pattern": "a.**.b", "segments": ["a", "x", "y", "b"], "expect": true },
+      { "pattern": "a.**.b", "segments": ["a", "x"], "expect": false },
+      { "pattern": "Items[*].Ref", "segments": ["Items", 3, "Ref"], "expect": true },
+      { "pattern": "Items[*].Ref", "segments": ["Items", "x", "Ref"], "expect": false },
+      { "pattern": "*", "segments": [0], "expect": true },
+      { "pattern": "a[1][\"x.y\"]", "segments": ["a", 1, "x.y"], "expect": true },
+      { "pattern": "a[1]", "segments": ["a", 2], "expect": false },
+      { "pattern": "a", "segments": ["a", "b"], "expect": false },
+      { "pattern": "", "segments": [], "expect": true },
+      { "pattern": "", "segments": ["a"], "expect": false },
+      { "pattern": "[0]", "segments": [0], "expect": true },
+      { "pattern": "[0]", "segments": ["0"], "expect": false },
+      { "pattern": "a.b", "segments": ["a.b"], "expect": false },
+      { "pattern": "[\"a.b\"]", "segments": ["a.b"], "expect": true }
+    ],
+    "malformed": ["Items[x", "[", "a[b]", "[\"unterminated"]
+  },
+  "json": [
+    {
+      "name": "changed / added / removed by path",
+      "a": { "a": 1, "b": "x", "c": { "d": true }, "gone": 1 },
+      "b": { "a": 1, "b": "y", "c": { "d": true, "e": null }, "new": [1] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 2, "removed": 1, "changed": 1, "total": 4 },
+        "changes": [
+          { "kind": "changed", "path": "b", "oldValue": "x", "newValue": "y" },
+          { "kind": "added", "path": "c.e", "newValue": null },
+          { "kind": "added", "path": "new", "newValue": [1] },
+          { "kind": "removed", "path": "gone", "oldValue": 1 }
+        ],
+        "tree": [["modified", ""], ["equal", "a"], ["changed", "b"], ["modified", "c"], ["equal", "c.d"], ["added", "c.e"],
+          ["added", "new"], ["added", "new[0]"], ["removed", "gone"]]
+      }
+    },
+    {
+      "name": "identical values are equal",
+      "a": { "a": [1, { "b": 2 }] },
+      "b": { "a": [1, { "b": 2 }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "a"], ["equal", "a[0]"], ["equal", "a[1]"], ["equal", "a[1].b"]]
+      }
+    },
+    {
+      "name": "object to array is one change",
+      "a": { "a": { "x": 1 } },
+      "b": { "a": [1] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "a", "oldValue": { "x": 1 }, "newValue": [1] }],
+        "tree": [["modified", ""], ["changed", "a"]]
+      }
+    },
+    {
+      "name": "value to object is one change",
+      "a": { "a": 1 },
+      "b": { "a": { "x": 1 } },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "a", "oldValue": 1, "newValue": { "x": 1 } }],
+        "tree": [["modified", ""], ["changed", "a"]]
+      }
+    },
+    {
+      "name": "null vs missing differs",
+      "a": { "a": null },
+      "b": {},
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 1, "changed": 0, "total": 1 },
+        "changes": [{ "kind": "removed", "path": "a", "oldValue": null }],
+        "tree": [["modified", ""], ["removed", "a"]]
+      }
+    },
+    {
+      "name": "a root primitive",
+      "a": 1,
+      "b": 2,
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "", "oldValue": 1, "newValue": 2 }],
+        "tree": [["changed", ""]]
+      }
+    },
+    {
+      "name": "equal root strings",
+      "a": "x",
+      "b": "x",
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""]]
+      }
+    },
+    {
+      "name": "root array to object",
+      "a": [1],
+      "b": {},
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "", "oldValue": [1], "newValue": {} }],
+        "tree": [["changed", ""]]
+      }
+    },
+    {
+      "name": "an added object counts once, its children repeat the status",
+      "a": {},
+      "b": { "o": { "a": 1, "b": { "c": 2 } } },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 0, "changed": 0, "total": 1 },
+        "changes": [{ "kind": "added", "path": "o", "newValue": { "a": 1, "b": { "c": 2 } } }],
+        "tree": [["modified", ""], ["added", "o"], ["added", "o.a"], ["added", "o.b"], ["added", "o.b.c"]]
+      }
+    },
+    {
+      "name": "a removed container's children repeat the status",
+      "a": { "o": { "a": [1] } },
+      "b": {},
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 1, "changed": 0, "total": 1 },
+        "changes": [{ "kind": "removed", "path": "o", "oldValue": { "a": [1] } }],
+        "tree": [["modified", ""], ["removed", "o"], ["removed", "o.a"], ["removed", "o.a[0]"]]
+      }
+    },
+    {
+      "name": "numbers compare by value, not by spelling; a string is not a number",
+      "a": { "n": 1, "m": 100, "s": "1" },
+      "b": { "n": 1.0, "m": 1e2, "s": 1 },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "s", "oldValue": "1", "newValue": 1 }],
+        "tree": [["modified", ""], ["equal", "n"], ["equal", "m"], ["changed", "s"]]
+      }
+    },
+    {
+      "name": "booleans and null are values",
+      "a": { "a": true, "b": null },
+      "b": { "a": false, "b": 0 },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 2, "total": 2 },
+        "changes": [
+          { "kind": "changed", "path": "a", "oldValue": true, "newValue": false },
+          { "kind": "changed", "path": "b", "oldValue": null, "newValue": 0 }
+        ],
+        "tree": [["modified", ""], ["changed", "a"], ["changed", "b"]]
+      }
+    },
+    {
+      "name": "integer-like keys come first, ascending (JavaScript own-key order)",
+      "a": { "b": 1, "2024": 1, "01": 1, "2023": 1 },
+      "b": { "b": 2, "2024": 2, "01": 2, "2023": 2 },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 4, "total": 4 },
+        "changes": [
+          { "kind": "changed", "path": "[\"2023\"]", "oldValue": 1, "newValue": 2 },
+          { "kind": "changed", "path": "[\"2024\"]", "oldValue": 1, "newValue": 2 },
+          { "kind": "changed", "path": "b", "oldValue": 1, "newValue": 2 },
+          { "kind": "changed", "path": "[\"01\"]", "oldValue": 1, "newValue": 2 }
+        ],
+        "tree": [["modified", ""], ["changed", "[\"2023\"]"], ["changed", "[\"2024\"]"], ["changed", "b"], ["changed", "[\"01\"]"]]
+      }
+    },
+    {
+      "name": "keys that are not identifiers are quoted",
+      "a": { "a.b": 1, "$ok": 1, "_k": 1, "1x": 1 },
+      "b": { "a.b": 2, "$ok": 2, "_k": 2, "1x": 2 },
+      "options": { "ignore": ["[\"1x\"]"] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 3, "total": 3 },
+        "changes": [
+          { "kind": "changed", "path": "[\"a.b\"]", "oldValue": 1, "newValue": 2 },
+          { "kind": "changed", "path": "$ok", "oldValue": 1, "newValue": 2 },
+          { "kind": "changed", "path": "_k", "oldValue": 1, "newValue": 2 }
+        ],
+        "tree": [["modified", ""], ["changed", "[\"a.b\"]"], ["changed", "$ok"], ["changed", "_k"], ["ignored", "[\"1x\"]"]]
+      }
+    },
+    {
+      "name": "container with a change is modified, an unchanged sibling equal",
+      "a": { "o": { "a": 1, "b": 2 }, "s": 1 },
+      "b": { "o": { "a": 1, "b": 3 }, "s": 1 },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "o.b", "oldValue": 2, "newValue": 3 }],
+        "tree": [["modified", ""], ["modified", "o"], ["equal", "o.a"], ["changed", "o.b"], ["equal", "s"]]
+      }
+    },
+    {
+      "name": "arrays by index: a removal shifts",
+      "a": { "l": [1, 2, 3] },
+      "b": { "l": [1, 3] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 1, "changed": 1, "total": 2 },
+        "changes": [
+          { "kind": "changed", "path": "l[1]", "oldValue": 2, "newValue": 3 },
+          { "kind": "removed", "path": "l[2]", "oldValue": 3 }
+        ],
+        "tree": [["modified", ""], ["modified", "l"], ["equal", "l[0]"], ["changed", "l[1]"], ["removed", "l[2]"]]
+      }
+    },
+    {
+      "name": "arrays by index: an added item and its children",
+      "a": { "l": [] },
+      "b": { "l": [{ "x": 1 }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 0, "changed": 0, "total": 1 },
+        "changes": [{ "kind": "added", "path": "l[0]", "newValue": { "x": 1 } }],
+        "tree": [["modified", ""], ["modified", "l"], ["added", "l[0]"], ["added", "l[0].x"]]
+      }
+    },
+    {
+      "name": "match: index is the default behaviour",
+      "a": { "t": ["a", "b"] },
+      "b": { "t": ["b", "a"] },
+      "options": { "arrays": [{ "path": "t", "match": "index" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 2, "total": 2 },
+        "changes": [
+          { "kind": "changed", "path": "t[0]", "oldValue": "a", "newValue": "b" },
+          { "kind": "changed", "path": "t[1]", "oldValue": "b", "newValue": "a" }
+        ],
+        "tree": [["modified", ""], ["modified", "t"], ["changed", "t[0]"], ["changed", "t[1]"]]
+      }
+    },
+    {
+      "name": "the first matching array rule wins",
+      "a": { "t": ["a", "b"] },
+      "b": { "t": ["b", "a"] },
+      "options": { "arrays": [{ "path": "t", "match": "index" }, { "path": "t", "match": "unordered" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 2, "total": 2 },
+        "changes": [
+          { "kind": "changed", "path": "t[0]", "oldValue": "a", "newValue": "b" },
+          { "kind": "changed", "path": "t[1]", "oldValue": "b", "newValue": "a" }
+        ],
+        "tree": [["modified", ""], ["modified", "t"], ["changed", "t[0]"], ["changed", "t[1]"]]
+      }
+    },
+    {
+      "name": "arrays by key: a reorder is not a change; a pair sits at its side-B index",
+      "a": { "Items": [{ "Id": 1, "v": 1 }, { "Id": 2, "v": 2 }, { "Id": 4, "v": 4 }] },
+      "b": { "Items": [{ "Id": 2, "v": 2 }, { "Id": 1, "v": 9 }, { "Id": 3, "v": 3 }] },
+      "options": { "arrays": [{ "path": "Items", "key": "Id" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 1, "changed": 1, "total": 3 },
+        "changes": [
+          { "kind": "changed", "path": "Items[1].v", "oldPath": "Items[0].v", "oldValue": 1, "newValue": 9 },
+          { "kind": "added", "path": "Items[2]", "newValue": { "Id": 3, "v": 3 } },
+          { "kind": "removed", "path": "Items[2]", "oldValue": { "Id": 4, "v": 4 } }
+        ],
+        "tree": [["modified", ""], ["modified", "Items"],
+          ["equal", "Items[0]"], ["equal", "Items[0].Id"], ["equal", "Items[0].v"],
+          ["modified", "Items[1]"], ["equal", "Items[1].Id"], ["changed", "Items[1].v"],
+          ["added", "Items[2]"], ["added", "Items[2].Id"], ["added", "Items[2].v"],
+          ["removed", "Items[2]"], ["removed", "Items[2].Id"], ["removed", "Items[2].v"]]
+      }
+    },
+    {
+      "name": "arrays by key: duplicate keys pair in order",
+      "a": { "l": [{ "k": 1, "v": "a" }, { "k": 1, "v": "b" }] },
+      "b": { "l": [{ "k": 1, "v": "a" }, { "k": 1, "v": "c" }] },
+      "options": { "arrays": [{ "path": "l", "key": "k" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "l[1].v", "oldValue": "b", "newValue": "c" }],
+        "tree": [["modified", ""], ["modified", "l"], ["equal", "l[0]"], ["equal", "l[0].k"], ["equal", "l[0].v"],
+          ["modified", "l[1]"], ["equal", "l[1].k"], ["changed", "l[1].v"]]
+      }
+    },
+    {
+      "name": "arrays by key: items without the key pair unordered",
+      "a": { "l": [{ "k": 1 }, "x"] },
+      "b": { "l": ["x", { "k": 1 }] },
+      "options": { "arrays": [{ "path": "l", "key": "k" }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "l"], ["equal", "l[0]"], ["equal", "l[1]"], ["equal", "l[1].k"]]
+      }
+    },
+    {
+      "name": "arrays by key: unmatched keyed and keyless items are added and removed",
+      "a": { "l": [{ "k": 1 }, { "v": 2 }] },
+      "b": { "l": [{ "k": 2 }, { "v": 3 }] },
+      "options": { "arrays": [{ "path": "l", "key": "k" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 2, "removed": 2, "changed": 0, "total": 4 },
+        "changes": [
+          { "kind": "added", "path": "l[0]", "newValue": { "k": 2 } },
+          { "kind": "added", "path": "l[1]", "newValue": { "v": 3 } },
+          { "kind": "removed", "path": "l[0]", "oldValue": { "k": 1 } },
+          { "kind": "removed", "path": "l[1]", "oldValue": { "v": 2 } }
+        ],
+        "tree": [["modified", ""], ["modified", "l"], ["added", "l[0]"], ["added", "l[0].k"], ["added", "l[1]"], ["added", "l[1].v"],
+          ["removed", "l[0]"], ["removed", "l[0].k"], ["removed", "l[1]"], ["removed", "l[1].v"]]
+      }
+    },
+    {
+      "name": "arrays by key: a key's type matters (1 is not \"1\")",
+      "a": { "l": [{ "k": 1, "v": 1 }] },
+      "b": { "l": [{ "k": "1", "v": 1 }] },
+      "options": { "arrays": [{ "path": "l", "key": "k" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 1, "changed": 0, "total": 2 },
+        "changes": [
+          { "kind": "added", "path": "l[0]", "newValue": { "k": "1", "v": 1 } },
+          { "kind": "removed", "path": "l[0]", "oldValue": { "k": 1, "v": 1 } }
+        ],
+        "tree": [["modified", ""], ["modified", "l"], ["added", "l[0]"], ["added", "l[0].k"], ["added", "l[0].v"],
+          ["removed", "l[0]"], ["removed", "l[0].k"], ["removed", "l[0].v"]]
+      }
+    },
+    {
+      "name": "unordered: only the real difference",
+      "a": { "t": ["a", "b", "c"] },
+      "b": { "t": ["c", "a", "d"] },
+      "options": { "arrays": [{ "path": "t", "match": "unordered" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 1, "changed": 0, "total": 2 },
+        "changes": [
+          { "kind": "added", "path": "t[2]", "newValue": "d" },
+          { "kind": "removed", "path": "t[1]", "oldValue": "b" }
+        ],
+        "tree": [["modified", ""], ["modified", "t"], ["equal", "t[0]"], ["equal", "t[1]"], ["added", "t[2]"], ["removed", "t[1]"]]
+      }
+    },
+    {
+      "name": "unordered: duplicates pair one to one",
+      "a": { "t": ["a", "a", "b"] },
+      "b": { "t": ["a", "b", "b"] },
+      "options": { "arrays": [{ "path": "t", "match": "unordered" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 1, "removed": 1, "changed": 0, "total": 2 },
+        "changes": [
+          { "kind": "added", "path": "t[2]", "newValue": "b" },
+          { "kind": "removed", "path": "t[1]", "oldValue": "a" }
+        ],
+        "tree": [["modified", ""], ["modified", "t"], ["equal", "t[0]"], ["equal", "t[1]"], ["added", "t[2]"], ["removed", "t[1]"]]
+      }
+    },
+    {
+      "name": "unordered objects by deep equality, rule pattern at depth",
+      "a": { "x": { "t": [{ "a": 1 }, { "a": 2 }] } },
+      "b": { "x": { "t": [{ "a": 2 }, { "a": 1 }] } },
+      "options": { "arrays": [{ "path": "**.t", "match": "unordered" }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "x"], ["equal", "x.t"], ["equal", "x.t[0]"], ["equal", "x.t[0].a"], ["equal", "x.t[1]"], ["equal", "x.t[1].a"]]
+      }
+    },
+    {
+      "name": "an array rule with [*] in its pattern",
+      "a": { "Items": [{ "Tags": ["a", "b"] }] },
+      "b": { "Items": [{ "Tags": ["b", "a"] }] },
+      "options": { "arrays": [{ "path": "Items[*].Tags", "match": "unordered" }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "Items"], ["equal", "Items[0]"], ["equal", "Items[0].Tags"], ["equal", "Items[0].Tags[0]"], ["equal", "Items[0].Tags[1]"]]
+      }
+    },
+    {
+      "name": "ignored paths are not changes and show as ignored",
+      "a": { "Url": "u1", "Items": [{ "Ref": "r1", "v": 1 }], "Deep": { "X": { "Url": "u" } } },
+      "b": { "Url": "u2", "Items": [{ "Ref": "r2", "v": 1 }], "Deep": { "X": { "Url": "v" } } },
+      "options": { "ignore": ["Url", "Items[*].Ref", "**.Url"] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["ignored", "Url"], ["equal", "Items"], ["equal", "Items[0]"], ["ignored", "Items[0].Ref"], ["equal", "Items[0].v"],
+          ["equal", "Deep"], ["equal", "Deep.X"], ["ignored", "Deep.X.Url"]]
+      }
+    },
+    {
+      "name": "an ignored added key is not counted",
+      "a": {},
+      "b": { "Url": 1 },
+      "options": { "ignore": ["Url"] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["ignored", "Url"]]
+      }
+    },
+    {
+      "name": "an ignored removed key is not counted",
+      "a": { "Url": 1 },
+      "b": {},
+      "options": { "ignore": ["Url"] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["ignored", "Url"]]
+      }
+    },
+    {
+      "name": "ignore leaves the rest",
+      "a": { "a": 1, "Url": 1 },
+      "b": { "a": 2, "Url": 2 },
+      "options": { "ignore": ["Url"] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "a", "oldValue": 1, "newValue": 2 }],
+        "tree": [["modified", ""], ["changed", "a"], ["ignored", "Url"]]
+      }
+    },
+    {
+      "name": "an ignored child of a removed container",
+      "a": { "o": { "a": 1, "Url": 2 } },
+      "b": {},
+      "options": { "ignore": ["**.Url"] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 1, "changed": 0, "total": 1 },
+        "changes": [{ "kind": "removed", "path": "o", "oldValue": { "a": 1, "Url": 2 } }],
+        "tree": [["modified", ""], ["removed", "o"], ["removed", "o.a"], ["ignored", "o.Url"]]
+      }
+    },
+    {
+      "name": "the empty pattern ignores the root",
+      "a": { "a": 1 },
+      "b": { "a": 2 },
+      "options": { "ignore": [""] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["ignored", ""]]
+      }
+    },
+    {
+      "name": "unordered pairing honours ignore",
+      "a": { "l": [{ "id": 1, "ts": 1 }, { "id": 2, "ts": 1 }] },
+      "b": { "l": [{ "id": 2, "ts": 9 }, { "id": 1, "ts": 8 }] },
+      "options": { "ignore": ["l[*].ts"], "arrays": [{ "path": "l", "match": "unordered" }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "l"], ["equal", "l[0]"], ["equal", "l[0].id"], ["ignored", "l[0].ts"],
+          ["equal", "l[1]"], ["equal", "l[1].id"], ["ignored", "l[1].ts"]]
+      }
+    },
+    {
+      "name": "normalized values compare; the change reports the values as received",
+      "a": { "Link": "https://x/a?ref=1", "L": [{ "Link": "https://x/b?ref=2" }] },
+      "b": { "Link": "https://x/a?ref=9", "L": [{ "Link": "https://x/c?ref=2" }] },
+      "options": { "normalize": [{ "path": "**.Link", "op": "replace", "pattern": "[?&]ref=[^&]*", "with": "" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "L[0].Link", "oldValue": "https://x/b?ref=2", "newValue": "https://x/c?ref=2" }],
+        "tree": [["modified", ""], ["equal", "Link"], ["modified", "L"], ["modified", "L[0]"], ["changed", "L[0].Link"]]
+      }
+    },
+    {
+      "name": "normalizers chain in order",
+      "a": { "n": " A " },
+      "b": { "n": "a" },
+      "options": { "normalize": [{ "path": "n", "op": "trim" }, { "path": "n", "op": "lower" }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "n"]]
+      }
+    },
+    {
+      "name": "a numeric tolerance via normalize",
+      "a": { "p": 1.0001 },
+      "b": { "p": 1.0002 },
+      "options": { "normalize": [{ "path": "p", "op": "round", "digits": 2 }] },
+      "expect": {
+        "equal": true,
+        "summary": { "added": 0, "removed": 0, "changed": 0, "total": 0 },
+        "changes": [],
+        "tree": [["equal", ""], ["equal", "p"]]
+      }
+    },
+    {
+      "name": "a normalizer on ** reaches every node and leaves containers alone (hosts folded, as the FinStat tester does)",
+      "a": { "Url": "https://www.finstat.sk/1", "Items": [{ "Href": "https://api.finstat.sk/x" }], "N": 1 },
+      "b": { "Url": "https://test.finstat.sk/1", "Items": [{ "Href": "https://api2.finstat.sk/x" }], "N": 2 },
+      "options": { "normalize": [{ "path": "**", "op": "replace", "pattern": "https?://[a-z0-9.-]*finstat\\.sk", "with": "{sk}" }] },
+      "expect": {
+        "equal": false,
+        "summary": { "added": 0, "removed": 0, "changed": 1, "total": 1 },
+        "changes": [{ "kind": "changed", "path": "N", "oldValue": 1, "newValue": 2 }],
+        "tree": [["modified", ""], ["equal", "Url"], ["equal", "Items"], ["equal", "Items[0]"], ["equal", "Items[0].Href"], ["changed", "N"]]
+      }
+    }
+  ],
+  "xmlTree": [
+    {
+      "name": "FinStat-shaped sample",
+      "xml": "<EliteCZResult xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><Ico>00177041</Ico><UnReliability xsi:nil=\"true\"/><VatGroupMember>false</VatGroupMember><Contacts><Contact><Contact>326817192</Contact><Type>Phone</Type></Contact></Contacts><OtherCzNaces><CzNace><Code>29</Code><Text>Výroba</Text></CzNace><CzNace><Code>30</Code><Text>Jiné</Text></CzNace></OtherCzNaces><Offices><Count>3</Count></Offices><TurnoverCategory><Year>2024</Year></TurnoverCategory><Subjects><string>A</string></Subjects><Empty/></EliteCZResult>",
+      "expect": {
+        "Ico": "00177041", "UnReliability": null, "VatGroupMember": "false", "Contacts": [{ "Contact": "326817192", "Type": "Phone" }],
+        "OtherCzNaces": [{ "Code": "29", "Text": "Výroba" }, { "Code": "30", "Text": "Jiné" }], "Offices": { "Count": "3" },
+        "TurnoverCategory": { "Year": "2024" }, "Subjects": ["A"], "Empty": ""
+      }
+    },
+    { "name": "HTML is not XML", "xml": "<!DOCTYPE html><html><body>x", "expect": null },
+    { "name": "plain text is not XML", "xml": "not xml at all", "expect": null },
+    { "name": "a repeated name among other fields keeps every occurrence", "xml": "<r><A>1</A><B>x</B><A>2</A></r>", "expect": { "A": ["1", "2"], "B": "x" } },
+    {
+      "name": "attributes as @name, namespace declarations dropped, local names",
+      "xml": "<r xmlns=\"urn:x\" xmlns:p=\"urn:p\"><i id=\"7\" p:k=\"v\"><n>a</n></i><z>0</z></r>",
+      "expect": { "i": { "@id": "7", "@k": "v", "n": "a" }, "z": "0" }
+    },
+    { "name": "prefixed elements use their local name", "xml": "<p:r xmlns:p=\"urn:p\"><p:a>1</p:a><b>2</b></p:r>", "expect": { "a": "1", "b": "2" } },
+    { "name": "text beside an attribute is kept", "xml": "<r><Price currency=\"EUR\">10</Price></r>", "expect": { "Price": { "@currency": "EUR", "#text": "10" } } },
+    { "name": "an attribute with no content", "xml": "<r><e a=\"1\"/><z/></r>", "expect": { "e": { "@a": "1" }, "z": "" } },
+    { "name": "mixed text and elements keep the text, trimmed", "xml": "<r><p>Hello <b>x</b></p><z>0</z></r>", "expect": { "p": { "#text": "Hello", "b": "x" }, "z": "0" } },
+    { "name": "a text-only element keeps its whitespace", "xml": "<r><a> x </a><z>0</z></r>", "expect": { "a": " x ", "z": "0" } },
+    { "name": "entities are decoded", "xml": "<r><a>a &amp; b &lt;c&gt;</a><z>0</z></r>", "expect": { "a": "a & b <c>", "z": "0" } },
+    { "name": "CDATA is text", "xml": "<r><c><![CDATA[a<b]]></c></r>", "expect": { "c": "a<b" } },
+    { "name": "a comment inside a text element is not text", "xml": "<r><a>1<!--c-->2</a><z/></r>", "expect": { "a": "12", "z": "" } },
+    { "name": "whitespace between elements is not text", "xml": "<r>\n  <a>1</a>\n  <b>2</b>\n</r>", "expect": { "a": "1", "b": "2" } },
+    { "name": "a root with text only", "xml": "<r>5</r>", "expect": "5" },
+    { "name": "an empty root", "xml": "<r/>", "expect": "" },
+    { "name": "an attribute on a list keeps it an object", "xml": "<r><L n=\"2\"><I>1</I><I>2</I></L><z>0</z></r>", "expect": { "L": { "@n": "2", "I": ["1", "2"] }, "z": "0" } },
+    { "name": "two leaf children of one name are a list", "xml": "<r><L><I>1</I><I>2</I></L><z/></r>", "expect": { "L": ["1", "2"], "z": "" } },
+    { "name": "a single leaf child stays a field", "xml": "<r><T><Year>2024</Year></T><z>0</z></r>", "expect": { "T": { "Year": "2024" }, "z": "0" } },
+    { "name": "a single <string> child is a list of one", "xml": "<r><S><string>A</string></S><z/></r>", "expect": { "S": ["A"], "z": "" } },
+    { "name": "a root with one complex child is a list, as any element", "xml": "<r><i><n>a</n></i></r>", "expect": [{ "n": "a" }] },
+    {
+      "name": "xsi:nil is null, its children are not read",
+      "xml": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><a xsi:nil=\"true\"><b>1</b></a><z/></r>",
+      "expect": { "a": null, "z": "" }
+    },
+    {
+      "name": "xsi attributes are dropped",
+      "xml": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><v xsi:type=\"int\">3</v><z/></r>",
+      "expect": { "v": "3", "z": "" }
+    },
+    {
+      "name": "nilAsNull: false reads nil as an empty element",
+      "xml": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><U xsi:nil=\"true\"/><z>0</z></r>",
+      "options": { "nilAsNull": false },
+      "expect": { "U": "", "z": "0" }
+    },
+    { "name": "simpleItemNames: [] keeps <string> a field", "xml": "<r><S><string>A</string></S><z>0</z></r>", "options": { "simpleItemNames": [] }, "expect": { "S": { "string": "A" }, "z": "0" } },
+    { "name": "simpleItemNames adds a name", "xml": "<r><S><Item>A</Item></S><z>0</z></r>", "options": { "simpleItemNames": ["Item"] }, "expect": { "S": ["A"], "z": "0" } },
+    { "name": "attributePrefix and textKey", "xml": "<r><P c=\"E\">1</P></r>", "options": { "attributePrefix": "$", "textKey": "_" }, "expect": { "P": { "$c": "E", "_": "1" } } }
+  ],
+  "xmlLines": [
+    {
+      "name": "declaration, nil, a list of complex items",
+      "xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?><r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><Ico>1</Ico><N xsi:nil=\"true\"/><L><I><C>29</C></I><I><C>30</C></I></L></r>",
+      "expect": [
+        { "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>", "paths": [] },
+        { "text": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">", "paths": [[]] },
+        { "text": "  <Ico>1</Ico>", "paths": [["Ico"]] },
+        { "text": "  <N xsi:nil=\"true\"/>", "paths": [["N"]] },
+        { "text": "  <L>", "paths": [["L"]] },
+        { "text": "    <I>", "paths": [["L", 0]] },
+        { "text": "      <C>29</C>", "paths": [["L", 0, "C"]] },
+        { "text": "    </I>", "paths": [["L", 0]] },
+        { "text": "    <I>", "paths": [["L", 1]] },
+        { "text": "      <C>30</C>", "paths": [["L", 1, "C"]] },
+        { "text": "    </I>", "paths": [["L", 1]] },
+        { "text": "  </L>", "paths": [["L"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "a repeated name has its occurrence index",
+      "xml": "<r><A>1</A><B>x</B><A>2</A></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <A>1</A>", "paths": [["A", 0]] },
+        { "text": "  <B>x</B>", "paths": [["B"]] },
+        { "text": "  <A>2</A>", "paths": [["A", 1]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "attributes and text get their own paths; values re-escaped; comments belong to no path",
+      "xml": "<r><P c=\"E &amp; &quot;\">1</P><!-- note --></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <P c=\"E &amp; &quot;\">1</P>", "paths": [["P"], ["P", "@c"], ["P", "#text"]] },
+        { "text": "  <!-- note -->", "paths": [] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "CDATA on one line; mixed text on its own line",
+      "xml": "<r><c><![CDATA[a<b]]></c><p>Hi <b>x</b></p></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <c><![CDATA[a<b]]></c>", "paths": [["c"]] },
+        { "text": "  <p>", "paths": [["p"]] },
+        { "text": "    Hi", "paths": [["p", "#text"]] },
+        { "text": "    <b>x</b>", "paths": [["p", "b"]] },
+        { "text": "  </p>", "paths": [["p"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "options rename attribute and text paths",
+      "xml": "<r><P c=\"1\">2</P><z/></r>",
+      "options": { "attributePrefix": "$", "textKey": "_" },
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <P c=\"1\">2</P>", "paths": [["P"], ["P", "$c"], ["P", "_"]] },
+        { "text": "  <z/>", "paths": [["z"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "the children of a nil element are marked with the element",
+      "xml": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"><a xsi:nil=\"true\"><b>1</b></a><z/></r>",
+      "expect": [
+        { "text": "<r xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">", "paths": [[]] },
+        { "text": "  <a xsi:nil=\"true\">", "paths": [["a"]] },
+        { "text": "    <b>1</b>", "paths": [["a"]] },
+        { "text": "  </a>", "paths": [["a"]] },
+        { "text": "  <z/>", "paths": [["z"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "text is re-escaped",
+      "xml": "<r><a>x &lt; y &amp; z&gt;</a><z/></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <a>x &lt; y &amp; z&gt;</a>", "paths": [["a"]] },
+        { "text": "  <z/>", "paths": [["z"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "a root that is a list numbers its items",
+      "xml": "<r><S><string>A</string><string>B</string></S></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <S>", "paths": [[0]] },
+        { "text": "    <string>A</string>", "paths": [[0, 0]] },
+        { "text": "    <string>B</string>", "paths": [[0, 1]] },
+        { "text": "  </S>", "paths": [[0]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    {
+      "name": "processing instructions are kept and belong to no path",
+      "xml": "<r><?pi data?><a>1</a><z/></r>",
+      "expect": [
+        { "text": "<r>", "paths": [[]] },
+        { "text": "  <?pi data?>", "paths": [] },
+        { "text": "  <a>1</a>", "paths": [["a"]] },
+        { "text": "  <z/>", "paths": [["z"]] },
+        { "text": "</r>", "paths": [[]] }
+      ]
+    },
+    { "name": "not XML", "xml": "<a><b></a>", "expect": null }
+  ]
+}

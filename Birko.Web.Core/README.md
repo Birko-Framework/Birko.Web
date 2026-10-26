@@ -318,6 +318,22 @@ diffJson(xmlToTree(a), xmlToTree(b));
 `xmlToLines(text, options?)` pretty-prints the same body, one element per line, and gives each line the tree paths
 it shows. That is how `b-json-diff format="xml"` marks the original XML.
 
+### Shared test vectors (diff-vectors.json)
+
+`src/diff/diff-vectors.json` pins what `diffJson`, `matchJsonPath`, `formatJsonPath`, `xmlToTree` and `xmlToLines`
+return, as data: path formatting and matching, `json` cases (two values and options → `equal`, `summary`, `changes`
+and the whole tree, depth first), `xmlTree` and `xmlLines` cases. Two suites run it:
+
+- Birko.Web.Playground's `diff-vectors-smoke` (in `verify.mjs`), against this engine, in a browser, because
+  `xmlToTree` needs `DOMParser`;
+- the C# port in Birko.Xaml.Core (`Birko.Xaml.Core.Diff`), from its test project.
+
+**This engine is the engine of record.** A change to its behaviour changes a vector in the same commit, and then the
+C# port follows. A vector this engine fails is an engine bug, never a vector to bend. Function-valued options are
+written as named ops (`trim`, `lower`, `replace`, `round`), which each runner maps to a function; see the file's
+`about`. Tree order is part of the contract, including JavaScript's own-key order (integer-like keys first,
+ascending), which a port has to reproduce.
+
 ## State
 
 ### Signal\<T\>
