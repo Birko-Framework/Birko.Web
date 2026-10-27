@@ -18,7 +18,9 @@ import { SlideTrack, prefersReducedMotion } from './slide-track';
  * One page of slides (or fewer) renders no arrows, no dots and no autoplay. WAI-ARIA carousel pattern:
  * the host region is a `carousel`, each slide a `group` / `slide` named "n of m", off-screen slides are
  * `inert`, and an autoplay never starts under `prefers-reduced-motion`, pauses on hover, stops for good when
- * keyboard focus enters, and always has a visible stop / start control.
+ * keyboard focus enters, and has a stop / start control: always visible by default, or with
+ * `rotation-control="hover"` only while the carousel is hovered or has focus within (it keeps its tab stop, so
+ * keyboard users still reach it; touch users without hover do not see it — the consumer's call).
  */
 export class BCarousel extends BaseComponent {
   static get observedAttributes() {
@@ -55,6 +57,11 @@ export class BCarousel extends BaseComponent {
         scroll-snap-align: start;
       }
       .rotation { position: absolute; z-index: 1; top: var(--b-space-sm, 0.5rem); inset-inline-end: var(--b-space-sm, 0.5rem); }
+      /* rotation-control="hover": shown only while hovered or focused within. Hidden by opacity, never display or
+         visibility, so it keeps its tab stop and its name: Tab into the carousel lands on it, and focus shows it. */
+      :host([rotation-control="hover"]) .rotation { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
+      :host([rotation-control="hover"]:hover) .rotation,
+      :host([rotation-control="hover"]:focus-within) .rotation { opacity: 1; pointer-events: auto; }
     `;
   }
 

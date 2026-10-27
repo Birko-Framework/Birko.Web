@@ -1068,6 +1068,7 @@ Slides are the element's light-DOM children (server-rendered content is enhanced
 | `per-view` | `1`–`6` slides visible at once (default 1). Or set `--b-carousel-per-view` in CSS — that wins, so breakpoints are media queries |
 | `loop` | boolean — previous / next wrap |
 | `autoplay` | interval in ms (empty → 5000). Never runs under `prefers-reduced-motion` |
+| `rotation-control` | `hover` — the autoplay stop / start button shows only while the carousel is hovered or has focus within (it keeps its tab stop). Absent: always visible. Touch devices have no hover, so there it is not seen |
 | `label-previous` / `label-next` / `label-play` / `label-pause` | per-instance names (`bwc.carousel.*`) |
 
 | CSS property | Default |

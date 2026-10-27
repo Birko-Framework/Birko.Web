@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.19 — 2026-10-27
+
+- **b-carousel stop button on hover or focus only** — Birko TASK-777 (for FlowerFur TASK-133). New opt-in attribute
+  `rotation-control="hover"`: the autoplay stop / start button is hidden until the carousel is hovered or has focus
+  within. It is hidden by opacity only, so it keeps its tab stop and its name: Tab into the carousel lands on it and
+  shows it. Hidden, it takes no pointer input. Touch devices have no hover, so there it is not seen; that WCAG 2.2.2
+  trade-off is the consumer's to make. Without the attribute nothing changes: the button is always visible.
+
 ## v0.1.18 — 2026-10-23
 
 - **b-json-diff translates** — Birko TASK-765 (reported by Symbio TASK-953). **Fixed:** `locales/en.json` had the
