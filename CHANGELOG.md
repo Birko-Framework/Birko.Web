@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.20 — 2026-10-27
+
+- **b-carousel `rotation-control="hover"`: a click no longer keeps the button shown** — Birko TASK-777, found by
+  FlowerFur's human test. **Fixed:** in v0.1.19, a mouse click on the stop / start button focused it, and focus within
+  kept it visible after the pointer left, until a click outside. Only keyboard focus keeps it shown now (the browser's
+  `:focus-visible` on whatever took focus, a key pressed after a click, cleared by a pointer press). Tab into the
+  carousel still lands on it and shows it.
+
 ## v0.1.19 — 2026-10-27
 
 - **b-carousel stop button on hover or focus only** — Birko TASK-777 (for FlowerFur TASK-133). New opt-in attribute

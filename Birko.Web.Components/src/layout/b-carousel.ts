@@ -19,7 +19,7 @@ import { SlideTrack, prefersReducedMotion } from './slide-track';
  * the host region is a `carousel`, each slide a `group` / `slide` named "n of m", off-screen slides are
  * `inert`, and an autoplay never starts under `prefers-reduced-motion`, pauses on hover, stops for good when
  * keyboard focus enters, and has a stop / start control: always visible by default, or with
- * `rotation-control="hover"` only while the carousel is hovered or has focus within (it keeps its tab stop, so
+ * `rotation-control="hover"` only while the carousel is hovered or has keyboard focus within (it keeps its tab stop, so
  * keyboard users still reach it; touch users without hover do not see it — the consumer's call).
  */
 export class BCarousel extends BaseComponent {
@@ -57,11 +57,12 @@ export class BCarousel extends BaseComponent {
         scroll-snap-align: start;
       }
       .rotation { position: absolute; z-index: 1; top: var(--b-space-sm, 0.5rem); inset-inline-end: var(--b-space-sm, 0.5rem); }
-      /* rotation-control="hover": shown only while hovered or focused within. Hidden by opacity, never display or
-         visibility, so it keeps its tab stop and its name: Tab into the carousel lands on it, and focus shows it. */
+      /* rotation-control="hover": shown only while hovered or while KEYBOARD focus is within. Hidden by opacity, never
+         display or visibility, so it keeps its tab stop and its name: Tab into the carousel lands on it and shows it.
+         Not :focus-within: a mouse click focuses the button, which then stayed shown after the pointer left (FlowerFur). */
       :host([rotation-control="hover"]) .rotation { opacity: 0; pointer-events: none; transition: opacity 0.15s; }
       :host([rotation-control="hover"]:hover) .rotation,
-      :host([rotation-control="hover"]:focus-within) .rotation { opacity: 1; pointer-events: auto; }
+      :host([rotation-control="hover"]) .carousel[data-keyboard-focus] .rotation { opacity: 1; pointer-events: auto; }
     `;
   }
 
@@ -72,6 +73,8 @@ export class BCarousel extends BaseComponent {
   private _stopped = false;
   private _hovered = false;
   private _focusWithin = false;
+  /** Focus within came from the keyboard (not a click or tap), so rotation-control="hover" keeps the control shown. */
+  private _keyboardFocus = false;
   private _resize: ResizeObserver | null = null;
   private _lastPerView = 0;
   /** Slides this component has put attributes on — a removed one is no longer reachable through the host. */
@@ -122,7 +125,7 @@ export class BCarousel extends BaseComponent {
             aria-current="${i === this._index}"><span class="pip" aria-hidden="true"></span></button>`).join('')}</div>`
       : '';
     return `
-      <section class="carousel" aria-roledescription="${escapeAttr(role)}"${label ? ` aria-label="${escapeAttr(label)}"` : ''} data-count="${count}">
+      <section class="carousel" aria-roledescription="${escapeAttr(role)}"${label ? ` aria-label="${escapeAttr(label)}"` : ''} data-count="${count}"${this._keyboardFocus ? ' data-keyboard-focus' : ''}>
         ${rotation}
         <div class="stage">
           <div class="viewport"><slot></slot></div>
@@ -168,14 +171,23 @@ export class BCarousel extends BaseComponent {
     this.listen<PointerEvent>(this, 'pointerleave', () => { this._hovered = false; this.syncAutoplay(); });
     // Only a rotation that is running can be stopped by focus: a carousel focused before it had autoplay (or while
     // it was already stopped) must not carry a stop into an autoplay switched on later (owner's test, 2026-10-10).
-    this.listen(this, 'focusin', () => {
+    this.listen<FocusEvent>(this, 'focusin', (e) => {
+      // The browser's own keyboard-or-pointer heuristic, on the element that took focus (shadow button or slotted link).
+      const target = e.composedPath()[0];
+      this.setKeyboardFocus(target instanceof Element && target.matches(':focus-visible'));
       if (this._focusWithin) return;
       this._focusWithin = true;
       if (this.playing) { this._stopped = true; this.syncRotation(); this.syncAutoplay(); }
     });
     this.listen(this, 'focusout', () => {
-      setTimeout(() => { this._focusWithin = this.matches(':focus-within'); }, 0);
+      setTimeout(() => {
+        this._focusWithin = this.matches(':focus-within');
+        if (!this._focusWithin) this.setKeyboardFocus(false);
+      }, 0);
     });
+    // A key pressed after a click turns the focus into keyboard focus; a pointer press turns it back.
+    this.listen(this, 'keydown', () => { if (this._focusWithin) this.setKeyboardFocus(true); });
+    this.listen(this, 'pointerdown', () => this.setKeyboardFocus(false));
     this.listen(document, 'visibilitychange', () => this.syncAutoplay());
 
     if (this._index > this.maxIndex()) this._index = this.maxIndex();
@@ -340,6 +352,11 @@ export class BCarousel extends BaseComponent {
 
   private rotationIcon(): string {
     return `<span aria-hidden="true">${this.playing ? '&#10074;&#10074;' : '&#9654;'}</span>`;
+  }
+
+  private setKeyboardFocus(on: boolean): void {
+    this._keyboardFocus = on;
+    this.$('.carousel')?.toggleAttribute('data-keyboard-focus', on);
   }
 
   private syncRotation(): void {
