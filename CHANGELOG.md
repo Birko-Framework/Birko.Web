@@ -13,14 +13,18 @@ interchangeable for consumers.
   showing. With no modal open nothing changes. A `<dialog>` an app opens with its own `showModal()` is not tracked,
   and toasts still sit behind it. **Tests:** while a modal is open the toast container is inside the dialog's shadow
   root, so `document.getElementById('b-toast-system')` / `document.querySelector('#b-toast-system …')` do not find it;
-  Playwright locators pierce shadow roots and are unaffected.
+  Playwright locators pierce shadow roots and are unaffected. **While a modal is open, a bottom-corner toast shows at
+  the top centre**, so it does not cover the modal's footer actions (Symbio: a bottom-right toast covered Create /
+  Cancel at a 1280 px window); it goes back to its corner when the modal closes.
 - **New: `b-sortable-list` and `b-sortable-picker`** — Birko TASK-787, asked for while walking Symbio TASK-825. A list
   the user reorders by dragging a row (on touch, a short hold or the handle) or by keyboard (Space on the row's handle,
   the arrow keys, Space to drop, Escape to cancel), in a `list`, `grid` or `inline` layout. The rows are your own
   elements with a `data-id`, so they can hold their own fields; `change` gives the new order. `b-sortable-item` is a
   ready-made row (image, label, meta), and `setItems()` fills a list with them. `b-sortable-picker` puts a search over
   it: you supply the search, picks go to the end, a duplicate is pointed at, `max` refuses more, and the chosen items
-  keep their labels. It is form-associated, one entry per id, in order. New locale keys `bwc.sortable.*` and
+  keep their labels. Its messages go where you say: each fires a cancelable `notice` event (take it and show the
+  text yourself), or `notify="toast"` sends them to the toast; by default they show under the search. It is
+  form-associated, one entry per id, in order. New locale keys `bwc.sortable.*` and
   `bwc.sortablePicker.*`.
 
 ## v0.1.21 — 2026-10-29

@@ -40,6 +40,7 @@ export interface ToastConfig {
 /** Global toast manager — call toast.show() / toast.notify() from anywhere. */
 class ToastManager {
   private _containers = new Map<string, HTMLElement>();
+  private _positions = new Map<string, ToastPosition>();
   private _systemPosition: ToastPosition = 'bottom-right';
   private _notifyPosition: ToastPosition = 'top-right';
   private _bottomOffset = '2.75rem';
@@ -57,6 +58,7 @@ class ToastManager {
     // Reset containers so they recreate with new positions
     this._containers.forEach(c => c.remove());
     this._containers.clear();
+    this._positions.clear();
   }
 
   private _ensureContainer(id: string, position: ToastPosition): HTMLElement {
@@ -68,29 +70,42 @@ class ToastManager {
       container.setAttribute('aria-live', id === 'b-toast-system' ? 'polite' : 'polite');
       container.setAttribute('aria-atomic', 'false');
 
-      const isTop = position.startsWith('top');
-      const isLeft = position.endsWith('left');
-      const offset = 'var(--b-toast-offset, var(--b-space-lg, 1rem))';
-
-      // The sides, box and colours are all set, so the UA [popover] sheet (inset 0, auto margin, border, padding,
-      // Canvas background) changes nothing when _home() makes this a popover.
+      // The box and colours are all set, and _place() sets every side, so the UA [popover] sheet (inset 0, auto
+      // margin, border, padding, Canvas background) changes nothing when _home() makes this a popover.
       Object.assign(container.style, {
         position: 'fixed',
-        top: 'auto', bottom: 'auto', left: 'auto', right: 'auto',
-        [isTop ? 'top' : 'bottom']: isTop ? offset : this._bottomOffset,
-        [isLeft ? 'left' : 'right']: offset,
         margin: '0', padding: '0', border: 'none', background: 'transparent', color: 'inherit', overflow: 'visible',
         display: 'flex',
-        flexDirection: isTop ? 'column' : 'column-reverse',
         gap: 'var(--b-space-sm, 0.5rem)',
         zIndex: 'var(--b-z-toast, 500)',
         pointerEvents: 'none',
       });
 
       this._containers.set(id, container);
+      this._positions.set(id, position);
     }
     this._home(container);
     return container;
+  }
+
+  /**
+   * Its configured corner, except that while a modal is open a bottom corner moves to the top centre: a modal's
+   * actions are in its footer, and a bottom-right toast covered Create / Cancel until dismissed (Symbio, TASK-731
+   * re-walk at a 1280 px window). Top centre, not top right, because a wide modal's Close sits at its top right.
+   */
+  private _place(container: HTMLElement, inModal: boolean): void {
+    const position = this._positions.get(container.id) ?? 'bottom-right';
+    const offset = 'var(--b-toast-offset, var(--b-space-lg, 1rem))';
+    const lifted = inModal && position.startsWith('bottom');
+    const isTop = lifted || position.startsWith('top');
+    Object.assign(container.style, {
+      top: isTop ? offset : 'auto',
+      bottom: isTop ? 'auto' : this._bottomOffset,
+      left: lifted ? '50%' : position.endsWith('left') ? offset : 'auto',
+      right: !lifted && position.endsWith('right') ? offset : 'auto',
+      transform: lifted ? 'translateX(-50%)' : 'none',
+      flexDirection: isTop ? 'column' : 'column-reverse',
+    });
   }
 
   /**
@@ -104,6 +119,7 @@ class ToastManager {
     const target = dlg ?? document.body;
     if (container.matches(':popover-open')) container.hidePopover();
     if (container.parentElement !== target) target.appendChild(container);
+    this._place(container, !!dlg);
     if (dlg) {
       container.setAttribute('popover', 'manual');
       container.showPopover();

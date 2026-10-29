@@ -297,6 +297,7 @@ order.
 | `size` | `sm` \| `lg` — the search, Add and the list's rows |
 | `max-height` | CSS length (default `20rem`) — past it the list scrolls |
 | `error` / `disabled` / `required` / `hint` / `description` / `bare` | as on every form control |
+| `notify` | `inline` (default) \| `toast` — where a `duplicate` / `max` notice goes when no `notice` listener takes it; `over` stays inline |
 | `label-add` | text override for Add |
 
 | Method | Signature |
@@ -309,6 +310,7 @@ order.
 |-------|--------|
 | `change` | `{ name, value: string[], items: SortableItemData[] }` — on a pick, a reorder or a removal |
 | `reject` | `{ item, reason: 'duplicate' \| 'max' }` |
+| `notice` | `{ kind: 'duplicate' \| 'max' \| 'over' \| 'over-cleared', text, item? }` — **cancelable**: `preventDefault()` and show `text` yourself (a status bar, a form error, the toast). `over` fires as the over-limit state changes, `over-cleared` (empty `text`) when it ends |
 
 ### `<b-checkbox>`
 | Attribute | Values |
@@ -1472,7 +1474,8 @@ toast.configure({ position: 'top-right', maxVisible: 5 });
 ```
 While a Birko modal is open (`b-modal`, `b-drawer modal`, `b-confirm-dialog`, the `dialogs` helpers, `b-gallery`'s
 zoom, `b-ribbon`'s mobile menu), the toasts are shown inside it, above its content, and can be clicked; they move back
-when it closes. A `<dialog>` you open with your own `showModal()` is not known to `toast`, and toasts stay behind it.
+when it closes. While a modal is open a bottom-corner toast shows at the top centre instead, clear of the modal's footer
+actions. A `<dialog>` you open with your own `showModal()` is not known to `toast`, and toasts stay behind it.
 While a modal is open the container is in that dialog's shadow root, so a document-level `#b-toast-system` query does
 not find it.
 

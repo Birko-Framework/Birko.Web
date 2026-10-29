@@ -3,6 +3,7 @@ import { escapeAttr, escapeHtml, announce } from '../dom-utils';
 import { formFieldSheet, formControlSheet, srOnlySheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
 import '../data/b-sortable-list.js';
+import { toast } from '../feedback/b-toast.js';
 import type { BSortableList, SortableItemData, SortableChangeDetail, SortableLayout } from '../data/b-sortable-list.js';
 
 /** The consumer's search: the items matching a query, usually from the server. */
@@ -15,6 +16,16 @@ export interface SortablePickerChangeDetail {
   items: SortableItemData[];
 }
 
+/**
+ * `notice` detail. `duplicate` and `max` are about one pick; `over` is a state (the list holds more than `max`, after
+ * `max` was lowered) and fires again as it changes, then `over-cleared` (empty `text`) when the list is back within it.
+ */
+export interface SortablePickerNoticeDetail {
+  kind: 'duplicate' | 'max' | 'over' | 'over-cleared';
+  text: string;
+  item?: SortableItemData;
+}
+
 /** Wait after the last key before searching. */
 const DEBOUNCE_MS = 200;
 
@@ -23,6 +34,10 @@ const DEBOUNCE_MS = 200;
  * goes to the end; picking something already chosen points at it; at `max` a pick is refused with a notice. Its value
  * is the ordered id list, submitted as one form entry per id. Chosen items keep their labels whatever a later search
  * returns, so give the initial ones with labels: `setItems()`.
+ *
+ * Where a notice is shown is the consumer's: each fires a cancelable `notice` first (cancel it to show the text
+ * yourself), else `notify="toast"` sends `duplicate` / `max` to the toast, and anything else is shown under the search.
+ * `over` stays under the search even with `notify="toast"`: it describes the list for as long as it is true.
  */
 export class BSortablePicker extends FormControlComponent {
   static get observedAttributes() {
@@ -41,6 +56,9 @@ export class BSortablePicker extends FormControlComponent {
   private _search: SortablePickerSearch | null = null;
   /** A message about the last pick (duplicate, full); cleared by the next keystroke. */
   private _note = '';
+  /** The `over` notice last announced ('' when not over), and whether the consumer took it. */
+  private _overText = '';
+  private _overTaken = false;
 
   static get styles() {
     return `
@@ -275,12 +293,17 @@ export class BSortablePicker extends FormControlComponent {
       else list.removeAttribute('limit');
       if (list.getAttribute('layout') !== this._layout()) list.setAttribute('layout', this._layout());
     }
-    const notice = this.$('.notice');
-    if (notice) {
-      notice.textContent = this._note || (over
-        ? this._t('over', 'Only the first {max} are used. Remove the rest, or drag the ones you want above the line.', { max, extra: n - max })
-        : '');
+    const overText = over
+      ? this._t('over', 'Only the first {max} are used. Remove the rest, or drag the ones you want above the line.', { max, extra: n - max })
+      : '';
+    if (overText !== this._overText) {
+      const was = this._overText;
+      this._overText = overText;
+      if (overText) this._overTaken = !this._dispatchNotice({ kind: 'over', text: overText });
+      else if (was) { this._overTaken = false; this._dispatchNotice({ kind: 'over-cleared', text: '' }); }
     }
+    const notice = this.$('.notice');
+    if (notice) notice.textContent = this._note || (this._overTaken ? '' : overText);
     const add = this.$<HTMLButtonElement>('.add');
     if (add) add.disabled = this.boolAttr('disabled') || this._active < 0;
   }
@@ -417,12 +440,12 @@ export class BSortablePicker extends FormControlComponent {
     const at = this._items.findIndex((it) => it.id === item.id);
     const max = this._max();
     if (at >= 0) {
-      this._note = this._t('duplicate', '{label} is already in the list, at position {position}.', { label: this._items[at].label, position: at + 1 });
       this._list()?.highlight(item.id);
       this.emit('reject', { item, reason: 'duplicate' });
+      this._notice('duplicate', this._t('duplicate', '{label} is already in the list, at position {position}.', { label: this._items[at].label, position: at + 1 }), item);
     } else if (max > 0 && this._items.length >= max) {
-      this._note = this._t('full', 'The list holds {max}. Remove one to add {label}.', { max, label: item.label });
       this.emit('reject', { item, reason: 'max' });
+      this._notice('max', this._t('full', 'The list holds {max}. Remove one to add {label}.', { max, label: item.label }), item);
     } else {
       this._note = '';
       this._items.push({ ...item });
@@ -433,6 +456,19 @@ export class BSortablePicker extends FormControlComponent {
     }
     this._refresh();
     this._renderResults();
+  }
+
+  /** Fire the cancelable `notice`; false when the consumer took it (called preventDefault). */
+  private _dispatchNotice(detail: SortablePickerNoticeDetail): boolean {
+    return this.dispatchEvent(new CustomEvent('notice', { detail, bubbles: true, composed: true, cancelable: true }));
+  }
+
+  /** A notice about one pick: the consumer's, else the toast with `notify="toast"`, else under the search. */
+  private _notice(kind: 'duplicate' | 'max', text: string, item: SortableItemData): void {
+    this._note = '';
+    if (!this._dispatchNotice({ kind, text, item })) return;
+    if (this.attr('notify') === 'toast') toast.warning(text);
+    else this._note = text;
   }
 
   private _emitChange(): void {

@@ -409,7 +409,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-textarea>` | BTextarea | — | `label`, `name`, `value`, `rows`, `error`, `disabled` |
 | `<b-multi-select>` | BMultiSelect | `setOptions([])` | `label`, `name`, `placeholder`, `error`, `disabled` |
 | `<b-tag-input>` | BTagInput | `setTags([])`, `getTags()`, `clear()` | `label`, `name`, `value`, `placeholder`, `separators`, `max-count`, `allow-duplicates`, `error`, `disabled` |
-| `<b-sortable-picker>` | BSortablePicker | `setSearch(fn)`, `setItems([{id,label,meta?,image?}])`, `getItems()` | `label`, `name`, `max` (hard: a pick past it is refused), `layout`, `size`, `max-height` (default 20rem), `placeholder`, `error`, `required`, `disabled`; events `change` `{name,value,items}`, `reject` `{item,reason}` (TASK-787) |
+| `<b-sortable-picker>` | BSortablePicker | `setSearch(fn)`, `setItems([{id,label,meta?,image?}])`, `getItems()` | `label`, `name`, `max` (hard: a pick past it is refused), `layout`, `size`, `max-height` (default 20rem), `placeholder`, `notify` (inline\|toast), `error`, `required`, `disabled`; events `change` `{name,value,items}`, `reject` `{item,reason}`, `notice` `{kind,text,item?}` (cancelable: show it yourself) (TASK-787) |
 | `<b-search-input>` | BSearchInput | — | `placeholder`, `value`, `debounce` |
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
@@ -640,6 +640,9 @@ clickable preview (decisions in the task file):
 - **`limit` and `layout` re-sync, never re-render**: a re-render rebuilds every row and drops the focus.
 - `b-sortable-picker`'s `max` is hard; the list's `limit` line shows only when it is already over (the limit lowered).
   While a new search is pending, Enter and Add pick nothing from the previous results.
+- **Where a picker's message shows is the consumer's** (asked by the user after the build): every one fires a cancelable
+  `notice` `{kind,text,item?}` first; untaken, `notify="toast"` sends `duplicate` / `max` to the toast, else it shows
+  under the search. `over` is a state, so it stays inline under `notify="toast"`, and fires `over-cleared` when it ends.
 
 Gate: Playground `sortable-smoke` (keyboard per layout, remove, limit, the picker) and `sortable-drag-check.mjs` (a real
 mouse and touchscreen: drag per layout, a grid tile into the row above, handle-only, Escape, auto-scroll, hold vs
@@ -658,7 +661,12 @@ components that open one now go through. Escape in Chromium fires `close` ~150 m
 stack also re-checks one task after `cancel`. No modal open: nothing changes. A dialog a consumer opens with its own
 `showModal()` is not tracked.
 
-Playground `toast-modal-smoke` hit-tests each toast's centre through the shadow roots (6/16 red before).
+While a modal is open, a bottom-corner toast shows at the top centre (`_place()`): Symbio's re-walk found a bottom-right
+toast covering the modal footer's Create / Cancel at a 1280 px window. Top centre, not top right, because a wide modal's
+Close sits at its top right. Back in its corner when the modal closes.
+
+Playground `toast-modal-smoke` hit-tests each toast's centre through the shadow roots (6/16 red before), and checks the
+toast's place with and without a modal (the top-centre check fails with the move removed).
 
 ### `b-carousel` / `b-gallery`: a busy page no longer settles a scroll on the wrong slide (2026-10-22, TASK-745)
 
