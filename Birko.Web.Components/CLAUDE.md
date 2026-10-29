@@ -301,7 +301,7 @@ Rules when adding `bare` to a new form control:
 
 ### Form-association convention (value-bearing controls)
 
-The 16 value-bearing inputs extend **`FormControlComponent`** (from `birko-web-core`) rather than
+The 17 value-bearing inputs extend **`FormControlComponent`** (from `birko-web-core`) rather than
 `BaseComponent`, which makes them `ElementInternals`-based form-associated custom elements: value in
 `FormData`, native constraint validation, `reportValidity()`, `form.reset()`, `<fieldset disabled>`.
 
@@ -397,7 +397,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 
 ## Component inventory
 
-### Inputs (24)
+### Inputs (25)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
@@ -409,6 +409,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-textarea>` | BTextarea | — | `label`, `name`, `value`, `rows`, `error`, `disabled` |
 | `<b-multi-select>` | BMultiSelect | `setOptions([])` | `label`, `name`, `placeholder`, `error`, `disabled` |
 | `<b-tag-input>` | BTagInput | `setTags([])`, `getTags()`, `clear()` | `label`, `name`, `value`, `placeholder`, `separators`, `max-count`, `allow-duplicates`, `error`, `disabled` |
+| `<b-sortable-picker>` | BSortablePicker | `setSearch(fn)`, `setItems([{id,label,meta?,image?}])`, `getItems()` | `label`, `name`, `max` (hard: a pick past it is refused), `layout`, `size`, `max-height` (default 20rem), `placeholder`, `error`, `required`, `disabled`; events `change` `{name,value,items}`, `reject` `{item,reason}` (TASK-787) |
 | `<b-search-input>` | BSearchInput | — | `placeholder`, `value`, `debounce` |
 | `<b-file-upload>` | BFileUpload | — | `accept`, `multiple`, `max-size`, `endpoint`, `disabled` |
 | `<b-inline-edit>` | BInlineEdit | — | `value`, `placeholder`, `type` |
@@ -444,7 +445,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-chat>` | BChat | `setMessages([])`, `appendMessage()`, `setConfig()` | `placeholder`, `disabled` |
 | `<b-tour>` | BTour / `tour` singleton | `tour.start(steps, {id})`, `tour.reset(id)`, `tour.seen(id)` | guided onboarding: spotlight + anchored popover, Esc/←/→ keys, once-per-user via localStorage |
 
-### Data (16)
+### Data (18)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-table>` | BTable | `setColumns()`, `setData()`, `setIdField()` | `loading`, `striped`, `hoverable`, `label-no-data` |
@@ -456,6 +457,8 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-tag>` | BTag | — | `color`, `removable`, `size` |
 | `<b-chart>` | BChart | `setData(ChartData)`, `setOptions(ChartOptions)` | `type`, `height`, `legend`, `animate` |
 | `<b-kanban>` | BKanban | `setConfig()`, `setColumns()`, `setCards()`, `addSubCard(parentId,card)`, `getChildren(id)`, `removeCard()`, `toggleCard()`, `expandAll()`, `collapseAll()` | recursive nesting via `KanbanCard.children`/`parentId`/`collapsed`; 3-zone DnD (before/inside/after); `maxNestingDepth`; depth-aware `renderCard(card, depth)` |
+| `<b-sortable-list>` | BSortableList | `setItems([{id,label,meta?,image?}])`, `getOrder()`, `highlight(id)` | rows = light-DOM children with `data-id` (`data-label` names them); `layout` (list|grid|inline), `removable`, `numbered`, `handle-only`, `limit`, `max-height`, `item-min-width`, `size`; drag (touch: hold), keyboard pick up / move / drop; events `change` `{order,id,from,to,removed?}`, `remove` (cancelable); slot `empty` (TASK-787) |
+| `<b-sortable-item>` | BSortableItem | — | `label`, `meta`, `image`; `layout` is set by the list |
 | `<b-pre>` | BPre | — | `wrap`, `max-height`, `size` |
 | `<b-code-block>` | BCodeBlock | `setCode(code, language?)` | `language`, `code`, `wrap`, `show-line-numbers`, `no-copy`, `max-height`, `size`, `sticky-header` (page) |
 | `<b-definition-list>` | BDefinitionList | `setItems([{term,description}])`, `getItems()` | `layout` (stacked\|inline\|horizontal\|grid), `size`, `align` |
@@ -623,6 +626,25 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-sortable-list` / `b-sortable-picker`: reorder by drag or keyboard, pick and order (2026-10-29, TASK-787)
+
+Asked for walking Symbio TASK-825, whose page editor hand-rolls ▲▼ lists three times. Decided by the user on a
+clickable preview (decisions in the task file):
+- **The rows are light-DOM children** with `data-id`, so a consumer row keeps its own fields and listeners. Each child
+  gets a generated `slot` name and a shadow `<li>` (handle, slot, Remove) around it; the list reorders the children
+  themselves, so the children's order is always the order. A press on a row's own control (`INTERACTIVE`) never drags.
+- **Keyboard: pick up, move, drop** (Space, arrows, Space; Escape cancels; Tab away drops), not "arrows move at once":
+  screen readers keep the arrows in browse mode, and a stray arrow moved a row with no undo.
+- **Touch: a row drags after a 0.35 s hold**, the handle at once, so a swipe over the list still scrolls the page.
+- **`limit` and `layout` re-sync, never re-render**: a re-render rebuilds every row and drops the focus.
+- `b-sortable-picker`'s `max` is hard; the list's `limit` line shows only when it is already over (the limit lowered).
+  While a new search is pending, Enter and Add pick nothing from the previous results.
+
+Gate: Playground `sortable-smoke` (keyboard per layout, remove, limit, the picker) and `sortable-drag-check.mjs` (a real
+mouse and touchscreen: drag per layout, a grid tile into the row above, handle-only, Escape, auto-scroll, hold vs
+swipe). Mutation-proven: a drop slot off by one fails the drag check, a grid ↓ by one place fails the smoke, a change
+event carrying the old order fails both.
 
 ### `toast`: a toast raised while a modal is open is on top of it and clickable (2026-10-29, TASK-786)
 

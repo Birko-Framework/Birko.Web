@@ -74,9 +74,9 @@ Every Presenter surface was checked for undefined `b-*` tags through every shado
 
 | Category | Entry points |
 |----------|--------------|
-| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
+| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-sortable-picker`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
 | `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour`, `birko-web-components/layout/layout-state` |
-| `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-diff`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
+| `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-diff`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-sortable-item`, `birko-web-components/data/b-sortable-list`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
 | `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
 | `nav` | `birko-web-components/nav/b-breadcrumb`, `birko-web-components/nav/b-ribbon`, `birko-web-components/nav/b-sidebar`, `birko-web-components/nav/b-tree-menu` |
 | `command` | `birko-web-components/command/b-command-palette` |
@@ -176,7 +176,7 @@ See [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full role map, the `fieldAria()
 
 ## Form participation
 
-The 16 value-bearing inputs — `b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+The 17 value-bearing inputs — `b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`, `b-sortable-picker`,
 `b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
 `b-markdown-editor`, `b-qty-stepper`, `b-checkbox`, `b-switch`, `b-radio` — are **form-associated custom elements** (`ElementInternals`). Drop them in a plain
 `<form>` and it behaves as if they were native controls:
@@ -214,7 +214,7 @@ matters server-side:
 
 | Control | `FormData` shape | Note |
 |---|---|---|
-| `b-multi-select`, `b-tag-input` | **one entry per value** under `name` | The native `<select multiple>` shape — read with `getAll(name)`; binds to `string[]` in ASP.NET Core, `name[]` in PHP. Unlike the joined `.value`, this is safe for values containing a comma. |
+| `b-multi-select`, `b-tag-input`, `b-sortable-picker` | **one entry per value** under `name` | The native `<select multiple>` shape — read with `getAll(name)`; binds to `string[]` in ASP.NET Core, `name[]` in PHP. Unlike the joined `.value`, this is safe for values containing a comma. |
 | `b-range` (`mode="range"`) | `name-from` + `name-to` | Two values, no native equivalent — two ordinary fields beat inventing a delimiter. Single mode submits one plain value under `name`. |
 | `b-date-range-picker` | `name-start` + `name-end` | Same reasoning; both ISO dates. |
 | `b-color-picker` | base hex `#rrggbb` | The alpha byte is dropped even in `alpha` mode. `el.value` still returns `#rrggbbaa`. |
@@ -458,6 +458,26 @@ el.addEventListener('change', e => {
 
 Attributes: `label`, `name`, `value` (comma-separated), `placeholder`, `separators` (default `,`/`\n`/`\t`), `max-count`, `allow-duplicates`, `error`, `disabled`, `required`, `hint`
 Emits: `change`, `add`, `remove`, `reject` (duplicate or max-count hit)
+
+### b-sortable-picker
+
+Search, pick and order — for a hand-picked, ordered list such as the products in a grid block. You supply the search;
+picks go to the end, the list reorders like `b-sortable-list`, a duplicate pick points at the row already there, and at
+`max` a pick is refused with a notice. Chosen items keep their labels whatever a later search returns. Unlike
+`b-multi-select`, the order is the author's.
+
+```html
+<b-sortable-picker label="Products in this grid" name="products" max="12"></b-sortable-picker>
+```
+
+```typescript
+import { BSortablePicker } from 'birko-web-components';
+
+const picker = document.querySelector('b-sortable-picker') as BSortablePicker;
+picker.setSearch(async (q) => (await api.get(`/products?q=${encodeURIComponent(q)}`)).map(p => ({ id: p.id, label: p.name, meta: p.sku, image: p.thumb })));
+picker.setItems(savedProducts);     // the chosen ones, with labels
+picker.addEventListener('change', e => save((e as CustomEvent).detail.value));   // string[], in order
+```
 
 ### b-search-input
 
@@ -1370,6 +1390,30 @@ board.removeCard('a');            // removes descendants recursively
 
 Methods: `setColumns()`, `setCards()`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
 Emits: `card-move` → `{ cardId, fromColumnId, toColumnId, parentId, position }`, `card-click` → `{ card }`
+
+### b-sortable-list
+
+A list the user reorders by dragging a row (on touch: hold, or the handle) or with the keyboard (Space on a row's
+handle, the arrows, Space), as a `list`, a reflowing `grid` of tiles or wrapping `inline` chips. The rows are your own
+elements, each with a `data-id`, so a row can hold its own fields and buttons; the list keeps them in the shown order
+and tells you the new one in `change`. `b-sortable-item` is a ready-made row (image, label, meta) for plain data.
+
+```html
+<b-sortable-list label="Blocks" removable handle-only>
+  <div data-id="hero" data-label="Hero">…your row, with its own controls…</div>
+  <div data-id="grid" data-label="Product grid">…</div>
+</b-sortable-list>
+
+<b-sortable-list id="gallery" layout="grid" removable numbered max-height="24rem"></b-sortable-list>
+```
+
+```typescript
+import { BSortableList } from 'birko-web-components';
+
+const gallery = document.querySelector('#gallery') as BSortableList;
+gallery.setItems(images.map(i => ({ id: i.id, label: i.name, image: i.thumb })));
+gallery.addEventListener('change', e => saveOrder((e as CustomEvent).detail.order));   // string[]
+```
 
 ### b-pre
 

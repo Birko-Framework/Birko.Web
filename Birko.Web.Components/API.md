@@ -6,7 +6,7 @@ Quick reference for all component attributes, methods, and events.
 
 ## Form participation
 
-The 16 value-bearing inputs (`b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`,
+The 17 value-bearing inputs (`b-input`, `b-textarea`, `b-select`, `b-multi-select`, `b-tag-input`, `b-sortable-picker`,
 `b-date-picker`, `b-datetime-picker`, `b-time`, `b-range`, `b-color-picker`, `b-date-range-picker`,
 `b-markdown-editor`, `b-qty-stepper`, `b-checkbox`, `b-switch`, `b-radio`) are `ElementInternals`-based **form-associated custom elements**: values land in
 `FormData`, constraint validation (`required` / `type` / `min` / `max` / `step` / `pattern`) blocks a
@@ -278,6 +278,37 @@ Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste spl
 | `add` | `{ tag, tags }` |
 | `remove` | `{ tag, tags }` |
 | `reject` | `{ tag, reason: 'duplicate' \| 'max-count' }` |
+
+### `<b-sortable-picker>`
+Search, pick and order. A search box over the consumer's search, and a [`b-sortable-list`](#b-sortable-list) of what
+is chosen. A pick goes to the end; picking something already chosen is refused and the row is pointed at; at `max` a pick
+is refused with a notice. If `max` is lowered below what is chosen, nothing is dropped: the rows past it stay, below a
+line, with a notice. Chosen items keep their labels whatever a later search returns. Enter or a click on a result adds
+it, as does Add, which is as tall as the search input at every `size`. Form-associated: one `FormData` entry per id, in
+order.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string — also names the list |
+| `name` | string |
+| `placeholder` | string (default `bwc.sortablePicker.placeholder`, "Search to add…") |
+| `max` | number — the most that can be picked |
+| `layout` | `list` (default) \| `grid` \| `inline` — passed to the list |
+| `size` | `sm` \| `lg` — the search, Add and the list's rows |
+| `max-height` | CSS length (default `20rem`) — past it the list scrolls |
+| `error` / `disabled` / `required` / `hint` / `description` / `bare` | as on every form control |
+| `label-add` | text override for Add |
+
+| Method | Signature |
+|--------|-----------|
+| `setSearch` | `(search: (query: string) => Promise<SortableItemData[]>) => void` — called 200 ms after the last key |
+| `setItems` | `(items: SortableItemData[]) => void` — the chosen items, with labels; no `change` |
+| `getItems` | `() => SortableItemData[]` |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value: string[], items: SortableItemData[] }` — on a pick, a reorder or a removal |
+| `reject` | `{ item, reason: 'duplicate' \| 'max' }` |
 
 ### `<b-checkbox>`
 | Attribute | Values |
@@ -1054,6 +1085,55 @@ Collapsible XML tree via DOMParser.
 | `toggle` | `{ path, expanded }` |
 | `copy` | `{ text }` |
 | `copy-error` | `{}` |
+
+### `<b-sortable-list>`
+An ordered list the user reorders. **The rows are the element's children**, each with a `data-id` (and optionally a
+`data-label` for its name; else its text). The list wraps each child in a row with a handle and keeps the children in
+the shown order; the consumer owns the data and stores the order from `change`. Rows can hold their own fields and
+buttons: a press on those never starts a drag. For plain data, `setItems()` fills it with `b-sortable-item`s.
+
+- **Mouse and pen:** press anywhere on a row (only the handle with `handle-only`) and drag; a bar shows where it will
+  land, between tiles in `grid`. Escape cancels. Near the edge of the list (when capped) or of the page it scrolls.
+- **Touch:** the handle drags at once; the rest of a row after a 0.35 s hold, so a swipe still scrolls.
+- **Keyboard:** Tab to a handle, Space or Enter picks the row up, the arrows move it (in `grid` ←/→ by one and ↑/↓ by a
+  row of tiles, in `inline` ←/→), Home/End to the ends, Space drops, Escape puts it back, Tab away drops it where it
+  is. Each step is announced; focus stays on the moved row.
+
+| Attribute | Values |
+|-----------|--------|
+| `layout` | `list` (default) \| `grid` (tiles that reflow) \| `inline` (chips that wrap) — presentation only |
+| `label` | string — the list's accessible name |
+| `removable` | boolean — a Remove button per row |
+| `numbered` | boolean — show each row's position |
+| `handle-only` | boolean — only the handle drags (rows full of controls) |
+| `limit` | number — a line before the first row past it, and those rows dimmed |
+| `max-height` | CSS length — past it the list scrolls inside itself |
+| `item-min-width` | CSS length — the narrowest tile in `grid` (default `9rem`) |
+| `size` | `sm` — compact rows |
+| `label-*` | text overrides (`label-empty`, `label-hint`, `label-handle`, `label-remove`, `label-limit`, `label-picked-up`, …) |
+
+| Method | Signature |
+|--------|-----------|
+| `setItems` | `(items: SortableItemData[]) => void` — `{ id, label, meta?, image? }` rows as `b-sortable-item`s |
+| `getOrder` | `() => string[]` |
+| `highlight` | `(id: string) => void` — scroll the row into view and flash it |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ order: string[], id, from, to, removed? }` — one per drop or removal; `to` is `-1` for a removal |
+| `remove` | `{ id }` — before a row is removed; cancelable |
+
+Slot: `empty` (shown when there are no rows; default "Nothing here yet.").
+
+### `<b-sortable-item>`
+A ready-made row for `b-sortable-list`: an optional image, a label and an optional meta line. The list sets its `layout`:
+a line, a tile (a placeholder with the label's initial stands in for a missing image), or a chip label.
+
+| Attribute | Values |
+|-----------|--------|
+| `label` | string |
+| `meta` | string — a second, smaller line |
+| `image` | URL |
 
 ---
 

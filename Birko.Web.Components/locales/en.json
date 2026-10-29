@@ -210,6 +210,38 @@
         "thisYear": "This year"
       }
     },
+    "sortable": {
+      "empty": "Nothing here yet.",
+      "hint": "Press Space to pick up and reorder.",
+      "roleDescription": "sortable item",
+      "handle": "{label}, position {position} of {count}",
+      "remove": "Remove {label}",
+      "limit": "Only the first {limit} are shown",
+      "pickedUp": "{label} picked up, position {position} of {count}. Arrow keys move it, Space drops it, Escape cancels.",
+      "position": "{label}, position {position} of {count}.",
+      "dropped": "{label} dropped at position {position} of {count}.",
+      "unchanged": "{label} dropped, still at position {position} of {count}.",
+      "cancelled": "Cancelled. {label} is back at position {position} of {count}.",
+      "first": "{label} is already first.",
+      "last": "{label} is already last.",
+      "moved": "{label} moved to position {position} of {count}.",
+      "dragCancelled": "Move cancelled.",
+      "removed": "Removed {label}. {count} left."
+    },
+    "sortablePicker": {
+      "placeholder": "Search to add…",
+      "add": "Add",
+      "results": "Search results",
+      "count": "{count} of {max}",
+      "searching": "Searching…",
+      "searchFailed": "The search failed. Try again.",
+      "noResults": "Nothing matches “{query}”.",
+      "inList": "In the list, #{position}",
+      "duplicate": "{label} is already in the list, at position {position}.",
+      "full": "The list holds {max}. Remove one to add {label}.",
+      "over": "Only the first {max} are used. Remove the rest, or drag the ones you want above the line.",
+      "added": "Added {label}, position {position} of {count}."
+    },
     "jsonDiff": {
       "title": "JSON diff",
       "titleXml": "XML diff",

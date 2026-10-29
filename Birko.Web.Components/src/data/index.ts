@@ -21,6 +21,11 @@ export { BObjectTree } from './b-object-tree.js';
 export { BJsonViewer } from './b-json-viewer.js';
 export { BJsonDiff, type JsonDiffViewOptions } from './b-json-diff.js';
 export { BXmlViewer } from './b-xml-viewer.js';
+export {
+  BSortableList,
+  type SortableItemData, type SortableChangeDetail, type SortableLayout,
+} from './b-sortable-list.js';
+export { BSortableItem } from './b-sortable-item.js';
 export { BKanban, type KanbanColumn, type KanbanCard, type KanbanConfig } from './b-kanban.js';
 export { createCellRenderers, type CellRenderers } from './cell-renderers.js';
 export {
