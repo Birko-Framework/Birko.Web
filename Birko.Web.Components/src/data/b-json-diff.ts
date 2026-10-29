@@ -100,6 +100,7 @@ export class BJsonDiff extends BaseComponent {
       del, ins { text-decoration: none; border-radius: var(--b-radius-sm); padding: 0 var(--b-space-xs, 0.25rem); }
       del { background: var(--b-color-danger-alpha-bg); color: var(--b-color-danger-text); }
       ins { background: var(--b-color-success-alpha-bg); color: var(--b-color-success-text); }
+      del, ins, .val { white-space: pre-wrap; }
       .node { display: block; }
       .row {
         display: flex;
@@ -434,9 +435,9 @@ export class BJsonDiff extends BaseComponent {
       case 'changed':
         return `<del>${escapeHtml(this._inline(node.oldValue))}</del><span class="arrow" aria-hidden="true">→</span><ins>${escapeHtml(this._inline(node.newValue))}</ins>`;
       case 'ignored':
-        return `<span>${escapeHtml(this._inline(shown))}</span> <span class="note">${escapeHtml(this._statusText(node))}</span>`;
+        return `<span class="val">${escapeHtml(this._inline(shown))}</span> <span class="note">${escapeHtml(this._statusText(node))}</span>`;
       default:
-        return `<span>${escapeHtml(this._inline(shown))}</span>`;
+        return `<span class="val">${escapeHtml(this._inline(shown))}</span>`;
     }
   }
 

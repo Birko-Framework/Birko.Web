@@ -72,6 +72,7 @@ export class BXmlViewer extends BaseComponent {
       .attr-name { color: var(--b-color-info, #06b6d4); }
       .attr-value { color: var(--b-color-success, #10b981); }
       .text { color: var(--b-text); overflow-wrap: anywhere; }
+      .text, .attr-value, .cdata, .comment, .pi { white-space: pre-wrap; }
       .cdata { color: var(--b-color-warning, #f59e0b); font-style: italic; }
       .comment { color: var(--b-text-muted); font-style: italic; }
       .pi { color: var(--b-text-muted); font-style: italic; }
@@ -281,7 +282,7 @@ export class BXmlViewer extends BaseComponent {
         if (n.nodeType === Node.CDATA_SECTION_NODE) {
           return `<span class="cdata">&lt;![CDATA[${escapeHtml(n.textContent ?? '')}]]&gt;</span>`;
         }
-        return `<span class="text">${escapeHtml(n.textContent ?? '')}</span>`;
+        return `<span class="text">${escapeHtml((n.textContent ?? '').trim())}</span>`;
       }).join('');
       return `
         <div class="node">

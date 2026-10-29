@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.21 — 2026-10-29
+
+- **The tree views keep a value's spaces** — Birko TASK-784. **Fixed:** `b-object-tree` (and `b-json-viewer` through
+  it), `b-xml-viewer` and `b-json-diff`'s tree view showed `"a     b"` as `"a b"`, because the browser folds spaces in
+  ordinary text. String values, XML text, attribute values, CDATA, comments and the diff's values now keep every space
+  (`white-space: pre-wrap`, so a long value still wraps). A string holding a line break now shows it on a new line.
+  `b-xml-viewer` now trims the ends of an element's only text, as it already did for mixed content and as the diff
+  engine does, so pretty-printed XML (`<a>`, a line break, indented `x`, `</a>`) stays on one row. `b-code-block`, `b-pre` and the side-by-side
+  view already kept spaces and are unchanged.
+
 ## v0.1.20 — 2026-10-27
 
 - **b-carousel `rotation-control="hover"`: a click no longer keeps the button shown** — Birko TASK-777, found by

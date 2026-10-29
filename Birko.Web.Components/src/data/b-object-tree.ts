@@ -62,7 +62,7 @@ export class BObjectTree extends BaseComponent {
       .key { color: var(--b-color-info, #06b6d4); }
       .index { color: var(--b-text-muted); }
       .colon { color: var(--b-text-muted); margin-right: var(--b-space-xs, 0.25rem); }
-      .val-string { color: var(--b-color-success, #10b981); }
+      .val-string { color: var(--b-color-success, #10b981); white-space: pre-wrap; }
       .val-number { color: var(--b-color-warning, #f59e0b); }
       .val-boolean { color: var(--b-color-warning, #f59e0b); }
       .val-null { color: var(--b-text-muted); font-style: italic; }
