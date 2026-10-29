@@ -38,6 +38,10 @@ interchangeable for consumers.
   "…" and keeps its full name), and the table keeps room for it under the last row. **Also fixed in the footer:** it
   is inset like the cells (the item count sat on the table's edge); `b-pagination` keeps "24 items" on one line and
   wraps instead; its page-size box always offers the table's own page size (8 per page showed an empty box).
+  **Fixed, found in the human test:** clearing the selection left the rows ticked on screen, and the table grew slower
+  with every tick, page change or re-render. Each re-render added another set of listeners to the checkboxes, row
+  menus and editable cells that `b-table` keeps, so one click ran its handler many times. This predates the redesign
+  and affected every list page with `selectable`, row actions or editable cells.
 
 ## v0.1.21 — 2026-10-29
 

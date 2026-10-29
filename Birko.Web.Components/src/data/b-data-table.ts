@@ -157,6 +157,8 @@ export class BDataTable extends BaseComponent {
   /** "Select all N matching" on a server-paged table: the selection is every row the filters match, ids unknown. */
   private _allMatching = false;
   private _barObserver: ResizeObserver | null = null;
+  /** The listeners on b-table's rows; aborted before each re-wire (see _wireTableInteractions). */
+  private _tableAC: AbortController | null = null;
   /** The bar's roving tab stop, by data-key, so a re-render keeps it. */
   private _barStop = '';
 
@@ -781,6 +783,11 @@ export class BDataTable extends BaseComponent {
   private _wireTableInteractions() {
     const table = this.$('b-table') as any;
     if (!table?.shadowRoot) return;
+    // b-table morphs its rows, so the same checkboxes and buttons survive a re-render: one set of listeners at a time,
+    // or each render adds another and a click runs its handler 2, 4, 8… times (the table grew laggy, TASK-788).
+    this._tableAC?.abort();
+    this._tableAC = new AbortController();
+    const signal = this._tableAC.signal;
 
     // Select-all checkbox
     const selectAll = table.shadowRoot.querySelector('.select-all') as HTMLInputElement;
@@ -789,6 +796,9 @@ export class BDataTable extends BaseComponent {
       const pageData = this._getPageData();
       const someSelected = pageData.some(r => this._selected.has(this._rowId(r)));
       const allSelected = pageData.length > 0 && pageData.every(r => this._selected.has(this._rowId(r)));
+      // The property, from the selection: the morph changes the `checked` attribute, which a box the user clicked
+      // ignores, so × left the ticks on screen.
+      selectAll.checked = allSelected;
       selectAll.indeterminate = someSelected && !allSelected;
 
       selectAll.addEventListener('change', () => {
@@ -799,11 +809,12 @@ export class BDataTable extends BaseComponent {
           for (const row of pageData) this._selected.delete(this._rowId(row));
         }
         this._selectionChanged();
-      });
+      }, { signal });
     }
 
     // Row checkboxes
     table.shadowRoot.querySelectorAll('.row-select').forEach((cb: HTMLInputElement) => {
+      cb.checked = this._selected.has(cb.dataset.id ?? '');
       cb.addEventListener('change', (e: Event) => {
         e.stopPropagation(); // Don't trigger row-click
         const id = cb.dataset.id!;
@@ -813,7 +824,7 @@ export class BDataTable extends BaseComponent {
           this._selected.delete(id);
         }
         this._selectionChanged();
-      });
+      }, { signal });
     });
 
     // Row action triggers
@@ -863,7 +874,7 @@ export class BDataTable extends BaseComponent {
 
         // Clean up on outside click (popover handles this, but belt and suspenders)
         setTimeout(() => document.addEventListener('click', cleanup), 0);
-      });
+      }, { signal });
     });
 
     // Inline editable cells
@@ -885,7 +896,7 @@ export class BDataTable extends BaseComponent {
           if (!row || !col) return;
 
           this._startCellEdit(td, col, row, rowId);
-        });
+        }, { signal });
       });
     }
   }
