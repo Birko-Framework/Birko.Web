@@ -21,6 +21,7 @@ import '../layout/b-modal.js';          // <b-modal> — alert / prompt / choose
 import '../inputs/b-input.js';          // <b-input> — prompt
 import '../feedback/b-spinner.js';      // <b-spinner> — busy
 import { toast, type ToastVariant } from '../feedback/b-toast.js';
+import { showModal } from '../modal-stack.js';
 import { t } from 'birko-web-core';
 import type { FormField, FormSchema, FormResult } from '../inputs/b-form.js'; // type-only — no runtime import (see promptForm / formModal)
 
@@ -530,7 +531,7 @@ export async function busy<T>(work: Promise<T> | (() => Promise<T>), opts: BusyO
   }
 
   document.body.appendChild(dlg);
-  (dlg as HTMLDialogElement).showModal();
+  showModal(dlg as HTMLDialogElement);
   try {
     return await (typeof work === 'function' ? (work as () => Promise<T>)() : work);
   } finally {

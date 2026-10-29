@@ -1,4 +1,5 @@
 import { BaseComponent, define, escapeHtml } from 'birko-web-core';
+import { onModalChange, topModal } from '../modal-stack';
 
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
 export type ToastPosition = 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left';
@@ -43,6 +44,11 @@ class ToastManager {
   private _notifyPosition: ToastPosition = 'top-right';
   private _bottomOffset = '2.75rem';
 
+  constructor() {
+    // A modal opening or closing moves the shown toasts too, so none is left behind a dialog or shut inside one.
+    onModalChange(() => this._containers.forEach(c => this._home(c)));
+  }
+
   /** Configure toast positions. Call once during app boot. */
   configure(config: ToastConfig) {
     if (config.systemPosition) this._systemPosition = config.systemPosition;
@@ -66,10 +72,14 @@ class ToastManager {
       const isLeft = position.endsWith('left');
       const offset = 'var(--b-toast-offset, var(--b-space-lg, 1rem))';
 
+      // The sides, box and colours are all set, so the UA [popover] sheet (inset 0, auto margin, border, padding,
+      // Canvas background) changes nothing when _home() makes this a popover.
       Object.assign(container.style, {
         position: 'fixed',
+        top: 'auto', bottom: 'auto', left: 'auto', right: 'auto',
         [isTop ? 'top' : 'bottom']: isTop ? offset : this._bottomOffset,
         [isLeft ? 'left' : 'right']: offset,
+        margin: '0', padding: '0', border: 'none', background: 'transparent', color: 'inherit', overflow: 'visible',
         display: 'flex',
         flexDirection: isTop ? 'column' : 'column-reverse',
         gap: 'var(--b-space-sm, 0.5rem)',
@@ -77,10 +87,29 @@ class ToastManager {
         pointerEvents: 'none',
       });
 
-      document.body.appendChild(container);
       this._containers.set(id, container);
     }
+    this._home(container);
     return container;
+  }
+
+  /**
+   * On <body> while no modal is open, as before. While one is, inside the newest modal dialog and shown as a popover:
+   * a z-index never rises above the top layer, and showModal() makes everything outside the dialog inert, a popover
+   * on <body> included (measured: drawn on top, but clicks and focus pass through it). Re-shown on every call, so it
+   * lands above any popover opened in the dialog since.
+   */
+  private _home(container: HTMLElement): void {
+    const dlg = topModal();
+    const target = dlg ?? document.body;
+    if (container.matches(':popover-open')) container.hidePopover();
+    if (container.parentElement !== target) target.appendChild(container);
+    if (dlg) {
+      container.setAttribute('popover', 'manual');
+      container.showPopover();
+    } else {
+      container.removeAttribute('popover');
+    }
   }
 
   private _add(container: HTMLElement, message: string, variant: ToastVariant, durationMs: number, href?: string, icon?: string, action?: ToastAction): BToastItem {

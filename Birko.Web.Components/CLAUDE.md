@@ -134,6 +134,10 @@ Do **not** re-declare per-component `_escapeHtml` / `_escapeAttr` or hand-roll t
 - `rovingIndex(e, current, count)` — arrow/Home/End roving-tabindex math for radio groups / toolbars (returns the next index or `null`; calls `preventDefault()`).
 - `announce(from, text, fallbackRegion)` — say a status message: `Element.ariaNotify()` where the browser has it, else the component's `role="status"` region. A hidden live region was read by Narrator as a separate line ("2 m, new line", TASK-548); `b-qty-stepper`, `b-carousel` and `b-gallery` use this. Keep rendering the fallback region.
 
+**Open a modal `<dialog>` with `showModal(dlg)` from `modal-stack.ts`, never `dlg.showModal()`.** It keeps the order of
+open modals, which the browser does not expose, and `toast` uses it to put its container inside the newest one; a
+modal opened directly leaves every toast raised under it hidden and unclickable (TASK-786).
+
 ### Accessibility (ARIA / screen readers)
 Components must be operable and announced correctly. The catalogue's baseline (see [ACCESSIBILITY.md](ACCESSIBILITY.md) for the full map):
 
@@ -619,6 +623,20 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `toast`: a toast raised while a modal is open is on top of it and clickable (2026-10-29, TASK-786)
+
+Found walking Symbio TASK-731: the block editor's refusal toast was right, but behind the modal. `showModal()` puts the
+dialog in the top layer, above any z-index, and makes everything outside it inert. A popover on `<body>` (the first
+idea) is drawn above the dialog but is still inert: measured in Chromium and Firefox, clicks and focus pass through it.
+
+So the toast container moves into the newest open modal dialog and is shown there as a popover, and moves back to
+`<body>` when that dialog closes, with its toasts. The order of open modals comes from `modal-stack.ts`, which all six
+components that open one now go through. Escape in Chromium fires `close` ~150 ms after the dialog has closed, so the
+stack also re-checks one task after `cancel`. No modal open: nothing changes. A dialog a consumer opens with its own
+`showModal()` is not tracked.
+
+Playground `toast-modal-smoke` hit-tests each toast's centre through the shadow roots (6/16 red before).
 
 ### `b-carousel` / `b-gallery`: a busy page no longer settles a scroll on the wrong slide (2026-10-22, TASK-745)
 

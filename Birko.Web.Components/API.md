@@ -1390,6 +1390,11 @@ toast.notify('Custom', { variant: 'success', durationMs: 5000, href: '/link' });
 toast.show('Archived', 'success', undefined, { action: { label: 'Undo', onClick: () => restore() } }); // label defaults to bwc.common.undo
 toast.configure({ position: 'top-right', maxVisible: 5 });
 ```
+While a Birko modal is open (`b-modal`, `b-drawer modal`, `b-confirm-dialog`, the `dialogs` helpers, `b-gallery`'s
+zoom, `b-ribbon`'s mobile menu), the toasts are shown inside it, above its content, and can be clicked; they move back
+when it closes. A `<dialog>` you open with your own `showModal()` is not known to `toast`, and toasts stay behind it.
+While a modal is open the container is in that dialog's shadow root, so a document-level `#b-toast-system` query does
+not find it.
 
 ### `<b-spinner>`
 | Attribute | Values |

@@ -4,6 +4,7 @@ import {
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
 import { escapeHtml } from '../dom-utils';
+import { showModal } from '../modal-stack';
 
 export class BModal extends BaseComponent {
   static get observedAttributes() { return ['title', 'heading-level', 'size', 'label-close']; }
@@ -107,7 +108,7 @@ export class BModal extends BaseComponent {
     // back to the first control and make a control inside the dialog the one close() returns to (TASK-573).
     if (dlg?.open) return;
     this._previousFocus = document.activeElement as HTMLElement;
-    dlg?.showModal();
+    if (dlg) showModal(dlg);
 
     // Start on the first content control, not the header's Close that showModal() picks. The content is
     // slotted, so look through the slots (and into a slotted b-button's own shadow root), not this tree.

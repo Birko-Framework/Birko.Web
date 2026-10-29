@@ -2,6 +2,7 @@ import { BaseComponent, define } from 'birko-web-core';
 import { announce, escapeAttr } from '../dom-utils';
 import { closeButtonSheet, dialogBaseSheet, slideNavSheet, srOnlySheet } from '../shared-styles';
 import { SlideTrack } from './slide-track';
+import { showModal } from '../modal-stack';
 
 /**
  * Product image gallery over **slotted, server-rendered `<img>` elements** — one main image at a time,
@@ -168,7 +169,7 @@ export class BGallery extends BaseComponent {
     const dialog = this.$<HTMLDialogElement>('dialog.zoom');
     if (!dialog || !this.images().length) return;
     this.fillZoom();
-    if (!dialog.open) dialog.showModal();
+    if (!dialog.open) showModal(dialog);
     this.emit('zoom-open', { index: this._index });
   }
 

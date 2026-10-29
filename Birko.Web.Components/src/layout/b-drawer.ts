@@ -4,6 +4,7 @@ import {
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
 import { escapeHtml } from '../dom-utils';
+import { showModal } from '../modal-stack';
 
 export class BDrawer extends BaseComponent {
   static get observedAttributes() { return ['title', 'heading-level', 'size', 'modal', 'label-close']; }
@@ -104,7 +105,7 @@ export class BDrawer extends BaseComponent {
     if (!dlg) return;
 
     if (this.boolAttr('modal')) {
-      dlg.showModal();
+      showModal(dlg);
     } else {
       dlg.show();
     }

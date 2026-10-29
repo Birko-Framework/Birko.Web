@@ -6,6 +6,7 @@ import '../inputs/b-input.js';
 import '../inputs/b-select.js';
 import type { BSelect } from '../inputs/b-select.js';
 import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
+import { showModal } from '../modal-stack';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -3090,7 +3091,7 @@ export class BRibbon extends BaseComponent {
 
   private _openMobileMenu() {
     const dialog = this.$<HTMLDialogElement>('#mobile-dialog');
-    dialog?.showModal();
+    if (dialog) showModal(dialog);
     this._mobileOpen = true;
   }
 

@@ -4,6 +4,17 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.22 — 2026-10-29
+
+- **A toast raised while a modal is open is on top of it** — Birko TASK-786, found by Symbio (TASK-731). **Fixed:** a
+  toast shown while a `b-modal` (or `b-drawer modal`, `b-confirm-dialog`, a `dialogs` helper, `b-gallery`'s zoom,
+  `b-ribbon`'s mobile menu) was open sat behind the dialog and its backdrop, and its buttons could not be clicked.
+  The toasts now show inside the open modal, above its content, and move back when it closes, with any toast still
+  showing. With no modal open nothing changes. A `<dialog>` an app opens with its own `showModal()` is not tracked,
+  and toasts still sit behind it. **Tests:** while a modal is open the toast container is inside the dialog's shadow
+  root, so `document.getElementById('b-toast-system')` / `document.querySelector('#b-toast-system …')` do not find it;
+  Playwright locators pierce shadow roots and are unaffected.
+
 ## v0.1.21 — 2026-10-29
 
 - **The tree views keep a value's spaces** — Birko TASK-784. **Fixed:** `b-object-tree` (and `b-json-viewer` through
