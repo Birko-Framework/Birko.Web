@@ -450,7 +450,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 |-----|-------|-------------|----------------|
 | `<b-table>` | BTable | `setColumns()`, `setData()`, `setIdField()` | `loading`, `striped`, `hoverable`, `label-no-data` |
 | `<b-editable-table>` | BEditableTable | `setConfig()`, `setData()`, `getData()`, `validate()` | — |
-| `<b-data-table>` | BDataTable | `setConfig(DataTableConfig)`, `load()`, `reload()` | — |
+| `<b-data-table>` | BDataTable | `setConfig(DataTableConfig)`, `load()`, `reload()`, `getSelected()`, `clearSelection()`, `isAllMatching()` | bulk bar floats above the footer (TASK-788): `bulkActions` with `variant` primary\|danger, fit-or-More, `b-confirm-dialog` confirms, `selectAllMatching`; events `bulk-action` (`BulkActionDetail`), `selection-change` |
 | `<b-pagination>` | BPagination | — | `page`, `total-pages`, `total-count` |
 | `<b-badge>` | BBadge | — | `variant` (success\|warning\|danger\|info\|secondary) |
 | `<b-stat>` | BStat | — | `label`, `value`, `delta`, `trend` (up\|down\|flat), `sentiment` (auto\|positive\|negative\|neutral), `size` |
@@ -626,6 +626,28 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### `b-data-table`: the bulk bar floats above the footer, fits or overflows, asks in a dialog (2026-10-29, TASK-788)
+
+Asked for walking Symbio TASK-500; decided by the user on a clickable preview (B, floating, over C, the footer, for the
+look). The bar is absolutely placed **above the sticky footer and centred on the table**, not on the window: it never
+covers the pagination, and on a split page or in a modal it stays within the table. While rows are selected the table
+keeps `--b-bulk-room` under its last row, so nothing stays hidden behind it.
+- **Fit, measured:** every action renders inline, then `_fitBulkBar()` hides them last first into a `b-dropdown-menu`
+  until the bar's `scrollWidth` fits; one always stays. A `ResizeObserver` on the footer refits. `danger` sorts last.
+- **Confirm** is `b-confirm-dialog`, not `window.confirm()`. Labels are escaped (they were raw HTML); `icon` stays markup.
+- **"Select all N matching"** is opt-in (`selectAllMatching`): client-paged it adds every id; server-paged it is a flag,
+  and `bulk-action` carries `allMatching` + `filters` + `params`. Any tick, `setFilters()` or `setConfig()` ends it.
+- A toolbar with one tab stop (`rovingIndex`); Escape in the table clears unless a menu or dialog takes it.
+- **Phone width, measured in Chrome at 390px:** `.bulk-actions` must not shrink (with `min-width: 0` it hid its own
+  overflow, so More sat on ×); too narrow for one line the bar adds `.wrapped` (two rows, the top one's text may wrap),
+  and still too wide `.squeeze` (the last action's label ellipsised, `title` and text keep the full name). The room
+  under the last row is set from the bar's real height (`--_bulk-room`).
+- Footer: inset like the cells; `b-pagination` wraps rather than breaking "24 items", and adds the current page size
+  to its options (an 8-per-page table showed an empty box). `_getPageSizes()` returns the shared defaults: copy first.
+
+Gate: Playground `bulk-bar-smoke` 41/41 (Chromium, Firefox), including overlap, wrap, long Slovak labels, room and
+footer checks at a phone card's 290px; planted defects each fail it.
 
 ### `b-sortable-list` / `b-sortable-picker`: reorder by drag or keyboard, pick and order (2026-10-29, TASK-787)
 

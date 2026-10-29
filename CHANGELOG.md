@@ -26,6 +26,18 @@ interchangeable for consumers.
   text yourself), or `notify="toast"` sends them to the toast; by default they show under the search. It is
   form-associated, one entry per id, in order. New locale keys `bwc.sortable.*` and
   `bwc.sortablePicker.*`.
+- **b-data-table's bulk bar, redesigned** — Birko TASK-788, asked for while walking Symbio TASK-500. While rows are
+  selected the bar now floats just above the table's footer, centred, with a prominent count, × to clear (and
+  Escape), and actions in `b-button`'s look. **New, additive:** `variant: 'primary'` on a bulk action; actions that do
+  not fit go into a More menu; `selectAllMatching: true` offers "Select all N matching" (client-paged: every id;
+  server-paged: `bulk-action` carries `allMatching: true` with the filters instead of ids). `bulkActions` and
+  `bulk-action` are unchanged otherwise, and `.bulk-btn[data-bulk]` still selects an inline action. **Changed:**
+  `confirm: true` asks in a `b-confirm-dialog`, not the browser's `confirm()`; action labels are shown as text (they
+  were inserted as HTML). New locale keys `bwc.dataTable.*`. On a phone, where one line holds too little, the bar
+  wraps (count and "Select all" on top, actions below; long translations wrap, a too-long action label is cut with
+  "…" and keeps its full name), and the table keeps room for it under the last row. **Also fixed in the footer:** it
+  is inset like the cells (the item count sat on the table's edge); `b-pagination` keeps "24 items" on one line and
+  wraps instead; its page-size box always offers the table's own page size (8 per page showed an empty box).
 
 ## v0.1.21 — 2026-10-29
 

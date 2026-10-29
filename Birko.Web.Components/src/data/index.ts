@@ -8,7 +8,7 @@ export { BPagination, DEFAULT_PAGE_SIZES } from './b-pagination.js';
 export {
   BDataTable, PAGE_SIZE_STORAGE_KEY,
   type DataTableConfig, type PaginationLabels, type DataTableLabels,
-  type ToolbarAction, type BulkAction, type RowAction,
+  type ToolbarAction, type BulkAction, type BulkActionDetail, type RowAction,
   type CellEditDetail,
 } from './b-data-table.js';
 export { BBadge } from './b-badge.js';

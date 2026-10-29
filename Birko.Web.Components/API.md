@@ -848,12 +848,28 @@ Wraps `<b-table>` with auto-fetching, pagination, search, filters, selection, bu
   filters?: ColumnFilter[];
   actions?: ToolbarAction[];
   selectable?: boolean;
-  bulkActions?: BulkAction[];
+  bulkActions?: BulkAction[];  // { id, label, icon?, variant?: 'primary' | 'danger', confirm?, confirmMessage? }
+  selectAllMatching?: boolean; // offer "Select all N matching" (see below); off by default
   rowActions?: RowAction[];  // Dropdown menu actions per row
   exportable?: boolean;
   exportFormats?: ExportOption[];
 }
 ```
+
+**The bulk bar** (TASK-788). While rows are selected it floats just above the table's sticky footer, centred on the table,
+so it never covers the pagination, and the table keeps room under its last row for it. It shows the count, `×` to
+clear (Escape anywhere in the table does too), and the actions in `b-button`'s look: `variant: 'primary'` for the main
+one, `'danger'` in red and always last, `icon` (an SVG or glyph) before the label. Labels are text. As many actions as
+fit stay inline; the rest go into a More menu. `confirm: true` asks in a `b-confirm-dialog` (`confirmMessage`'s
+`{count}` is filled in), no longer the browser's `confirm()`. The bar is a toolbar: one tab stop, arrow keys inside it;
+the count is announced. `.bulk-btn[data-bulk="<id>"]` still selects an inline action in tests.
+
+`selectAllMatching: true` offers "Select all N matching" once a whole page is selected and more rows exist. On a
+client-paged table it selects every row's id. On a server-paged one the other pages' ids are not loaded, so the
+selection becomes a flag: `bulk-action` carries `allMatching: true` with the current `filters` and `params`, and
+`selected` holds only the loaded ids. Turn it on only where the endpoint can act on filters. Any change to the ticks,
+or new filters, ends it. Labels: `labels.bulkActions`, `clearSelection`, `selectAllMatching` (`{count}`), `onlyThisPage`,
+`moreActions`, `selectionCleared`, `cancel` (i18n `bwc.dataTable.*`).
 
 | Event | Detail |
 |-------|--------|
@@ -861,8 +877,8 @@ Wraps `<b-table>` with auto-fetching, pagination, search, filters, selection, bu
 | `action-click` | `{ action, id, row }` — for `[data-action]` buttons in cells |
 | `row-action` | `{ action, id, row }` — from rowActions dropdown menu |
 | `toolbar-action` | `{ action }` |
-| `bulk-action` | `{ action, selected, count }` |
-| `selection-change` | `{ selected, count }` |
+| `bulk-action` | `{ action, selected, count, allMatching?, filters?, params? }` (`BulkActionDetail`) |
+| `selection-change` | `{ selected, count, allMatching }` |
 | `sort` | `{ key, desc }` |
 | `export` | `{ format, selected, filters }` |
 

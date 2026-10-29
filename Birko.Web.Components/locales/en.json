@@ -242,6 +242,16 @@
       "over": "Only the first {max} are used. Remove the rest, or drag the ones you want above the line.",
       "added": "Added {label}, position {position} of {count}."
     },
+    "dataTable": {
+      "selected": "selected",
+      "bulkActions": "Bulk actions",
+      "clearSelection": "Clear selection",
+      "selectAllMatching": "Select all {count} matching",
+      "onlyThisPage": "Only the selected",
+      "moreActions": "More actions",
+      "selectionCleared": "Selection cleared",
+      "confirmDefault": "Are you sure?"
+    },
     "jsonDiff": {
       "title": "JSON diff",
       "titleXml": "XML diff",

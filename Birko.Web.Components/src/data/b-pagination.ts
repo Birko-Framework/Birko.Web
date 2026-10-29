@@ -10,14 +10,15 @@ export class BPagination extends BaseComponent {
   static get styles() {
     return `
       :host { display: block; }
+      /* Wraps on a narrow screen rather than squeezing: "24 items" broke onto two lines at a 390px phone. */
       .pagination {
-        display: flex; align-items: center; justify-content: space-between;
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--b-space-sm, 0.5rem);
         padding: var(--b-space-sm, 0.5rem) 0; font-size: var(--b-text-sm, 0.8125rem);
       }
       .pagination-left { display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); }
       .pages { display: flex; gap: var(--b-space-xs, 0.25rem); }
       .page-btn-active { background: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); border-color: var(--b-color-primary); }
-      .info { color: var(--b-text-muted); }
+      .info { color: var(--b-text-muted); white-space: nowrap; }
       .ellipsis { padding: 0 var(--b-space-xs, 0.25rem); color: var(--b-text-muted); align-self: flex-end; }
       .page-size-wrapper { display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); }
     `;
@@ -81,7 +82,13 @@ export class BPagination extends BaseComponent {
     const sizeSelect = this.$<HTMLElement>('.page-size-select') as any;
     if (sizeSelect) {
       const pageSize = this.numAttr('page-size', 0);
-      const pageSizes = this._getPageSizes();
+      // The current size is always an option: a table configured with 8 per page showed an empty box. A copy, so the
+      // shared DEFAULT_PAGE_SIZES is never changed.
+      const pageSizes = [...this._getPageSizes()];
+      if (pageSize > 0 && !pageSizes.includes(pageSize)) {
+        pageSizes.push(pageSize);
+        pageSizes.sort((a, b) => a - b);
+      }
       const lPerPage = this.label('label-per-page', 'bwc.pagination.perPage', '/ page');
 
       // Set options using the component's API

@@ -1,11 +1,13 @@
 import { BaseComponent, define } from 'birko-web-core';
-import { escapeAttr } from '../dom-utils';
+import { announce, escapeAttr, escapeHtml, rovingIndex } from '../dom-utils';
+import { srOnlySheet } from '../shared-styles';
 import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import type { TableColumn } from './b-table.js';
 import type { DropdownItem } from '../layout/b-dropdown-menu.js';
 import './b-table.js';
 import './b-pagination.js';
 import '../layout/b-dropdown-menu.js';
+import '../layout/b-confirm-dialog.js';
 import '../inputs/b-button.js';
 
 // ── Config types ──
@@ -20,8 +22,10 @@ export interface ToolbarAction {
 export interface BulkAction {
   id: string;
   label: string;
+  /** Markup shown before the label: an inline SVG or a glyph. */
   icon?: string;
-  variant?: 'danger';
+  /** `primary` marks the main action; `danger` is red and always last. */
+  variant?: 'primary' | 'danger';
   permission?: string;
   confirm?: boolean;
   confirmMessage?: string;
@@ -57,6 +61,12 @@ export interface DataTableConfig {
   // Selection + bulk
   selectable?: boolean;
   bulkActions?: BulkAction[];
+  /**
+   * Offer "Select all N matching" once a whole page is selected and more rows exist. On a client-paged table it
+   * selects every row's id. On a server-paged one the other pages' ids are not loaded, so `bulk-action` carries
+   * `allMatching: true` with the current filters and params instead: turn it on only where the endpoint takes those.
+   */
+  selectAllMatching?: boolean;
 
   // Row identity
   idField?: string;
@@ -88,6 +98,30 @@ export interface DataTableLabels {
   selectAll?: string;
   /** Accessible name for each row's selection checkbox (default "Select row"). */
   selectRow?: string;
+  /** The bulk bar's accessible name (default "Bulk actions"). */
+  bulkActions?: string;
+  /** The bulk bar's × (default "Clear selection"). */
+  clearSelection?: string;
+  /** "Select all {count} matching"; `{count}` is the total. */
+  selectAllMatching?: string;
+  /** Undoes "select all matching" (default "Only the selected"). */
+  onlyThisPage?: string;
+  /** The overflow menu's button (default "More actions"). */
+  moreActions?: string;
+  /** Announced when the selection is cleared (default "Selection cleared"). */
+  selectionCleared?: string;
+  /** The confirm dialog's Cancel (default "Cancel"). */
+  cancel?: string;
+}
+
+/** `bulk-action` detail. With `allMatching`, `selected` is only what is loaded; act on `filters` / `params`. */
+export interface BulkActionDetail {
+  action: string;
+  selected: string[];
+  count: number;
+  allMatching?: boolean;
+  filters?: Record<string, string>;
+  params?: Record<string, string>;
 }
 
 /** localStorage key for default page size (set via Settings page). */
@@ -120,10 +154,17 @@ export class BDataTable extends BaseComponent {
   private _selected = new Set<string>();
   private _activeRowId: string | null = null;
   private _filters: Record<string, string> = {};
+  /** "Select all N matching" on a server-paged table: the selection is every row the filters match, ids unknown. */
+  private _allMatching = false;
+  private _barObserver: ResizeObserver | null = null;
+  /** The bar's roving tab stop, by data-key, so a re-render keeps it. */
+  private _barStop = '';
+
+  static get sharedStyles() { return [srOnlySheet]; }
 
   static get styles() {
     return `
-      :host { display: block; }
+      :host { display: block; position: relative; }
       .data-table { display: flex; flex-direction: column; gap: var(--b-space-sm, 0.5rem); }
 
       /* Selection */
@@ -147,33 +188,80 @@ export class BDataTable extends BaseComponent {
         gap: var(--b-space-sm, 0.5rem);
         position: sticky; bottom: 0; z-index: 1;
         background: var(--b-bg);
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem) 0 0;
+        /* Left as b-table's cells pad their text, so "24 items" lines up with the rows, not the table's edge. */
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem) 0 var(--b-space-md, 0.75rem);
       }
+      /* The bulk bar floats just above the sticky footer, centred on the table (TASK-788): it follows the table,
+         never the window, so it does not cover the pagination or other content on a split page or in a modal.
+         While rows are selected the table keeps room under its last row, so nothing stays hidden behind it. */
+      .data-table.selecting b-table { margin-bottom: var(--b-bulk-room, var(--_bulk-room, 3.75rem)); }
       .bulk-bar {
-        display: flex;
-        align-items: center;
-        gap: var(--b-space-sm, 0.5rem);
+        position: absolute; z-index: 3; left: 50%; bottom: calc(100% + var(--b-space-sm, 0.5rem));
+        transform: translateX(-50%); box-sizing: border-box;
+        width: max-content; max-width: calc(100% - 2 * var(--b-space-sm, 0.5rem));
+        display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-xs, 0.25rem) var(--b-space-xs, 0.25rem) var(--b-space-lg, 1rem);
+        background: var(--b-bg-elevated); color: var(--b-text);
+        border: var(--b-border-width, 1px) solid color-mix(in srgb, var(--b-color-primary) 45%, var(--b-border));
+        border-radius: var(--b-radius-lg, 0.625rem); box-shadow: var(--b-shadow-xl);
         font-size: var(--b-text-sm, 0.8125rem);
+        animation: b-bulk-rise var(--b-transition, 150ms ease);
       }
-      .bulk-count { color: var(--b-text-secondary); white-space: nowrap; }
+      @keyframes b-bulk-rise { from { opacity: 0; transform: translate(-50%, 0.5rem); } }
+      .bulk-bar [hidden] { display: none !important; }
+      .bulk-count { white-space: nowrap; color: var(--b-text-secondary); font-variant-numeric: tabular-nums; }
+      .bulk-count strong { color: var(--b-text); font-weight: var(--b-font-weight-bold, 700); }
+      .bulk-link {
+        border: 0; background: none; padding: 0 var(--b-space-xs, 0.25rem); cursor: pointer; white-space: nowrap;
+        color: var(--b-color-primary); font: inherit; font-weight: var(--b-font-weight-semibold, 600);
+        text-decoration: underline; text-underline-offset: 2px;
+      }
+      .bulk-sep { flex: none; width: 1px; align-self: stretch; margin: var(--b-space-xs, 0.25rem) 0; background: var(--b-border); }
+      /* flex: none, never min-width: 0: a group allowed to shrink kept its overflow to itself, so _fitBulkBar() saw a
+         bar that fitted while More sat on top of × (measured in Chrome at a 390px phone). */
+      .bulk-actions { flex: none; display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem); }
+      .bulk-info, .bulk-tools { flex: none; display: flex; align-items: center; gap: var(--b-space-sm, 0.5rem); }
+      /* Too narrow for one line: the count and "Select all" on top, the actions and × on the row below. */
+      .bulk-bar.wrapped { flex-wrap: wrap; row-gap: var(--b-space-xs, 0.25rem); padding-left: var(--b-space-md, 0.75rem); }
+      .bulk-bar.wrapped .bulk-sep { display: none; }
+      .bulk-bar.wrapped .bulk-info, .bulk-bar.wrapped .bulk-tools { flex-basis: 100%; }
+      .bulk-bar.wrapped .bulk-clear { margin-left: auto; }
+      /* Wrapped, the top row's text may wrap too: a long translation of "selected" or "Select all N matching". */
+      .bulk-bar.wrapped .bulk-info { flex-wrap: wrap; column-gap: var(--b-space-sm, 0.5rem); row-gap: 0; min-width: 0; }
+      .bulk-bar.wrapped .bulk-count, .bulk-bar.wrapped .bulk-link { white-space: normal; text-align: left; padding: 0; }
+      .bulk-bar.squeeze .bulk-tools, .bulk-bar.squeeze .bulk-actions { flex: 1 1 auto; min-width: 0; }
+      .bulk-bar.squeeze .bulk-btn { flex: 0 1 auto; min-width: 0; }
+      .bulk-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+      /* Matches b-button's look: the same padding, radius, weight and variants. */
       .bulk-btn {
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        background: var(--b-bg);
-        font-size: var(--b-text-sm, 0.8125rem);
-        cursor: pointer;
-        transition: all var(--b-transition, 150ms ease);
+        display: inline-flex; align-items: center; gap: var(--b-space-xs, 0.25rem); white-space: nowrap;
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); min-height: 2rem; box-sizing: border-box;
+        border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
+        background: var(--b-bg); color: var(--b-text); cursor: pointer;
+        font: inherit; font-size: var(--b-text-sm, 0.8125rem); font-weight: var(--b-font-weight-medium, 500);
+        transition: background var(--b-transition, 150ms ease), border-color var(--b-transition, 150ms ease);
       }
-      .bulk-btn:hover { background: var(--b-bg-tertiary); }
-      .bulk-btn.danger { color: var(--b-color-danger); border-color: var(--b-color-danger); }
+      .bulk-btn:hover { background: var(--b-bg-tertiary); border-color: var(--b-border-hover); }
+      .bulk-btn.primary { background: var(--b-color-primary); border-color: var(--b-color-primary); color: var(--b-text-on-primary, var(--b-text-inverse)); }
+      .bulk-btn.primary:hover { background: var(--b-color-primary-hover); }
+      .bulk-btn.danger { color: var(--b-color-danger); border-color: color-mix(in srgb, var(--b-color-danger) 45%, transparent); }
       .bulk-btn.danger:hover { background: var(--b-color-danger-light); }
+      .bulk-btn svg, .bulk-icon svg { width: var(--b-icon-sm, 0.875rem); height: var(--b-icon-sm, 0.875rem); }
+      .bulk-icon { display: inline-flex; }
+      .bulk-icon-btn {
+        flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; padding: 0;
+        border: 0; border-radius: var(--b-radius, 0.375rem); background: none; color: var(--b-text-secondary);
+        cursor: pointer; font: inherit; font-size: var(--b-text-lg, 1rem); line-height: 1;
+      }
+      .bulk-icon-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+      .bulk-bar button:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
     `;
   }
 
   setConfig(config: DataTableConfig) {
     this._config = config;
     this._selected.clear();
+    this._allMatching = false;
     this._filters = {};
     // Explicit flatArray:false starts in server mode; everything else starts client and may be
     // flipped by envelope detection on the first load.
@@ -204,6 +292,8 @@ export class BDataTable extends BaseComponent {
    */
   setFilters(params: Record<string, string>): void {
     this._filters = { ...params };
+    // "All matching" meant the old filters' rows.
+    this._allMatching = false;
     this._page = 1;
     this.load();
   }
@@ -308,6 +398,7 @@ export class BDataTable extends BaseComponent {
 
   clearSelection() {
     this._selected.clear();
+    this._allMatching = false;
     this.update();
     this._applyData();
   }
@@ -318,9 +409,29 @@ export class BDataTable extends BaseComponent {
       const id = this._rowId(row);
       if (id) this._selected.add(id);
     }
+    this._selectionChanged();
+  }
+
+  /** Whether the selection is every row the filters match (server-paged "select all matching"). */
+  isAllMatching(): boolean { return this._allMatching; }
+
+  /** The count the bar shows: every matching row after "select all matching" on a server-paged table. */
+  private _selectedCount(): number {
+    return this._allMatching ? Math.max(this._totalCount, this._selected.size) : this._selected.size;
+  }
+
+  /** After the user changed the selection: re-render, announce the count, emit `selection-change`. */
+  private _selectionChanged(keepAllMatching = false): void {
+    if (!keepAllMatching) this._allMatching = false;
     this.update();
     this._applyData();
-    this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+    const n = this._selectedCount();
+    const live = this.$('.bulk-live');
+    if (live) live.textContent = '';
+    announce(this, n
+      ? `${n} ${this._config?.labels?.selected ?? this.label('label-selected', 'bwc.dataTable.selected', 'selected')}`
+      : this._config?.labels?.selectionCleared ?? this.label('label-selection-cleared', 'bwc.dataTable.selectionCleared', 'Selection cleared'), live);
+    this.emit('selection-change', { selected: this.getSelected(), count: n, allMatching: this._allMatching });
   }
 
   // ── Render ──
@@ -328,7 +439,7 @@ export class BDataTable extends BaseComponent {
   render() {
     if (!this._config) return '<div class="data-table"></div>';
 
-    const hasBulk = this._selected.size > 0 && this._config.bulkActions?.length;
+    const hasBulk = this._selected.size > 0 && !!this._config.bulkActions?.length;
 
     const pageSizeAttr = this._showPageSizePicker() ? ` page-size="${this._pageSize}"` : '';
     const pageSizesAttr = Array.isArray(this._config.pageSizeOptions)
@@ -336,24 +447,139 @@ export class BDataTable extends BaseComponent {
     const labelAttrs = this._buildLabelAttrs();
 
     return `
-      <div class="data-table">
-        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${this._config.labels.noData}"` : ''}></b-table>
+      <div class="data-table${hasBulk ? ' selecting' : ''}">
+        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${escapeAttr(this._config.labels.noData)}"` : ''}></b-table>
         <div class="footer">
-          ${hasBulk ? this._renderBulkBar() : '<span></span>'}
+          <span></span>
+          ${hasBulk ? this._renderBulkBar() : ''}
           <b-pagination page="${this._page}" total-pages="${this._totalPages}" total-count="${this._totalCount}"${pageSizeAttr}${pageSizesAttr}${labelAttrs}></b-pagination>
         </div>
+        <div class="sr-only bulk-live" role="status" aria-live="polite"></div>
+        <b-confirm-dialog class="bulk-confirm"></b-confirm-dialog>
       </div>
     `;
   }
 
-  private _renderBulkBar(): string {
-    const count = this._selected.size;
-    const buttons = (this._config!.bulkActions ?? []).map(a =>
-      `<button class="bulk-btn ${a.variant ?? ''}" data-bulk="${a.id}" data-confirm="${a.confirm ?? false}" data-msg="${(a.confirmMessage ?? '').replace('{count}', String(count))}">${a.icon ?? ''}${a.label}</button>`
-    ).join('');
+  /** The bulk actions in bar order: as configured, with `danger` ones last. */
+  private _bulkActions(): BulkAction[] {
+    const all = this._config?.bulkActions ?? [];
+    return [...all.filter(a => a.variant !== 'danger'), ...all.filter(a => a.variant === 'danger')];
+  }
 
-    const lSelected = this._config!.labels?.selected ?? 'selected';
-    return `<div class="bulk-bar"><span class="bulk-count">${count} ${lSelected}</span>${buttons}</div>`;
+  private _l(key: keyof DataTableLabels, i18nKey: string, fallback: string, params?: Record<string, string | number>): string {
+    const own = this._config?.labels?.[key];
+    if (own) return params ? own.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k]) : m)) : own;
+    return this.label(`label-${String(key).replace(/[A-Z]/g, c => '-' + c.toLowerCase())}`, i18nKey, fallback, params);
+  }
+
+  /**
+   * Every action is rendered inline; `_fitBulkBar()` then moves the ones that do not fit into More, measured. The
+   * labels are text: they were interpolated raw before. `icon` stays markup (an SVG), as documented.
+   */
+  private _renderBulkBar(): string {
+    const n = this._selectedCount();
+    const pageData = this._getPageData();
+    const pageAll = pageData.length > 0 && pageData.every(r => this._selected.has(this._rowId(r)));
+    const total = this._totalCount;
+    const offerAll = !!this._config!.selectAllMatching && pageAll && !this._allMatching && total > this._selected.size;
+    const buttons = this._bulkActions().map(a =>
+      `<button type="button" class="bulk-btn ${a.variant ?? ''}" data-bulk="${escapeAttr(a.id)}" data-key="a:${escapeAttr(a.id)}" title="${escapeAttr(a.label)}">${a.icon ? `<span class="bulk-icon" aria-hidden="true">${a.icon}</span>` : ''}<span class="bulk-label">${escapeHtml(a.label)}</span></button>`
+    ).join('');
+    const selected = this._l('selected', 'bwc.dataTable.selected', 'selected');
+    return `
+      <div class="bulk-bar" role="toolbar" aria-label="${escapeAttr(`${this._l('bulkActions', 'bwc.dataTable.bulkActions', 'Bulk actions')}: ${n} ${selected}`)}">
+        <span class="bulk-info">
+          <span class="bulk-count"><strong>${n}</strong> ${escapeHtml(selected)}</span>
+          ${offerAll ? `<button type="button" class="bulk-link" data-select-all data-key="all">${escapeHtml(this._l('selectAllMatching', 'bwc.dataTable.selectAllMatching', 'Select all {count} matching', { count: total }))}</button>` : ''}
+          ${this._allMatching ? `<button type="button" class="bulk-link" data-only-page data-key="page">${escapeHtml(this._l('onlyThisPage', 'bwc.dataTable.onlyThisPage', 'Only the selected'))}</button>` : ''}
+        </span>
+        <span class="bulk-sep" aria-hidden="true"></span>
+        <span class="bulk-tools">
+          <span class="bulk-actions">${buttons}
+            <b-dropdown-menu class="bulk-more" align="right" hidden>
+              <button type="button" slot="trigger" class="bulk-icon-btn" data-key="more" aria-label="${escapeAttr(this._l('moreActions', 'bwc.dataTable.moreActions', 'More actions'))}">&#8943;</button>
+            </b-dropdown-menu>
+          </span>
+          <button type="button" class="bulk-icon-btn bulk-clear" data-clear data-key="clear" aria-label="${escapeAttr(this._l('clearSelection', 'bwc.dataTable.clearSelection', 'Clear selection'))}"
+                  title="${escapeAttr(this._l('clearSelection', 'bwc.dataTable.clearSelection', 'Clear selection'))}">&times;</button>
+        </span>
+      </div>`;
+  }
+
+  /**
+   * Hide the actions that do not fit, last first, into More; at least one stays inline. When even one does not fit
+   * on one line (a phone, with "Select all N matching" showing), the bar wraps: the count on top, the actions, More
+   * and × below, fitted again to that row. Measured in Chrome at 390px: without it, More and × sat past the bar's edge.
+   */
+  private _fitBulkBar(): void {
+    const bar = this.$<HTMLElement>('.bulk-bar');
+    const more = this.$<HTMLElement & { setItems(items: DropdownItem[]): void }>('.bulk-more');
+    if (!bar || !more) return;
+    const btns = this.$$<HTMLButtonElement>('.bulk-btn');
+    const overflows = () => bar.scrollWidth > bar.clientWidth + 1;
+    const fit = () => {
+      btns.forEach(b => { b.hidden = false; });
+      more.hidden = true;
+      let shown = btns.length;
+      while (overflows() && shown > 1) {
+        btns[--shown].hidden = true;
+        more.hidden = false;
+      }
+    };
+    bar.classList.remove('wrapped');
+    fit();
+    if (overflows()) {
+      bar.classList.add('wrapped');
+      fit();
+    }
+    // Last resort, wrapped and still too wide (one long translated label): that label is cut with an ellipsis; its
+    // text stays its accessible name, and the button's title shows it whole.
+    bar.classList.remove('squeeze');
+    if (overflows()) bar.classList.add('squeeze');
+    // The room under the last row is the bar's real height (two rows when wrapped) plus its gap above the footer.
+    const gap = parseFloat(getComputedStyle(bar).bottom) - bar.parentElement!.offsetHeight;
+    this.$<HTMLElement>('.data-table')?.style.setProperty('--_bulk-room', `${Math.ceil(bar.offsetHeight + Math.max(gap, 0) + 8)}px`);
+    const actions = this._bulkActions();
+    more.setItems?.(btns.filter(b => b.hidden).map(b => {
+      const a = actions.find(x => x.id === b.dataset.bulk)!;
+      return { id: a.id, label: a.label, ...(a.variant === 'danger' ? { variant: 'danger' as const } : {}) };
+    }));
+    this._syncBarStops();
+  }
+
+  /** One tab stop in the toolbar (roving tabindex): the remembered one if still shown, else the first. */
+  private _syncBarStops(): void {
+    const stops = this._barButtons();
+    if (!stops.length) return;
+    const current = stops.find(b => b.dataset.key === this._barStop) ?? stops[0];
+    stops.forEach(b => { b.tabIndex = b === current ? 0 : -1; });
+  }
+
+  private _barButtons(): HTMLButtonElement[] {
+    return this.$$<HTMLButtonElement>('.bulk-bar button').filter(b => !b.hidden && !b.closest('[hidden]'));
+  }
+
+  private async _runBulk(id: string): Promise<void> {
+    const action = this._config?.bulkActions?.find(a => a.id === id);
+    if (!action) return;
+    const n = this._selectedCount();
+    if (action.confirm) {
+      const dlg = this.$<HTMLElement & { show(): Promise<boolean> }>('.bulk-confirm');
+      if (!dlg) return;
+      const confirmDefault = this._config?.labels?.confirmDefault ?? this.label('label-confirm-default', 'bwc.dataTable.confirmDefault', 'Are you sure?');
+      const message = action.confirmMessage
+        ? action.confirmMessage.replace('{count}', String(n))
+        : `${confirmDefault} (${n})`;
+      dlg.setAttribute('title', `${action.label} (${n})`);
+      dlg.setAttribute('message', message);
+      dlg.setAttribute('confirm-text', action.label);
+      dlg.setAttribute('cancel-text', this._l('cancel', 'bwc.common.cancel', 'Cancel'));
+      dlg.setAttribute('variant', action.variant === 'danger' ? 'danger' : 'primary');
+      if (!await dlg.show()) return;
+    }
+    const detail: BulkActionDetail = { action: action.id, selected: this.getSelected(), count: n };
+    if (this._allMatching) Object.assign(detail, { allMatching: true, filters: { ...this._filters }, params: { ...(this._config?.params ?? {}) } });
+    this.emit('bulk-action', detail);
   }
 
   protected onUpdated() {
@@ -412,26 +638,87 @@ export class BDataTable extends BaseComponent {
       }) as EventListener);
     }
 
-    // Bulk action buttons
-    this.$$<HTMLElement>('.bulk-btn').forEach(btn => {
-      this.listen(btn, 'click', () => {
-        const action = btn.dataset.bulk!;
-        const needsConfirm = btn.dataset.confirm === 'true';
-        const lConfirm = this._config!.labels?.confirmDefault ?? 'Are you sure?';
-        const msg = btn.dataset.msg || `${lConfirm} (${this._selected.size} items)`;
-
-        if (needsConfirm) {
-          // Use native confirm — can be replaced with b-confirm-dialog later
-          if (!confirm(msg)) return;
-        }
-
-        this.emit('bulk-action', {
-          action,
-          selected: this.getSelected(),
-          count: this._selected.size,
-        });
-      });
+    // Escape anywhere in the table clears the selection, unless an open menu or dialog takes it first.
+    this.listen<KeyboardEvent>(this, 'keydown', (e) => {
+      if (e.key !== 'Escape' || e.defaultPrevented || !this._selected.size) return;
+      if (e.composedPath().some(n => n instanceof Element && n.matches('b-dropdown-menu, b-confirm-dialog'))) return;
+      e.preventDefault();
+      this._clearFromBar();
     });
+
+    this._barObserver?.disconnect();
+    this._barObserver = null;
+    const bar = this.$<HTMLElement>('.bulk-bar');
+    if (!bar) return;
+    this.listen<MouseEvent>(bar, 'click', (e) => {
+      const btn = (e.target as Element).closest<HTMLButtonElement>('button');
+      if (!btn || !bar.contains(btn)) return;
+      if (btn.dataset.key) this._barStop = btn.dataset.key;
+      if (btn.dataset.bulk) void this._runBulk(btn.dataset.bulk);
+      else if (btn.hasAttribute('data-clear')) this._clearFromBar();
+      else if (btn.hasAttribute('data-select-all')) this._selectAllMatching();
+      else if (btn.hasAttribute('data-only-page')) { this._selectionChanged(); this._focusBar('clear'); }
+    });
+    const more = this.$<HTMLElement>('.bulk-more');
+    if (more) this.listen<CustomEvent<{ id: string }>>(more, 'select', (e) => { e.stopPropagation(); void this._runBulk(e.detail.id); });
+    // A toolbar is one tab stop; the arrow keys, Home and End move within it.
+    this.listen<KeyboardEvent>(bar, 'keydown', (e) => {
+      if (e.composedPath().some(n => n instanceof Element && n.classList.contains('menu'))) return;
+      const stops = this._barButtons();
+      const i = stops.indexOf(e.target as HTMLButtonElement);
+      if (i < 0) return;
+      const next = rovingIndex(e, i, stops.length);
+      if (next === null) return;
+      this._barStop = stops[next].dataset.key ?? '';
+      this._syncBarStops();
+      stops[next].focus();
+    });
+    this._fitBulkBar();
+    const footer = this.$<HTMLElement>('.footer');
+    if (footer && typeof ResizeObserver !== 'undefined') {
+      this._barObserver = new ResizeObserver(() => this._fitBulkBar());
+      this._barObserver.observe(footer);
+    }
+  }
+
+  protected onUnmount(): void {
+    this._barObserver?.disconnect();
+    this._barObserver = null;
+  }
+
+  private _focusBar(key: string): void {
+    const btn = this._barButtons().find(b => b.dataset.key === key) ?? this._barButtons()[0];
+    if (!btn) return;
+    this._barStop = btn.dataset.key ?? '';
+    this._syncBarStops();
+    btn.focus();
+  }
+
+  /** Clear, and give focus to the header checkbox when it was in the bar, which is gone now. */
+  private _clearFromBar(): void {
+    const hadFocus = !!this.shadowRoot?.activeElement?.closest('.bulk-bar');
+    this._selected.clear();
+    this._barStop = '';
+    this._selectionChanged();
+    if (!hadFocus) return;
+    requestAnimationFrame(() => {
+      const table = this.$('b-table');
+      (table?.shadowRoot?.querySelector<HTMLInputElement>('.select-all') ?? table)?.focus();
+    });
+  }
+
+  /** Client-paged: every row's id. Server-paged: the rows the filters match, by flag; the ids are not loaded. */
+  private _selectAllMatching(): void {
+    if (this._serverPaged) {
+      this._allMatching = true;
+    } else {
+      for (const row of this._allData) {
+        const id = this._rowId(row);
+        if (id) this._selected.add(id);
+      }
+    }
+    this._selectionChanged(this._serverPaged);
+    this._focusBar(this._serverPaged ? 'page' : 'clear');
   }
 
   private _applyData() {
@@ -511,9 +798,7 @@ export class BDataTable extends BaseComponent {
         } else {
           for (const row of pageData) this._selected.delete(this._rowId(row));
         }
-        this.update();
-        this._applyData();
-        this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+        this._selectionChanged();
       });
     }
 
@@ -527,9 +812,7 @@ export class BDataTable extends BaseComponent {
         } else {
           this._selected.delete(id);
         }
-        this.update();
-        this._applyData();
-        this.emit('selection-change', { selected: this.getSelected(), count: this._selected.size });
+        this._selectionChanged();
       });
     });
 
