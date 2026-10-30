@@ -101,6 +101,11 @@ The `.sr-only-focusable` variant becomes visible on focus (for skip links).
   arrows move it, Space drops it, Escape puts it back, and Tab away drops it where it is. Chosen over "arrows move at
   once" because screen readers keep the arrow keys in browse mode, and a stray arrow moved a row with no undo. Every
   step is announced (`ariaNotify`, else a `role="status"` region); focus stays on the moved row's handle.
+- **`b-tree-menu` sortable** (TASK-789): the same pick-up model on a grip per node, named "{label}, position {n} of
+  {count}" among its siblings, with `aria-roledescription="sortable item"` and `aria-pressed`. While picked up, ↑ ↓
+  move among siblings, → into the node above (it opens, so focus follows), ← out to after the parent. Announcements
+  name the level ("position 2 of 3 in About us", "at the top level"). The grip is its own tab stop beside the row, so
+  the row keeps Enter to select and the arrows to navigate. Escape does not reach a dialog around the tree.
 - **Sortable table headers**: focusable inner `<button>`; Enter/Space sort.
 - **`b-input clearable`**: the × is a native `<button type="button">` that comes after the input in tab order. Its name comes from `label-clear`, then i18n `bwc.input.clear`, then `Clear`. Enter/Space clears the field and focus goes back to the input. While the field is empty the × is `visibility: hidden`, so it is out of the tab order and the accessibility tree but keeps its space. Slotted `prefix` / `suffix` content is light DOM, so it keeps whatever semantics the consumer gives it.
 - **Collapsible form groups, inline-edit, file-upload dropzone**: Enter/Space activate. The file-upload dropzone is the focusable control because its native `<input type=file>` is `display:none`.

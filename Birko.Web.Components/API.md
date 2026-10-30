@@ -1483,13 +1483,33 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 | `expandAll` / `collapseAll` | `() => void` |
 | `expand` / `collapse` / `toggle` | `(id: string) => void` |
 | `reveal` | `(id: string) => void` (expand all ancestors) |
+| `setConfig` | `(config: TreeConfig) => void` |
 
-**TreeMenuItem**: `{ id, label, icon?, href?, badge?, disabled?, expanded?, children?: TreeMenuItem[] }`
+**TreeMenuItem**: `{ id, label, icon?, href?, badge?, disabled?, expanded?, children?: TreeMenuItem[], actions?, sortOrder? }`
+
+**TreeConfig**: `{ items?, onExpand?, actions?, expandOn?, emptyMessage?, sortable?, handleOnly?, sortControls? }`
 
 | Event | Detail |
 |-------|--------|
 | `select` | `{ id, item }` |
 | `toggle` | `{ id, expanded }` |
+| `reorder` | `TreeReorderDetail`: `{ sourceId, targetId, position: 'before' \| 'after' \| 'inside', sourceItem, targetItem }` |
+| `sort` / `sort-order` | deprecated, only with `sortControls`: `{ id, direction, item }` / `{ id, sortOrder, item }` |
+
+**Reordering** (`sortable: true`, TASK-789, v0.4.0). Each node gets a grip. The user drags a row, or its grip only with
+`handleOnly: true` (mouse, pen; a touch needs a short hold so a swipe still scrolls), and drops it before or after
+another node (the top or bottom quarter of its row, shown by a bar) or inside it (the middle, shown by an outline). A
+node never lands inside its own subtree, and a collapsed parent stays closed under the pointer. By keyboard, on the
+grip: Space or Enter picks the node up, ↑ ↓ move it among its siblings, → moves it into the node above as its last child
+(opening it, and loading its children through `onExpand` first), ← moves it out to after its parent, Space or Enter
+drops it, Escape puts it back, and Tab away drops it where it is. Each step is announced (`bwc.treeMenu.*`).
+One `reorder` per completed move. A keyboard move is described against a neighbour: after the previous sibling, else
+before the next, else inside the parent. The tree shows the move at once in its own copy of the nodes; your arrays and
+items are not changed, and `sourceItem` / `targetItem` are your objects. Apply the move to your data and, as before,
+`setItems()` the result (that replaces the tree's copy). A drop inside a node whose children are not loaded yet is
+reported but not shown until you do.
+`sortControls: true` adds the old ▲ / order number / ▼ beside the grip; they emit `sort` and `sort-order`, which are
+**deprecated**: move to `reorder`. Until v0.4.0 those controls were always shown on a sortable tree.
 
 ---
 

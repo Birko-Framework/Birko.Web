@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.0 — 2026-10-30
+
+- **A sortable tree reorders by drag and keyboard** — Birko TASK-789, asked for by Symbio (TASK-1012). `b-tree-menu`
+  with `sortable: true` shows a grip per node. Drag a row (or only the grip, `handleOnly: true`) before, after or into
+  another node, with a touch hold on phones; or Tab to a grip and use Space, the arrows (→ / ← change the parent),
+  Space, Escape. Every step is announced (`bwc.treeMenu.*`). `reorder` keeps its detail shape and now fires once per
+  completed move, by keyboard too. A node can no longer be dropped into its own subtree. The tree no longer reorders
+  anything in your arrays; it shows the move in its own copy until you `setItems()`.
+  **BREAKING:** the ▲ / order number / ▼ controls no longer show on a sortable tree by default. A page that relies on
+  them, or on the `sort` / `sort-order` events, sets `sortControls: true` (the events still fire, now deprecated), or
+  moves to `reorder`.
+- b-sortable-list's pointer drag moved into a shared helper used by both; its behaviour is unchanged.
+
 ## v0.3.0 — 2026-10-30
 
 - **Shell pages relabel on a locale switch** — Birko TASK-801, asked for by Symbio (TASK-966). `entityLabel` was a plain
