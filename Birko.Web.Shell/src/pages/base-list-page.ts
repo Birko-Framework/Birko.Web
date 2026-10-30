@@ -3,6 +3,7 @@ import type { RowAction } from 'birko-web-components/data';
 import type { FormSchema } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
 import type { BDataTable } from 'birko-web-components/data';
+import { escapeHtml } from 'birko-web-core';
 import { BaseCrudPage } from './base-crud-page.js';
 import { getEntityChangeSource, parseEntityChangedEvent } from './live-refresh.js';
 
@@ -27,7 +28,7 @@ export interface LiveRefreshOptions {
  * ```ts
  * class ProductsPage extends BaseListPage<Product> {
  *   protected endpoint = 'api/products';
- *   protected entityLabel = 'Products';
+ *   protected override get entityLabel() { return 'Products'; }
  *   protected get api() { return api; }
  *   protected get columns(): TableColumn[] { return [...]; }
  *   protected get formSchema(): FormSchema { return { name: 'root', children: [...] }; }
@@ -39,7 +40,7 @@ export interface LiveRefreshOptions {
  * ```ts
  * class ProductsPage extends BaseListPage<Product> {
  *   protected endpoint = 'api/products';
- *   protected entityLabel = 'Products';
+ *   protected override get entityLabel() { return 'Products'; }
  *   protected createPermission = 'products:create';
  *   protected editPermission   = 'products:edit';
  *   protected deletePermission = 'products:delete';
@@ -127,7 +128,7 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
         ${this.renderFilterRow()}
         ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
-          <b-modal id="modal" title=""${sizeAttr}>
+          <b-modal id="modal" title="${escapeHtml(this.modalTitle)}"${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
               <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>

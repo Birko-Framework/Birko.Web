@@ -51,7 +51,7 @@ The shell uses the same global i18n singleton as the rest of the ecosystem. Boot
 
 ```typescript
 class DevicesPage extends BaseListPage<Device> {
-  entityLabel = 'zariadenie';   // → "Nový zariadenie", "Naozaj zmazať zariadenie?"
+  protected override get entityLabel() { return 'zariadenie'; }   // → "Nový zariadenie", "Naozaj zmazať zariadenie?"
 }
 ```
 
@@ -789,7 +789,7 @@ class DevicesPage extends BaseListPage<Device> {
   }
 
   // ── Optional ──
-  entityLabel = 'Device';               // used in toast messages
+  protected override get entityLabel() { return t('devices.entity'); }   // titles and toasts; a getter follows a locale switch
   idField     = 'id';                   // default: 'id'
   searchable  = true;
   pageSize    = 25;
@@ -968,7 +968,7 @@ class DepartmentsPage extends BaseSplitPage<Department> {
   }
 
   // ── Optional ──
-  entityLabel = 'Department';
+  protected override get entityLabel() { return 'Department'; }
   masterWidth = '2fr';
   detailWidth = '1fr';
 
@@ -1054,7 +1054,7 @@ class DeviceDetailPage extends BaseDetailPage<Device> {
   }
 
   // ── Optional ──
-  entityLabel = 'Device';
+  protected override get entityLabel() { return 'Device'; }
   backHash    = '#/devices';  // null = history.back()
   readonly    = false;        // true = hides Save button, adds readonly attr to form
 
@@ -1114,7 +1114,7 @@ class DeviceFormModal extends BaseFormModal<Device> {
   }
 
   // ── Optional ──
-  entityLabel = 'Device';
+  protected override get entityLabel() { return 'Device'; }
 
   // Called after successful create or edit
   protected onSuccess(item: Device, isEdit: boolean) {

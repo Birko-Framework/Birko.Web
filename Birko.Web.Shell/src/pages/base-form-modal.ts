@@ -1,4 +1,4 @@
-import { BaseComponent, t as globalT } from 'birko-web-core';
+import { BaseComponent, escapeHtml, t as globalT } from 'birko-web-core';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
 import type { BForm, FormSchema } from 'birko-web-components/inputs';
@@ -57,8 +57,15 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
 
   // ── Optional — override to customise ─────────────────────────────────────
 
-  /** Human-readable entity name for titles and toast messages. Default: `'Item'`. */
-  protected entityLabel = 'Item';
+  /**
+   * Human-readable entity name for titles and toast messages. Default: `'Item'`.
+   * When it comes from `t()`, override it as a getter, `protected override get entityLabel() { return t('…'); }`, so
+   * it follows a locale switch: a field initialiser runs once, when the page is created, and since v0.3.0 a field no
+   * longer compiles (TS2610).
+   */
+  protected get entityLabel(): string { return this._entityLabel; }
+  protected set entityLabel(v: string) { this._entityLabel = v; }
+  private _entityLabel = 'Item';
 
   /** Modal size — passed to `<b-modal size="...">`. Default: `undefined` (medium).
    *  `'full'` fills the viewport in both axes — for editor-heavy forms. */
@@ -142,7 +149,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
   render(): string {
     const sizeAttr = this.modalSize ? ` size="${this.modalSize}"` : '';
     return `
-      <b-modal id="modal" title=""${sizeAttr}>
+      <b-modal id="modal" title="${escapeHtml(this.t(this._editingId !== null ? 'bws.common.edit' : 'bws.common.new'))}"${sizeAttr}>
         ${this.renderModalBody()}
         <div slot="footer">
           <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>
