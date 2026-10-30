@@ -26,7 +26,7 @@ export { BDatetimePicker } from './b-datetime-picker.js';
 export { BDateRangePicker, type RangeValue, type RangePreset } from './b-date-range-picker.js';
 export { BTime } from './b-time.js';
 export {
-  BForm,
-  type FormSchema, type FormGroupDef, type FormField, type FormResult,
+  BForm, formText,
+  type FormText, type FormSchema, type FormGroupDef, type FormField, type FormResult,
   type FieldType, type ValidationRule, type GroupRule, type ValidatorFn, type FormTranslateFn,
 } from './b-form.js';

@@ -869,7 +869,8 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     if (!modal || !form) return;
 
     this._editingId = null;
-    form.setSchema(schema);
+    // A factory, so the fields relabel on a locale switch while the modal is open.
+    form.setSchema(() => this.formSchema ?? schema);
     form.reset();
     form.clearErrors();
     modal.setAttribute('title', this.t('bws.common.new'));
@@ -888,7 +889,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     if (!modal || !form || !saveBtn) return;
 
     this._editingId = id;
-    form.setSchema(schema);
+    form.setSchema(() => this.editFormSchema ?? schema);
     modal.setAttribute('title', this.t('bws.common.edit'));
     saveBtn.setAttribute('loading', '');
     // The modal opens immediately (so the click has feedback) but the FIELDS must not be editable

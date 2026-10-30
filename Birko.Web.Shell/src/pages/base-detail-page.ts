@@ -214,7 +214,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
     requestAnimationFrame(() => {
       const form = this.$<BForm>('#form');
       if (!form) return;
-      form.setSchema(this.formSchema);
+      form.setSchema(() => this.formSchema);
       form.setValues(this.mapToForm(this.entity!));
       this.onEntityLoaded?.(this.entity!);
     });

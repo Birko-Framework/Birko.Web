@@ -4,6 +4,24 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.2.0 — 2026-10-30
+
+- **A form relabels on a locale switch** — Birko TASK-797, found by Symbio (TASK-1010). An open `b-form` kept its field
+  labels in the old language, because its schema is data built once with `t()`. Two ways in, decided by the user:
+  - `setSchema(() => buildSchema())`: b-form calls the factory again on every switch, keeping the values, focus,
+    collapsed groups and shown errors, with no `change` event.
+  - For a schema kept as data, any text in it may be an i18n key, `{ key, fallback?, params? }`, translated each time
+    the form draws.
+
+  Errors from b-form's own rules are worded again in the new language; one set with `setFieldError()` stays as given.
+  `base-crud-page`, `base-detail-page` and `base-form-modal` now pass their `formSchema` getters as factories, so
+  Shell pages relabel with no change of yours, provided your getter builds the schema when called.
+  **BREAKING (types only):** a schema's text properties (`label`, `placeholder`, `hint`, `description`, option and
+  preset `label`, a group's `label`, rule `message`) are now `FormText` instead of `string`. Writing a string
+  still works. Code that **reads** one as a string does not compile: read it with `formText(field.label)` (exported
+  with `FormText` from `birko-web-components`). Symbio compiles unchanged. The Core README's `onI18nChange` →
+  `getValues` / `setSchema` / `setValues` recipe from v0.1.23 is replaced by the factory.
+
 ## v0.1.23 — 2026-10-30
 
 - **A locale switch re-localizes components nested in other components** — Birko TASK-790, found by Symbio

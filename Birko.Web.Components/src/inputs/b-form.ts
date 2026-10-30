@@ -66,37 +66,44 @@ interface ValidityReporting {
 
 export type ValidatorFn = (value: unknown, data: Record<string, unknown>) => string | null;
 
+/**
+ * Text a schema carries: a literal string, or an i18n key b-form translates each time it draws, so the
+ * field follows a locale switch. The key form is for a schema kept as data (JSON from a server or a
+ * config file); a schema built in code passes a factory to {@link BForm.setSchema} instead.
+ */
+export type FormText = string | { key: string; fallback?: string; params?: Record<string, string | number> };
+
 export interface ValidationRule {
   type: RuleType;
   value?: unknown;
-  message?: string;
+  message?: FormText;
 }
 
 export interface GroupRule {
-  message: string;
+  message: FormText;
   validate: (groupData: Record<string, unknown>) => boolean;
 }
 
 export interface FormField {
   name: string;
   type: FieldType;
-  label: string;
-  placeholder?: string;
+  label: FormText;
+  placeholder?: FormText;
   /** Terse explainer, rendered as a tooltip behind a `?` icon beside the label. */
-  hint?: string;
+  hint?: FormText;
   /**
    * Persistent help text rendered under the control and wired into its `aria-describedby` — for a value
    * or constraint the user needs on screen while typing ("Goal 8000 steps", "Max 20 characters"). Use
    * {@link FormField.hint} instead for a terse explainer that can live behind a `?` icon. A field may
    * carry both.
    */
-  description?: string;
+  description?: FormText;
   value?: unknown;
   rows?: number;
   fullWidth?: boolean;
   hidden?: boolean;
   disabled?: boolean;
-  options?: { value: string; label: string }[];
+  options?: { value: string; label: FormText }[];
   searchable?: boolean;
   /**
    * `select` / `multi-select`: let the user add a value the options lack. Both commit it as the field
@@ -121,7 +128,7 @@ export interface FormField {
   maxDays?: number;
   monthsVisible?: 1 | 2;
   confirm?: boolean;
-  presets?: { label: string; start: string; end: string }[];
+  presets?: { label: FormText; start: string; end: string }[];
   separator?: string;
   // Tags-specific
   separators?: string;
@@ -131,7 +138,7 @@ export interface FormField {
 
 export interface FormGroupDef {
   name: string;
-  label?: string;
+  label?: FormText;
   // `string & {}` preserves IntelliSense while allowing consumers to pass inline
   // object literals (where `layout: 'stack'` widens to `string`) without `as const`.
   layout?: 'stack' | 'grid' | 'inline' | (string & {});
@@ -188,6 +195,22 @@ function fmt(key: string, params: Record<string, string | number>, fallback: str
   return globalT(key, params, fallback);
 }
 
+/** The string a {@link FormText} reads as in the current locale. */
+export function formText(text: FormText | undefined): string {
+  if (text === undefined) return '';
+  if (typeof text === 'string') return text;
+  return fmt(text.key, text.params ?? {}, text.fallback ?? text.key);
+}
+
+function optText(text: FormText | undefined): string | undefined {
+  return text === undefined ? undefined : formText(text);
+}
+
+/** Groups and fields by name and type: two schemas with one shape render to the same DOM, so a morph is safe. */
+function schemaShape(group: FormGroupDef): string {
+  return `${group.name}[${group.children.map(c => isGroup(c) ? schemaShape(c) : `${c.name}:${c.type}`).join(',')}]`;
+}
+
 let _legacyTranslate: FormTranslateFn | null = null;
 
 // ── Component ──
@@ -207,6 +230,8 @@ export class BForm extends BaseComponent {
   }
 
   private _schema: FormSchema | null = null;
+  private _schemaFactory: (() => FormSchema) | null = null;
+  private _customErrors = new Set<string>();        // paths set by setFieldError, not by a rule
   private _collapsed = new Set<string>();
   private _errors = new Map<string, string>();       // dot-path → error
   private _fieldCallbacks?: Map<string, ((value: unknown, data: Record<string, unknown>) => void)[]>;
@@ -329,11 +354,18 @@ export class BForm extends BaseComponent {
 
   // ── Public API ──
 
-  setSchema(schema: FormSchema) {
-    this._schema = schema;
+  /**
+   * Pass a factory (`() => buildSchema()`) when the schema's text is built with `t()`: b-form calls it
+   * again on a locale switch and keeps the values, focus, collapsed groups and shown errors. A schema
+   * object is kept as given; its {@link FormText} keys still follow the locale.
+   */
+  setSchema(schema: FormSchema | (() => FormSchema)) {
+    this._schemaFactory = typeof schema === 'function' ? schema : null;
+    const resolved = typeof schema === 'function' ? schema() : schema;
+    this._schema = resolved;
     // Initialize collapsed state from schema
     this._collapsed.clear();
-    this._walkGroups(schema, (g) => {
+    this._walkGroups(resolved, (g) => {
       if (g.collapsible && g.collapsed) this._collapsed.add(g.name);
     });
     // A schema swap changes the field set wholesale (e.g. create → edit, which drops/adds fields).
@@ -463,6 +495,7 @@ export class BForm extends BaseComponent {
 
   setFieldError(path: string, error: string) {
     this._errors.set(path, error);
+    this._customErrors.add(path);
     this._applyErrors();
   }
 
@@ -555,8 +588,8 @@ export class BForm extends BaseComponent {
     }
 
     const legendContent = group.collapsible
-      ? `<span class="b-form-collapse-icon ${isCollapsed ? '' : 'open'}" data-group="${group.name}">&#9654;</span>${group.label ?? ''}`
-      : (group.label ?? '');
+      ? `<span class="b-form-collapse-icon ${isCollapsed ? '' : 'open'}" data-group="${group.name}">&#9654;</span>${formText(group.label)}`
+      : formText(group.label);
 
     const errHtml = groupErrs
       ? groupErrs.map(e => `<span class="b-form-group-error">${e}</span>`).join('')
@@ -618,7 +651,7 @@ export class BForm extends BaseComponent {
       case 'radio':
         // Radio renders a group of radio buttons
         return (a) => (field.options ?? []).map(o =>
-          `<b-radio name="${field.name}" value="${o.value}" label="${o.label}" ${a.includes('disabled') ? 'disabled' : ''}></b-radio>`
+          `<b-radio name="${field.name}" value="${o.value}" label="${escapeAttr(formText(o.label))}" ${a.includes('disabled') ? 'disabled' : ''}></b-radio>`
         ).join('');
       case 'option-group':
         return (a) => `<b-option-group ${a}></b-option-group>`;
@@ -649,13 +682,13 @@ export class BForm extends BaseComponent {
 
     if (field.type !== 'radio') {
       parts.push(`name="${escapeAttr(field.name)}"`);
-      if (field.label) parts.push(`label="${escapeAttr(field.label)}"`);
+      if (field.label) parts.push(`label="${escapeAttr(formText(field.label))}"`);
     }
 
-    if (field.hint) parts.push(`hint="${escapeAttr(field.hint)}"`);
-    if (field.description) parts.push(`description="${escapeAttr(field.description)}"`);
+    if (field.hint) parts.push(`hint="${escapeAttr(formText(field.hint))}"`);
+    if (field.description) parts.push(`description="${escapeAttr(formText(field.description))}"`);
     if (field.value !== undefined && field.value !== '') parts.push(`value="${escapeAttr(String(field.value))}"`);
-    if (field.placeholder) parts.push(`placeholder="${escapeAttr(field.placeholder)}"`);
+    if (field.placeholder) parts.push(`placeholder="${escapeAttr(formText(field.placeholder))}"`);
     if (error) parts.push(`error="${escapeAttr(error)}"`);
     if (disabled) parts.push('disabled');
     const isRequired = field.required || field.rules?.some(r => r.type === 'required');
@@ -738,7 +771,7 @@ export class BForm extends BaseComponent {
         if (field.confirm) parts.push('confirm');
         if (field.native) parts.push('native');
         if (field.separator) parts.push(`separator="${field.separator}"`);
-        if (field.presets) parts.push(`presets='${JSON.stringify(field.presets).replace(/'/g, '&apos;')}'`);
+        if (field.presets) parts.push(`presets='${JSON.stringify(field.presets.map(p => ({ ...p, label: formText(p.label) }))).replace(/'/g, '&apos;')}'`);
         break;
       case 'time':
         if (field.min !== undefined) parts.push(`min="${field.min}"`);
@@ -748,6 +781,66 @@ export class BForm extends BaseComponent {
     }
 
     return parts.join(' ');
+  }
+
+  // ── Locale switch ──
+
+  /**
+   * BaseComponent's locale broadcast re-renders through here. The schema is rebuilt from its factory
+   * first, and the errors the form's own rules produced are worded again; an error a page set with
+   * setFieldError() is its own text and stays as given.
+   */
+  protected softUpdate(): void {
+    if (!this._schema) { super.softUpdate(); return; }
+    const next = this._schemaFactory?.();
+    if (next && schemaShape(next) !== schemaShape(this._schema)) {
+      // A different field set: a morph could leave a stale field behind (see setSchema), so render
+      // clean and put the values and focus back.
+      const values = this.getValues();
+      const display = this._getGroupValues(this._schema, '');
+      const focused = this.shadowRoot?.activeElement?.closest('[data-path]')?.getAttribute('data-path');
+      this._schema = next;
+      this._rewordErrors(display);
+      this.forceRender();
+      this.setValues(values);
+      this._applyErrors();
+      if (focused) this.focusField(focused);
+      return;
+    }
+    if (next) this._schema = next;
+    this._rewordErrors(this._getGroupValues(this._schema, ''));
+    super.softUpdate();
+    this._applyErrors();
+  }
+
+  /** Re-run the rules behind each shown error, so its message is in the current locale. */
+  private _rewordErrors(data: Record<string, unknown>) {
+    const schema = this._schema!;
+    const fields = new Map<string, FormField>();
+    this._walkFields(schema, '', (f, p) => fields.set(p, f));
+    for (const path of [...this._errors.keys()]) {
+      if (this._customErrors.has(path)) continue;
+      this._errors.delete(path);
+      this._badInput.delete(path);
+      const field = fields.get(path);
+      if (!field) continue;
+      const parentPath = path.includes('.') ? path.slice(0, path.lastIndexOf('.')) : '';
+      const parent = parentPath ? (this._getNestedValue(data, parentPath) as Record<string, unknown> | undefined) ?? {} : data;
+      this._validateField(field, parent[field.name], parent, path);
+    }
+
+    const errored = new Set(this._groupErrors.keys());
+    this._groupErrors.clear();
+    const regroup = (group: FormGroupDef, groupData: Record<string, unknown>) => {
+      if (errored.has(group.name)) {
+        const errs = (group.rules ?? []).filter(r => !r.validate(groupData)).map(r => formText(r.message));
+        if (errs.length) this._groupErrors.set(group.name, errs);
+      }
+      for (const child of group.children) {
+        if (isGroup(child)) regroup(child, (groupData[child.name] as Record<string, unknown>) ?? {});
+      }
+    };
+    regroup(schema, data);
   }
 
   // ── Events ──
@@ -864,7 +957,7 @@ export class BForm extends BaseComponent {
         const fieldPath = path ? `${path}.${child.name}` : child.name;
         const el = this._getFieldElement(fieldPath);
         if (el && 'setOptions' in el) {
-          (el as any).setOptions(child.options);
+          (el as any).setOptions(child.options.map(o => ({ ...o, label: formText(o.label) })));
         }
       }
     }
@@ -891,7 +984,7 @@ export class BForm extends BaseComponent {
       const groupErrs: string[] = [];
       for (const rule of group.rules) {
         if (!rule.validate(data)) {
-          groupErrs.push(rule.message);
+          groupErrs.push(formText(rule.message));
         }
       }
       if (groupErrs.length) this._groupErrors.set(group.name, groupErrs);
@@ -899,13 +992,14 @@ export class BForm extends BaseComponent {
   }
 
   private _validateField(field: FormField, value: unknown, allData: Record<string, unknown>, path: string) {
+    this._customErrors.delete(path);
     // Required check — honour both field.required and rules: [{ type: 'required' }]
     const requiredRule = field.rules?.find(r => r.type === 'required');
     const isRequired = field.required || !!requiredRule;
     if (isRequired) {
       if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
-        this._errors.set(path, requiredRule?.message
-          ?? fmt('common.required', { label: field.label }, '{label} is required'));
+        this._errors.set(path, optText(requiredRule?.message)
+          ?? fmt('common.required', { label: formText(field.label) }, '{label} is required'));
         return; // Stop on first error
       }
     }
@@ -992,7 +1086,7 @@ export class BForm extends BaseComponent {
     // The control's own message is preferred: it is specific ("Value must be 0 or less."), and it is
     // where localisation already belongs — `b-input` exposes each one as an overridable method.
     const message = el.validationMessage
-      || fmt('common.invalidValue', { label: field.label }, '{label} is invalid');
+      || fmt('common.invalidValue', { label: formText(field.label) }, '{label} is invalid');
     return { message, badInput: v.badInput };
   }
 
@@ -1012,39 +1106,39 @@ export class BForm extends BaseComponent {
     switch (rule.type) {
       case 'minLength':
         if (str.length < (rule.value as number))
-          return rule.message ?? fmt('common.minLength', { label: field.label, value: rule.value as number }, '{label} must be at least {value} characters');
+          return optText(rule.message) ?? fmt('common.minLength', { label: formText(field.label), value: rule.value as number }, '{label} must be at least {value} characters');
         break;
       case 'maxLength':
         if (str.length > (rule.value as number))
-          return rule.message ?? fmt('common.maxLength', { label: field.label, value: rule.value as number }, '{label} must be at most {value} characters');
+          return optText(rule.message) ?? fmt('common.maxLength', { label: formText(field.label), value: rule.value as number }, '{label} must be at most {value} characters');
         break;
       case 'min':
         if (num < (rule.value as number))
-          return rule.message ?? fmt('common.min', { label: field.label, value: rule.value as number }, '{label} must be at least {value}');
+          return optText(rule.message) ?? fmt('common.min', { label: formText(field.label), value: rule.value as number }, '{label} must be at least {value}');
         break;
       case 'max':
         if (num > (rule.value as number))
-          return rule.message ?? fmt('common.max', { label: field.label, value: rule.value as number }, '{label} must be at most {value}');
+          return optText(rule.message) ?? fmt('common.max', { label: formText(field.label), value: rule.value as number }, '{label} must be at most {value}');
         break;
       case 'range': {
         const [min, max] = rule.value as [number, number];
         if (num < min || num > max)
-          return rule.message ?? fmt('common.range', { label: field.label, min, max }, '{label} must be between {min} and {max}');
+          return optText(rule.message) ?? fmt('common.range', { label: formText(field.label), min, max }, '{label} must be between {min} and {max}');
         break;
       }
       case 'pattern': {
         const regex = rule.value instanceof RegExp ? rule.value : new RegExp(rule.value as string);
         if (!regex.test(str))
-          return rule.message ?? fmt('common.invalidFormat', { label: field.label }, '{label} format is invalid');
+          return optText(rule.message) ?? fmt('common.invalidFormat', { label: formText(field.label) }, '{label} format is invalid');
         break;
       }
       case 'email':
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(str))
-          return rule.message ?? fmt('common.invalidEmail', { label: field.label }, 'Invalid email address');
+          return optText(rule.message) ?? fmt('common.invalidEmail', { label: formText(field.label) }, 'Invalid email address');
         break;
       case 'match':
         if (str !== String(allData[rule.value as string] ?? ''))
-          return rule.message ?? fmt('common.mustMatch', { label: field.label, value: rule.value as string }, '{label} must match {value}');
+          return optText(rule.message) ?? fmt('common.mustMatch', { label: formText(field.label), value: rule.value as string }, '{label} must match {value}');
         break;
       case 'custom': {
         const fn = rule.value as ValidatorFn;

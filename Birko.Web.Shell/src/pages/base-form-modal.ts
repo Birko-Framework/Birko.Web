@@ -156,7 +156,7 @@ export abstract class BaseFormModal<T extends Record<string, unknown>> extends B
 
   protected onMount(): void {
     const form = this.$<BForm>('#form');
-    form?.setSchema(this.formSchema);
+    form?.setSchema(() => this.formSchema);
   }
 
   protected onUpdated(): void {

@@ -696,7 +696,7 @@ become `aria-disabled` (not `disabled`) at a limit; each step is announced with 
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `setSchema` | `(schema: FormSchema) => void` | Set form field definitions |
+| `setSchema` | `(schema: FormSchema | (() => FormSchema)) => void` | Set form field definitions. Pass a factory when the text is built with `t()`: it runs again on a locale switch, keeping values, focus and shown errors |
 | `setValue` | `(name: string, value: unknown) => void` | Set a single field value |
 | `setValues` | `(values: Record<string, unknown>) => void` | Set multiple field values |
 | `getValues` | `() => Record<string, unknown>` | Get all field values |
@@ -712,6 +712,18 @@ become `aria-disabled` (not `disabled`) at a limit; each step is announced with 
 |-------|--------|
 | `change` | `{ path, value, data }` |
 | `group-toggle` | `{ group, collapsed }` |
+
+**A locale switch relabels the form** (TASK-797) in either of two ways:
+
+- **A factory:** `setSchema(() => buildSchema())`, for a schema built in code with `t()`. b-form calls it again on
+  every switch and keeps the values, focus, collapsed groups and shown errors. A factory whose field set changes
+  (a field only in one locale) is re-rendered from scratch with the values put back. No `change` event fires.
+- **i18n keys:** any schema text (`label`, `placeholder`, `hint`, `description`, an option's or a preset's
+  `label`, a group's `label`, a rule's `message`) may be `{ key, fallback?, params? }` (`FormText`). b-form
+  translates it each time it draws. Use this for a schema kept as data (JSON).
+
+A plain string stays as given. Errors b-form's rules produced are worded again in the new language; one set
+with `setFieldError()` stays as given. Code that reads a schema's text reads it with `formText(field.label)`.
 
 **`type: 'decimal'` in a schema** maps to `b-input type="decimal"` (see its section above) and is what you
 want for any field accepting a decimal — `'number'` renders a native `type="number"`, which cannot accept a

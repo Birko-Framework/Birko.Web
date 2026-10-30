@@ -163,19 +163,13 @@ protected label(
 
 Two things a re-render cannot do for you:
 - **Wire listeners with `this.listen()` in `onUpdated()`.** A raw `addEventListener` there adds one more listener on every re-render, and a locale switch is one.
-- **Rebuild what you built with `t()` outside `render()`,** such as a `b-form` schema passed to `setSchema()`: it keeps the old text. Subscribe in `onMount()` and rebuild, keeping what the user typed:
+- **Rebuild what you built with `t()` outside `render()`:** it keeps the old text. For a `b-form` schema, pass a factory and b-form calls it again on a locale switch, keeping values, focus and shown errors (TASK-797):
 
 ```typescript
-protected onMount() {
-  this._unsubLocale = onI18nChange(() => {
-    const form = this.child<BForm>('b-form');
-    const values = form?.getValues();
-    form?.setSchema(this.buildSchema());   // labels from t() again
-    if (values) form?.setValues(values);
-  });
-}
-protected onUnmount() { this._unsubLocale?.(); }
+form.setSchema(() => this.buildSchema());   // not setSchema(this.buildSchema())
 ```
+
+  A schema kept as data (JSON) gives its text as i18n keys instead: `label: { key: 'orders.number', fallback: 'Number' }`. Anything else you build with `t()`, rebuild in an `onI18nChange()` subscription.
 
 A re-render never closes an open `<dialog>`: the morph keeps its `open` (TASK-791). Close one with `close()`.
 

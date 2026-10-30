@@ -636,6 +636,16 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### b-form relabels on a locale switch: schema factory or i18n keys (2026-10-30, TASK-797)
+
+Found by Symbio (TASK-1010). Schema text is `FormText`: a string, or `{ key, fallback?, params? }` resolved through
+`formText()` at every read (render, options, presets, rule messages). `setSchema` also takes a factory. b-form
+overrides `softUpdate()` (the locale broadcast's entry) to call it again first. When the new schema has the same
+shape (`schemaShape`: group and field names and types), the morph keeps values and focus. Otherwise it re-renders
+from scratch and puts the values and focus back. Shown errors are re-validated so they are worded again; paths set by
+`setFieldError()` (`_customErrors`) are left as given. Proof: `locale-switch-check.mjs` (with the override
+disabled, the factory, error and field-set checks fail).
+
 ### A locale switch reaches nested components; an open dialog survives a re-render (2026-10-30, TASK-790, TASK-791)
 
 Found by Symbio (TASK-1010). `BaseComponent.onGlobalChange` soft-updated only components whose root is the document,
