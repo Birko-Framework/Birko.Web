@@ -17,6 +17,14 @@ interchangeable for consumers.
   compiles (TS2610, a property overriding an accessor). **Migration:** write it as a getter, or delete it if it is
   `'Item'` (the default).
 
+## v0.2.1 — 2026-10-30
+
+- **A locale switch keeps every field's value** — Birko TASK-802, found by Symbio (TASK-1010). In v0.2.0 a switch with
+  an open `b-form` cleared a select with a placeholder, an option group, a checkbox, a switch, a date and a time, with a
+  factory schema or a plain one: those fields keep their value in an attribute (`value`, `checked`) that b-form's
+  markup does not carry, and the switch's re-render removed it. A required select then blocked saving; an optional one
+  saved `""`. b-form now puts back each value the re-render changed, and leaves the field being typed in alone.
+
 ## v0.2.0 — 2026-10-30
 
 - **A form relabels on a locale switch** — Birko TASK-797, found by Symbio (TASK-1010). An open `b-form` kept its field
