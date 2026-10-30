@@ -641,8 +641,10 @@ new code should populate messages via the global singleton instead.
 Found by Symbio (TASK-1010). Schema text is `FormText`: a string, or `{ key, fallback?, params? }` resolved through
 `formText()` at every read (render, options, presets, rule messages). `setSchema` also takes a factory. b-form
 overrides `softUpdate()` (the locale broadcast's entry) to call it again first. When the new schema has the same
-shape (`schemaShape`: group and field names and types), the morph keeps values and focus. Otherwise it re-renders
-from scratch and puts the values and focus back. Shown errors are re-validated so they are worded again; paths set by
+shape (`schemaShape`: group and field names and types), it morphs and keeps focus; values a field keeps in an attribute
+the markup does not carry (b-select `value`, b-checkbox `checked`, the pickers) are removed by the morph, so
+`_restoreFields` writes back each one that changed (TASK-802). Otherwise it re-renders from scratch and puts the values
+and focus back. Shown errors are re-validated so they are worded again; paths set by
 `setFieldError()` (`_customErrors`) are left as given. Proof: `locale-switch-check.mjs` (with the override
 disabled, the factory, error and field-set checks fail).
 

@@ -808,9 +808,37 @@ export class BForm extends BaseComponent {
       return;
     }
     if (next) this._schema = next;
+    const kept = this._fieldSnapshot();
     this._rewordErrors(this._getGroupValues(this._schema, ''));
     super.softUpdate();
+    this._restoreFields(kept);
     this._applyErrors();
+  }
+
+  /** Each field's displayed value by path, read from its element. */
+  private _fieldSnapshot(): Map<string, unknown> {
+    const kept = new Map<string, unknown>();
+    this._walkFields(this._schema!, '', (f, p) => {
+      const el = this._getFieldElement(p);
+      if (el) kept.set(p, this._getFieldValue(el, f));
+    });
+    return kept;
+  }
+
+  /**
+   * Several fields keep their value in an attribute b-form's markup does not carry (b-select's `value`,
+   * b-checkbox's `checked`, the pickers'), and the morph removes it (TASK-802). Only a field the morph changed
+   * is written back: rewriting the one being typed in would move its caret.
+   */
+  private _restoreFields(kept: Map<string, unknown>) {
+    this._settingValues = true;
+    this._walkFields(this._schema!, '', (f, p) => {
+      const el = this._getFieldElement(p);
+      if (!el || !kept.has(p)) return;
+      const was = kept.get(p);
+      if (JSON.stringify(this._getFieldValue(el, f)) !== JSON.stringify(was)) this._setFieldValue(el, f, was);
+    });
+    this._settingValues = false;
   }
 
   /** Re-run the rules behind each shown error, so its message is in the current locale. */
