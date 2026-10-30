@@ -1,6 +1,6 @@
 import type { ApiClient, ApiResponse } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
-import { t as globalT, getI18n } from 'birko-web-core';
+import { t as globalT, getI18n, escapeHtml } from 'birko-web-core';
 import type { TableColumn } from 'birko-web-components/data';
 import type { RowAction, ToolbarAction, BDataTable } from 'birko-web-components/data';
 import type { BModal } from 'birko-web-components/layout';
@@ -31,7 +31,7 @@ import { entityUrl } from './endpoint-utils.js';
  * ```ts
  * class ItemsPage extends BaseCrudPage<ItemDto> {
  *   protected endpoint = 'api/items';
- *   protected entityLabel = 'Items';
+ *   protected override get entityLabel() { return t('items.title'); }
  *   protected get api() { return api; }
  *   protected get columns() { return [...]; }
  *   protected get formSchema() { return itemFormSchema(); }
@@ -73,8 +73,15 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Form schema for edit mode. Defaults to `formSchema`. */
   protected get editFormSchema(): FormSchema | null { return this.formSchema; }
 
-  /** Human-readable entity name used in titles and toast messages. Default: `'Item'`. */
-  protected entityLabel = 'Item';
+  /**
+   * Human-readable entity name used in titles and toast messages. Default: `'Item'`.
+   * When it comes from `t()`, override it as a getter, `protected override get entityLabel() { return t('…'); }`, so
+   * it follows a locale switch: a field initialiser runs once, when the page is created, and since v0.3.0 a field no
+   * longer compiles (TS2610).
+   */
+  protected get entityLabel(): string { return this._entityLabel; }
+  protected set entityLabel(v: string) { this._entityLabel = v; }
+  private _entityLabel = 'Item';
 
   /** Field used as the row identifier. Default: `'id'`. */
   protected idField = 'id';
@@ -413,6 +420,14 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
 
   // ── Page header ───────────────────────────────────────────────────────────
 
+  /**
+   * The create / edit modal's title, rendered from state rather than set once when it opens, so a locale switch
+   * relabels it and the page's re-render does not blank it (TASK-801).
+   */
+  protected get modalTitle(): string {
+    return this.t(this._editingId !== null ? 'bws.common.edit' : 'bws.common.new');
+  }
+
   /** Page title defaults to entityLabel. */
   protected override get pageTitle(): string { return this.entityLabel; }
   protected override set pageTitle(_v: string) { /* entityLabel is the source of truth */ }
@@ -525,7 +540,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
         ${this.renderFilterRow()}
         ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
-          <b-modal id="modal" title=""${sizeAttr}>
+          <b-modal id="modal" title="${escapeHtml(this.modalTitle)}"${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
               <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>

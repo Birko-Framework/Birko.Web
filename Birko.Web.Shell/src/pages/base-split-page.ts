@@ -4,7 +4,7 @@ import type { FormSchema } from 'birko-web-components/inputs';
 import type { BForm } from 'birko-web-components/inputs';
 import type { ApiClient } from 'birko-web-core/http';
 import { apiErrorMessage } from 'birko-web-core/http';
-import { visibleBounds } from 'birko-web-core';
+import { visibleBounds, escapeHtml } from 'birko-web-core';
 import { toast } from 'birko-web-components/feedback';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
@@ -95,7 +95,7 @@ export function renderDetailCardScaffold(opts: DetailCardOptions = {}): string {
  * ```ts
  * class PaymentsPage extends BaseSplitPage<PaymentDto> {
  *   protected endpoint = 'api/payments';
- *   protected entityLabel = 'Payments';
+ *   protected override get entityLabel() { return 'Payments'; }
  *   protected get api() { return api; }
  *   protected get columns() { return [...]; }
  *   protected renderDetail(p: PaymentDto) {
@@ -108,7 +108,7 @@ export function renderDetailCardScaffold(opts: DetailCardOptions = {}): string {
  * ```ts
  * class DepartmentsPage extends BaseSplitPage<DepartmentDto> {
  *   protected endpoint = 'api/departments';
- *   protected entityLabel = 'Departments';
+ *   protected override get entityLabel() { return 'Departments'; }
  *   protected get api() { return api; }
  *   protected get columns() { return [...]; }
  *   protected get formSchema() { return departmentFormSchema(); }
@@ -300,7 +300,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
         ${this.renderFilterRow()}
         ${this.requiredFilterSet ? this.renderContent() : this.renderEmptyFilter()}
         ${hasCrud ? `
-          <b-modal id="modal" title=""${sizeAttr}>
+          <b-modal id="modal" title="${escapeHtml(this.modalTitle)}"${sizeAttr}>
             ${this.renderModalBody()}
             <div slot="footer">
               <b-button id="btn-cancel" variant="ghost">${this.t('bws.common.cancel')}</b-button>

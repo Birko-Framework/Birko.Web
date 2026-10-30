@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.3.0 — 2026-10-30
+
+- **Shell pages relabel on a locale switch** — Birko TASK-801, asked for by Symbio (TASK-966). `entityLabel` was a plain
+  property on `BaseCrudPage` (and so `BaseListPage` and `BaseSplitPage`), `BaseDetailPage` and `BaseFormModal`. Set as
+  a field with `t()`, it was read once, so the page heading, the modal titles and `{entity}` in toasts stayed in the
+  language the page was created in. It is now an accessor: override it as a getter,
+  `protected override get entityLabel() { return t('…'); }`. **Also fixed:** the create / edit modal's title was set
+  once when it opened, and the page's re-render on a locale switch set it back to empty. It is now rendered from
+  state (`modalTitle`), so it follows the locale and stays.
+  **BREAKING:** a subclass that declares `entityLabel` as a field (`protected entityLabel = 'Device'`) no longer
+  compiles (TS2610, a property overriding an accessor). **Migration:** write it as a getter, or delete it if it is
+  `'Item'` (the default).
+
 ## v0.2.1 — 2026-10-30
 
 - **A locale switch keeps every field's value** — Birko TASK-802, found by Symbio (TASK-1010). In v0.2.0 a switch with

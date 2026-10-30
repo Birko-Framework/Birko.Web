@@ -260,7 +260,7 @@ Shell base pages (`BaseCrudPage`, `BaseListPage`, `BaseSplitPage`, `BaseDetailPa
 - `bws.ribbon.selectModule`
 - `bws.tour.button` (the page tour `?` — `BasePage.renderTourButton()`)
 
-`this.t()` auto-interpolates `{entity}` with `this.entityLabel`, so a bundle entry like `"bws.common.new": "Nový {entity}"` with `entityLabel = 'Account'` resolves to `"Nový Account"`. If a key is missing in the app's bundle, English defaults from the base class kick in.
+`this.t()` auto-interpolates `{entity}` with `this.entityLabel`, so a bundle entry like `"bws.common.new": "Nový {entity}"` with `entityLabel` returning `'Account'` resolves to `"Nový Account"`. If a key is missing in the app's bundle, English defaults from the base class kick in. Override `entityLabel` as a getter: it is an accessor (v0.3.0, TASK-801), so a field is TS2610, and one set from `t()` was read once and never followed a locale switch. The create / edit modal title is `modalTitle`, rendered from state; never set it only in code, or the page's re-render blanks it.
 
 `b-app-shell.ts` does **not** pass `label-*` attributes to `<b-ribbon>` / `<b-command-palette>` — those components read from the global `bwc.*` namespace directly.
 

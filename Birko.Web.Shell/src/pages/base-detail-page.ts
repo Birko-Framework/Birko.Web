@@ -54,8 +54,15 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
 
   // ── Optional — override to customise ─────────────────────────────────────
 
-  /** Human-readable entity name for toast messages. Default: `'Item'`. */
-  protected entityLabel = 'Item';
+  /**
+   * Human-readable entity name for toast messages. Default: `'Item'`.
+   * When it comes from `t()`, override it as a getter, `protected override get entityLabel() { return t('…'); }`, so
+   * it follows a locale switch: a field initialiser runs once, when the page is created, and since v0.3.0 a field no
+   * longer compiles (TS2610).
+   */
+  protected get entityLabel(): string { return this._entityLabel; }
+  protected set entityLabel(v: string) { this._entityLabel = v; }
+  private _entityLabel = 'Item';
 
   /** Route param name holding the entity ID. Default: `'id'`. */
   protected idParam = 'id';
