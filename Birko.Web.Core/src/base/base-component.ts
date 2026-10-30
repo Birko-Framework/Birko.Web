@@ -34,20 +34,27 @@ export abstract class BaseComponent extends HTMLElement {
    */
   static onGlobalChange(subscribe: (cb: () => void) => () => void): void {
     const unsub = subscribe(() => {
-      for (const instance of BaseComponent._liveInstances) {
-        try {
-          // Only soft-update components in the document (not inside shadow DOMs).
-          // Shadow-DOM children are preserved by the parent's morph; their observed
-          // attributes trigger attributeChangedCallback → update() if needed.
-          // This avoids duplicate event listeners and stripping dynamic CSS classes.
-          const root = instance.getRootNode();
-          if (root instanceof Document) {
-            instance.softUpdate();
-          }
-        } catch { /* don't let one broken component stop the rest */ }
+      // Every live instance, including those nested in another component's shadow root: their text comes from
+      // t() / label() too, and no attribute of theirs changes on a locale switch (TASK-790). Deepest first, so a
+      // host's onUpdated() runs after what it contains has re-rendered and can re-apply state it sets on it
+      // (b-ribbon's roving tabindex on its fields' inner inputs).
+      const ordered = [...BaseComponent._liveInstances]
+        .map((instance) => ({ instance, depth: BaseComponent._shadowDepth(instance) }))
+        .sort((a, b) => b.depth - a.depth);
+      for (const { instance } of ordered) {
+        // A host's re-render may already have removed it.
+        if (!instance.isConnected) continue;
+        try { instance.softUpdate(); } catch { /* don't let one broken component stop the rest */ }
       }
     });
     BaseComponent._broadcastUnsubs.push(unsub);
+  }
+
+  /** How many shadow roots enclose `el`: 0 in the document, 1 inside a component's shadow root, … */
+  private static _shadowDepth(el: Node): number {
+    let depth = 0;
+    for (let root = el.getRootNode(); root instanceof ShadowRoot; root = root.host.getRootNode()) depth++;
+    return depth;
   }
 
   /** Override to declare observed attributes for reactive updates. */
@@ -381,7 +388,11 @@ export abstract class BaseComponent extends HTMLElement {
     }
     // Same tag — sync attributes
     for (const a of Array.from(oldEl.attributes)) {
-      if (!freshEl.hasAttribute(a.name)) oldEl.removeAttribute(a.name);
+      if (freshEl.hasAttribute(a.name)) continue;
+      // A <dialog>'s `open` is set by show() / showModal(), never by render(): removing it closed an open
+      // modal whenever its host re-rendered, e.g. on a title change (TASK-791). Close a dialog with close().
+      if (a.name === 'open' && oldEl instanceof HTMLDialogElement) continue;
+      oldEl.removeAttribute(a.name);
     }
     for (const a of Array.from(freshEl.attributes)) {
       if (oldEl.getAttribute(a.name) !== a.value) oldEl.setAttribute(a.name, a.value);

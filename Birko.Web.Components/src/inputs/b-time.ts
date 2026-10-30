@@ -349,12 +349,12 @@ export class BTime extends FormControlComponent {
       el.value = pad(v);
       cb(v);
     };
-    el.addEventListener('change', handler);
-    el.addEventListener('blur', handler);
+    this.listen(el, 'change', handler);
+    this.listen(el, 'blur', handler);
   }
 
   private _listenWheel(el: HTMLInputElement, onUp: () => void, onDown: () => void) {
-    el.addEventListener('wheel', (e: WheelEvent) => {
+    this.listen(el, 'wheel', (e: WheelEvent) => {
       e.preventDefault();
       if (e.deltaY < 0) onUp();
       else onDown();

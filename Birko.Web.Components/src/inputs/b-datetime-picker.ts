@@ -538,8 +538,8 @@ export class BDatetimePicker extends FormControlComponent {
       el.value = pad(v);
       cb(v);
     };
-    el.addEventListener('change', handler);
-    el.addEventListener('blur', handler);
+    this.listen(el, 'change', handler);
+    this.listen(el, 'blur', handler);
   }
 
   /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */

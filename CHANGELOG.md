@@ -4,6 +4,27 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.1.23 — 2026-10-30
+
+- **A locale switch re-localizes components nested in other components** — Birko TASK-790, found by Symbio
+  (TASK-1010). **Fixed:** a switch re-rendered only the components placed in the page itself. One rendered inside
+  another component (Symbio's blocks editor in its pages page, and every `b-*` inside such a component) kept the old
+  language. Now every component re-renders, the innermost first, so a component's `onUpdated()` runs after the
+  components it contains and can re-apply what it sets on them (b-ribbon's keyboard focus order). **Your own
+  components:** one nested in another now re-renders on a locale switch too, so wire listeners in `onUpdated()`
+  with `this.listen()`: a raw `addEventListener` there adds one more listener on every switch. A form whose schema
+  you built with `t()` keeps the old labels until you rebuild it: subscribe with `onI18nChange()` and call
+  `setSchema()` again (Birko.Web.Core README, `label()` section).
+- **An open modal stays open when it re-renders** — Birko TASK-791, found by Symbio (TASK-1010). **Fixed:** changing an
+  attribute `b-modal`, `b-drawer` or `b-confirm-dialog` observes (`title`, `size`, `message`, …) while it was open
+  closed it, leaving the dialog half-closed (not shown, yet still modal). A re-render now keeps a `<dialog>`'s `open`,
+  with focus and what you typed. Close a dialog with `close()`.
+- **Fixed: listeners piling up on re-render** in `b-chart` (a bar click fired `point-click` once per earlier render),
+  `b-time` and `b-datetime-picker` (the hour and minute fields). Found by the Playground's new re-render check, which
+  re-renders every component in the gallery and fails on any that gains listeners.
+- **Docs:** `b-sortable-list` notes from Symbio's adoption: keep it outside a host's re-render (`data-morph="skip"`), and
+  how end-to-end tests read rows and drag inside a modal.
+
 ## v0.1.22 — 2026-10-29
 
 - **A toast raised while a modal is open is on top of it** — Birko TASK-786, found by Symbio (TASK-731). **Fixed:** a

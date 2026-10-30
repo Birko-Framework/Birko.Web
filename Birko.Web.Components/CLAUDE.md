@@ -372,6 +372,15 @@ the same as their `.value`:
   unchecks the previous member **without re-rendering it**, so that path must call `syncFormState()`
   explicitly — otherwise the group submits two entries.
 
+### Listeners wired in `onUpdated()` go through `this.listen()` (MANDATORY)
+
+`onUpdated()` runs after every re-render, and the morph keeps the same elements, so a raw `addEventListener` there
+adds one more listener each time (a `b-chart` bar fired `point-click` once per earlier render). Every component
+re-renders on a locale switch, nested ones included (TASK-790). Use `this.listen()`, which aborts the previous
+render's listeners, or an `AbortController` of your own that you abort before wiring again (b-data-table's
+`_tableAC`). `rerender-leak-check.mjs` in the Playground re-renders every gallery component and fails on any that
+gains listeners.
+
 ### A component imports every component it renders (MANDATORY)
 
 Each file is a public entry point (`birko-web-components/<category>/<b-name>`, TASK-564), so importing it alone must
@@ -626,6 +635,16 @@ new code should populate messages via the global singleton instead.
 - Do not interpolate caller/user-supplied strings straight into a template's `innerHTML` — escape with `escapeHtml`/`escapeAttr` from `dom-utils.ts`, or set them via `textContent`. Raw interpolation is a stored/reflected-XSS sink (see the b-confirm-dialog fix below).
 
 ## Recent Updates
+
+### A locale switch reaches nested components; an open dialog survives a re-render (2026-10-30, TASK-790, TASK-791)
+
+Found by Symbio (TASK-1010). `BaseComponent.onGlobalChange` soft-updated only components whose root is the document,
+so anything rendered in another component's shadow root kept its language. It now soft-updates every live instance,
+**deepest first**: a host's `onUpdated()` must run after the components it contains, or what it sets on them is
+wiped (b-ribbon's roving `tabindex` on its fields' inner inputs; measured, host-first loses it). The morph no longer
+removes `open` from a `<dialog>`: `b-modal` / `b-drawer` / `b-confirm-dialog` render the dialog closed, and a
+`title` change on an open one closed it. Proof: `locale-switch-check.mjs`. The skip had guarded against duplicated
+listeners; `rerender-leak-check.mjs` found three (b-chart, b-time, b-datetime-picker), fixed with `this.listen()`.
 
 ### `b-data-table`: the bulk bar floats above the footer, fits or overflows, asks in a dialog (2026-10-29, TASK-788)
 

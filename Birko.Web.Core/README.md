@@ -159,7 +159,25 @@ protected label(
 ): string
 ```
 
-`BaseComponent` auto-subscribes to `onI18nChange` and re-renders affected instances when the global locale changes — no per-component plumbing.
+`BaseComponent` auto-subscribes to `onI18nChange` and re-renders every live instance when the global locale changes — no per-component plumbing. That includes a component rendered inside another component's shadow root, and the innermost re-render first, so a component's `onUpdated()` runs after those it contains (TASK-790).
+
+Two things a re-render cannot do for you:
+- **Wire listeners with `this.listen()` in `onUpdated()`.** A raw `addEventListener` there adds one more listener on every re-render, and a locale switch is one.
+- **Rebuild what you built with `t()` outside `render()`,** such as a `b-form` schema passed to `setSchema()`: it keeps the old text. Subscribe in `onMount()` and rebuild, keeping what the user typed:
+
+```typescript
+protected onMount() {
+  this._unsubLocale = onI18nChange(() => {
+    const form = this.child<BForm>('b-form');
+    const values = form?.getValues();
+    form?.setSchema(this.buildSchema());   // labels from t() again
+    if (values) form?.setValues(values);
+  });
+}
+protected onUnmount() { this._unsubLocale?.(); }
+```
+
+A re-render never closes an open `<dialog>`: the morph keeps its `open` (TASK-791). Close one with `close()`.
 
 ---
 

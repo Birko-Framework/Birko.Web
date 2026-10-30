@@ -513,7 +513,7 @@ export class BChart extends BaseComponent {
 
     // Wire click events on SVG elements
     this.$$<HTMLElement>('[data-series][data-index]').forEach(el => {
-      el.addEventListener('click', () => {
+      this.listen(el, 'click', () => {
         const sId = el.dataset.series!;
         const idx = Number(el.dataset.index);
         const series = this._data.series.find(s => s.id === sId);
