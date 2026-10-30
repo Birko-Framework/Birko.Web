@@ -1143,6 +1143,14 @@ buttons: a press on those never starts a drag. For plain data, `setItems()` fill
 
 Slot: `empty` (shown when there are no rows; default "Nothing here yet.").
 
+**In a page that re-renders.** The list sets a `slot` on each child and reorders the children itself, so a host whose `update()` morphs the
+list's children strips those slots and puts them back in its own order. Keep the list outside the host's morph: give it (or a wrapper)
+`data-morph="skip"` and fill it from your own method, with `setItems()` or by replacing its children.
+
+**In end-to-end tests.** A row's visible text is its slotted child's, so the row element itself holds only the position
+and the Remove button; read a `b-sortable-item`'s `label` / `meta` attributes (or your own row's content) instead. For
+a drag inside a modal, scroll the rows into view before pressing, or the press starts a text selection.
+
 ### `<b-sortable-item>`
 A ready-made row for `b-sortable-list`: an optional image, a label and an optional meta line. The list sets its `layout`:
 a line, a tile (a placeholder with the label's initial stands in for a missing image), or a chip label.
