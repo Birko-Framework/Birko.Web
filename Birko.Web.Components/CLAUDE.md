@@ -636,6 +636,17 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### b-tree-menu reorders by drag and keyboard; one shared pointer drag (2026-10-30, TASK-789)
+
+Asked for by Symbio (TASK-1012). `pointer-drag.ts` (`PointerDrag`) holds what b-sortable-list's pointer code did:
+arming on a row or its handle, the 350 ms touch hold, the 4 px start and 8 px swipe cancel, pointer capture, the follow
+transform, edge auto-scroll, Escape, the swallowed click. b-sortable-list and b-tree-menu supply `move` (where it
+lands) and `end`. b-tree-menu's HTML5 `draggable` is gone; `sortable` now shows a grip per node, keyboard pick-up
+with → / ← reparenting, `handleOnly`, and the old ▲ / number / ▼ only with `sortControls` (deprecated `sort` /
+`sort-order`). A move reorders the tree's own copies (`_copyTree`, consumer objects kept in `_originals` for event
+details), never the consumer's arrays. Proof: Playground `tree-sort-smoke` and `tree-drag-check.mjs`, each key
+assertion mutation-proven; b-sortable-list's suites unchanged.
+
 ### b-form relabels on a locale switch: schema factory or i18n keys (2026-10-30, TASK-797)
 
 Found by Symbio (TASK-1010). Schema text is `FormText`: a string, or `{ key, fallback?, params? }` resolved through

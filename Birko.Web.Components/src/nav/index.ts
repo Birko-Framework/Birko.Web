@@ -4,4 +4,4 @@ export { BRibbon, type RibbonTab, type RibbonGroup, type RibbonItem, type Ribbon
 // The progressive-scaling policy is exported so a consumer can reason about it (and so the playground
 // can parity-test it against the C# original in Birko.Xaml.Core).
 export { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
-export { BTreeMenu, type TreeMenuItem, type TreeConfig, type TreeNodeAction } from './b-tree-menu.js';
+export { BTreeMenu, type TreeMenuItem, type TreeConfig, type TreeNodeAction, type TreeReorderDetail } from './b-tree-menu.js';

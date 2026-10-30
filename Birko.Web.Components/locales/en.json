@@ -252,6 +252,28 @@
       "selectionCleared": "Selection cleared",
       "confirmDefault": "Are you sure?"
     },
+    "treeMenu": {
+      "hint": "Press Space to pick up and reorder.",
+      "roleDescription": "sortable item",
+      "grip": "{label}, position {position} of {count}",
+      "inParent": "in {parent}",
+      "atTop": "at the top level",
+      "pickedUp": "{label} picked up, position {position} of {count} {where}. Arrow keys move it, right and left change its parent, Space drops it, Escape cancels.",
+      "position": "{label}, position {position} of {count} {where}.",
+      "first": "{label} is already first {where}.",
+      "last": "{label} is already last {where}.",
+      "noneAbove": "There is nothing above {label} to move into.",
+      "atTopAlready": "{label} is already at the top level.",
+      "dropped": "{label} dropped at position {position} of {count} {where}.",
+      "unchanged": "{label} dropped, still at position {position} of {count} {where}.",
+      "cancelled": "Cancelled. {label} is back at position {position} of {count} {where}.",
+      "moved": "{label} moved to position {position} of {count} {where}.",
+      "movedInto": "{label} moved into {parent}.",
+      "dragCancelled": "Move cancelled.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "sortOrder": "Order of {label}"
+    },
     "jsonDiff": {
       "title": "JSON diff",
       "titleXml": "XML diff",

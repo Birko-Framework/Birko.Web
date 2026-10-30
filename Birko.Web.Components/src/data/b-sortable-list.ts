@@ -1,6 +1,7 @@
 import { BaseComponent, define } from 'birko-web-core';
 import { srOnlySheet } from '../shared-styles';
 import { announce, escapeAttr, escapeHtml } from '../dom-utils';
+import { GRIP_ICON, PointerDrag, type PointerDragState } from '../pointer-drag';
 import './b-sortable-item.js';
 
 /** One row for {@link BSortableList.setItems}, rendered as a `b-sortable-item`. */
@@ -22,28 +23,11 @@ export interface SortableChangeDetail {
 
 export type SortableLayout = 'list' | 'grid' | 'inline';
 
-const GRIP = '<svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="6" cy="3.5" r="1.2"/><circle cx="10" cy="3.5" r="1.2"/><circle cx="6" cy="8" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="6" cy="12.5" r="1.2"/><circle cx="10" cy="12.5" r="1.2"/></svg>';
-/** A press on one of these inside a row is the row's own control, never the start of a drag. */
-const INTERACTIVE = 'a[href], button, input, select, textarea, label, [contenteditable=""], [contenteditable="true"], [role="button"]';
-/** On touch, a row (not its handle) drags after a still press this long, so a swipe still scrolls the page. */
-const HOLD_MS = 350;
-/** Distance from the scroller's edge at which a drag scrolls it. */
-const EDGE_PX = 48;
-
-interface Drag {
-  li: HTMLLIElement;
-  id: string;
-  pointerId: number;
-  x0: number; y0: number; x: number; y: number;
+/** Where a pointer drag would land, and the bar that shows it. */
+interface DropAt {
   from: number;
   to: number | null;
-  armed: boolean;
-  started: boolean;
-  timer?: ReturnType<typeof setTimeout>;
-  raf?: number;
-  bar?: HTMLElement;
-  scroller?: Element;
-  scroll0: number;
+  bar: HTMLElement;
 }
 
 /**
@@ -65,7 +49,25 @@ export class BSortableList extends BaseComponent {
   private _limitLine: HTMLLIElement | null = null;
   private _observer: MutationObserver | null = null;
   private _grabbed: { id: string; from: number } | null = null;
-  private _drag: Drag | null = null;
+  private _dropAt: DropAt | null = null;
+  private readonly _pointer = new PointerDrag({
+    host: this,
+    row: (path) => {
+      const li = path.find((n): n is HTMLLIElement => n instanceof HTMLLIElement && n.classList.contains('row'));
+      return li?.dataset.id ? { el: li, id: li.dataset.id } : null;
+    },
+    handleClass: 'handle',
+    handleOnly: () => this.boolAttr('handle-only'),
+    ownScroller: () => this.$('.scroll'),
+    press: () => { if (this._grabbed) this._drop(); },
+    start: (s) => {
+      const bar = document.createElement('div');
+      this.$('.scroll')!.appendChild(bar);
+      this._dropAt = { from: this._indexOf(s.id), to: null, bar };
+    },
+    move: (s) => this._target(s),
+    end: (s, cancelled) => this._endDrag(s, cancelled),
+  });
   private _quiet = false;
 
   static get styles() {
@@ -217,7 +219,7 @@ export class BSortableList extends BaseComponent {
   protected onUnmount(): void {
     this._observer?.disconnect();
     this._observer = null;
-    this._endDrag(true);
+    this._pointer.finish(true);
   }
 
   protected onUpdated(): void {
@@ -227,22 +229,14 @@ export class BSortableList extends BaseComponent {
     this._sync();
     const ol = this.$<HTMLOListElement>('.items');
     if (!ol) return;
-    this.listen<PointerEvent>(ol, 'pointerdown', (e) => this._onPointerDown(e));
-    this.listen<PointerEvent>(ol, 'pointermove', (e) => this._onPointerMove(e));
-    this.listen<PointerEvent>(ol, 'pointerup', (e) => { if (e.pointerId === this._drag?.pointerId) this._endDrag(false); });
-    this.listen<PointerEvent>(ol, 'pointercancel', (e) => { if (e.pointerId === this._drag?.pointerId) this._endDrag(true); });
+    this._pointer.wire(ol, (target, type, fn, options) => this.listen(target, type, fn as EventListener, options));
     this.listen<KeyboardEvent>(ol, 'keydown', (e) => this._onKeyDown(e));
     this.listen<FocusEvent>(ol, 'focusout', () => this._onFocusOut());
-    // A touch hold would otherwise open the browser's context menu (Android) mid-drag.
-    this.listen<MouseEvent>(ol, 'contextmenu', (e) => { if (this._drag) e.preventDefault(); });
     this.listen<MouseEvent>(ol, 'click', (e) => {
       const btn = (e.target as Element).closest?.('.remove');
       const li = btn?.closest<HTMLLIElement>('li.row');
       if (li) this._remove(li);
     });
-    // A row armed for a touch drag must not scroll the page under the finger.
-    this.listen<TouchEvent>(this, 'touchmove', (e) => { if (this._drag?.armed) e.preventDefault(); }, { passive: false });
-    this.listen<KeyboardEvent>(document, 'keydown', (e) => { if (e.key === 'Escape' && this._drag?.started) this._endDrag(true); });
   }
 
   // ── public API ──────────────────────────────────────────────────────────────────────────────────────
@@ -328,7 +322,7 @@ export class BSortableList extends BaseComponent {
     li.setAttribute('part', 'row');
     li.innerHTML = `
       <button type="button" class="handle" part="handle" aria-roledescription="${escapeAttr(this._t('roleDescription', 'sortable item'))}"
-              aria-describedby="${this.uid}-hint">${GRIP}</button>
+              aria-describedby="${this.uid}-hint">${GRIP_ICON}</button>
       <span class="pos" aria-hidden="true"></span>
       <div class="content"><slot name="${key}"></slot></div>
       <button type="button" class="remove" part="remove">&times;</button>`;
@@ -546,106 +540,14 @@ export class BSortableList extends BaseComponent {
     return Math.max(1, tops.filter((t) => t === tops[0]).length);
   }
 
-  // ── pointer: mouse, pen, touch ──────────────────────────────────────────────────────────────────────
-
-  private _onPointerDown(e: PointerEvent): void {
-    if (e.button !== 0 || this._drag) return;
-    const path = e.composedPath();
-    const li = path.find((n): n is HTMLLIElement => n instanceof HTMLLIElement && n.classList.contains('row'));
-    if (!li?.dataset.id) return;
-    const inside = path.slice(0, path.indexOf(li)).filter((n): n is Element => n instanceof Element);
-    const onHandle = inside.some((n) => n.classList.contains('handle'));
-    if (!onHandle && (this.boolAttr('handle-only') || inside.some((n) => n.matches(INTERACTIVE)))) return;
-    if (this._grabbed) this._drop();
-    const id = li.dataset.id;
-    const drag: Drag = {
-      li, id, pointerId: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
-      from: this._indexOf(id), to: null, armed: onHandle || e.pointerType !== 'touch', started: false, scroll0: 0,
-    };
-    this._drag = drag;
-    if (drag.armed) {
-      e.preventDefault(); // no text selection, no native drag of an image in the row
-      li.setPointerCapture(e.pointerId);
-      return;
-    }
-    drag.timer = setTimeout(() => {
-      if (this._drag !== drag) return;
-      drag.armed = true;
-      li.classList.add('pressing');
-      try { li.setPointerCapture(drag.pointerId); } catch { /* the pointer is gone */ }
-      navigator.vibrate?.(10);
-    }, HOLD_MS);
-  }
-
-  private _onPointerMove(e: PointerEvent): void {
-    const drag = this._drag;
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    drag.x = e.clientX;
-    drag.y = e.clientY;
-    const moved = Math.hypot(drag.x - drag.x0, drag.y - drag.y0);
-    if (!drag.armed) {
-      if (moved > 8) this._endDrag(true); // a swipe: the page scrolls
-      return;
-    }
-    if (!drag.started) {
-      if (moved < 4) return;
-      drag.started = true;
-      drag.li.classList.remove('pressing');
-      drag.li.classList.add('dragging');
-      drag.bar = document.createElement('div');
-      this.$('.scroll')!.appendChild(drag.bar);
-      drag.scroller = this._scrollTarget();
-      drag.scroll0 = drag.scroller.scrollTop;
-      drag.raf = requestAnimationFrame(() => this._autoScroll());
-    }
-    this._follow();
-  }
-
-  private _follow(): void {
-    const drag = this._drag;
-    if (!drag?.started) return;
-    const scrolled = (drag.scroller?.scrollTop ?? 0) - drag.scroll0;
-    drag.li.style.transform = `translate(${drag.x - drag.x0}px, ${drag.y - drag.y0 + scrolled}px) scale(1.02)`;
-    this._target(drag.x, drag.y);
-  }
-
-  /** The list's own scroller when it is capped, else the nearest scrolling ancestor, else the page. */
-  private _scrollTarget(): Element {
-    const own = this.$('.scroll')!;
-    if (own.scrollHeight > own.clientHeight + 1) return own;
-    let node: Node | null = this;
-    while (node) {
-      node = node.parentNode instanceof ShadowRoot ? node.parentNode.host : node.parentNode;
-      if (!(node instanceof Element)) break;
-      const oy = getComputedStyle(node).overflowY;
-      if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight + 1) return node;
-    }
-    return document.scrollingElement ?? document.documentElement;
-  }
-
-  private _autoScroll(): void {
-    const drag = this._drag;
-    if (!drag?.started || !drag.scroller) return;
-    const sc = drag.scroller;
-    const page = sc === document.scrollingElement || sc === document.documentElement;
-    const top = page ? 0 : sc.getBoundingClientRect().top;
-    const bottom = page ? window.innerHeight : sc.getBoundingClientRect().bottom;
-    let v = 0;
-    if (drag.y < top + EDGE_PX) v = -Math.ceil((top + EDGE_PX - drag.y) / 4);
-    else if (drag.y > bottom - EDGE_PX) v = Math.ceil((drag.y - (bottom - EDGE_PX)) / 4);
-    if (v) {
-      const before = sc.scrollTop;
-      sc.scrollTop += Math.max(-24, Math.min(24, v));
-      if (sc.scrollTop !== before) this._follow();
-    }
-    drag.raf = requestAnimationFrame(() => this._autoScroll());
-  }
+  // ── pointer: mouse, pen, touch (the press, follow and scroll are in PointerDrag) ──────────────────────────
 
   /** Where the dragged row would land: an index among the other rows, shown as a bar in the gap there. */
-  private _target(x: number, y: number): void {
-    const drag = this._drag;
-    if (!drag?.bar) return;
-    const others = this.$$<HTMLLIElement>('li.row').filter((el) => el !== drag.li).map((el) => el.getBoundingClientRect());
+  private _target(s: PointerDragState): void {
+    const drag = this._dropAt;
+    if (!drag) return;
+    const { x, y } = s;
+    const others = this.$$<HTMLLIElement>('li.row').filter((el) => el !== s.el).map((el) => el.getBoundingClientRect());
     if (!others.length) { drag.to = 0; drag.bar.className = ''; return; }
     const layout = this._layout();
     let idx: number;
@@ -681,31 +583,22 @@ export class BSortableList extends BaseComponent {
     }
   }
 
-  private _endDrag(cancel: boolean): void {
-    const drag = this._drag;
+  private _endDrag(s: PointerDragState, cancel: boolean): void {
+    const drag = this._dropAt;
+    this._dropAt = null;
+    drag?.bar.remove();
     if (!drag) return;
-    this._drag = null;
-    clearTimeout(drag.timer);
-    if (drag.raf) cancelAnimationFrame(drag.raf);
-    drag.li.classList.remove('pressing', 'dragging');
-    drag.li.style.transform = '';
-    drag.bar?.remove();
-    if (!drag.started) return;
-    // The press that ended the drag is not also a click on the row's content.
-    const swallow = (ev: Event) => { ev.stopPropagation(); ev.preventDefault(); };
-    this.addEventListener('click', swallow, { capture: true, once: true });
-    setTimeout(() => this.removeEventListener('click', swallow, { capture: true }), 0);
-    const label = this._labelById(drag.id);
+    const label = this._labelById(s.id);
     const n = this._children().length;
     if (cancel || drag.to === null) {
       this._say(this._t('dragCancelled', 'Move cancelled.'));
       return;
     }
-    this._place(drag.id, drag.to);
-    const to = this._indexOf(drag.id);
+    this._place(s.id, drag.to);
+    const to = this._indexOf(s.id);
     if (to === drag.from) return;
     this._say(this._t('moved', '{label} moved to position {position} of {count}.', { label, position: to + 1, count: n }));
-    this._emitChange(drag.id, drag.from, to);
+    this._emitChange(s.id, drag.from, to);
   }
 }
 
