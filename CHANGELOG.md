@@ -4,6 +4,18 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.1 — 2026-11-02
+
+- **Every page of a category one pick away** — Birko TASK-803, asked for by Symbio (TASK-1027). In
+  `buildCategoryRibbon`, a module with two or more pages is now a split button: its name still goes to the first
+  page, and its ▾ menu lists every page (with separators between `ModuleOption.group`s), so another module's page
+  no longer takes two clicks. The active module's pages group stays. New options `moduleMenus` and `activePagesGroup`
+  (both default true). `ModuleManifest` and `ModuleOption` take `description` / `descriptionKey`, shown as the
+  command's tooltip line.
+- `b-ribbon`: `RibbonMenuItem.href` makes a menu choice a link (middle-click opens a new tab; Enter and Space follow
+  it; `item-click` still fires). A split button's main part with `href` and no `action` is now a link, as a plain
+  command is; it was always a `<button>`, so a module button lost middle-click once it became a split button.
+
 ## v0.4.0 — 2026-10-30
 
 - **A sortable tree reorders by drag and keyboard** — Birko TASK-789, asked for by Symbio (TASK-1012). `b-tree-menu`

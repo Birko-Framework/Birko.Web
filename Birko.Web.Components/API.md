@@ -1450,6 +1450,14 @@ affordance (the scrollbars are hidden so the ribbon's height never changes with 
 
 **RibbonGroup**: `{ id, label, items: RibbonItem[], icon?, scalingPriority?, minSize? }`
 
+**RibbonItem** (the parts used most): `{ id, label, icon?, href?, action?, badge?, disabled?, active?, description?,
+shortcut?, menu?: RibbonMenuEntry[], split?, toggle?, gallery?, field? }`. With `menu` and no `split` the whole button
+opens the menu; with `split` the button runs the command and a ▾ part opens the menu. A command with `href` and no
+`action` is a link, the split main part included (TASK-803, v0.4.1; it was always a `<button>`).
+**RibbonMenuItem**: `{ id, label, icon?, keytip?, shortcut?, disabled?, href? }`; `RibbonMenuEntry` is that or
+`{ separator: true }`. A choice with `href` (and not disabled) is a link menuitem: it navigates by itself, a
+middle-click opens a new tab, Enter and Space follow it, and it still emits `item-click`.
+
 `scalingPriority` (default 0) and `minSize` (default `'popup'`) drive Office-style progressive scaling —
 `RibbonGroupSize` is `'large' | 'medium' | 'small' | 'popup'`, and a **lower** priority degrades **first**
 (priority = importance; this is Birko's direction, not RibbonX's). `icon` is drawn on the collapsed chunk
@@ -1467,7 +1475,7 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 | Event | Detail |
 |-------|--------|
 | `tab-change` | `{ tab }` |
-| `item-click` | `{ id, moduleId?, optionId? }` |
+| `item-click` | `{ tabId, groupId, itemId, parentId?, pressed? }`; `parentId` is the command whose menu, gallery or list the choice is in |
 | `item-change` | `{ tabId, groupId, itemId, value }` — a `RibbonItem.field` box's committed value |
 | `expand` | `{ expanded }` |
 | `pin` | `{ pinned }` |

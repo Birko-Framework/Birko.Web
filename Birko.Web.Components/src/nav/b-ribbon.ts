@@ -210,6 +210,11 @@ export interface RibbonMenuItem {
   /** Shown right-aligned, e.g. `Ctrl+Shift+V`. Display only: the app binds the key itself. */
   shortcut?: string;
   disabled?: boolean;
+  /**
+   * Makes the choice a link (TASK-803): it navigates by itself, opens in a new tab on a middle-click, and still emits
+   * `item-click`. A disabled choice is never a link.
+   */
+  href?: string;
 }
 
 /** A menu entry: a choice, or a divider line between sets of choices. */
@@ -677,7 +682,7 @@ export class BRibbon extends BaseComponent {
         padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
         border: none; background: none; border-radius: var(--b-radius-sm, 0.25rem); cursor: pointer;
         font: inherit; font-size: var(--b-text-sm, 0.8125rem); color: var(--b-text); text-align: start;
-        white-space: nowrap;
+        white-space: nowrap; text-decoration: none; box-sizing: border-box;
       }
       .ribbon-menu-item:hover, .ribbon-menu-item:focus-visible {
         background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); outline: none;
@@ -1416,12 +1421,15 @@ export class BRibbon extends BaseComponent {
                       const tag = item.href ? 'a' : 'button';
                       const href = item.href ? `href="${item.href}"` : '';
                       // A menu's choices are listed under their command; a menu-only command is just their heading.
-                      const choices = (item.menu ?? []).filter((e): e is RibbonMenuItem => !('separator' in e)).map(m => `
-                        <button class="mobile-item mobile-subitem" ${m.disabled ? 'disabled' : ''}
+                      const choices = (item.menu ?? []).filter((e): e is RibbonMenuItem => !('separator' in e)).map(m => {
+                        const subTag = m.href && !m.disabled ? 'a' : 'button';
+                        return `
+                        <${subTag} class="mobile-item mobile-subitem" ${subTag === 'a' ? `href="${escapeAttr(m.href!)}"` : m.disabled ? 'disabled' : ''}
                           data-tab="${tab.id}" data-group="${group.id}" data-item="${escapeAttr(m.id)}" data-parent="${item.id}">
                           ${m.icon ? `<span aria-hidden="true">${escapeHtml(m.icon)}</span>` : ''}
                           ${escapeHtml(m.label)}
-                        </button>`).join('');
+                        </${subTag}>`;
+                      }).join('');
                       if (item.menu?.length && !item.split) {
                         return `<div class="mobile-item-heading">${item.label}</div>${choices}`;
                       }
@@ -1877,8 +1885,12 @@ export class BRibbon extends BaseComponent {
         return `<button class="${cls} has-menu" ${disabled} ${data} ${named} ${trigger}>${icon}<span class="ribbon-item-label">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span>${badge}</button>${menu}`;
       }
       const more = this.label('label-more-options', 'bwc.ribbon.moreOptions', 'More options: {label}', { label: item.label });
+      // A navigating main part is a link, as a plain command is: middle-click and "open in new tab" (TASK-803).
+      const main = item.href && !item.action
+        ? `<a class="${cls} ribbon-split-main" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`
+        : `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`;
       return `<span class="ribbon-split">`
-        + `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`
+        + main
         + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}">`
         + `<span class="ribbon-split-arrow-label" aria-hidden="true">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span></button>`
         + `</span>${menu}`;
@@ -2467,9 +2479,11 @@ export class BRibbon extends BaseComponent {
       // Ctrl+Shift+V", so a screen reader said the shortcut twice (found by ribbon-a11y-check at sign-off).
       const shortcut = e.shortcut ? `<kbd class="ribbon-menu-shortcut" aria-hidden="true">${escapeHtml(e.shortcut)}</kbd>` : '';
       const keyshortcuts = e.shortcut ? ` aria-keyshortcuts="${escapeAttr(e.shortcut.replace(/\s+/g, ''))}"` : '';
-      return `<button class="ribbon-menu-item" role="menuitem" tabindex="-1"${e.disabled ? ' aria-disabled="true"' : ''}${keyshortcuts}`
+      const link = e.href && !e.disabled;
+      const tag = link ? 'a' : 'button';
+      return `<${tag} class="ribbon-menu-item" role="menuitem" tabindex="-1"${link ? ` href="${escapeAttr(e.href!)}"` : ''}${e.disabled ? ' aria-disabled="true"' : ''}${keyshortcuts}`
         + ` data-tab="${tabId}" data-group="${groupId}" data-parent="${item.id}" data-menu-item="${escapeAttr(e.id)}">`
-        + `${icon}<span class="ribbon-menu-label">${escapeHtml(e.label)}</span>${shortcut}</button>`;
+        + `${icon}<span class="ribbon-menu-label">${escapeHtml(e.label)}</span>${shortcut}</${tag}>`;
     }).join('');
     return `<div class="ribbon-menu" id="${escapeAttr(menuId)}" popover role="menu" aria-label="${escapeAttr(item.label)}">${rows}</div>`;
   }
@@ -2503,6 +2517,8 @@ export class BRibbon extends BaseComponent {
     else if (ke.key === 'Home') next = items[0];
     else if (ke.key === 'End') next = items.at(-1);
     else if (ke.key === 'Tab') { ke.preventDefault(); menu.hidePopover(); return; }
+    // A link choice: Enter follows it natively, Space does not (it would scroll), and a menu item takes both.
+    else if (ke.key === ' ' && target instanceof HTMLAnchorElement) { ke.preventDefault(); target.click(); return; }
     else return; // Escape: the popover closes itself; its toggle listener gives focus back to the trigger
     ke.preventDefault();
     next?.focus();

@@ -636,6 +636,14 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### b-ribbon menu choices and split main parts can be links (2026-11-02, TASK-803)
+
+For the Shell's category ribbon (Symbio TASK-1027): `RibbonMenuItem.href` renders a choice as `<a role="menuitem">`
+(panel menu and phone list); `_menuKey` gives a link choice Space, which a link does not take natively. A split item's
+main part is an `<a>` when it has `href` and no `action`. The choice still emits `item-click` and its default is not
+prevented, so the browser navigates. Proof: Playground `category-ribbon-smoke` and `category-ribbon-check.mjs` (real
+mouse, keyboard, middle-click), each assertion mutation-proven.
+
 ### b-tree-menu reorders by drag and keyboard; one shared pointer drag (2026-10-30, TASK-789)
 
 Asked for by Symbio (TASK-1012). `pointer-drag.ts` (`PointerDrag`) holds what b-sortable-list's pointer code did:

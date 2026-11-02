@@ -560,6 +560,26 @@ const resolve: LabelResolver = (key, fallback) => key ? i18n.t(key) : fallback;
 const tabs = buildRibbon(modules, resolve);
 ```
 
+#### Category ribbon
+
+```typescript
+import { buildCategoryRibbon, type CategoryDef } from 'birko-web-shell/modules';
+
+const tabs = buildCategoryRibbon(modules, categories, resolve, activeModuleId, activeRoute,
+  { moduleMenus: true, activePagesGroup: true });   // both default true
+```
+
+One tab per category. Its first group has a button per module, to the module's first page. A module with **two or
+more** visible pages is a split button (TASK-803): click its name for the first page, or open its ▾ and pick any page,
+so another module's page is one pick away. The menu lists every visible page with its icon, a separator wherever
+`ModuleOption.group` changes, as `<moduleId>:<optionId>`. A page is a link (middle-click opens a new tab); an
+`actionOnly` page is not, and only emits `item-click` (`itemId: '<moduleId>:<optionId>'`, `parentId: '<moduleId>'`),
+as it does from the second group. The second group is the active module's pages (`activePagesGroup: false` drops
+it). `moduleMenus: false` gives plain module buttons, as before v0.4.1.
+
+`ModuleManifest.description` / `descriptionKey` and `ModuleOption.description` / `descriptionKey` become the
+command's tooltip line; a key goes through the label resolver.
+
 ---
 
 ## Route Guards
@@ -1271,6 +1291,9 @@ interface ModuleManifest {
   labelKey?: string;    // i18n key
   icon: string;         // HTML entity or icon ID
   order: number;        // sort order
+  category?: string;    // buildCategoryRibbon tab
+  description?: string; // ribbon tooltip line
+  descriptionKey?: string;
   options: ModuleOption[];
   permissions: string[];
   status?: ModuleStatus;
@@ -1293,6 +1316,8 @@ interface ModuleOption {
   groupLabel?: string;
   groupLabelKey?: string;
   actionOnly?: boolean; // true = action button, no navigation
+  description?: string; // ribbon tooltip line
+  descriptionKey?: string;
 }
 ```
 
