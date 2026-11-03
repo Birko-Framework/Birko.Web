@@ -1941,6 +1941,11 @@ export class BRibbon extends BaseComponent {
     if (!tip || !content) return;
     // Not over a box being typed in: the tooltip would sit on its list.
     if (el.hasAttribute('data-field-control') && el === this.shadowRoot?.activeElement) return;
+    // Not while a menu, flyout or gallery is open, except for a command inside it (a folded group's flyout): the
+    // tooltip would cover its choices. Hiding it when the menu opens is not enough (TASK-806): a re-render under a
+    // still pointer, as a shell's navigation causes, re-showed a warm tooltip over Symbio's open E-Shop menu.
+    const popup = this.shadowRoot?.querySelector('.ribbon-menu:popover-open, .ribbon-flyout:popover-open, .ribbon-gallery-grid:popover-open');
+    if (popup && !popup.contains(el)) return;
     this._tipAnchor = el;
     tip.showFor(el, content);
   }

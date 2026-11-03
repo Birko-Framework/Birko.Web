@@ -54,7 +54,7 @@ export function runManifestSmoke(test: BirkoTest, expect: Expect, opts: Manifest
 
         if (route.expectSelector) {
           await expect.soft(
-            page.locator(route.expectSelector).first(),
+            page.locator(route.expectSelector).locator('visible=true').first(), // the first VISIBLE match (TASK-809)
             `${route.label} (${route.path}) did not render "${route.expectSelector}"`,
           ).toBeVisible();
         }

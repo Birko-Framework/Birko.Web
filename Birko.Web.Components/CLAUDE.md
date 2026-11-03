@@ -636,6 +636,11 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### No tooltip over an open ribbon menu (2026-11-03, TASK-806)
+
+`_showTip` refuses while a menu, flyout or gallery grid is open, unless the command is inside it. Hiding the tip
+when a menu opens was not enough: hovering another command, or a re-render under a still pointer, re-showed it.
+
 ### An active split button is tinted whole (2026-11-03, TASK-808)
 
 `.ribbon-split` carries `active` with its item, and both parts take the active tint, also under the pointer (the
