@@ -636,6 +636,11 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### An active split button is tinted whole (2026-11-03, TASK-808)
+
+`.ribbon-split` carries `active` with its item, and both parts take the active tint, also under the pointer (the
+split's hover rule outranked `.ribbon-item.active`). Stacked at large size, only the icon was lit. v0.4.2.
+
 ### b-ribbon menu choices and split main parts can be links (2026-11-02, TASK-803)
 
 For the Shell's category ribbon (Symbio TASK-1027): `RibbonMenuItem.href` renders a choice as `<a role="menuitem">`
