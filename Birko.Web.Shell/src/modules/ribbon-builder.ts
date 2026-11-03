@@ -1,11 +1,46 @@
-import type { RibbonTab, RibbonGroup, RibbonItem } from 'birko-web-components';
-import type { ModuleManifest } from './module-types.js';
+import type { RibbonTab, RibbonGroup, RibbonItem, RibbonMenuEntry } from 'birko-web-components';
+import type { ModuleManifest, ModuleOption } from './module-types.js';
 import { getVisibleOptions } from './permissions.js';
 
 export type LabelResolver = (key: string | undefined, fallback: string) => string;
 
 /** Default label resolver — returns the fallback (no i18n). */
 const defaultResolver: LabelResolver = (_key, fallback) => fallback;
+
+/** Options for {@link buildCategoryRibbon}. */
+export interface CategoryRibbonOptions {
+  /** A module with two or more pages is a split button whose ▾ menu lists them (TASK-803). Default true. */
+  moduleMenus?: boolean;
+  /** The active module's pages as a second group of the tab. Default true. */
+  activePagesGroup?: boolean;
+}
+
+/** A tooltip line from a text and/or a key; empty means none. */
+function describe(resolve: LabelResolver, key: string | undefined, text: string | undefined): string | undefined {
+  const value = key ? resolve(key, text ?? '') : text;
+  return value || undefined;
+}
+
+/**
+ * A module's pages as menu choices, `<moduleId>:<optionId>`, with a separator wherever `ModuleOption.group` changes.
+ * A page is a link to its route; an `actionOnly` one has no link and is left to `item-click`.
+ */
+function pageMenu(mod: ModuleManifest, visible: ModuleOption[], resolve: LabelResolver): RibbonMenuEntry[] {
+  const entries: RibbonMenuEntry[] = [];
+  let group: string | undefined;
+  visible.forEach((opt, i) => {
+    const current = opt.group ?? 'main';
+    if (i > 0 && current !== group) entries.push({ separator: true });
+    group = current;
+    entries.push({
+      id: `${mod.id}:${opt.id}`,
+      label: resolve(opt.labelKey, opt.label),
+      icon: opt.icon,
+      href: opt.actionOnly ? undefined : `#${opt.route}`,
+    });
+  });
+  return entries;
+}
 
 /** Category definition for grouped ribbon mode. */
 export interface CategoryDef {
@@ -46,6 +81,7 @@ export function buildRibbon(
           href: opt.actionOnly ? undefined : `#${opt.route}`,
           action: opt.actionOnly,
           badge: opt.badge,
+          description: describe(resolve, opt.descriptionKey, opt.description),
         });
       }
 
@@ -67,10 +103,9 @@ export function buildRibbon(
  * Build ribbon tabs grouped by category.
  *
  * Panel layout per category tab:
- *   Group 1 ("Modules"): compact module buttons (icon + name → dashboard)
- *   Group 2 (active module label): sub-pages of the currently active module
- *
- * This keeps the panel clean — modules in one row, pages in another.
+ *   Group 1 (category label): a button per module, to its first page. A module with two or more pages is a split
+ *     button whose ▾ menu lists every page, so another module's page is one pick away (TASK-803).
+ *   Group 2 (active module label): sub-pages of the currently active module (`activePagesGroup`, default on)
  */
 export function buildCategoryRibbon(
   modules: ModuleManifest[],
@@ -78,8 +113,11 @@ export function buildCategoryRibbon(
   resolveLabel?: LabelResolver,
   activeModuleId?: string,
   activeRoute?: string,
+  options?: CategoryRibbonOptions,
 ): RibbonTab[] {
   const resolve = resolveLabel ?? defaultResolver;
+  const moduleMenus = options?.moduleMenus ?? true;
+  const activePagesGroup = options?.activePagesGroup ?? true;
   const sorted = modules.slice().sort((a, b) => a.order - b.order);
 
   // Group modules by category
@@ -113,20 +151,26 @@ export function buildCategoryRibbon(
       if (visible.length === 0) continue;
       const modLabel = resolve(mod.labelKey, mod.label);
       const firstRoute = visible[0]?.route;
-      moduleItems.push({
+      const item: RibbonItem = {
         id: mod.id,
         label: modLabel,
         icon: mod.icon,
         href: firstRoute ? `#${firstRoute}` : undefined,
         active: mod.id === activeModuleId,
-      });
+        description: describe(resolve, mod.descriptionKey, mod.description),
+      };
+      if (moduleMenus && visible.length >= 2) {
+        item.split = true;
+        item.menu = pageMenu(mod, visible, resolve);
+      }
+      moduleItems.push(item);
     }
     if (moduleItems.length > 0) {
       groups.push({ id: '_modules', label: catLabel, items: moduleItems });
     }
 
     // Group 2: active module's sub-pages (if the active module is in this category)
-    if (activeModuleId) {
+    if (activePagesGroup && activeModuleId) {
       const activeMod = mods.find(m => m.id === activeModuleId);
       if (activeMod) {
         const visible = getVisibleOptions(activeMod);
@@ -140,6 +184,7 @@ export function buildCategoryRibbon(
           action: opt.actionOnly,
           badge: opt.badge,
           active: !opt.actionOnly && activeHref === `#${opt.route}`,
+          description: describe(resolve, opt.descriptionKey, opt.description),
         }));
         if (pageItems.length > 0) {
           groups.push({ id: activeMod.id, label: modLabel, items: pageItems });
@@ -170,6 +215,7 @@ export function buildCategoryRibbon(
       href: opt.actionOnly ? undefined : `#${opt.route}`,
       action: opt.actionOnly,
       badge: opt.badge,
+      description: describe(resolve, opt.descriptionKey, opt.description),
     }));
     tabs.push({
       id: mod.id,

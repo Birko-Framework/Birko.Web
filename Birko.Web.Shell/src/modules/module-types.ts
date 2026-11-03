@@ -5,6 +5,9 @@ export interface ModuleManifest {
   icon: string;
   order: number;
   category?: string;
+  /** One line for the module's ribbon tooltip (TASK-803). `descriptionKey` goes through the label resolver. */
+  description?: string;
+  descriptionKey?: string;
   options: ModuleOption[];
   permissions: string[];
   status?: ModuleStatus;
@@ -23,6 +26,9 @@ export interface ModuleOption {
   groupLabel?: string;
   groupLabelKey?: string;
   actionOnly?: boolean;
+  /** One line for the page's ribbon tooltip (TASK-803). `descriptionKey` goes through the label resolver. */
+  description?: string;
+  descriptionKey?: string;
 }
 
 export interface ModuleStatus {
