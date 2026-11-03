@@ -5,5 +5,6 @@ export { BaseListPage, type LiveRefreshOptions } from './base-list-page.js';
 export { setEntityChangeSource, getEntityChangeSource, parseEntityChangedEvent, type EntityChangedEvent, type EntityChangeSource } from './live-refresh.js';
 export { BaseSplitPage, renderDetailCardScaffold, type DetailCardOptions } from './base-split-page.js';
 export { BaseDetailPage } from './base-detail-page.js';
+export { ContextualRibbonLink, CONTEXTUAL_RIBBON_EVENT, type ContextualRibbon, type ContextualRibbonHandle, type ContextualRibbonRequest } from './contextual-ribbon.js';
 export { BaseFormModal } from './base-form-modal.js';
 export { entityUrl } from './endpoint-utils.js';

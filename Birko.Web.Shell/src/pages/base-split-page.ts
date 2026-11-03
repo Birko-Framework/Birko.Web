@@ -9,6 +9,7 @@ import { toast } from 'birko-web-components/feedback';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
 import { entityUrl } from './endpoint-utils.js';
+import { ContextualRibbonLink, type ContextualRibbon } from './contextual-ribbon.js';
 
 /**
  * How much of the detail card has to be inside the scrolling pane for a selection to count as
@@ -133,6 +134,8 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   private _selectToken = 0;
   /** Active detail-reveal watch (see `_revealDetail`), or null when nothing is being watched. */
   private _detailReveal: { ro: ResizeObserver; cancel: () => void; timer: number } | null = null;
+  private readonly _ctxRibbon = new ContextualRibbonLink<T>(this,
+    (record) => this.getContextualRibbon(record), (itemId, record) => this.onContextualAction(itemId, record));
 
   // ── Required ──────────────────────────────────────────────────────────────
 
@@ -186,6 +189,16 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
   protected onDetailUpdated(_entity: T): void {}
 
   /**
+   * A contextual ribbon tab for the selected record (TASK-804), e.g. an order's Confirm / Ship / Cancel. Shown while the
+   * record is selected, opened when a new one is (unless `open: false`), re-built after every detail load (so a
+   * command's `disabled` can follow the record), gone on deselect and when the page is left. Default: none.
+   */
+  protected getContextualRibbon(_entity: T): ContextualRibbon | null { return null; }
+
+  /** A command of the contextual tab was clicked, with the record it was raised for. */
+  protected onContextualAction(_itemId: string, _entity: T): void {}
+
+  /**
    * Build the detail endpoint URL for a given entity ID.
    * Default: `${endpoint}/${id}`. Override for nested resources.
    */
@@ -209,8 +222,14 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     return this._selectedId === id;
   }
 
+  /** Re-builds the contextual tab for the selected record, e.g. after a command changed its state. */
+  protected refreshContextualRibbon(): void {
+    if (this._selectedEntity && this._selectedId) this._ctxRibbon.raise(this._selectedEntity, this._selectedId);
+  }
+
   /** Clear the detail selection and hide the detail panel. */
   protected deselectEntity(): void {
+    this._ctxRibbon.clear();
     this._selectedEntity = null;
     this._selectedId = null;
     this._endDetailReveal();
@@ -332,6 +351,12 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     this._endDetailReveal();
   }
 
+  // Not in onUnmount: a subclass that overrides it without super would leave the tab up.
+  override disconnectedCallback(): void {
+    this._ctxRibbon.clear();
+    super.disconnectedCallback();
+  }
+
   // ── Private event wiring ──────────────────────────────────────────────────
 
   private _wireSplitEvents(): void {
@@ -408,6 +433,7 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     if (editBtn) editBtn.addEventListener('click', () => this._openEditSelected());
     if (deleteBtn) deleteBtn.addEventListener('click', () => this._confirmDeleteSelected());
 
+    this._ctxRibbon.raise(resp.data, id);
     this.onDetailUpdated(resp.data);
   }
 

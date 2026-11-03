@@ -2,6 +2,7 @@ import type { RibbonTab, BRibbon, BDropdownMenu } from 'birko-web-components';
 import type { TenantItem, ConnectionState } from './shell-types.js';
 import { openCommandPalette } from 'birko-web-components/command';
 import { BSidebarAppShell } from './b-sidebar-app-shell.js';
+import { CONTEXTUAL_RIBBON_EVENT, type ContextualRibbon, type ContextualRibbonRequest } from '../pages/contextual-ribbon.js';
 
 /**
  * Ribbon-based app shell component for Birko.Web applications.
@@ -69,6 +70,15 @@ export abstract class BAppShell extends BSidebarAppShell {
    */
   private _ribbonExpanded: boolean | null = null;
   private _previewTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The contextual tab a page raised (TASK-804). Kept here and merged into every `refreshRibbon()`, because the tabs
+   * are rebuilt from `getRibbonTabs()` on each module, tenant or locale change and would drop it.
+   */
+  private _ctx: { owner: HTMLElement; ribbon: ContextualRibbon; onAction(itemId: string): void } | null = null;
+  /** The contextual tab open now, which `active` must keep: `getActiveTabId()` names the module's tab. */
+  private _ctxOpenTab: string | null = null;
+  /** Set while the shell hides a set itself: b-ribbon's `tab-change` back to a normal tab is not the user's. */
+  private _ctxQuiet = false;
 
   // ── REQUIRED — subclass must implement (in addition to base 4) ────────────
 
@@ -141,10 +151,16 @@ export abstract class BAppShell extends BSidebarAppShell {
   refreshRibbon(): void {
     const ribbon = this.$<BRibbon>('#ribbon');
     if (!ribbon) return;
-    ribbon.setTabs(this.getRibbonTabs());
+    // A page that went away without clearing its tab (removed without disconnecting) loses it here.
+    if (this._ctx && !this._ctx.owner.isConnected) { this._clearContextual(this._ctx.owner); return; }
+    const ctx = this._ctx;
+    ribbon.setContextualSets(ctx ? [ctx.ribbon.set] : []);
+    ribbon.setTabs(ctx
+      ? [...this.getRibbonTabs(), ...ctx.ribbon.tabs.map(t => ({ ...t, contextualSet: ctx.ribbon.set.id }))]
+      : this.getRibbonTabs());
     // render() emits `active` too, so this is belt-and-braces for the setTabs() path rather than the
     // thing that keeps the attribute alive across a morph.
-    ribbon.setAttribute('active', this.getActiveTabId() ?? '');
+    ribbon.setAttribute('active', this._ribbonActiveTab());
     // NOTE: there used to be a `prevActive === nextActive → ribbon.expand()` line here, to keep the
     // panel open when navigating within a category. It is gone because `expanded` is now rendered
     // (see `_ribbonExpanded`), which preserves the panel across a morph directly.
@@ -242,7 +258,7 @@ export abstract class BAppShell extends BSidebarAppShell {
     const showBell = previewTag !== null || drawerTag !== null;
 
     return `
-      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}${this.ribbonGroupSize ? ` preferred-group-size="${this.ribbonGroupSize}"` : ''}${this.isRibbonPinned ? ' pinned' : ''}${this.isRibbonExpanded ? ' expanded' : ''} active="${this.getActiveTabId() ?? ''}">
+      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}${this.ribbonGroupSize ? ` preferred-group-size="${this.ribbonGroupSize}"` : ''}${this.isRibbonPinned ? ' pinned' : ''}${this.isRibbonExpanded ? ' expanded' : ''} active="${this._ribbonActiveTab()}">
         <div slot="before-tabs" class="app-brand">
           ${this.renderBrand()}
         </div>
@@ -306,9 +322,21 @@ export abstract class BAppShell extends BSidebarAppShell {
     // rendered from `isRibbonPinned` instead — see `_ribbonPinned` for why an imperative restore here
     // was erased by every subsequent re-render (TASK-310).
 
-    // Context actions from pages
+    // Context actions from pages (deprecated: a strip of loose buttons; a page raises a contextual tab instead)
     this.addEventListener('ribbon-actions', ((e: CustomEvent<{ items: unknown[] }>) => {
       this.$<BRibbon>('#ribbon')?.setContextActions(e.detail.items as any[]);
+    }) as EventListener);
+
+    // A page's contextual tab (TASK-804), answered with a handle the page keeps: it must clear the tab while leaving
+    // the DOM, when an event from it would reach nobody.
+    this.addEventListener(CONTEXTUAL_RIBBON_EVENT, ((e: CustomEvent<ContextualRibbonRequest>) => {
+      e.stopPropagation();
+      const { owner, onAction } = e.detail;
+      e.detail.handle = {
+        update: (ribbon, select) => this._showContextual(owner, ribbon, onAction, select),
+        clear: () => this._clearContextual(owner),
+      };
+      this._showContextual(owner, e.detail.ribbon, onAction, e.detail.select);
     }) as EventListener);
   }
 
@@ -337,10 +365,15 @@ export abstract class BAppShell extends BSidebarAppShell {
     const prefix = this.storagePrefix;
 
     ribbon?.addEventListener('tab-change', ((e: CustomEvent<{ tab: string }>) => {
+      if (this._ctxQuiet) return;
+      // A contextual tab is not a module: opening it navigates nowhere.
+      if (this._isContextualTab(e.detail.tab)) { this._ctxOpenTab = e.detail.tab; return; }
+      this._ctxOpenTab = null;
       this.onTabChange(e.detail.tab);
     }) as EventListener);
 
     ribbon?.addEventListener('item-click', ((e: CustomEvent<{ tabId: string; groupId: string; itemId: string }>) => {
+      if (this._ctx && this._isContextualTab(e.detail.tabId)) { this._ctx.onAction(e.detail.itemId); return; }
       this.onItemClick(e.detail.tabId, e.detail.groupId, e.detail.itemId);
     }) as EventListener);
 
@@ -381,6 +414,44 @@ export abstract class BAppShell extends BSidebarAppShell {
       this._ribbonPinned = localStorage.getItem(`${this.storagePrefix}-ribbon-pinned`) === 'true';
     }
     return this._ribbonPinned;
+  }
+
+  /** The tab `active` names: the open contextual tab, else the module's. */
+  private _ribbonActiveTab(): string {
+    return this._ctxOpenTab && this._isContextualTab(this._ctxOpenTab) ? this._ctxOpenTab : (this.getActiveTabId() ?? '');
+  }
+
+  private _isContextualTab(tabId: string): boolean {
+    return !!this._ctx?.ribbon.tabs.some(t => t.id === tabId);
+  }
+
+  private _showContextual(owner: HTMLElement, ribbon: ContextualRibbon, onAction: (itemId: string) => void, select: boolean): void {
+    if (this._ctx && this._ctx.owner !== owner) this._clearContextual(this._ctx.owner); // one page's tab at a time
+    const previous = this._ctx?.ribbon;
+    if (previous && previous.set.id !== ribbon.set.id) this._hideSet(previous.set.id);
+    this._ctx = { owner, ribbon, onAction };
+    if (this._ctxOpenTab && !this._isContextualTab(this._ctxOpenTab)) this._ctxOpenTab = null;
+    this.refreshRibbon();
+    // Opening goes through the ribbon (its own tab selection), whose tab-change sets _ctxOpenTab.
+    this.$<BRibbon>('#ribbon')?.showContextual(ribbon.set.id, { select });
+  }
+
+  private _clearContextual(owner: HTMLElement): void {
+    if (!this._ctx || this._ctx.owner !== owner) return;
+    const setId = this._ctx.ribbon.set.id;
+    // Hidden first, then dropped: dropped from setTabs() while open, the ribbon has no active tab and collapses.
+    this._hideSet(setId);
+    this._ctx = null;
+    this._ctxOpenTab = null;
+    this.refreshRibbon();
+  }
+
+  /** Hides a set without its tab-change reaching onTabChange: going back to the module's tab is no navigation. */
+  private _hideSet(setId: string): void {
+    const ribbon = this.$<BRibbon>('#ribbon');
+    if (!ribbon) return;
+    this._ctxQuiet = true;
+    try { ribbon.hideContextual(setId); } finally { this._ctxQuiet = false; }
   }
 
   private _setupTenantSwitcher(): void {
