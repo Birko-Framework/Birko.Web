@@ -1033,6 +1033,9 @@ class PaymentsPage extends BaseSplitPage<Payment> {
 | `afterSave(entity, isEdit)` | noop | Post-save side effects |
 | `selectedEntity` | getter | Currently selected entity |
 | `deselectEntity()` | — | Clear selection, hide detail |
+| `getContextualRibbon(entity)` | `null` | A contextual ribbon tab for the selected record (below) |
+| `onContextualAction(itemId, entity)` | noop | A command of that tab was clicked |
+| `refreshContextualRibbon()` | — | Re-build the tab, e.g. after a command changed the record |
 | `reloadDetail()` | — | Re-fetch current entity |
 | `renderPageHeader(canCreate)` | title + New button | Override for custom header |
 
@@ -1046,6 +1049,39 @@ beside that row rather than off screen above. Collapsed to one column — where 
 whole master — the page scrolls it into view instead, and stops correcting the moment the reader scrolls,
 taps or types. Nothing to opt into; override `renderDetailCard()` only if you replace the scaffold, and
 keep the card's id (`detail-card`) if you do.
+
+#### A contextual ribbon tab for the selected record
+
+In a `BAppShell`, a split or detail page can raise Office's contextual tab (`b-ribbon`'s contextual sets) for the record
+it shows: an order's Confirm / Ship / Cancel, in a tab named after it, while it is selected (TASK-804, v0.4.3).
+
+```typescript
+protected getContextualRibbon(o: Order): ContextualRibbon {
+  return {
+    set: { id: 'order', label: t('orders.contextual'), color: 'warning' },
+    tabs: [{ id: 'order-tools', label: o.number, groups: [{ id: 'workflow', label: t('orders.workflow'), items: [
+      { id: 'confirm', label: t('orders.confirm'), icon: '✔', disabled: o.status !== 'new' },
+      { id: 'ship', label: t('orders.ship'), icon: '🚚', disabled: o.status !== 'confirmed' },
+    ] }] }],
+    // open: false — Office's "show it, the user opens it"; default true opens it when a record is selected
+  };
+}
+protected async onContextualAction(itemId: string, o: Order) {
+  await this.api.post(`api/orders/${o.id}/${itemId}`, {});
+  await this.reloadDetail();   // re-raises the tab, so `disabled` follows the new status
+}
+```
+
+- Raised after every detail load (a split page's selection, `reloadDetail()`; a detail page's load and save), and opened
+  when the record is a new one. `refreshContextualRibbon()` re-builds it on demand.
+- The shell keeps it through `refreshRibbon()` (module, tenant, locale changes) and keeps it open. Opening it is not a
+  navigation: `onTabChange` is not called for it, and its commands go to `onContextualAction`, not the shell's
+  `onItemClick`.
+- Gone on `deselectEntity()` and when the page leaves the DOM (navigation), through `hideContextual()`; the ribbon goes
+  back to the module's tab without calling `onTabChange`. One page's tab at a time.
+- Outside a `BAppShell` (no ribbon) the hooks do nothing. Pages talk to the shell by the `ribbon-contextual` event and
+  a handle it returns (`ContextualRibbonLink`), because a page leaving the DOM can no longer reach it by an event.
+- The old `ribbon-actions` event (`setContextActions`, a strip of loose buttons) still works, and is deprecated.
 
 ---
 

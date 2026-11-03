@@ -77,7 +77,12 @@ disconnectedCallback                     →            onUnmount()
 ```
 
 - **`BCoreAppShell.onMount()`** sets up theme/layout restore, online/offline listeners, breadcrumb event listener
-- **`BAppShell.onMount()`** calls `super.onMount()` first, then adds ribbon pin restore + ribbon-actions event listener
+- **`BAppShell.onMount()`** calls `super.onMount()` first, then adds the ribbon-actions (deprecated) and
+  `ribbon-contextual` listeners
+- **A page's contextual tab is shell STATE (`_ctx`, `_ctxOpenTab`), merged into every `refreshRibbon()` and named by
+  `active` in render()** (TASK-804): `getActiveTabId()` names the module, so emitting it alone would close an open
+  contextual tab on every morph. The shell hides a set itself with `_hideSet` (its `tab-change` is not a navigation), and
+  hides before it drops the tabs. Pages clear through the handle the event returned, in `disconnectedCallback`.
 - **Always call `super.onMount()` / `super.onUpdated()` / `super.onUnmount()`** when overriding in your concrete shell
 - **`_unsubs` array** (defined in `BCoreAppShell`) — push store subscriptions here; `onUnmount()` auto-cleans them
 - **`onUpdated()` is idempotent** — it calls all refresh methods + binds event listeners (once, via `_baseEventsBound` and `_ribbonEventsBound` guards)

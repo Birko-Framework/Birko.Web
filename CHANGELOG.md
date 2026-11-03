@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.3 — 2026-11-03
+
+- **A Shell page raises a contextual ribbon tab for its record** — Birko TASK-804, asked for by Symbio (TASK-1028).
+  `BaseSplitPage` and `BaseDetailPage` take `getContextualRibbon(entity)` (a `ContextualRibbon`: a `b-ribbon`
+  contextual set and its tabs) and `onContextualAction(itemId, entity)`; `refreshContextualRibbon()` re-builds it.
+  `BAppShell` shows it while the record is selected, opens it for a new record (`open: false` keeps Office's "show,
+  don't open"), keeps it through `refreshRibbon()`, sends its commands to the page, and hides it on deselect and when
+  the page is left, back on the module's tab, without calling `onTabChange` and without collapsing the ribbon. New
+  exports: `ContextualRibbon`, `ContextualRibbonLink`, `CONTEXTUAL_RIBBON_EVENT`, `ContextualRibbonHandle`,
+  `ContextualRibbonRequest`. The `ribbon-actions` event still works and is deprecated.
+- `b-ribbon`: `hideContextual()` goes back to the normal tab the app set, not the first tab: `active` set by the app
+  now counts as the last normal tab, as a click did.
+
 ## v0.4.2 — 2026-11-03
 
 - `b-ribbon`: an active split button is tinted as a whole tile (Birko TASK-808, seen in Symbio). In a large group

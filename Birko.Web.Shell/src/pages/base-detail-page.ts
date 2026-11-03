@@ -6,6 +6,7 @@ import type { BButton } from 'birko-web-components/inputs';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
 import { entityUrl } from './endpoint-utils.js';
+import { ContextualRibbonLink, type ContextualRibbon } from './contextual-ribbon.js';
 
 /**
  * Abstract base class for detail / edit pages that load a single entity by ID.
@@ -104,6 +105,24 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
   /** Called after a successful save. Override to navigate away, refresh stores, etc. */
   protected onSaveSuccess?(_entity: T): void;
 
+  /**
+   * A contextual ribbon tab for the loaded record (TASK-804). Raised (and opened, unless `open: false`) once it loads,
+   * re-built after a save, gone when the page is left. Default: none.
+   */
+  protected getContextualRibbon(_entity: T): ContextualRibbon | null { return null; }
+
+  /** A command of the contextual tab was clicked, with the loaded record. */
+  protected onContextualAction(_itemId: string, _entity: T): void {}
+
+  /** Re-builds the contextual tab for the loaded record, e.g. after a command changed its state. */
+  protected refreshContextualRibbon(): void {
+    const id = this._entityId();
+    if (this.entity && id) this._ctxRibbon.raise(this.entity, id);
+  }
+
+  private readonly _ctxRibbon = new ContextualRibbonLink<T>(this,
+    (record) => this.getContextualRibbon(record), (itemId, record) => this.onContextualAction(itemId, record));
+
   /** Translation function — delegates to the global i18n singleton; `{entity}` auto-interpolated. */
   protected t(key: string, params?: Record<string, string | number>): string {
     const defaults: Record<string, string> = {
@@ -185,6 +204,11 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
     this._wireEvents();
   }
 
+  override disconnectedCallback(): void {
+    this._ctxRibbon.clear();
+    super.disconnectedCallback();
+  }
+
   // ── Private helpers ───────────────────────────────────────────────────────
 
   private _entityId(): string | null {
@@ -216,6 +240,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
     this.entity = resp.data;
     this._loadError = null;
     this.update();
+    this.refreshContextualRibbon();
 
     // Populate form after render
     requestAnimationFrame(() => {
@@ -268,6 +293,7 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
       }
 
       this.entity = resp.data;
+      this.refreshContextualRibbon();
       toast.success(this.t('bws.common.saved'));
       this.onSaveSuccess?.(resp.data);
     } finally {

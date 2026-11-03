@@ -1280,7 +1280,11 @@ export class BRibbon extends BaseComponent {
    */
   override attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
     super.attributeChangedCallback(name, oldValue, newValue);
-    if (oldValue === newValue || this._tabsOnlyMode) return;
+    if (oldValue === newValue) return;
+    // The normal tab a hidden contextual set goes back to: an app shell sets `active` on every navigation, so a click
+    // alone missed it, and hideContextual() fell back to the first tab (TASK-804).
+    if (name === 'active' && newValue && !this._tabs.find(t => t.id === newValue)?.contextualSet) this._lastNormalTab = newValue;
+    if (this._tabsOnlyMode) return;
     if (name === 'pinned' && newValue !== null && !this.boolAttr('expanded')) this.expand();
     else if (name === 'expanded' && newValue === null && this.boolAttr('pinned')) this.collapse();
   }

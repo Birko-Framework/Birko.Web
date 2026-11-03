@@ -636,6 +636,12 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### b-ribbon remembers the normal tab an app set (2026-11-03, TASK-804)
+
+`hideContextual()` goes back to the last normal tab. That was written only on a click (`_selectTab`), so after an app
+set `active` (as `b-app-shell` does on every navigation) it went back to the first tab. `attributeChangedCallback` now
+records a non-contextual `active` too. v0.4.3.
+
 ### No tooltip over an open ribbon menu (2026-11-03, TASK-806)
 
 `_showTip` refuses while a menu, flyout or gallery grid is open, unless the command is inside it. Hiding the tip
