@@ -45,11 +45,13 @@ export function runSmoke(
       await page.goto(route.path, { waitUntil: opts.waitUntil ?? 'domcontentloaded' });
       if (settleMs) await page.waitForTimeout(settleMs);
 
+      // The first VISIBLE match (TASK-809): a page keeps hidden copies of its text, e.g. the ribbon's ▾ menus hold
+      // every page label, and `.first()` alone picked the hidden one. `visible=true` needs no newer Playwright.
       if (route.expectSelector) {
-        await expect(page.locator(route.expectSelector).first()).toBeVisible();
+        await expect(page.locator(route.expectSelector).locator('visible=true').first()).toBeVisible();
       }
       for (const text of route.mustSee ?? []) {
-        await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
+        await expect(page.getByText(text, { exact: false }).locator('visible=true').first()).toBeVisible();
       }
 
       expect(

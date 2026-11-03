@@ -154,6 +154,10 @@ toolkit is consumed by the **Node test runner at runtime**, which changes everyt
    ]));
    ```
 
+   `expectSelector` and every `mustSee` text pass on their first **visible** match (v0.4.2): a page keeps hidden
+   copies of its text — since v0.4.1 the category ribbon's ▾ menus hold every page label — and a hidden first match
+   no longer fails the route. Text that is only hidden still fails.
+
 See `Birko.Consumers/Symbio/tests/ui-e2e/` for the full working reference (auth setup + two smoke
 manifests + a create→delete CRUD flow).
 

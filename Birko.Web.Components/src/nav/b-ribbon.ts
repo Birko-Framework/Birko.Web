@@ -666,6 +666,12 @@ export class BRibbon extends BaseComponent {
       .ribbon-flyout .ribbon-split:hover > .ribbon-split-arrow,
       .ribbon-flyout .ribbon-split:focus-within > .ribbon-split-arrow { border-top-color: var(--b-border); }
       .ribbon-group.size-large .ribbon-split-arrow-label, .ribbon-flyout .ribbon-split-arrow-label { display: inline; }
+      /* An active split button is active as a whole (TASK-808): both parts take the tint, also on hover, as an active
+         plain command does. Stacked, the ▾ part carries the label, so a tint on the main part alone lit only the icon. */
+      .ribbon-split.active > .ribbon-split-main, .ribbon-split.active > .ribbon-split-arrow {
+        background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary));
+      }
+      .ribbon-split.active .ribbon-caret { color: inherit; }
 
       /* The menu is a POPOVER for the same reason as the flyout: the panel clips on both axes. Inside a flyout it is
          the flyout's DOM descendant, so opening it keeps the flyout open (the popover ancestor chain). */
@@ -1889,7 +1895,7 @@ export class BRibbon extends BaseComponent {
       const main = item.href && !item.action
         ? `<a class="${cls} ribbon-split-main" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`
         : `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`;
-      return `<span class="ribbon-split">`
+      return `<span class="ribbon-split${item.active ? ' active' : ''}">`
         + main
         + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}">`
         + `<span class="ribbon-split-arrow-label" aria-hidden="true">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span></button>`
@@ -1935,6 +1941,11 @@ export class BRibbon extends BaseComponent {
     if (!tip || !content) return;
     // Not over a box being typed in: the tooltip would sit on its list.
     if (el.hasAttribute('data-field-control') && el === this.shadowRoot?.activeElement) return;
+    // Not while a menu, flyout or gallery is open, except for a command inside it (a folded group's flyout): the
+    // tooltip would cover its choices. Hiding it when the menu opens is not enough (TASK-806): a re-render under a
+    // still pointer, as a shell's navigation causes, re-showed a warm tooltip over Symbio's open E-Shop menu.
+    const popup = this.shadowRoot?.querySelector('.ribbon-menu:popover-open, .ribbon-flyout:popover-open, .ribbon-gallery-grid:popover-open');
+    if (popup && !popup.contains(el)) return;
     this._tipAnchor = el;
     tip.showFor(el, content);
   }

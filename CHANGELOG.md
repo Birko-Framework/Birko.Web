@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.2 — 2026-11-03
+
+- `b-ribbon`: an active split button is tinted as a whole tile (Birko TASK-808, seen in Symbio). In a large group
+  the ▾ part carries the label, and only the icon above it was lit; under the pointer the hover grey replaced the
+  tint. Both parts now take the active tint, also on hover, as an active plain command does. Since v0.4.1 every
+  multi-page module in `buildCategoryRibbon` is a split button, so this showed on the active module.
+- `b-ribbon`: no tooltip over an open menu, flyout or gallery (Birko TASK-806, found by Symbio). The tooltip was
+  hidden when a menu opened, but hovering another command, or a re-render under a still pointer (a shell's
+  navigation), showed one over the menu's choices. A command inside an open flyout keeps its tooltip.
+- `birko-web-testing`: `runSmoke`'s `mustSee` and `expectSelector`, and `runManifestSmoke`'s `expectSelector`, pass on
+  the first **visible** match (Birko TASK-809, found by Symbio). Since v0.4.1 the ▾ menus keep every page label in
+  the DOM, hidden, so a `mustSee` naming a page matched the hidden menu label first and failed. Same Playwright floor.
+
 ## v0.4.1 — 2026-11-02
 
 - **Every page of a category one pick away** — Birko TASK-803, asked for by Symbio (TASK-1027). In
