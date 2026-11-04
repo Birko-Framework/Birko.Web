@@ -4,6 +4,12 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.5 — 2026-11-04
+
+- **`b-ribbon`'s key tips stay over the menu, flyout or gallery grid a key tip opened** — Birko TASK-813, found by the
+  user in Symbio (Alt+Win, a category tab, Hotel's ▾: the choices' badges sat under the menu). The top layer stacks in
+  show order; the badge layer is now re-shown for every level.
+
 ## v0.4.4 — 2026-11-04
 
 - **`BAppShell` turns on the ribbon's Quick Access Toolbar** — Birko TASK-812, asked for by Symbio (TASK-1026).
