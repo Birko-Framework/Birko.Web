@@ -1497,7 +1497,7 @@ export class BRibbon extends BaseComponent {
       + ` aria-label="${escapeAttr(customize)}"><span aria-hidden="true">&#9662;</span></button></div>`;
   }
 
-  /** The key tip badges: a manual popover in the top layer, so they also show over a flyout or a menu. */
+  /** The key tip badges: a manual popover in the top layer, re-shown per level so they stay over a flyout or a menu. */
   private _renderKeytipLayer(): string {
     return `<div class="ribbon-keytips" popover="manual" aria-hidden="true"></div>`;
   }
@@ -2352,7 +2352,10 @@ export class BRibbon extends BaseComponent {
       const y = rect.bottom - (centred ? 2 : 0);
       return `<span class="ribbon-keytip" data-keytip="${escapeAttr(k)}" style="left:${Math.round(x)}px;top:${Math.round(y)}px">${escapeHtml(k)}</span>`;
     }).join('');
-    if (!layer.matches(':popover-open')) layer.showPopover();
+    // The top layer stacks in show order: a menu, flyout or grid a key tip opened was shown after the layer and covered
+    // its own badges (TASK-813), so the layer is shown again, last.
+    if (layer.matches(':popover-open')) layer.hidePopover();
+    layer.showPopover();
   }
 
   private _exitKeytips() {
