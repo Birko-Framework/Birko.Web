@@ -636,6 +636,12 @@ new code should populate messages via the global singleton instead.
 
 ## Recent Updates
 
+### Key tips stay over the menu they label (2026-11-04, TASK-813)
+
+The top layer stacks in show order, and the key tip layer was shown once, when the mode began; a menu, flyout or
+gallery grid a key tip opened came later and covered its own badges (Symbio, a module's ▾). `_showKeytips` re-shows the
+layer for every level. keyboard-check measures what is painted at each badge.
+
 ### b-ribbon remembers the normal tab an app set (2026-11-03, TASK-804)
 
 `hideContextual()` goes back to the last normal tab. That was written only on a click (`_selectTab`), so after an app
