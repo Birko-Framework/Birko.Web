@@ -1,4 +1,4 @@
-import type { RibbonTab, BRibbon, BDropdownMenu } from 'birko-web-components';
+import type { RibbonTab, RibbonItem, BRibbon, BDropdownMenu } from 'birko-web-components';
 import type { TenantItem, ConnectionState } from './shell-types.js';
 import { openCommandPalette } from 'birko-web-components/command';
 import { BSidebarAppShell } from './b-sidebar-app-shell.js';
@@ -161,6 +161,7 @@ export abstract class BAppShell extends BSidebarAppShell {
     // render() emits `active` too, so this is belt-and-braces for the setTabs() path rather than the
     // thing that keeps the attribute alive across a morph.
     ribbon.setAttribute('active', this._ribbonActiveTab());
+    this._applyQuickAccess(ribbon);
     // NOTE: there used to be a `prevActive === nextActive → ribbon.expand()` line here, to keep the
     // panel open when navigating within a category. It is gone because `expanded` is now rendered
     // (see `_ribbonExpanded`), which preserves the panel across a morph directly.
@@ -168,6 +169,41 @@ export abstract class BAppShell extends BSidebarAppShell {
     // Re-adding it would be actively harmful now: the user can collapse the ribbon (which also unpins it,
     // FEATURE-019 D6 changed 2026-10-23), and this method runs on every re-render — so it would re-open the
     // panel the user just closed.
+  }
+
+  // ── Quick Access Toolbar (TASK-812) ───────────────────────────────────────
+
+  /**
+   * The ribbon's Quick Access Toolbar storage key, or `null` for no toolbar (the default). With a key the toolbar is on:
+   * the user adds commands from their context menu and removes them, and `b-ribbon` keeps that choice in localStorage
+   * under this key — so make it name whatever must not share a toolbar, e.g. the user AND the tenant. A key that
+   * changes (sign-in as someone else, a tenant switch) loads that key's own choice on the next `refreshRibbon()`.
+   */
+  protected get ribbonQuickAccessKey(): string | null { return null; }
+
+  /** The toolbar's default commands while it is on; `[]` (the default) is an empty toolbar the user fills. */
+  protected get ribbonQuickAccessDefaults(): RibbonItem[] { return []; }
+
+  private _qatOn = false;
+
+  /**
+   * Rendered as well as set: `qat-key` set only from script would be dropped by the next re-render's morph, which removes
+   * every attribute the template does not carry, and the ribbon would then reload with no key.
+   */
+  private _qatKeyAttr(): string {
+    const key = this.ribbonQuickAccessKey;
+    return key ? ` qat-key="${key.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')}"` : '';
+  }
+
+  /** Keeps `qat-key` equal to the getter and turns the toolbar on or off when that changes. The key goes first, so the
+   *  ribbon reads the right saved choice when the toolbar turns on. */
+  private _applyQuickAccess(ribbon: BRibbon): void {
+    const key = this.ribbonQuickAccessKey;
+    if (key) { if (ribbon.getAttribute('qat-key') !== key) ribbon.setAttribute('qat-key', key); }
+    else if (ribbon.hasAttribute('qat-key')) ribbon.removeAttribute('qat-key');
+    if (!!key === this._qatOn) return;
+    this._qatOn = !!key;
+    ribbon.setQuickAccess(key ? this.ribbonQuickAccessDefaults : null);
   }
 
   refreshStatusBar(): void {
@@ -258,7 +294,7 @@ export abstract class BAppShell extends BSidebarAppShell {
     const showBell = previewTag !== null || drawerTag !== null;
 
     return `
-      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}${this.ribbonGroupSize ? ` preferred-group-size="${this.ribbonGroupSize}"` : ''}${this.isRibbonPinned ? ' pinned' : ''}${this.isRibbonExpanded ? ' expanded' : ''} active="${this._ribbonActiveTab()}">
+      <b-ribbon id="ribbon"${this.accentAttr(this.ribbonAccent)}${this.ribbonGroupSize ? ` preferred-group-size="${this.ribbonGroupSize}"` : ''}${this.isRibbonPinned ? ' pinned' : ''}${this.isRibbonExpanded ? ' expanded' : ''}${this._qatKeyAttr()} active="${this._ribbonActiveTab()}">
         <div slot="before-tabs" class="app-brand">
           ${this.renderBrand()}
         </div>

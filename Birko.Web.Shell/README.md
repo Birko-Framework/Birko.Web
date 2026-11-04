@@ -102,6 +102,23 @@ class FinstatShell extends BAppShell {
 - **`headerAccent`** → core/sidebar header bar · **`ribbonAccent`** → ribbon · **`footerAccent`** → status bar/footer. Default `''` (no accent).
 - Built-in accent `'inverse'` = dark charcoal chrome that **keeps the brand color** (mirrors `birko-web-components/css/themes/inverse.css`). You can also return a raw `--b-x:…;` custom-property string for an ad-hoc accent.
 
+#### The ribbon's Quick Access Toolbar (v0.4.4)
+
+`b-ribbon`'s toolbar is off until an app asks for it. On `BAppShell`, return a storage key — and make it name whatever
+must not share a toolbar, e.g. the user and the tenant:
+
+```typescript
+class MyShell extends BAppShell {
+  protected get ribbonQuickAccessKey() { return user && tenant ? `myapp:${user}:${tenant}` : null; }
+  // protected get ribbonQuickAccessDefaults(): RibbonItem[] { return []; }   // default: an empty toolbar the user fills
+}
+```
+
+The shell renders `qat-key` (set only from script, the next re-render's morph would drop it) and turns the toolbar on in
+`refreshRibbon()`; a key that changes — another user, a tenant switch — loads that key's own choice on the next
+`refreshRibbon()`, and `null` turns the toolbar off. The user adds a command from its context menu and removes it from
+the toolbar's; a saved command that is not in the current tabs is hidden, not dropped, and returns with its tab.
+
 > **Migration (pre-2026-06-10):** the switcher used to hard-code `light`/`dark`/`neon`/`finstat`. It now shows only registered themes. Add a one-line `registerThemes([...])` in bootstrap (and link the theme CSS) to restore the entries you want.
 
 ---

@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.4 — 2026-11-04
+
+- **`BAppShell` turns on the ribbon's Quick Access Toolbar** — Birko TASK-812, asked for by Symbio (TASK-1026).
+  `protected get ribbonQuickAccessKey(): string | null` (default `null`: no toolbar, as before) and
+  `ribbonQuickAccessDefaults` (default `[]`). With a key the shell renders `qat-key` — setting it only from script did
+  not survive the next re-render, whose morph removes attributes the template lacks — and `refreshRibbon()` turns the
+  toolbar on and keeps the key current, so a changed key loads that key's own saved choice.
+
 ## v0.4.3 — 2026-11-03
 
 - **A Shell page raises a contextual ribbon tab for its record** — Birko TASK-804, asked for by Symbio (TASK-1028).
