@@ -390,6 +390,9 @@ export class BMultiSelect extends FormControlComponent {
     container?.setAttribute('aria-expanded', 'false');
     if (this._filter) {
       this._filter = '';
+      // The box goes with the filter: left behind, the list reopened unfiltered under the old query (TASK-814).
+      const searchInput = this.$<HTMLInputElement>('.dd-search');
+      if (searchInput) searchInput.value = '';
       if (dropdown) this._refreshOptions(dropdown);
     }
   }

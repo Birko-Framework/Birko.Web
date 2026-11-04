@@ -4,6 +4,12 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.6 — 2026-11-04
+
+- **`b-multi-select` clears its search box when the list closes** — Birko TASK-814, found by the user in Symbio (the platform
+  settings page's modules picker). Closing reset the filter but left the typed text, so the list reopened unfiltered under
+  the old query.
+
 ## v0.4.5 — 2026-11-04
 
 - **`b-ribbon`'s key tips stay over the menu, flyout or gallery grid a key tip opened** — Birko TASK-813, found by the
