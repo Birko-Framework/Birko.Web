@@ -184,8 +184,6 @@ export abstract class BAppShell extends BSidebarAppShell {
   /** The toolbar's default commands while it is on; `[]` (the default) is an empty toolbar the user fills. */
   protected get ribbonQuickAccessDefaults(): RibbonItem[] { return []; }
 
-  private _qatOn = false;
-
   /**
    * Rendered as well as set: `qat-key` set only from script would be dropped by the next re-render's morph, which removes
    * every attribute the template does not carry, and the ribbon would then reload with no key.
@@ -196,13 +194,14 @@ export abstract class BAppShell extends BSidebarAppShell {
   }
 
   /** Keeps `qat-key` equal to the getter and turns the toolbar on or off when that changes. The key goes first, so the
-   *  ribbon reads the right saved choice when the toolbar turns on. */
+   *  ribbon reads the right saved choice when the toolbar turns on. On/off is read from the ribbon itself, not remembered
+   *  here: a re-mount of the shell (its brand link to the dashboard does it) builds a NEW `<b-ribbon>`, and a flag kept on
+   *  the shell said "already on" for an element that never was, so the toolbar vanished until a reload. */
   private _applyQuickAccess(ribbon: BRibbon): void {
     const key = this.ribbonQuickAccessKey;
     if (key) { if (ribbon.getAttribute('qat-key') !== key) ribbon.setAttribute('qat-key', key); }
     else if (ribbon.hasAttribute('qat-key')) ribbon.removeAttribute('qat-key');
-    if (!!key === this._qatOn) return;
-    this._qatOn = !!key;
+    if (!!key === ribbon.quickAccessEnabled) return;
     ribbon.setQuickAccess(key ? this.ribbonQuickAccessDefaults : null);
   }
 

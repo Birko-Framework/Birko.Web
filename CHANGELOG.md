@@ -11,6 +11,9 @@ interchangeable for consumers.
   `ribbonQuickAccessDefaults` (default `[]`). With a key the shell renders `qat-key` — setting it only from script did
   not survive the next re-render, whose morph removes attributes the template lacks — and `refreshRibbon()` turns the
   toolbar on and keeps the key current, so a changed key loads that key's own saved choice.
+  The shell reads on/off from the ribbon (new `BRibbon.quickAccessEnabled`), not from a flag of its own: a re-mount of
+  the shell (its brand link to the dashboard) builds a new `<b-ribbon>`, which the flag took for "already on", so the
+  toolbar vanished until a reload.
 
 ## v0.4.3 — 2026-11-03
 

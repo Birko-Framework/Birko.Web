@@ -1115,6 +1115,11 @@ export class BRibbon extends BaseComponent {
     this.update();
   }
 
+  /** Whether the toolbar is on: `setQuickAccess` was called with a list (and not `null` since). */
+  get quickAccessEnabled(): boolean {
+    return this._qatEnabled;
+  }
+
   /** The toolbar's commands as refs: `qat:<id>` for a default, `item:<tab>/<group>/<item>` for a ribbon command. */
   getQuickAccess(): string[] {
     return this._qatVisible().map(e => e.ref);
