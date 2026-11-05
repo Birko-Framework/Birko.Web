@@ -4,6 +4,12 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.7 — 2026-11-05
+
+- **`b-ribbon` keeps the panel of a tab whose one command is a split button** — Birko TASK-816, found by the user in
+  Symbio (Administrácia, Služby). A tab whose only command is a link has no panel; a module with pages, which also has a
+  ▾ menu, counted as one, so hovering its category tab did nothing and its pages menu was out of reach.
+
 ## v0.4.6 — 2026-11-04
 
 - **`b-multi-select` clears its search box when the list closes** — Birko TASK-814, found by the user in Symbio (the platform
