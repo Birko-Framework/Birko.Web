@@ -74,7 +74,7 @@ Every Presenter surface was checked for undefined `b-*` tags through every shado
 
 | Category | Entry points |
 |----------|--------------|
-| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-sortable-picker`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
+| `inputs` | `birko-web-components/inputs/b-button`, `birko-web-components/inputs/b-checkbox`, `birko-web-components/inputs/b-color-picker`, `birko-web-components/inputs/b-country-select`, `birko-web-components/inputs/b-date-picker`, `birko-web-components/inputs/b-date-range-picker`, `birko-web-components/inputs/b-datetime-picker`, `birko-web-components/inputs/b-file-upload`, `birko-web-components/inputs/b-form`, `birko-web-components/inputs/b-inline-edit`, `birko-web-components/inputs/b-input`, `birko-web-components/inputs/b-markdown-editor`, `birko-web-components/inputs/b-multi-select`, `birko-web-components/inputs/b-option-group`, `birko-web-components/inputs/b-qty-stepper`, `birko-web-components/inputs/b-radio`, `birko-web-components/inputs/b-range`, `birko-web-components/inputs/b-rating`, `birko-web-components/inputs/b-search-input`, `birko-web-components/inputs/b-segmented`, `birko-web-components/inputs/b-select`, `birko-web-components/inputs/b-sortable-picker`, `birko-web-components/inputs/b-switch`, `birko-web-components/inputs/b-tag-input`, `birko-web-components/inputs/b-textarea`, `birko-web-components/inputs/b-time` |
 | `layout` | `birko-web-components/layout/b-accordion`, `birko-web-components/layout/b-button-group`, `birko-web-components/layout/b-card`, `birko-web-components/layout/b-carousel`, `birko-web-components/layout/b-chat`, `birko-web-components/layout/b-confirm-dialog`, `birko-web-components/layout/b-drawer`, `birko-web-components/layout/b-dropdown-menu`, `birko-web-components/layout/b-gallery`, `birko-web-components/layout/b-modal`, `birko-web-components/layout/b-split-panel`, `birko-web-components/layout/b-tabs`, `birko-web-components/layout/b-toolbar`, `birko-web-components/layout/b-tooltip`, `birko-web-components/layout/b-tour`, `birko-web-components/layout/layout-state` |
 | `data` | `birko-web-components/data/b-badge`, `birko-web-components/data/b-chart`, `birko-web-components/data/b-code-block`, `birko-web-components/data/b-data-table`, `birko-web-components/data/b-definition-list`, `birko-web-components/data/b-editable-table`, `birko-web-components/data/b-json-diff`, `birko-web-components/data/b-json-viewer`, `birko-web-components/data/b-kanban`, `birko-web-components/data/b-object-tree`, `birko-web-components/data/b-pagination`, `birko-web-components/data/b-pre`, `birko-web-components/data/b-sortable-item`, `birko-web-components/data/b-sortable-list`, `birko-web-components/data/b-stat`, `birko-web-components/data/b-table`, `birko-web-components/data/b-tag`, `birko-web-components/data/b-xml-viewer` |
 | `feedback` | `birko-web-components/feedback/b-empty`, `birko-web-components/feedback/b-progress`, `birko-web-components/feedback/b-skeleton`, `birko-web-components/feedback/b-spinner`, `birko-web-components/feedback/b-stale-banner`, `birko-web-components/feedback/b-sync-status`, `birko-web-components/feedback/b-toast` (b-toast-item) |
@@ -426,6 +426,17 @@ raises the font) composes with the token.
 ```typescript
 (el as BMultiSelect).setOptions([{ value: 'iot', label: 'IoT' }, ...]);
 ```
+
+### b-country-select
+
+```html
+<b-country-select label="Country" name="country" value="SK" preferred="SK,CZ"></b-country-select>
+<b-country-select label="Ships to" name="allowedCountries" multiple></b-country-select>
+```
+
+The value is upper-case ISO alpha-2 codes; the list shows the localized name, code and flag, and searches both. With
+`multiple` an **EU** shortcut adds the 27 member states. `countryName(code)` prints a stored code as a name. See
+[API.md](API.md#b-country-select).
 
 ### b-tag-input
 

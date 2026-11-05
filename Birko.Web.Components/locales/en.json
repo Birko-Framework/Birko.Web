@@ -156,6 +156,9 @@
       "create": "Create “{value}”",
       "created": "Created “{value}”"
     },
+    "country": {
+      "groupEu": "EU"
+    },
     "multiSelect": {
       "noMatches": "No matches",
       "search": "Search...",

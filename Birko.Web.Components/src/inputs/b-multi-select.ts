@@ -1,4 +1,4 @@
-import { FormControlComponent, define, t } from 'birko-web-core';
+import { FormControlComponent, define, t, matchesSearch } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, comboControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
@@ -7,6 +7,17 @@ export interface MultiSelectOption {
   value: string;
   label: string;
   color?: string;
+}
+
+/**
+ * A shortcut above the options that selects several at once ("EU" in a country picker, TASK-817). It is pressed while
+ * every one of its values the list holds is selected; pressing it then clears them, otherwise it adds them. Values the
+ * list does not hold are ignored, and a pick holding none of them is not shown.
+ */
+export interface MultiSelectQuickPick {
+  id: string;
+  label: string;
+  values: readonly string[];
 }
 
 /** @deprecated Use MultiSelectOption instead */
@@ -24,6 +35,7 @@ export class BMultiSelect extends FormControlComponent {
   private _open = false;
   private _outsideClickHandler: ((e: Event) => void) | null = null;
   private _wiredContainer: HTMLElement | null = null;
+  private _quickPicks: MultiSelectQuickPick[] = [];
 
   /** Resolution order, as in every control: an explicit `label-*` attribute, then the `bwc.*` key, then English. */
   private _text(attr: string, key: string, fallback: string): string {
@@ -125,6 +137,22 @@ export class BMultiSelect extends FormControlComponent {
       @media (pointer: coarse) {
         .search-wrap input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
       }
+      .quick-picks {
+        display: flex; flex-wrap: wrap; gap: var(--b-space-xs, 0.25rem);
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
+        border-bottom: var(--b-border-width, 1px) solid var(--b-border);
+      }
+      .quick-pick {
+        border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius-full, 9999px);
+        background: var(--b-bg); color: var(--b-text); cursor: pointer;
+        font-size: var(--b-text-xs, 0.6875rem); padding: 0.0625rem var(--b-space-sm, 0.5rem);
+      }
+      .quick-pick:hover { background: var(--b-bg-tertiary); }
+      .quick-pick:focus-visible { outline: none; box-shadow: var(--b-focus-ring); }
+      .quick-pick[aria-pressed="true"] {
+        background: var(--b-color-primary); border-color: var(--b-color-primary);
+        color: var(--b-text-on-primary, var(--b-text-inverse));
+      }
       .no-results {
         padding: var(--b-space-sm, 0.5rem) var(--b-space-md, 0.75rem);
         color: var(--b-text-muted); font-size: var(--b-text-sm, 0.8125rem);
@@ -140,6 +168,14 @@ export class BMultiSelect extends FormControlComponent {
     } else {
       this.update();
     }
+  }
+
+  /** The shortcuts shown above the options; see {@link MultiSelectQuickPick}. An empty list removes them. */
+  setQuickPicks(picks: MultiSelectQuickPick[]) {
+    this._quickPicks = picks;
+    const dropdown = this.$<HTMLElement>('.dropdown');
+    if (this._open && dropdown) this._refreshOptions(dropdown);
+    else this.update();
   }
 
   getSelected(): string[] {
@@ -229,10 +265,7 @@ export class BMultiSelect extends FormControlComponent {
         </span>
       `).join('');
 
-    const filterLower = this._filter.toLowerCase();
-    const filtered = searchable && this._filter
-      ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
-      : this._options;
+    const filtered = searchable && this._filter ? this._options.filter(o => this._matches(o)) : this._options;
 
     const noMatchesLabel = this._text('label-no-matches', 'bwc.multiSelect.noMatches', 'No matches');
     const searchLabel = this._text('label-search', 'bwc.multiSelect.search', 'Search...');
@@ -262,6 +295,7 @@ export class BMultiSelect extends FormControlComponent {
         </div>
         <div class="dropdown" popover="manual" id="${this.uid}-opts" role="dialog" aria-label="${label || this._text('label-options', 'bwc.multiSelect.options', 'Options')}">
           ${searchable ? `<div class="search-wrap"><input type="text" class="dd-search" placeholder="${searchLabel}" value="${escapeAttr(this._filter)}" /></div>` : ''}
+          ${this._quickPicksHtml()}
           ${filtered.length > 0 ? filtered.map(o => `
             <label class="option">
               <input type="checkbox" value="${escapeAttr(o.value)}" ${this._selected.has(o.value) ? 'checked' : ''} />
@@ -341,6 +375,8 @@ export class BMultiSelect extends FormControlComponent {
       this.listen(searchInput, 'click', (e) => e.stopPropagation());
     }
 
+    this._wireQuickPicks(dropdown);
+
     // Checkbox changes
     this._wireOptionCheckboxes(dropdown);
 
@@ -412,15 +448,13 @@ export class BMultiSelect extends FormControlComponent {
     // toggles a selection partway down.
     const prevScrollTop = dropdown.scrollTop;
     const searchWrap = dropdown.querySelector('.search-wrap');
-    const filterLower = this._filter.toLowerCase();
-    const filtered = this._filter
-      ? this._options.filter(o => o.label.toLowerCase().includes(filterLower) || o.value.toLowerCase().includes(filterLower))
-      : this._options;
+    const filtered = this._filter ? this._options.filter(o => this._matches(o)) : this._options;
 
-    // Remove all children except search wrap
+    // Remove all children except search wrap, then put the quick picks back (their pressed state follows the selection)
     for (const child of Array.from(dropdown.children)) {
       if (child !== searchWrap) child.remove();
     }
+    dropdown.insertAdjacentHTML('beforeend', this._quickPicksHtml());
 
     if (filtered.length === 0 && !this._canCreate()) {
       dropdown.insertAdjacentHTML('beforeend', `<div class="no-results">${this._text('label-no-matches', 'bwc.multiSelect.noMatches', 'No matches')}</div>`);
@@ -450,6 +484,7 @@ export class BMultiSelect extends FormControlComponent {
       }
     }
 
+    this._wireQuickPicks(dropdown);
     this._wireOptionCheckboxes(dropdown);
     this._wireCreateOption(dropdown);
 
@@ -522,6 +557,49 @@ export class BMultiSelect extends FormControlComponent {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this._selected.delete(btn.dataset.value!);
+        this._emitAndUpdate();
+      });
+    });
+  }
+
+  /**
+   * Accent- and case-insensitive, on the label or the value: "cesko" and "cz" both find "Česko (CZ)". It was a plain
+   * lowercase `includes`, which b-select had already left for the reason `matchesSearch` gives.
+   */
+  private _matches(o: MultiSelectOption): boolean {
+    return matchesSearch(o.label, this._filter) || matchesSearch(o.value, this._filter);
+  }
+
+  /** A pick's values that the list holds. */
+  private _pickValues(pick: MultiSelectQuickPick): string[] {
+    const held = new Set(this._options.map(o => o.value));
+    return pick.values.filter(v => held.has(v));
+  }
+
+  private _quickPicksHtml(): string {
+    const shown = this._quickPicks
+      .map(p => ({ p, values: this._pickValues(p) }))
+      .filter(x => x.values.length > 0);
+    if (!shown.length) return '';
+    return `<div class="quick-picks" role="group">${shown.map(({ p, values }) => {
+      const pressed = values.every(v => this._selected.has(v));
+      return `<button type="button" class="quick-pick" data-pick="${escapeAttr(p.id)}" aria-pressed="${pressed}">`
+        + `${escapeHtml(p.label)} (${values.length})</button>`;
+    }).join('')}</div>`;
+  }
+
+  private _wireQuickPicks(dropdown: HTMLElement) {
+    dropdown.querySelectorAll<HTMLElement>('.quick-pick').forEach(btn => {
+      this.listen(btn, 'click', (e) => {
+        e.stopPropagation();
+        const pick = this._quickPicks.find(p => p.id === btn.dataset.pick);
+        if (!pick) return;
+        const values = this._pickValues(pick);
+        const all = values.every(v => this._selected.has(v));
+        for (const v of values) {
+          if (all) this._selected.delete(v);
+          else this._selected.add(v);
+        }
         this._emitAndUpdate();
       });
     });

@@ -2,6 +2,7 @@ import { BaseComponent, define, t as globalT, parseDecimal } from 'birko-web-cor
 import { isActivationKey, escapeAttr } from '../dom-utils';
 // Every control a schema field can render.
 import './b-checkbox.js';
+import './b-country-select.js';
 import './b-date-picker.js';
 import './b-date-range-picker.js';
 import './b-datetime-picker.js';
@@ -27,7 +28,7 @@ export type FieldType =
   | 'text' | 'password' | 'email' | 'number' | 'percent' | 'decimal'
   | 'textarea' | 'markdown' | 'select' | 'multi-select' | 'tags'
   | 'checkbox' | 'switch' | 'radio' | 'search'
-  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'date-range' | 'time' | 'custom'
+  | 'option-group' | 'file' | 'range' | 'date' | 'datetime' | 'date-range' | 'time' | 'country' | 'custom'
   | (string & {});
 
 export type RuleType =
@@ -130,6 +131,15 @@ export interface FormField {
   confirm?: boolean;
   presets?: { label: FormText; start: string; end: string }[];
   separator?: string;
+  // Country-specific (TASK-817): `b-country-select`. The value is an upper-case ISO alpha-2 code, or with
+  // `multiple` a list of them.
+  multiple?: boolean;
+  /** Offer only these codes. */
+  countries?: string[];
+  /** These codes first. */
+  preferredCountries?: string[];
+  /** With `multiple`: the group shortcuts, by id (default `['eu']`; `[]` for none). */
+  countryGroups?: string[];
   // Tags-specific
   separators?: string;
   maxCount?: number;
@@ -644,6 +654,8 @@ export class BForm extends BaseComponent {
         return (a) => `<b-select ${a}></b-select>`;
       case 'multi-select':
         return (a) => `<b-multi-select ${a}></b-multi-select>`;
+      case 'country':
+        return (a) => `<b-country-select ${a}></b-country-select>`;
       case 'checkbox':
         return (a) => `<b-checkbox ${a}></b-checkbox>`;
       case 'switch':
@@ -744,6 +756,12 @@ export class BForm extends BaseComponent {
       case 'multi-select':
         if (field.searchable) parts.push('searchable');
         if (field.creatable) parts.push('creatable');
+        break;
+      case 'country':
+        if (field.multiple) parts.push('multiple');
+        if (field.countries) parts.push(`countries="${escapeAttr(field.countries.join(','))}"`);
+        if (field.preferredCountries) parts.push(`preferred="${escapeAttr(field.preferredCountries.join(','))}"`);
+        if (field.countryGroups) parts.push(`groups="${escapeAttr(field.countryGroups.join(','))}"`);
         break;
       case 'range':
         if (field.mode) parts.push(`mode="${field.mode}"`);
@@ -1279,6 +1297,9 @@ export class BForm extends BaseComponent {
         return (el as any).checked ?? el.hasAttribute('checked');
       case 'multi-select':
         return 'getSelected' in el ? (el as any).getSelected() : [];
+      case 'country':
+        if (!field.multiple) return 'inputValue' in el ? (el as any).inputValue : '';
+        return 'getSelected' in el ? (el as any).getSelected() : [];
       case 'tags':
         return 'getTags' in el ? (el as any).getTags() : [];
       case 'file':
@@ -1312,6 +1333,12 @@ export class BForm extends BaseComponent {
         break;
       case 'multi-select':
         if ('setSelected' in el) (el as any).setSelected(value as string[]);
+        break;
+      case 'country':
+        // One code or a list, whichever the data holds: a single field fed a list keeps its first.
+        if ('setSelected' in el) {
+          (el as any).setSelected(Array.isArray(value) ? value.map(String) : (value ? String(value).split(',') : []));
+        }
         break;
       case 'tags':
         if ('setTags' in el) (el as any).setTags(Array.isArray(value) ? value as string[] : []);
