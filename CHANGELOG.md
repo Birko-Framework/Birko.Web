@@ -4,6 +4,17 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.8 — 2026-11-05
+
+- **`b-country-select`**: a country picker whose value is ISO 3166-1 alpha-2 codes. Birko TASK-817, asked for by Symbio,
+  whose country fields were typed by hand. One or several (`multiple`); each country shown as flag, name (from
+  `Intl.DisplayNames` in the i18n locale) and code; search by name or code; `countries`, `preferred`, and group
+  shortcuts with an EU default (`registerCountryGroup`). `b-form` `type: 'country'`; helpers `countryName`,
+  `countryLabel`, `countryFlag`, `COUNTRY_CODES`.
+- **`b-multi-select`**: `setQuickPicks([{ id, label, values }])` (shortcut buttons above the options), and its search
+  ignores accents, as `b-select`'s already did.
+
+
 ## v0.4.7 — 2026-11-05
 
 - **`b-ribbon` keeps the panel of a tab whose one command is a split button** — Birko TASK-816, found by the user in
