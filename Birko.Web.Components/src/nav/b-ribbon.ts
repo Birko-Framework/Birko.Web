@@ -1236,13 +1236,20 @@ export class BRibbon extends BaseComponent {
    * Whether a tab suppresses its dropdown panel. Explicit `noPanel` wins;
    * otherwise auto: exactly one plain nav-link item (and no context actions)
    * means the panel would only duplicate the tab click.
+   *
+   * "Plain" means the link is all the item offers. A split button with a ▾ menu, a toggle, a gallery or a field
+   * may carry a link too, and the panel is the only place the rest of it is reachable (TASK-816: a Shell category
+   * holding one module with pages lost its panel, so hovering its tab did nothing and its pages menu was gone).
    */
   private _isPanelless(tab: RibbonTab | undefined): boolean {
     if (!tab) return false;
     if (tab.noPanel != null) return tab.noPanel;
     if (this._contextActions.length > 0) return false;
     const items = tab.groups.flatMap(g => g.items);
-    return items.length === 1 && !!items[0].href && !items[0].action;
+    if (items.length !== 1) return false;
+    const item = items[0];
+    return !!item.href && !item.action && !item.menu?.length && !item.toggle && !item.toggleGroup
+      && !item.gallery && !item.field;
   }
 
   /** Pure tab-strip mode: forced via the `tabs-only` attribute, or every tab is panelless. */
