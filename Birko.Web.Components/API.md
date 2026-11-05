@@ -247,6 +247,54 @@ the schema path adopts and which it deliberately ignores.
 | `change` | `{ name, values: string[] }` |
 | `create` | `{ name, value }` — `creatable` only. **Cancelable:** unless a listener calls `preventDefault()` (synchronously), the typed `value` is added as an option and selected. Before 2026-09-26 the detail was `{ name: <typed text> }` |
 
+Search matches an option's label **or** value, ignoring case and accents (`matchesSearch`; it was a plain
+lowercase match until TASK-817). `setQuickPicks([{ id, label, values }])` puts shortcut buttons above the options:
+one selects all of its values the list holds, and pressed again (it reads `aria-pressed="true"` while all are
+selected) clears them. A pick holding none of the list's values is not shown.
+
+### `<b-country-select>`
+
+One country, or several with `multiple` (TASK-817). The value is **ISO 3166-1 alpha-2 codes, upper case** — `"SK"`,
+or `"CZ,SK"` with `multiple` — and the list shows `🇸🇰 Slovensko (SK)`: the name from `Intl.DisplayNames` in the
+current i18n locale (renamed on a locale switch, selection kept), the code, the flag. Search finds a name or a code,
+accents ignored. It renders a searchable `b-select` / `b-multi-select`, so it looks and behaves as they do.
+
+| Attribute | Values |
+|-----------|--------|
+| `label`, `name`, `placeholder`, `error`, `disabled`, `required`, `hint`, `description`, `bare` | as on `b-select` |
+| `value` | a code, or a comma list with `multiple`; lower case is upper-cased |
+| `multiple` | boolean — several countries, shown as chips |
+| `countries` | comma list — offer only these codes |
+| `preferred` | comma list — these first, in this order; the rest by name |
+| `groups` | comma list of group ids, `multiple` only — shortcuts above the list. Default `eu` (the 27 member states); `groups=""` for none |
+| `no-flags` | boolean — names and codes without the flag emoji |
+| `no-clear` | boolean — single only, as on `b-select` |
+
+| Method | Signature |
+|--------|-----------|
+| `getSelected` | `() => string[]` — at most one without `multiple` |
+| `setSelected` | `(codes: string[]) => void` — without `multiple` the first is kept |
+| `value` / `inputValue` | comma string, get and set |
+
+| Event | Detail |
+|-------|--------|
+| `change` | `{ name, value: string, values: string[] }` — only this one: the inner control's own `change` does not escape |
+
+A stored value that is **not a code** (an old row holding `Slovakia`) stays selected and is shown as itself, so saving
+a form does not lose it; nothing is guessed from it. In a form it submits as `b-multi-select` does (one entry per code)
+with `multiple`, one entry without.
+
+Helpers, from `birko-web-components` (or `…/inputs`):
+
+| Export | Use |
+|--------|-----|
+| `countryName(code, locale?)` | `"Slovensko"` for `SK` in the current locale; a value that is not a code comes back as given, `null` / `''` as `''` — for read-only cells that print a stored code |
+| `countryLabel(code, { locale?, flag? })` | `"🇸🇰 Slovensko (SK)"`, what the picker shows |
+| `countryFlag(code)` | `"🇸🇰"` |
+| `COUNTRY_CODES` | the 249 assigned codes |
+| `registerCountryGroup({ id, label: () => string, codes })` / `getCountryGroup(id)` | an app's own shortcut (`groups="benelux"`); `label` is called when shown, so it can use `t()` |
+| `normalizeCountryValue(v)`, `isCountryCodeShape(v)` | the trimming / upper-casing the picker applies |
+
 ### `<b-tag-input>`
 Freeform multi-value input. Enter/Tab commits, Backspace removes last, paste splits on separators.
 
@@ -736,6 +784,14 @@ type and are unchanged; `getValues()` / `validate().data` still return the stora
 **number**. The visible tradeoff is that a text-based control has no native spinner arrows.
 
 No implicit `min`/`max` is applied to a percent field — set them explicitly if you want 0-100 enforced.
+
+**`type: 'country'`** renders `b-country-select` (TASK-817). Its value is a code (`'SK'`), or with `multiple: true` a
+list (`['CZ', 'SK']`, as `multi-select`). `countries`, `preferredCountries` and `countryGroups` (string arrays) map to
+its `countries`, `preferred` and `groups` attributes:
+
+```ts
+{ name: 'allowedCountries', type: 'country', label: 'Countries', multiple: true, preferredCountries: ['SK', 'CZ'] }
+```
 
 Two caveats specific to it:
 

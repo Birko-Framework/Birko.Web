@@ -8,7 +8,12 @@ export { BTextarea } from './b-textarea.js';
 export { BSearchInput } from './b-search-input.js';
 export { BRadio } from './b-radio.js';
 export { BOptionGroup } from './b-option-group.js';
-export { BMultiSelect, type MultiSelectOption } from './b-multi-select.js';
+export { BMultiSelect, type MultiSelectOption, type MultiSelectQuickPick } from './b-multi-select.js';
+export { BCountrySelect } from './b-country-select.js';
+export {
+  COUNTRY_CODES, countryName, countryFlag, countryLabel, normalizeCountryValue, isCountryCodeShape,
+  registerCountryGroup, getCountryGroup, type CountryGroup,
+} from './countries.js';
 export { BTagInput } from './b-tag-input.js';
 export {
   BSortablePicker, type SortablePickerSearch, type SortablePickerChangeDetail, type SortablePickerNoticeDetail,

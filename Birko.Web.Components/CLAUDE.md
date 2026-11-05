@@ -406,7 +406,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 
 ## Component inventory
 
-### Inputs (25)
+### Inputs (26)
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
@@ -416,7 +416,8 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | `<b-switch>` | BSwitch | — | `checked`, `disabled`, `name`, `label` |
 | `<b-radio>` | BRadio | — | `checked`, `disabled`, `name`, `value`, `label` |
 | `<b-textarea>` | BTextarea | — | `label`, `name`, `value`, `rows`, `error`, `disabled` |
-| `<b-multi-select>` | BMultiSelect | `setOptions([])` | `label`, `name`, `placeholder`, `error`, `disabled` |
+| `<b-multi-select>` | BMultiSelect | `setOptions([])`, `setQuickPicks([{id,label,values}])` | `label`, `name`, `placeholder`, `error`, `disabled` |
+| `<b-country-select>` | BCountrySelect | `getSelected()`, `setSelected([])`; helpers `countryName`, `countryLabel`, `countryFlag`, `registerCountryGroup` | `label`, `name`, `value` (ISO alpha-2, comma list with `multiple`), `multiple`, `countries`, `preferred`, `groups` (default `eu`), `no-flags`; event `change` `{name,value,values}`; b-form `type: 'country'` (TASK-817) |
 | `<b-tag-input>` | BTagInput | `setTags([])`, `getTags()`, `clear()` | `label`, `name`, `value`, `placeholder`, `separators`, `max-count`, `allow-duplicates`, `error`, `disabled` |
 | `<b-sortable-picker>` | BSortablePicker | `setSearch(fn)`, `setItems([{id,label,meta?,image?}])`, `getItems()` | `label`, `name`, `max` (hard: a pick past it is refused), `layout`, `size`, `max-height` (default 20rem), `placeholder`, `notify` (inline\|toast), `error`, `required`, `disabled`; events `change` `{name,value,items}`, `reject` `{item,reason}`, `notice` `{kind,text,item?}` (cancelable: show it yourself) (TASK-787) |
 | `<b-search-input>` | BSearchInput | — | `placeholder`, `value`, `debounce` |
