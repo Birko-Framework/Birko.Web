@@ -32,6 +32,12 @@ Selectors and auth are read from the live source, not invented:
 - **`b-select` (searchable)** — opens its `.combo`, renders options as `.option[data-value]` in a
   `.dropdown` popover (NOT native `<option>`/`[role=option]`). The `SelectPO` fixture drives it
   (`select.pickFirst('buildingId')`).
+- **`b-country-select`** — a searchable `b-select` (or `b-multi-select` with `multiple`) inside the picker's
+  own shadow, as `.country-control` with no `name`, so neither `FormPO.fill()` (it types into the search box
+  and chooses nothing) nor `SelectPO` reaches it. The `country` fixture (`CountrySelectPO`) picks through
+  the UI: `country.pick('address.country', 'SK')`, `country.pick('availability.allowedCountries', 'SK',
+  'CZ')` (adds to the selection, closes the dropdown), `country.value(field)`. `field` is a b-form field
+  path or a locator of the picker. A code the picker does not offer fails with "does not offer", in ~3 s.
 - **`b-confirm-dialog`** — confirm/cancel are `.btn-confirm` / `.btn-cancel` (locale-proof; default
   text "Confirm"/"Cancel").
 - **`b-sidebar`** `a.nav-item[data-id]`, **`b-ribbon`** `button.ribbon-tab[data-tab]` / `[data-item]`.

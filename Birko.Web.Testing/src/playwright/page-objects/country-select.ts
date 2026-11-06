@@ -44,7 +44,7 @@ export class CountrySelectPO {
       if (multiple) await this._pickMultiple(host, code);
       else await this._pickSingle(host, code);
     }
-    if (multiple) await this.page.keyboard.press('Escape');
+    if (multiple) await this._close(host);
 
     // The value is the proof, not the click: wait for the picker to commit every code.
     const want = codes.map((c) => c.toUpperCase());
@@ -76,7 +76,25 @@ export class CountrySelectPO {
     await search.fill(code);
     const box = control.locator(`label.option input[type="checkbox"][value="${cssAttr(code)}"]`).first();
     await this._expectOffered(box, code);
-    if (!(await box.isChecked())) await control.locator('label.option', { has: box }).first().click();
+    // Click the box itself: a `has:` filter is resolved RELATIVE to each label, so passing `box` (a chain from the page)
+    // there matches nothing and the click waits out its timeout (measured, TASK-818).
+    if (!(await box.isChecked())) await box.click();
+  }
+
+  /**
+   * Close the multiple picker's dropdown. Escape closes it only from the picker's own box (`.container`), not from the
+   * search field or a checkbox where a pick leaves focus, and the open popover covers what sits under it — a Save button
+   * a spec clicks next (measured, TASK-818). So the key goes to the box, and the closed state is checked.
+   */
+  private async _close(host: Locator): Promise<void> {
+    const container = host.locator('.country-control').first().locator('.container').first();
+    if ((await container.getAttribute('aria-expanded')) !== 'true') return;
+    await container.press('Escape');
+    for (let waited = 0; waited <= 2_000; waited += 50) {
+      if ((await container.getAttribute('aria-expanded')) !== 'true') return;
+      await this.page.waitForTimeout(50);
+    }
+    throw new Error("CountrySelectPO.pick: the picker's dropdown did not close");
   }
 
   private async _expectOffered(option: Locator, code: string): Promise<void> {
