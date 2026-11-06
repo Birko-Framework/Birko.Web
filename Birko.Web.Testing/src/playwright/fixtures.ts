@@ -10,6 +10,7 @@ import { DataTablePO } from './page-objects/data-table.js';
 import { FormPO } from './page-objects/form.js';
 import { NavPO } from './page-objects/nav.js';
 import { SelectPO } from './page-objects/select.js';
+import { CountrySelectPO } from './page-objects/country-select.js';
 
 export interface BirkoFixtures {
   /** Console-error / pageerror / 4xx-5xx collector, attached before the test body runs. */
@@ -19,6 +20,8 @@ export interface BirkoFixtures {
   nav: NavPO;
   /** Searchable b-select helper (required filters, searchable form fields). */
   select: SelectPO;
+  /** b-country-select helper: pick countries through the picker's UI (TASK-818). */
+  country: CountrySelectPO;
 }
 
 export interface BirkoOptions {
@@ -59,6 +62,7 @@ export function withBirkoFixtures(base: PlaywrightBaseTest) {
     form: async ({ page }, use) => { await use(new FormPO(page)); },
     nav: async ({ page }, use) => { await use(new NavPO(page)); },
     select: async ({ page }, use) => { await use(new SelectPO(page)); },
+    country: async ({ page }, use) => { await use(new CountrySelectPO(page)); },
   });
 }
 
