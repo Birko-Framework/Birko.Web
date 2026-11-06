@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.11 — 2026-11-06
+
+- **`b-multi-select`: Escape after clicking in its open list closes the list, not the modal** — Birko TASK-819, the
+  rest of v0.4.10's fix, found by the user's human test in Symbio. Picking an option or a quick pick rebuilds the list,
+  which dropped focus to the page, so the next Escape reached only the `<dialog>`. The open list now takes Escape
+  wherever focus is, and focus stays on the picked option.
+
 ## v0.4.10 — 2026-11-06
 
 - **Escape in an open `b-select` / `b-multi-select` list closes the list, not the modal around it** — Birko TASK-819,
