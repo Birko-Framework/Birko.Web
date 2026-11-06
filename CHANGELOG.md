@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.9 — 2026-11-06
+
+- **`birko-web-testing`: `CountrySelectPO` and the `country` fixture** — Birko TASK-818, asked for by Symbio TASK-1068.
+  `FormPO.fill()` typed into `b-country-select`'s search box and chose nothing, and `SelectPO` cannot reach its unnamed
+  inner control. `country.pick(field, ...codes)` picks through the UI (one, or several with `multiple`, leaving the
+  dropdown closed); `country.value(field)`; `field` is a b-form field path or a locator. A code the picker does not
+  offer fails with "does not offer". Proven by the Playground's `country-select-po-check.mjs` (real Playwright).
+
 ## v0.4.8 — 2026-11-05
 
 - **`b-country-select`**: a country picker whose value is ISO 3166-1 alpha-2 codes. Birko TASK-817, asked for by Symbio,
