@@ -17,6 +17,7 @@ export { DataTablePO } from './page-objects/data-table.js';
 export { FormPO } from './page-objects/form.js';
 export { NavPO } from './page-objects/nav.js';
 export { SelectPO } from './page-objects/select.js';
+export { CountrySelectPO } from './page-objects/country-select.js';
 export { birkoPlaywrightPreset, type BirkoPlaywrightPresetOptions } from '../../playwright.preset.js';
 // Driver-agnostic core re-exported for convenience.
 export * from '../core/index.js';
