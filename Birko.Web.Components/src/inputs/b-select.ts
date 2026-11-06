@@ -330,7 +330,15 @@ export class BSelect extends FormControlComponent {
         this._moveActive(ke.key === 'ArrowDown' ? 1 : -1);
         return;
       }
-      if (ke.key === 'Escape') { this._closeDropdown(); return; }
+      // An open list takes the Escape: default prevented and stopped, or an enclosing <dialog> closes with it and
+      // discards its form (TASK-819, measured in a b-modal). A closed list lets it through to close the dialog.
+      if (ke.key === 'Escape') {
+        if (!this._open) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this._closeDropdown();
+        return;
+      }
       if (ke.key === 'Enter' && this._open && this._activeIndex >= 0) {
         e.preventDefault();
         this._activate(this._navOptions()[this._activeIndex]);
