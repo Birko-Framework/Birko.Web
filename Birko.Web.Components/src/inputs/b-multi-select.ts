@@ -34,6 +34,7 @@ export class BMultiSelect extends FormControlComponent {
   private _filter = '';
   private _open = false;
   private _outsideClickHandler: ((e: Event) => void) | null = null;
+  private _escapeHandler: ((e: Event) => void) | null = null;
   private _wiredContainer: HTMLElement | null = null;
   private _quickPicks: MultiSelectQuickPick[] = [];
 
@@ -350,19 +351,20 @@ export class BMultiSelect extends FormControlComponent {
     };
     this.listen(document, 'mousedown', this._outsideClickHandler);
 
-    // Escape closes an open list from its box, its search field or an option, and focus goes back to the box. The key
-    // is prevented and stopped, or an enclosing <dialog> closes with the list and discards its form; a closed list
-    // lets it through (TASK-819, measured in a b-modal: only the box handled it, and passed it on to the dialog).
-    const onEscape = (e: Event) => {
+    // While the list is open, Escape closes it wherever focus is, and focus goes back to the box. The key is prevented
+    // and stopped, or an enclosing <dialog> closes with the list and discards its form; a closed list lets it through.
+    // Listened on the document in the capture phase, not on the box and list (TASK-819): a pick rebuilds the options,
+    // so the clicked checkbox or quick pick leaves the DOM with focus on it, and the next Escape started on <body> and
+    // reached only the dialog (measured in Symbio's admin and in the Playground).
+    if (this._escapeHandler) document.removeEventListener('keydown', this._escapeHandler, true);
+    this._escapeHandler = (e: Event) => {
       if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
       e.preventDefault();
       e.stopPropagation();
-      const fromList = e.currentTarget === dropdown;
       this._closeDropdown();
-      if (fromList) container.focus();
+      this.$<HTMLElement>('.container')?.focus();
     };
-    this.listen(container, 'keydown', onEscape);
-    this.listen(dropdown, 'keydown', onEscape);
+    this.listen(document, 'keydown', this._escapeHandler, { capture: true });
 
     // Chip remove buttons
     this.$$<HTMLElement>('.chip-remove').forEach(btn => {
@@ -457,6 +459,14 @@ export class BMultiSelect extends FormControlComponent {
     // toggles a selection partway down.
     const prevScrollTop = dropdown.scrollTop;
     const searchWrap = dropdown.querySelector('.search-wrap');
+    // The rebuild removes the focused option or quick pick, and focus would fall to <body>: a keyboard user loses
+    // their place (TASK-819). Remember which one had it, to put focus back on its replacement.
+    const active = (this.shadowRoot?.activeElement ?? null) as HTMLElement | null;
+    const refocus = active && dropdown.contains(active) && !searchWrap?.contains(active)
+      ? (active instanceof HTMLInputElement && active.type === 'checkbox'
+          ? `label.option input[type="checkbox"][value="${CSS.escape(active.value)}"]`
+          : active.dataset.pick ? `.quick-pick[data-pick="${CSS.escape(active.dataset.pick)}"]` : '')
+      : null;
     const filtered = this._filter ? this._options.filter(o => this._matches(o)) : this._options;
 
     // Remove all children except search wrap, then put the quick picks back (their pressed state follows the selection)
@@ -499,6 +509,11 @@ export class BMultiSelect extends FormControlComponent {
 
     // Restore scroll position after the option nodes were rebuilt.
     dropdown.scrollTop = prevScrollTop;
+    if (refocus !== null) {
+      const target = (refocus ? dropdown.querySelector<HTMLElement>(refocus) : null)
+        ?? this.$<HTMLInputElement>('.dd-search') ?? this.$<HTMLElement>('.container');
+      target?.focus({ preventScroll: true });
+    }
   }
 
   private _wireOptionCheckboxes(dropdown: HTMLElement) {
