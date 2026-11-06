@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.10 — 2026-11-06
+
+- **Escape in an open `b-select` / `b-multi-select` list closes the list, not the modal around it** — Birko TASK-819,
+  found by Symbio TASK-1068 through v0.4.9's `CountrySelectPO`. Neither prevented nor stopped the key, so a `b-modal`'s
+  `<dialog>` took it as `cancel` and closed, discarding its form. `b-multi-select` now also closes on Escape from its
+  search field and options (it handled only its box) and returns focus to the box. With no list open, Escape still
+  closes the dialog.
+
 ## v0.4.9 — 2026-11-06
 
 - **`birko-web-testing`: `CountrySelectPO` and the `country` fixture** — Birko TASK-818, asked for by Symbio TASK-1068.
