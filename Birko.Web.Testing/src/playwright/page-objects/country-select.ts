@@ -82,9 +82,10 @@ export class CountrySelectPO {
   }
 
   /**
-   * Close the multiple picker's dropdown. Escape closes it only from the picker's own box (`.container`), not from the
-   * search field or a checkbox where a pick leaves focus, and the open popover covers what sits under it — a Save button
-   * a spec clicks next (measured, TASK-818). So the key goes to the box, and the closed state is checked.
+   * Close the multiple picker's dropdown: left open, its popover covers what sits under it, the Save button a spec clicks
+   * next (measured, TASK-818). Escape on the picker's box closes the list and, since TASK-819, stops there, so a b-modal
+   * around the form stays open (before it, the dialog took the same key and closed, measured in Symbio). The closed
+   * state is checked, not assumed.
    */
   private async _close(host: Locator): Promise<void> {
     const container = host.locator('.country-control').first().locator('.container').first();

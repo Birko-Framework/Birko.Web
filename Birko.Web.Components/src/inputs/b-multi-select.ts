@@ -350,10 +350,19 @@ export class BMultiSelect extends FormControlComponent {
     };
     this.listen(document, 'mousedown', this._outsideClickHandler);
 
-    // Close on Escape
-    this.listen(container, 'keydown', (e) => {
-      if ((e as KeyboardEvent).key === 'Escape') this._closeDropdown();
-    });
+    // Escape closes an open list from its box, its search field or an option, and focus goes back to the box. The key
+    // is prevented and stopped, or an enclosing <dialog> closes with the list and discards its form; a closed list
+    // lets it through (TASK-819, measured in a b-modal: only the box handled it, and passed it on to the dialog).
+    const onEscape = (e: Event) => {
+      if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const fromList = e.currentTarget === dropdown;
+      this._closeDropdown();
+      if (fromList) container.focus();
+    };
+    this.listen(container, 'keydown', onEscape);
+    this.listen(dropdown, 'keydown', onEscape);
 
     // Chip remove buttons
     this.$$<HTMLElement>('.chip-remove').forEach(btn => {
