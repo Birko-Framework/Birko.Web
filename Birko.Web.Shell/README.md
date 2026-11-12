@@ -1090,7 +1090,9 @@ protected async onContextualAction(itemId: string, o: Order) {
 ```
 
 - Raised after every detail load (a split page's selection, `reloadDetail()`; a detail page's load and save), and opened
-  when the record is a new one. `refreshContextualRibbon()` re-builds it on demand.
+  when the record is a new one. `refreshContextualRibbon()` re-builds it on demand and leaves it as the user left it
+  (open, or collapsed); `refreshContextualRibbon({ open: true })` also opens it, on an unpinned ribbon its panel too,
+  e.g. when selecting a sub-row in the detail adds a group to the tab (TASK-921, v0.4.12).
 - The shell keeps it through `refreshRibbon()` (module, tenant, locale changes) and keeps it open. Opening it is not a
   navigation: `onTabChange` is not called for it, and its commands go to `onContextualAction`, not the shell's
   `onItemClick`.

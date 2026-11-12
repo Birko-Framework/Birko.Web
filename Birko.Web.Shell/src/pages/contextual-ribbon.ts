@@ -49,11 +49,15 @@ export class ContextualRibbonLink<T> {
     private readonly _act: (itemId: string, record: T) => void,
   ) {}
 
-  /** Raises (or updates) the tab for `record`, identified by `key`; a new key opens it unless the ribbon says not. */
-  raise(record: T, key: string): void {
+  /**
+   * Raises (or updates) the tab for `record`, identified by `key`; a new key opens it unless the ribbon says not.
+   * `select` overrides that: true opens it for the same record too (a sub-row selected in the detail, TASK-921), false
+   * never opens it.
+   */
+  raise(record: T, key: string, options: { select?: boolean } = {}): void {
     const ribbon = this._build(record);
     if (!ribbon) { this.clear(); return; }
-    const select = key !== this._raisedFor && (ribbon.open ?? true);
+    const select = options.select ?? (key !== this._raisedFor && (ribbon.open ?? true));
     this._record = record;
     this._raisedFor = key;
     if (this._handle) { this._handle.update(ribbon, select); return; }
