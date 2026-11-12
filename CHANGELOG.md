@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.12 — 2026-11-12
+
+- **Shell: `refreshContextualRibbon({ open: true })` re-raises the contextual tab for the same record AND opens it** —
+  Birko TASK-921, asked for by Symbio TASK-1051. A sub-row selected in the detail (an attendee, a production step) can
+  add a group to the tab, but on an unpinned ribbon the pointer leaving the panel to click that row had collapsed it,
+  and a re-raise for the same record never opened it. `BaseSplitPage` and `BaseDetailPage` take `{ open: true }`;
+  without it a refresh still leaves the tab as the user left it. `ContextualRibbonLink.raise` takes `{ select }`, and
+  `b-ribbon.showContextual(id, { select: true })` now cancels a hover-leave collapse already queued. On a pinned
+  ribbon with the tab open it changes nothing.
+
 ## v0.4.11 — 2026-11-06
 
 - **`b-multi-select`: Escape after clicking in its open list closes the list, not the modal** — Birko TASK-819, the

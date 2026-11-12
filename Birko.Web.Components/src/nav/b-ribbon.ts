@@ -973,11 +973,15 @@ export class BRibbon extends BaseComponent {
     this.update();
   }
 
-  /** Shows a set's tabs, after the normal ones. `select` also opens its first tab. */
+  /**
+   * Shows a set's tabs, after the normal ones. `select` also opens its first tab, and on an unpinned ribbon its panel,
+   * cancelling a collapse the pointer leaving the panel has queued (TASK-921: the click that selects is often that one).
+   */
   showContextual(id: string, options: { select?: boolean } = {}) {
     this._ctxShown.add(id);
     this.update();
     if (options.select) {
+      this._clearTimers();
       const first = this._tabs.find(t => t.contextualSet === id && !t.disabled);
       if (first) this._selectTab(first.id);
     }

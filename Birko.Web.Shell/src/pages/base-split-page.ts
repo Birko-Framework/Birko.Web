@@ -222,9 +222,12 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     return this._selectedId === id;
   }
 
-  /** Re-builds the contextual tab for the selected record, e.g. after a command changed its state. */
-  protected refreshContextualRibbon(): void {
-    if (this._selectedEntity && this._selectedId) this._ctxRibbon.raise(this._selectedEntity, this._selectedId);
+  /**
+   * Re-builds the contextual tab for the selected record, e.g. after a command changed its state. It stays as the user
+   * left it (open or not); `open: true` also opens it, e.g. when a sub-row selected in the detail adds a group (TASK-921).
+   */
+  protected refreshContextualRibbon(options: { open?: boolean } = {}): void {
+    if (this._selectedEntity && this._selectedId) this._ctxRibbon.raise(this._selectedEntity, this._selectedId, { select: options.open });
   }
 
   /** Clear the detail selection and hide the detail panel. */

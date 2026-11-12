@@ -114,10 +114,13 @@ export abstract class BaseDetailPage<T extends Record<string, unknown>> extends 
   /** A command of the contextual tab was clicked, with the loaded record. */
   protected onContextualAction(_itemId: string, _entity: T): void {}
 
-  /** Re-builds the contextual tab for the loaded record, e.g. after a command changed its state. */
-  protected refreshContextualRibbon(): void {
+  /**
+   * Re-builds the contextual tab for the loaded record, e.g. after a command changed its state. It stays as the user
+   * left it (open or not); `open: true` also opens it, e.g. when a sub-row selected on the page adds a group (TASK-921).
+   */
+  protected refreshContextualRibbon(options: { open?: boolean } = {}): void {
     const id = this._entityId();
-    if (this.entity && id) this._ctxRibbon.raise(this.entity, id);
+    if (this.entity && id) this._ctxRibbon.raise(this.entity, id, { select: options.open });
   }
 
   private readonly _ctxRibbon = new ContextualRibbonLink<T>(this,
