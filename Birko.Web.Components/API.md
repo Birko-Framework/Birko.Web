@@ -1549,7 +1549,12 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 | `reveal` | `(id: string) => void` (expand all ancestors) |
 | `setConfig` | `(config: TreeConfig) => void` |
 
-**TreeMenuItem**: `{ id, label, icon?, href?, badge?, disabled?, expanded?, children?: TreeMenuItem[], actions?, sortOrder? }`
+**TreeMenuItem**: `{ id, label, icon?, href?, badge?, disabled?, muted?, expanded?, children?: TreeMenuItem[], actions?, sortOrder? }`
+
+**Muted rows** (`muted: true`, TASK-923, v0.4.13). A row shown for context rather than as a result, e.g. an ancestor
+kept by a filter so a matching child keeps its place. Its `.node-row` gets the `muted` class and its text the
+`--b-text-muted` colour. Unlike `disabled` it is not dimmed by opacity, gets no `aria-disabled`, stays selectable and
+keyboard reachable, and emits `select` as usual. Children and expansion work as on any row.
 
 **TreeConfig**: `{ items?, onExpand?, actions?, expandOn?, emptyMessage?, sortable?, handleOnly?, sortControls? }`
 
