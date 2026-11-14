@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.13 — 2026-11-14
+
+- **`b-tree-menu`: `TreeMenuItem.muted` shows a row for context, not as a result** — Birko TASK-923, asked for by
+  Symbio TASK-1089 (a category filter that keeps the ancestors of each match). The row's `.node-row` gets the `muted`
+  class and the `--b-text-muted` text colour. Unlike `disabled` it stays selectable and keyboard reachable, has no
+  `aria-disabled`, and emits `select`. Additive; nothing else changes.
+
 ## v0.4.12 — 2026-11-12
 
 - **Shell: `refreshContextualRibbon({ open: true })` re-raises the contextual tab for the same record AND opens it** —

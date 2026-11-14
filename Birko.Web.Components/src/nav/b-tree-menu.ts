@@ -12,6 +12,11 @@ export interface TreeMenuItem {
   href?: string;
   badge?: number | string;
   disabled?: boolean;
+  /**
+   * Shown for context, not as a result (e.g. an ancestor kept so a filtered match keeps its place): the row's text is
+   * muted, but unlike `disabled` it stays selectable and keyboard reachable, and `select` fires as usual.
+   */
+  muted?: boolean;
   expanded?: boolean;
   children?: TreeMenuItem[];
   actions?: TreeNodeAction[];
@@ -128,6 +133,7 @@ export class BTreeMenu extends BaseComponent {
         transition: background var(--b-transition, 150ms ease), color var(--b-transition, 150ms ease);
         min-height: 1.75rem;
       }
+      .node-row.muted { color: var(--b-text-muted); }
       .node-row:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
       .node-row:focus-visible {
         outline: none;
@@ -511,7 +517,7 @@ export class BTreeMenu extends BaseComponent {
             ${hasChildren ? `aria-expanded="${isExpanded}"` : ''}
             ${isLoading ? 'aria-busy="true"' : ''}
             data-id="${item.id}">
-          <${tag} class="node-row ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''} ${grabbed ? 'grabbed' : ''} ${sortable && !this._config.handleOnly ? 'whole' : ''}"
+          <${tag} class="node-row ${isActive ? 'active' : ''} ${item.disabled ? 'disabled' : ''} ${item.muted ? 'muted' : ''} ${grabbed ? 'grabbed' : ''} ${sortable && !this._config.handleOnly ? 'whole' : ''}"
                ${hrefAttr}
                data-item="${item.id}"
                tabindex="0"

@@ -1940,11 +1940,15 @@ interface TreeMenuItem {
   icon?: string;        // HTML entity or text
   href?: string;        // Navigate on click (renders <a>)
   badge?: number|string;// Count badge on right
-  disabled?: boolean;
+  disabled?: boolean;   // Dimmed, not selectable
+  muted?: boolean;      // Context only: muted text, still selectable (select fires)
   expanded?: boolean;   // Initially expanded
   children?: TreeMenuItem[];
 }
 ```
+
+`muted` is for a row shown for context, not as a result, e.g. the ancestors a filter keeps so a match keeps its
+place. The row's `.node-row` gets the `muted` class.
 
 Attributes: `active` (item id — highlights the node)
 Methods: `setItems()`, `expandAll()`, `collapseAll()`, `expand(id)`, `collapse(id)`, `toggle(id)`, `reveal(id)` (expands all ancestors)
