@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.14 — 2026-11-14
+
+- **`b-select` (native, not searchable): the `value` attribute applies after the user has picked** — Birko TASK-924,
+  found by Symbio TASK-1089. Once the user picked from the inner `<select>`, a later `value` attribute change or
+  re-render only moved the options' `selected` attribute, which the browser ignores on a select the user has touched,
+  so the control kept showing the old pick (Symbio: "All" over a filtered tree). Each render now selects the rendered
+  option; with no value it shows the placeholder, else the first enabled option, as an untouched select does.
+
 ## v0.4.13 — 2026-11-14
 
 - **`b-tree-menu`: `TreeMenuItem.muted` shows a row for context, not as a result** — Birko TASK-923, asked for by
