@@ -220,6 +220,11 @@ export class BSelect extends FormControlComponent {
   private _wireNative() {
     const select = this.$<HTMLSelectElement>('select');
     if (select) {
+      // A re-render only toggles each option's `selected` attribute, which a select the user has picked from (its
+      // selectedness is dirty) ignores; apply the rendered default as an untouched select would (TASK-924).
+      const options = Array.from(select.options);
+      const rendered = options.findIndex(o => o.defaultSelected);
+      select.selectedIndex = rendered >= 0 ? rendered : options.findIndex(o => !o.disabled);
       this.listen(select, 'change', (e: Event) => {
         const value = (e.target as HTMLSelectElement).value;
         this.setAttribute('value', value);
