@@ -1,5 +1,6 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
-import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { formFieldSheet, formControlSheet, timeStepperSheet } from '../shared-styles';
+import { renderTimeStepper, wireTimeStepper } from './time-stepper';
 import { renderField, fieldAria } from './label-hint';
 import {
   triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton,
@@ -34,7 +35,7 @@ export class BTime extends FormControlComponent {
   }
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet];
+    return [formFieldSheet, formControlSheet, timeStepperSheet];
   }
 
   static get styles() {
@@ -66,65 +67,10 @@ export class BTime extends FormControlComponent {
         border-radius: var(--b-radius, 0.375rem);
         box-shadow: var(--b-shadow-md);
         padding: var(--b-space-md, 0.75rem);
-        width: var(--b-time-picker-width, 11rem);
+        width: var(--b-time-picker-width, 13.5rem);
         user-select: none;
       }
       .tp-panel.open { display: block; }
-
-      .tp-spinners {
-        display: flex; align-items: center; justify-content: center;
-        gap: var(--b-space-xs, 0.25rem);
-      }
-
-      .tp-spinner {
-        display: flex; flex-direction: column; align-items: center;
-        gap: var(--b-space-3xs, 0.0625rem);
-      }
-      .tp-spin-btn {
-        background: none; border: none; cursor: pointer;
-        color: var(--b-text-muted);
-        font-size: var(--b-text-sm, 0.8125rem);
-        padding: var(--b-space-3xs, 0.0625rem) var(--b-space-sm, 0.5rem);
-        border-radius: var(--b-radius, 0.375rem);
-        line-height: 1;
-      }
-      .tp-spin-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
-
-      .tp-num-input {
-        width: 3rem;
-        text-align: center;
-        padding: var(--b-space-xs, 0.25rem) var(--b-space-xs, 0.25rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        font-size: var(--b-text-base, 0.875rem);
-        font-weight: var(--b-font-weight-medium, 500);
-        color: var(--b-text);
-        background: var(--b-bg);
-        -moz-appearance: textfield;
-      }
-      /* iOS 16px focus-zoom floor (TASK-126 sweep). A class selector, so the shared formControl rule cannot
-         reach it; measured at 12.25px. The box is 3rem wide around two centred digits, which still fits.
-         Coarse-only — a desktop time field stays dense. */
-      @media (pointer: coarse) {
-        .tp-num-input { font-size: max(16px, var(--b-text-base, 0.875rem)); }
-      }
-      .tp-num-input::-webkit-inner-spin-button,
-      .tp-num-input::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-      }
-      .tp-num-input:focus {
-        outline: none;
-        border-color: var(--b-border-focus);
-        box-shadow: var(--b-focus-ring);
-      }
-
-      .tp-sep {
-        font-size: var(--b-text-lg, 1rem);
-        font-weight: var(--b-font-weight-bold, 700);
-        color: var(--b-text-muted);
-        padding-bottom: 0;
-      }
 
       .tp-footer {
         display: flex; justify-content: space-between; align-items: center;
@@ -209,19 +155,7 @@ export class BTime extends FormControlComponent {
   private _renderPanel(): string {
     const step = this._step();
     return `
-      <div class="tp-spinners">
-        <div class="tp-spinner">
-          <button class="tp-spin-btn" data-spin="hour-up" aria-label="${t('bwc.time.hourUp', undefined, 'Increase hours')}">&#9650;</button>
-          <input class="tp-num-input" data-time="hour" aria-label="${t('bwc.time.hours', undefined, 'Hours')}" type="number" min="0" max="23" value="${pad(this._hour)}" />
-          <button class="tp-spin-btn" data-spin="hour-down" aria-label="${t('bwc.time.hourDown', undefined, 'Decrease hours')}">&#9660;</button>
-        </div>
-        <span class="tp-sep">:</span>
-        <div class="tp-spinner">
-          <button class="tp-spin-btn" data-spin="minute-up" aria-label="${t('bwc.time.minuteUp', undefined, 'Increase minutes')}">&#9650;</button>
-          <input class="tp-num-input" data-time="minute" aria-label="${t('bwc.time.minutes', undefined, 'Minutes')}" type="number" min="0" max="59" step="${step}" value="${pad(this._minute)}" />
-          <button class="tp-spin-btn" data-spin="minute-down" aria-label="${t('bwc.time.minuteDown', undefined, 'Decrease minutes')}">&#9660;</button>
-        </div>
-      </div>
+      ${renderTimeStepper(this._hour, this._minute, step)}
       <div class="tp-footer">
         <button data-action="now">${this._nowLabel()}</button>
         <button data-action="clear">${this._clearLabel()}</button>
@@ -294,19 +228,6 @@ export class BTime extends FormControlComponent {
     // Spin buttons
     this.listen(panel, 'click', (e: Event) => {
       const target = e.target as HTMLElement;
-      const spin = target.dataset.spin;
-      if (spin) {
-        switch (spin) {
-          case 'hour-up': this._hour = (this._hour + 1) % 24; break;
-          case 'hour-down': this._hour = (this._hour + 23) % 24; break;
-          case 'minute-up': this._minute = (this._minute + step) % 60; break;
-          case 'minute-down': this._minute = (this._minute - step + 60) % 60; break;
-        }
-        this._emitValue();
-        this._refreshPanel(panel);
-        return;
-      }
-
       const action = target.dataset.action;
       if (action === 'now') {
         const now = new Date();
@@ -322,46 +243,17 @@ export class BTime extends FormControlComponent {
       }
     });
 
-    // Direct number input
-    const hourInput = panel.querySelector<HTMLInputElement>('[data-time="hour"]');
-    const minuteInput = panel.querySelector<HTMLInputElement>('[data-time="minute"]');
-    if (hourInput) this._listenInput(hourInput, 0, 23, (v) => { this._hour = v; this._emitValue(); });
-    if (minuteInput) this._listenInput(minuteInput, 0, 59, (v) => { this._minute = v; this._emitValue(); });
-
-    // Scroll on number inputs
-    if (hourInput) this._listenWheel(hourInput, () => {
-      this._hour = (this._hour + 1) % 24;
-    }, () => {
-      this._hour = (this._hour + 23) % 24;
+    wireTimeStepper(panel.querySelector<HTMLElement>('.ts-row'), {
+      step,
+      get: () => ({ hour: this._hour, minute: this._minute }),
+      set: (hour, minute) => {
+        this._hour = hour;
+        this._minute = minute;
+        this._emitValue();
+        this._refreshPanel(panel);
+      },
+      listen: (el, type, fn, opts) => this.listen(el, type, fn, opts),
     });
-    if (minuteInput) this._listenWheel(minuteInput, () => {
-      this._minute = (this._minute + step) % 60;
-    }, () => {
-      this._minute = (this._minute - step + 60) % 60;
-    });
-  }
-
-  private _listenInput(el: HTMLInputElement, min: number, max: number, cb: (v: number) => void) {
-    const handler = () => {
-      let v = parseInt(el.value, 10);
-      if (isNaN(v)) v = 0;
-      if (v < min) v = min;
-      if (v > max) v = max;
-      el.value = pad(v);
-      cb(v);
-    };
-    this.listen(el, 'change', handler);
-    this.listen(el, 'blur', handler);
-  }
-
-  private _listenWheel(el: HTMLInputElement, onUp: () => void, onDown: () => void) {
-    this.listen(el, 'wheel', (e: WheelEvent) => {
-      e.preventDefault();
-      if (e.deltaY < 0) onUp();
-      else onDown();
-      this._emitValue();
-      this._refreshPanel(el.closest('.tp-panel') as HTMLElement);
-    }, { passive: false });
   }
 
   /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */

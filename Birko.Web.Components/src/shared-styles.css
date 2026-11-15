@@ -276,6 +276,58 @@ input.has-error:focus, select.has-error:focus {
 }
 
 
+/* @sheet timeStepper
+   The hour : minute row of b-time and b-datetime-picker (TASK-928): − | 14 | + per number, one joined control.
+   Buttons are the field's full height; on a touch screen they grow to the touch-target height. */
+
+.ts-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: var(--b-space-xs, 0.25rem);
+}
+.ts-field {
+  display: inline-flex; align-items: stretch;
+  border: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: var(--b-radius, 0.375rem);
+  background: var(--b-bg);
+  overflow: hidden;
+}
+.ts-field:focus-within { border-color: var(--b-border-focus); box-shadow: var(--b-focus-ring); }
+.ts-btn {
+  width: 1.75rem; min-height: 2rem;
+  background: none; border: none; border-radius: 0; cursor: pointer;
+  color: var(--b-text-muted);
+  font: inherit; font-size: var(--b-text-base, 0.875rem); line-height: 1;
+}
+.ts-btn:hover { background: var(--b-bg-tertiary); color: var(--b-text); }
+.ts-btn:focus-visible { outline: none; background: var(--b-bg-tertiary); color: var(--b-text); box-shadow: inset 0 0 0 2px var(--b-color-primary); }
+.ts-num {
+  width: 2.25rem;
+  text-align: center;
+  padding: 0;
+  border: none;
+  border-left: var(--b-border-width, 1px) solid var(--b-border);
+  border-right: var(--b-border-width, 1px) solid var(--b-border);
+  border-radius: 0;
+  font: inherit; font-size: var(--b-text-base, 0.875rem); font-weight: var(--b-font-weight-medium, 500);
+  color: var(--b-text);
+  background: var(--b-bg);
+  -moz-appearance: textfield;
+}
+.ts-num:focus { outline: none; background: var(--b-bg-secondary, var(--b-bg)); }
+.ts-num::-webkit-inner-spin-button,
+.ts-num::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.ts-sep {
+  font-size: var(--b-text-lg, 1rem);
+  font-weight: var(--b-font-weight-bold, 700);
+  color: var(--b-text-muted);
+}
+/* Touch: full touch-target height, and the iOS 16px focus-zoom floor (TASK-126). */
+@media (pointer: coarse) {
+  .ts-btn { width: 2.25rem; min-height: var(--b-control-min-height-lg, 2.75rem); }
+  .ts-num { width: 2.75rem; font-size: max(16px, var(--b-text-base, 0.875rem)); }
+}
+
+
 /* @sheet dropdownPanel
    Popover dropdown panel — shared by b-dropdown-menu, b-multi-select,
    and any future component that needs a positioned popover list. */

@@ -280,7 +280,7 @@
 
   /* ── Popover / picker / dropdown widths (rem — tunable in one place) ── */
   --b-date-picker-width: 17rem;       /* 272px */
-  --b-time-picker-width: 11rem;       /* 176px */
+  --b-time-picker-width: 13.5rem;     /* 216px: the − 14 + : − 35 + row (TASK-928) */
   --b-tooltip-max-width: 16rem;       /* 256px */
   --b-dropdown-min-width: 10rem;      /* 160px */
   --b-kanban-col-min-width: 16rem;    /* 256px */

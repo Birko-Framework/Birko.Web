@@ -6,6 +6,14 @@ interchangeable for consumers.
 
 ## v0.4.12 — 2026-11-15
 
+- **`b-time` and `b-datetime-picker` share one time row: − | 14 | + per number** — Birko TASK-928, the user's pick
+  (variant E of six, chosen for touch devices). `b-time` had ▲ / ▼ above and below each number; `b-datetime-picker`
+  had two plain number boxes with the browser's own tiny arrows, no names for screen readers and a fixed 5-minute
+  step. Both now draw the same joined control from one shared module (`inputs/time-stepper.ts`, sheet
+  `timeStepperSheet`): full-height buttons that grow to the touch-target height on a touch screen, named buttons and
+  boxes, and typing, the wheel and ↑ / ↓ as before. `b-datetime-picker` takes `step` (default 5), and its OK button
+  is translated (`bwc.dialog.ok`). **Visual change:** `--b-time-picker-width` 11rem → 13.5rem, and `b-time`'s panel
+  is one line shorter.
 - **`b-time` / `b-datetime-picker`: the panel stays put while you use it** — Birko TASK-927, found by the user in the
   Playground. A `b-time` arrow, or a date picked in `b-datetime-picker` (whose panel stays open for the time), sets
   the `value` attribute; the re-render dropped the fixed panel's position, so it jumped far down the page (measured:

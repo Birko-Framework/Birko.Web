@@ -1,5 +1,6 @@
 import { FormControlComponent, define, t } from 'birko-web-core';
-import { formFieldSheet, formControlSheet } from '../shared-styles';
+import { formFieldSheet, formControlSheet, timeStepperSheet } from '../shared-styles';
+import { renderTimeStepper, wireTimeStepper } from './time-stepper';
 import { renderField, fieldAria } from './label-hint';
 import {
   triggerAria, panelAria, setExpanded, focusIntoPanel, refreshKeepingFocus, returnFocus, clearButton,
@@ -65,11 +66,11 @@ export class BDatetimePicker extends FormControlComponent {
 
   static get observedAttributes() {
     return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'required', 'hint',
-            'min', 'max', 'bare', 'description', 'label-today', 'label-clear', 'label-months', 'label-days'];
+            'min', 'max', 'step', 'bare', 'description', 'label-today', 'label-clear', 'label-months', 'label-days'];
   }
 
   static get sharedStyles() {
-    return [formFieldSheet, formControlSheet];
+    return [formFieldSheet, formControlSheet, timeStepperSheet];
   }
 
   static get styles() {
@@ -184,32 +185,6 @@ export class BDatetimePicker extends FormControlComponent {
         margin-top: var(--b-space-sm, 0.5rem);
         padding-top: var(--b-space-sm, 0.5rem);
         border-top: var(--b-border-width, 1px) solid var(--b-border);
-      }
-      .dp-time-input {
-        width: var(--b-space-3xl, 3rem);
-        text-align: center;
-        padding: var(--b-space-2xs, 0.125rem) var(--b-space-xs, 0.25rem);
-        border: var(--b-border-width, 1px) solid var(--b-border);
-        border-radius: var(--b-radius, 0.375rem);
-        font-size: var(--b-text-sm, 0.8125rem);
-        color: var(--b-text);
-        background: var(--b-bg);
-      }
-      /* iOS 16px focus-zoom floor (TASK-126 sweep). A class selector, so the shared formControl rule cannot
-         reach it; measured at 11.38px, i.e. tapping the hour box zoomed the whole page. The box is 3rem wide
-         and centres two digits, which still fits at 16px. Coarse-only — desktop keeps the dense spinner. */
-      @media (pointer: coarse) {
-        .dp-time-input { font-size: max(16px, var(--b-text-sm, 0.8125rem)); }
-      }
-      .dp-time-input:focus {
-        outline: none;
-        border-color: var(--b-border-focus);
-        box-shadow: var(--b-focus-ring);
-      }
-      .dp-time-sep {
-        font-size: var(--b-text-base, 0.875rem);
-        font-weight: var(--b-font-weight-bold, 700);
-        color: var(--b-text-muted);
       }
 
       /* ── Month picker ── */
@@ -373,15 +348,11 @@ export class BDatetimePicker extends FormControlComponent {
         ${dayHeaders.map(d => `<span class="dp-day-header">${d}</span>`).join('')}
         ${cells.join('')}
       </div>
-      <div class="dp-time">
-        <input class="dp-time-input" data-time="hour" type="number" min="0" max="23" value="${pad(this._hour)}" />
-        <span class="dp-time-sep">:</span>
-        <input class="dp-time-input" data-time="minute" type="number" min="0" max="59" step="5" value="${pad(this._minute)}" />
-      </div>
+      <div class="dp-time">${renderTimeStepper(this._hour, this._minute, this._step())}</div>
       <div class="dp-footer">
         <button data-nav="now">${this._nowLabel()}</button>
         <button data-nav="clear">${this._clearLabel()}</button>
-        ${this._selectedDate ? `<button data-nav="set" style="font-weight:var(--b-font-weight-medium,500)">OK</button>` : ''}
+        ${this._selectedDate ? `<button data-nav="set" style="font-weight:var(--b-font-weight-medium,500)">${t('bwc.dialog.ok', undefined, 'OK')}</button>` : ''}
       </div>
     `;
   }
@@ -488,15 +459,7 @@ export class BDatetimePicker extends FormControlComponent {
       this._refreshPanel();
     });
 
-    // Time inputs
-    const hourInput = panel.querySelector<HTMLInputElement>('[data-time="hour"]');
-    const minuteInput = panel.querySelector<HTMLInputElement>('[data-time="minute"]');
-    if (hourInput) {
-      this._listenTimeInput(hourInput, 0, 23, (v) => { this._hour = v; this._emitValue(); });
-    }
-    if (minuteInput) {
-      this._listenTimeInput(minuteInput, 0, 59, (v) => { this._minute = v; this._emitValue(); });
-    }
+    this._wireTime(panel);
 
     // Outside click
     if (this._outsideClickHandler) {
@@ -528,19 +491,6 @@ export class BDatetimePicker extends FormControlComponent {
       e.stopPropagation();
       this._close();
     });
-  }
-
-  private _listenTimeInput(el: HTMLInputElement, min: number, max: number, cb: (v: number) => void) {
-    const handler = () => {
-      let v = parseInt(el.value, 10);
-      if (isNaN(v)) v = 0;
-      if (v < min) v = min;
-      if (v > max) v = max;
-      el.value = pad(v);
-      cb(v);
-    };
-    this.listen(el, 'change', handler);
-    this.listen(el, 'blur', handler);
   }
 
   /** `focusPanel` when opened from the keyboard: focus moves to the selected / today / first control. */
@@ -646,15 +596,26 @@ export class BDatetimePicker extends FormControlComponent {
       panel.innerHTML = this._monthPicker ? this._renderMonthPicker() : this._renderCalendar();
     });
 
-    // Re-bind time inputs after refresh
-    const hourInput = panel.querySelector<HTMLInputElement>('[data-time="hour"]');
-    const minuteInput = panel.querySelector<HTMLInputElement>('[data-time="minute"]');
-    if (hourInput) {
-      this._listenTimeInput(hourInput, 0, 23, (v) => { this._hour = v; this._emitValue(); });
-    }
-    if (minuteInput) {
-      this._listenTimeInput(minuteInput, 0, 59, (v) => { this._minute = v; this._emitValue(); });
-    }
+    this._wireTime(panel);
+  }
+
+  /** Minutes per − / + press: the `step` attribute, default 5 (the old minute box's step). */
+  private _step(): number {
+    return parseInt(this.attr('step') ?? '5', 10) || 5;
+  }
+
+  private _wireTime(panel: HTMLElement) {
+    wireTimeStepper(panel.querySelector<HTMLElement>('.ts-row'), {
+      step: this._step(),
+      get: () => ({ hour: this._hour, minute: this._minute }),
+      set: (hour, minute) => {
+        this._hour = hour;
+        this._minute = minute;
+        this._emitValue();
+        this._refreshPanel();
+      },
+      listen: (el, type, fn, opts) => this.listen(el, type, fn, opts),
+    });
   }
 
   private _isDisabled(iso: string, min: string, max: string): boolean {
