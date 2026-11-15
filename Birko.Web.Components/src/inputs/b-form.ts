@@ -85,6 +85,18 @@ export interface GroupRule {
   validate: (groupData: Record<string, unknown>) => boolean;
 }
 
+/**
+ * When a field is shown, by another field's value (TASK-925). `field` is that field's path from the form root, as in
+ * `validate().errors` (`'linkKind'`, `'address.country'`). With `equals` the field shows while the value is exactly
+ * that (`===`); with `in`, while it is one of those; with neither, while it is not empty (not `undefined`, `null`, `''`,
+ * `false` or `[]`). Values are compared as `getValues()` returns them.
+ */
+export interface FieldCondition {
+  field: string;
+  equals?: unknown;
+  in?: unknown[];
+}
+
 export interface FormField {
   name: string;
   type: FieldType;
@@ -103,6 +115,14 @@ export interface FormField {
   rows?: number;
   fullWidth?: boolean;
   hidden?: boolean;
+  /**
+   * Show the field only while a condition holds: a {@link FieldCondition}, or a function of `getValues()`. While it is
+   * hidden by this, its wrapper is `display: none` (`b-form-field--hidden`), its rules (`required` included) and its
+   * control's own validity are not checked, any error on it is cleared, and it is left out of `validate().data` and
+   * `validateGroup().data`: the data is what the user can see. `getValues()` still returns it. A field whose condition
+   * names a field that is itself hidden by its condition is hidden too.
+   */
+  visibleWhen?: FieldCondition | ((values: Record<string, unknown>) => boolean);
   disabled?: boolean;
   options?: { value: string; label: FormText }[];
   searchable?: boolean;
@@ -246,6 +266,8 @@ export class BForm extends BaseComponent {
   private _errors = new Map<string, string>();       // dot-path → error
   private _fieldCallbacks?: Map<string, ((value: unknown, data: Record<string, unknown>) => void)[]>;
   private _settingValues = false;
+  /** Field paths hidden right now by their `visibleWhen` (TASK-925). */
+  private _conditionHidden = new Set<string>();
   private _groupErrors = new Map<string, string[]>(); // group name → errors
   /** Paths whose control reported `badInput` — nulled in the returned `data`. See {@link FormResult.data}. */
   private _badInput = new Set<string>();
@@ -397,6 +419,7 @@ export class BForm extends BaseComponent {
     this._convertPercent(this._schema, display, false);
     this._setGroupValues(this._schema, display, '');
     this._settingValues = false;
+    this._applyVisibility();
   }
 
   getValues(): Record<string, unknown> {
@@ -421,7 +444,9 @@ export class BForm extends BaseComponent {
     // that rebuilt its value wrongly across a re-render would be collected wrongly. `b-input` did
     // exactly that (`this._value || this.attr('value')` resurrected a cleared field's old value, fixed
     // in the same change), and reading the values before touching any attribute costs nothing.
+    this._applyVisibility();
     const displayData = this._getGroupValues(this._schema, '');
+    for (const path of this._conditionHidden) this._deletePath(displayData, path);
     this._errors.clear();
     this._groupErrors.clear();
     this._badInput.clear();
@@ -460,7 +485,9 @@ export class BForm extends BaseComponent {
     if (!target) return { valid: true, data: this.getValues(), errors: {}, groupErrors: {} };
 
     // Same collect-then-clear order as validate(), and for the same two reasons.
+    this._applyVisibility();
     const data = this.getValues();
+    for (const path of this._conditionHidden) this._deletePath(data, path);
 
     // Clear only this group's errors
     const pfx = prefix ? prefix + '.' : '';
@@ -501,6 +528,7 @@ export class BForm extends BaseComponent {
     this._badInput.clear();
     this._resetGroup(this._schema, '');
     this._applyErrors();
+    this._applyVisibility();
   }
 
   setFieldError(path: string, error: string) {
@@ -949,6 +977,9 @@ export class BForm extends BaseComponent {
         this.emit('submit', this.validate());
       }) as EventListener);
     }
+
+    // A render (setSchema, a morph) writes each wrapper's class from `field.hidden` alone.
+    this._applyVisibility();
   }
 
   private _wireFieldEvents(group: FormGroupDef, prefix: string, isRoot = false) {
@@ -972,6 +1003,7 @@ export class BForm extends BaseComponent {
           this._errors.delete(fieldPath);
           this._applyErrors();
         }
+        if (!this._settingValues) this._applyVisibility();
 
         // Validate on blur mode: validate this field
         if (this.attr('validate-on') === 'blur') {
@@ -1020,6 +1052,7 @@ export class BForm extends BaseComponent {
         this._validateGroup(child, childData, path);
       } else {
         const fieldPath = path ? `${path}.${child.name}` : child.name;
+        if (this._conditionHidden.has(fieldPath)) continue;
         const value = data[child.name];
         this._validateField(child, value, data, fieldPath);
       }
@@ -1418,6 +1451,71 @@ export class BForm extends BaseComponent {
   private _getNestedValue(data: Record<string, unknown>, path: string): unknown {
     return path.split('.').reduce<unknown>((obj, key) =>
       (obj as Record<string, unknown>)?.[key], data);
+  }
+
+  // ── Conditional fields (TASK-925) ──
+
+  /**
+   * Re-evaluate every `visibleWhen`, show or hide the wrappers, and clear the errors of fields that went hidden.
+   * Repeated until nothing changes, so a condition on a field that is itself conditional settles whatever the order
+   * of the fields in the schema.
+   */
+  private _applyVisibility() {
+    if (!this._schema) return;
+    const conditional: { field: FormField; path: string }[] = [];
+    this._walkFields(this._schema, '', (field, path) => { if (field.visibleWhen) conditional.push({ field, path }); });
+    const before = this._conditionHidden;
+    const hidden = new Set<string>();
+    if (conditional.length) {
+      const values = this.getValues();
+      for (let pass = 0; pass <= conditional.length; pass++) {
+        let changed = false;
+        for (const { field, path } of conditional) {
+          const show = this._conditionHolds(field.visibleWhen!, values, hidden);
+          if (show === !hidden.has(path)) continue;
+          if (show) hidden.delete(path); else hidden.add(path);
+          changed = true;
+        }
+        if (!changed) break;
+      }
+    }
+    this._conditionHidden = hidden;
+
+    let errorsChanged = false;
+    for (const { field, path } of conditional) {
+      const wrapper = this.shadowRoot?.querySelector<HTMLElement>(`[data-field="${CSS.escape(path)}"]`);
+      wrapper?.classList.toggle('b-form-field--hidden', !!field.hidden || hidden.has(path));
+      if (hidden.has(path) && !before.has(path)) {
+        this._badInput.delete(path);
+        this._customErrors.delete(path);
+        errorsChanged = this._errors.delete(path) || errorsChanged;
+      }
+    }
+    if (errorsChanged) this._applyErrors();
+  }
+
+  private _conditionHolds(
+    when: NonNullable<FormField['visibleWhen']>, values: Record<string, unknown>, hidden: Set<string>,
+  ): boolean {
+    if (typeof when === 'function') return !!when(values);
+    if (hidden.has(when.field)) return false;
+    const value = this._getNestedValue(values, when.field);
+    if (when.in) return when.in.includes(value);
+    if ('equals' in when) return value === when.equals;
+    return !(value === undefined || value === null || value === '' || value === false
+      || (Array.isArray(value) && value.length === 0));
+  }
+
+  private _deletePath(data: Record<string, unknown>, path: string) {
+    const keys = path.split('.');
+    const leaf = keys.pop()!;
+    let obj: Record<string, unknown> | undefined = data;
+    for (const key of keys) {
+      const next = obj?.[key];
+      if (!next || typeof next !== 'object') return;
+      obj = next as Record<string, unknown>;
+    }
+    if (obj) delete obj[leaf];
   }
 
   /** Null a dot-path in the collected data, leaving a missing branch alone. See {@link FormResult.data}. */

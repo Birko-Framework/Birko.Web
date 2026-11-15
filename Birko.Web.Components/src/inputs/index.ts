@@ -32,6 +32,6 @@ export { BDateRangePicker, type RangeValue, type RangePreset } from './b-date-ra
 export { BTime } from './b-time.js';
 export {
   BForm, formText,
-  type FormText, type FormSchema, type FormGroupDef, type FormField, type FormResult,
+  type FormText, type FormSchema, type FormGroupDef, type FormField, type FieldCondition, type FormResult,
   type FieldType, type ValidationRule, type GroupRule, type ValidatorFn, type FormTranslateFn,
 } from './b-form.js';

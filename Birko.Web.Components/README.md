@@ -631,7 +631,31 @@ form.focusField('email');
 
 **Validation rule types:** `required`, `minLength`, `maxLength`, `min`, `max`, `range`, `pattern`, `email`, `match`, `custom`
 **Field types:** `text`, `email`, `number`, `password`, `percent`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `range`, `file`, `custom`
-**Per-field schema properties:** `disabled`, `searchable`, `creatable`, `fullWidth`, `hidden`, `hint`, `placeholder`, `rules`, `options`
+**Per-field schema properties:** `disabled`, `searchable`, `creatable`, `fullWidth`, `hidden`, `visibleWhen`, `hint`, `placeholder`, `rules`, `options`
+
+**Conditional fields — `visibleWhen`** (TASK-925, v0.4.15). A field shows only while another field has given values:
+
+```typescript
+{ name: 'linkKind', type: 'option-group', label: 'Link', default: 'page',
+  options: [{ value: 'page', label: 'Page' }, { value: 'url', label: 'Custom URL' }] },
+{ name: 'pageGuid', type: 'select', label: 'Page', required: true, visibleWhen: { field: 'linkKind', equals: 'page' } },
+{ name: 'url', type: 'text', label: 'URL', required: true, visibleWhen: { field: 'linkKind', equals: 'url' } },
+```
+
+- `field` is the controlling field's path from the form root, as in `errors` (`'address.country'` in a group).
+  `equals` shows the field while the value is exactly that (`===`); `in: [...]`, while it is one of those; with
+  neither, while the value is not empty (`undefined`, `null`, `''`, `false`, `[]`). Or pass a function of the form's
+  values: `visibleWhen: (values) => values.kind === 'url' && !!values.advanced`.
+- It is re-evaluated when any field changes, and after `setSchema`, `setValues` and `reset`, so an edit form filled
+  from an existing row shows the right fields at once.
+- **A hidden field is not validated**: its rules, `required` included, and its control's own validity apply only while
+  it is shown. An error on it is cleared when it hides.
+- **A hidden field is left out of `validate().data`** (and `validateGroup().data`): the data is what the user can see.
+  `getValues()` still returns every field.
+- A hidden field's wrapper has the `b-form-field--hidden` class and `display: none`, so Playwright's `toBeHidden()` /
+  `toBeVisible()` work on `[data-field="url"]`.
+- A field whose condition names a field that is itself hidden by its condition is hidden too.
+- `hidden: true` still hides a field always, and that field stays validated and in the data, as before.
 
 ### b-date-picker
 
