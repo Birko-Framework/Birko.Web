@@ -761,7 +761,7 @@ become `aria-disabled` (not `disabled`) at a limit; each step is announced with 
 | `change` | `{ path, value, data }` |
 | `group-toggle` | `{ group, collapsed }` |
 
-**Conditional fields** (TASK-925, v0.4.15): `FormField.visibleWhen?: FieldCondition | ((values) => boolean)`, with
+**Conditional fields** (TASK-925, v0.4.12): `FormField.visibleWhen?: FieldCondition | ((values) => boolean)`, with
 `FieldCondition = { field: string; equals?: unknown; in?: unknown[] }` (`field` is a path from the form root; with
 neither `equals` nor `in` the field shows while that value is not empty). Re-evaluated on any field change and after
 `setSchema`, `setValues` and `reset`. While hidden, the field's wrapper is `display: none` (`b-form-field--hidden`),
@@ -1558,7 +1558,7 @@ button at `'popup'`. The degrade pass itself is not implemented yet — these fi
 
 **TreeMenuItem**: `{ id, label, icon?, href?, badge?, disabled?, muted?, expanded?, children?: TreeMenuItem[], actions?, sortOrder? }`
 
-**Muted rows** (`muted: true`, TASK-923, v0.4.13). A row shown for context rather than as a result, e.g. an ancestor
+**Muted rows** (`muted: true`, TASK-923, v0.4.12). A row shown for context rather than as a result, e.g. an ancestor
 kept by a filter so a matching child keeps its place. Its `.node-row` gets the `muted` class and its text the
 `--b-text-muted` colour. Unlike `disabled` it is not dimmed by opacity, gets no `aria-disabled`, stays selectable and
 keyboard reachable, and emits `select` as usual. Children and expansion work as on any row.

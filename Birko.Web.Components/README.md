@@ -633,7 +633,7 @@ form.focusField('email');
 **Field types:** `text`, `email`, `number`, `password`, `percent`, `textarea`, `select`, `multi-select`, `checkbox`, `switch`, `radio`, `search`, `range`, `file`, `custom`
 **Per-field schema properties:** `disabled`, `searchable`, `creatable`, `fullWidth`, `hidden`, `visibleWhen`, `hint`, `placeholder`, `rules`, `options`
 
-**Conditional fields — `visibleWhen`** (TASK-925, v0.4.15). A field shows only while another field has given values:
+**Conditional fields — `visibleWhen`** (TASK-925, v0.4.12). A field shows only while another field has given values:
 
 ```typescript
 { name: 'linkKind', type: 'option-group', label: 'Link', default: 'page',
