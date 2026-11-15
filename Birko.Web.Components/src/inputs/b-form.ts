@@ -1,5 +1,7 @@
 import { BaseComponent, define, t as globalT, parseDecimal } from 'birko-web-core';
-import { isActivationKey, escapeAttr } from '../dom-utils';
+import { isActivationKey, escapeAttr, escapeHtml } from '../dom-utils';
+import { renderLabel } from './label-hint';
+import { formFieldSheet } from '../shared-styles';
 // Every control a schema field can render.
 import './b-checkbox.js';
 import './b-country-select.js';
@@ -272,6 +274,11 @@ export class BForm extends BaseComponent {
   /** Paths whose control reported `badInput` — nulled in the returned `data`. See {@link FormResult.data}. */
   private _badInput = new Set<string>();
 
+  /** formFieldSheet styles the radio group's label and error line (TASK-133); its selectors are `.field`-scoped. */
+  static get sharedStyles() {
+    return [formFieldSheet];
+  }
+
   static get styles() {
     return `
       :host { display: block; }
@@ -333,6 +340,9 @@ export class BForm extends BaseComponent {
         padding: 0;
       }
       .b-form-field--hidden { display: none; }
+      /* A radio field (TASK-133): label and error line come from formFieldSheet's .field; the members wrap in a row. */
+      .b-form-radio-options { display: flex; flex-wrap: wrap; gap: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem); }
+      .b-form-radio-error[hidden] { display: none; }
       /* Align toggle fields (switch, checkbox, radio) with adjacent inputs in grid */
       .b-form-group--grid > .b-form-field--toggle {
         align-self: end;
@@ -575,6 +585,13 @@ export class BForm extends BaseComponent {
 
   focusField(path: string) {
     const el = this._getFieldElement(path);
+    if (el?.classList.contains('b-form-radio-group')) {
+      // The checked member, else the first one that can take focus, as a radio group's own Tab stop would be.
+      const members = [...el.querySelectorAll<HTMLElement>('b-radio')];
+      const target = members.find(m => m.hasAttribute('checked')) ?? members.find(m => !m.hasAttribute('disabled'));
+      target?.shadowRoot?.querySelector<HTMLElement>('input')?.focus();
+      return;
+    }
     if (el) {
       const input = (el.shadowRoot ?? el).querySelector('input, select, textarea') as HTMLElement;
       (input ?? el).focus();
@@ -583,6 +600,11 @@ export class BForm extends BaseComponent {
 
   setFieldDisabled(path: string, disabled: boolean) {
     const el = this._getFieldElement(path);
+    if (el?.classList.contains('b-form-radio-group')) {
+      el.querySelectorAll('b-radio').forEach(m => m.toggleAttribute('disabled', disabled));
+      el.toggleAttribute('aria-disabled', disabled);
+      return;
+    }
     if (el) {
       if (disabled) el.setAttribute('disabled', '');
       else el.removeAttribute('disabled');
@@ -666,7 +688,8 @@ export class BForm extends BaseComponent {
     const error = this._errors.get(path) ?? '';
     const disabled = this.boolAttr('disabled');
     const readonly = this.boolAttr('readonly');
-    const isToggle = field.type === 'switch' || field.type === 'checkbox' || field.type === 'radio';
+    // A radio group has its own label above its members (TASK-133), so it lines up like a text field, not a lone toggle.
+    const isToggle = field.type === 'switch' || field.type === 'checkbox';
     const classes = `b-form-field ${field.fullWidth ? 'b-form-field--full' : ''} ${field.hidden ? 'b-form-field--hidden' : ''} ${isToggle ? 'b-form-field--toggle' : ''}`;
 
     if (field.type === 'custom') {
@@ -678,6 +701,10 @@ export class BForm extends BaseComponent {
 
     if (field.type === 'percent') {
       return `<div class="${classes}" data-field="${path}"><div class="b-form-percent-wrap">${tag(attrs)}<span class="b-form-percent-sign">%</span></div></div>`;
+    }
+
+    if (field.type === 'radio') {
+      return `<div class="${classes}" data-field="${path}">${this._renderRadioGroup(field, path, error, disabled || readonly || !!field.disabled)}</div>`;
     }
 
     return `<div class="${classes}" data-field="${path}">${tag(attrs)}</div>`;
@@ -701,11 +728,6 @@ export class BForm extends BaseComponent {
         return (a) => `<b-checkbox ${a}></b-checkbox>`;
       case 'switch':
         return (a) => `<b-switch ${a}></b-switch>`;
-      case 'radio':
-        // Radio renders a group of radio buttons
-        return (a) => (field.options ?? []).map(o =>
-          `<b-radio name="${field.name}" value="${o.value}" label="${escapeAttr(formText(o.label))}" ${a.includes('disabled') ? 'disabled' : ''}></b-radio>`
-        ).join('');
       case 'option-group':
         return (a) => `<b-option-group ${a}></b-option-group>`;
       case 'search':
@@ -725,6 +747,31 @@ export class BForm extends BaseComponent {
       default: // text, password, email, number
         return (a) => `<b-input ${a}></b-input>`;
     }
+  }
+
+  /**
+   * A radio field is N members for one value (TASK-133). They sit in one `role="radiogroup"` element that carries the
+   * field's `data-path`, so every helper resolves the field as it resolves any other (one element per path); the group
+   * holds the label and the one error line (b-radio sets `supportsRequiredValidation = false`, so the group, not each
+   * member, reports `required`). b-radio unchecks its siblings through `b-radio-change` on its parent: this group.
+   */
+  private _renderRadioGroup(field: FormField, path: string, error: string, disabled: boolean): string {
+    const label = formText(field.label);
+    const value = field.value === undefined || field.value === null ? '' : String(field.value);
+    const errId = `${this.uid}-err-${path.replace(/[^\w-]/g, '_')}`;
+    const required = !!field.required || !!field.rules?.some(r => r.type === 'required');
+    const members = (field.options ?? []).map(o =>
+      `<b-radio name="${escapeAttr(path)}" value="${escapeAttr(o.value)}" label="${escapeAttr(formText(o.label))}"`
+      + `${o.value === value && value !== '' ? ' checked' : ''}${disabled ? ' disabled' : ''}></b-radio>`
+    ).join('');
+    // The shared `.field` look (formFieldSheet): the same label, required mark and error line as a text field. The group
+    // is named by aria-label, so the visible label is hidden from assistive tech rather than read twice.
+    return `<div class="field b-form-radio-group" role="radiogroup" data-path="${escapeAttr(path)}"`
+      + ` aria-label="${escapeAttr(label)}" aria-describedby="${errId}"${error ? ' aria-invalid="true"' : ''}>`
+      + (label ? `<div aria-hidden="true">${renderLabel(label, null, required)}</div>` : '')
+      + `<div class="b-form-radio-options">${members}</div>`
+      + `<span class="error b-form-radio-error" id="${errId}" role="alert"${error ? '' : ' hidden'}>${escapeHtml(error)}</span>`
+      + `</div>`;
   }
 
   private _fieldAttrs(field: FormField, path: string, error: string, disabled: boolean): string {
@@ -1083,13 +1130,23 @@ export class BForm extends BaseComponent {
     }
   }
 
+  /**
+   * Whether a field holds nothing, for `required`. Decided per type (TASK-132): a checkbox / switch collects a boolean,
+   * and its `false` is the unticked state, so a required toggle is empty until it is `true`. Elsewhere `false` is a
+   * value like any other; only `undefined`, `null`, `''` and `[]` are empty.
+   */
+  private _isEmpty(field: FormField, value: unknown): boolean {
+    if (field.type === 'checkbox' || field.type === 'switch') return value !== true;
+    return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0);
+  }
+
   private _validateField(field: FormField, value: unknown, allData: Record<string, unknown>, path: string) {
     this._customErrors.delete(path);
     // Required check — honour both field.required and rules: [{ type: 'required' }]
     const requiredRule = field.rules?.find(r => r.type === 'required');
     const isRequired = field.required || !!requiredRule;
     if (isRequired) {
-      if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) {
+      if (this._isEmpty(field, value)) {
         this._errors.set(path, optText(requiredRule?.message)
           ?? fmt('common.required', { label: formText(field.label) }, '{label} is required'));
         return; // Stop on first error
@@ -1147,11 +1204,9 @@ export class BForm extends BaseComponent {
    *   constraint. Leaving them out would keep the two spellings of one constraint disagreeing — a `max`
    *   RULE reported through `validate()` while a `max` ATTRIBUTE only ever reached native submission.
    * - **Everything else is ignored, on purpose.** `valueMissing` belongs to `required`, which is handled
-   *   above and returns before this runs — so adopting it would be a no-op almost everywhere, and in the
-   *   one place the two disagree it would be a silent breaking change: an unchecked **required checkbox**
-   *   reports `valueMissing`, while this form's emptiness test counts `false` as a filled value and lets
-   *   it pass. That gap is real and pre-existing; closing it starts blocking forms that have always
-   *   submitted, so it is its own change with its own consumer sweep, not a side effect of this one.
+   *   above and returns before this runs, so adopting it would be a no-op. (The one place the two used to
+   *   disagree, an unchecked required checkbox / switch that this form counted as filled, is closed by the
+   *   per-type emptiness test, `_isEmpty`, TASK-132.)
    *   `customError` is the `error` attribute — this form's own verdict from the
    *   previous run — so adopting it would make a corrected field stay broken forever. `typeMismatch`
    *   (a `type: 'email'` field), `patternMismatch` and `tooLong` / `tooShort` are real browser opinions
@@ -1248,12 +1303,16 @@ export class BForm extends BaseComponent {
       const el = this._getFieldElement(path);
       if (!el) return;
       const err = this._errors.get(path);
-      if (err) {
-        el.setAttribute('error', err);
-        shown.add(path);
-      } else {
-        el.removeAttribute('error');
+      if (err) shown.add(path);
+      if (field.type === 'radio') {
+        // The group is a plain element: it shows its own one line (TASK-133).
+        const line = el.querySelector<HTMLElement>('.b-form-radio-error');
+        if (line) { line.textContent = err ?? ''; line.hidden = !err; }
+        el.toggleAttribute('aria-invalid', !!err);
+        return;
       }
+      if (err) el.setAttribute('error', err);
+      else el.removeAttribute('error');
     });
 
     // An error no field can show — the shell's `showFormError` puts every non-field server error on `_form` — goes
@@ -1338,6 +1397,8 @@ export class BForm extends BaseComponent {
 
   private _getFieldValue(el: HTMLElement, field: FormField): unknown {
     switch (field.type) {
+      case 'radio':
+        return el.querySelector('b-radio[checked]')?.getAttribute('value') ?? '';
       case 'checkbox':
       case 'switch':
         return (el as any).checked ?? el.hasAttribute('checked');
@@ -1372,6 +1433,11 @@ export class BForm extends BaseComponent {
 
   private _setFieldValue(el: HTMLElement, field: FormField, value: unknown) {
     switch (field.type) {
+      case 'radio': {
+        const v = value === undefined || value === null ? '' : String(value);
+        el.querySelectorAll('b-radio').forEach(m => m.toggleAttribute('checked', v !== '' && m.getAttribute('value') === v));
+        break;
+      }
       case 'checkbox':
       case 'switch':
         if (value) el.setAttribute('checked', '');
