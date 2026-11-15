@@ -749,7 +749,7 @@ become `aria-disabled` (not `disabled`) at a limit; each step is announced with 
 | `setValues` | `(values: Record<string, unknown>) => void` | Set multiple field values |
 | `getValues` | `() => Record<string, unknown>` | Get all field values |
 | `validate` | `() => { valid, data, errors, groupErrors }` | Validate all fields — schema rules **and** each control's own verdict (see below) |
-| `validateGroup` | `(groupName: string) => FormResult` | Validate a specific group |
+| `validateGroup` | `(groupName: string) => FormResult` | Validate one group (by `name`, at any depth) and its subgroups. `errors` / `groupErrors` / `valid` cover that group only, with the same paths as `validate()` (`adv.extra`); `data` is the whole form's |
 | `clearErrors` | `() => void` | Clear all validation errors |
 | `reset` | `() => void` | Reset all fields to defaults |
 | `setFieldError` | `(path: string, error: string) => void` | Set error on a specific field |
