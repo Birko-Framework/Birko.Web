@@ -356,9 +356,15 @@ export class BMultiSelect extends FormControlComponent {
     // Listened on the document in the capture phase, not on the box and list (TASK-819): a pick rebuilds the options,
     // so the clicked checkbox or quick pick leaves the DOM with focus on it, and the next Escape started on <body> and
     // reached only the dialog (measured in Symbio's admin and in the Playground).
+    // Only an Escape from inside this field, or from nowhere (focus fell to the page or a dialog), is ours: an
+    // Escape meant for another control, e.g. a time picker tabbed to with this list still open, goes there (TASK-922).
     if (this._escapeHandler) document.removeEventListener('keydown', this._escapeHandler, true);
     this._escapeHandler = (e: Event) => {
       if ((e as KeyboardEvent).key !== 'Escape' || !this._open) return;
+      const origin = e.composedPath()[0];
+      const fromNowhere = origin === document.body || origin === document.documentElement || origin === document
+        || origin instanceof HTMLDialogElement;
+      if (!fromNowhere && !e.composedPath().includes(this)) return;
       e.preventDefault();
       e.stopPropagation();
       this._closeDropdown();

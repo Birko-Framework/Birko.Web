@@ -4,6 +4,15 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.17 — 2026-11-15
+
+- **An open `b-multi-select` list no longer takes every Escape on the page** — Birko TASK-922. Since v0.4.11 (TASK-819)
+  an open list took Escape on the document in the capture phase and stopped it, wherever it was aimed: with a list
+  left open (tabbed away from), Escape in a `b-time` or date picker panel closed that list and left the picker open,
+  with focus inside it. The list now takes only an Escape from inside its own field, or one that starts nowhere (focus
+  fell to the page or a dialog, TASK-819's case); any other Escape goes to its control. This was also the Playground's
+  intermittent `picker-popup-smoke` b-time / b-date-range-picker failure.
+
 ## v0.4.16 — 2026-11-15
 
 - **`b-form.validateGroup()` validates a nested group's own values** — Birko TASK-926, found while building TASK-925.
