@@ -237,6 +237,7 @@ export class BTime extends FormControlComponent {
     const input = this.$<HTMLInputElement>('.tp-input');
     const panel = this.$<HTMLElement>('.tp-panel');
     if (!input || !panel) return;
+    if (this._open) this._positionPanel(input, panel);
     guardTyping(input, (el, type, fn) => this.listen(el, type, fn));
 
     this.listen(input, 'click', () => {
@@ -383,8 +384,15 @@ export class BTime extends FormControlComponent {
     this._open = true;
     panel.classList.add('open');
     this._refreshPanel(panel);
+    this._positionPanel(input, panel);
+  }
 
-    // Position below input
+  /**
+   * Below the input, or above it when there is no room. Also run after every render while open: an arrow or a typed
+   * number sets the `value` attribute, the re-render drops the panel's inline position, and the fixed panel jumped
+   * away, so the next click landed outside it and closed it (TASK-927).
+   */
+  private _positionPanel(input: HTMLElement, panel: HTMLElement) {
     const rect = input.getBoundingClientRect();
     const gap = 4;
     panel.style.left = `${rect.left}px`;
