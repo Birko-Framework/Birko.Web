@@ -205,18 +205,23 @@ export class BDropdownMenu extends BaseComponent {
     const rect = this.getBoundingClientRect();
     const align = this.getAttribute('align');
     const gap = 4; // --b-space-xs fallback
+    const edge = 8; // kept clear of the viewport edge
 
-    // Reset all inset properties to prevent UA popover defaults
+    // Reset all inset properties to prevent UA popover defaults, and measure the menu at its natural height
     menu.style.inset = 'auto';
+    menu.style.maxHeight = '';
 
-    // Vertical: prefer below, flip above if not enough space
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const above = spaceBelow < menu.offsetHeight && rect.top > spaceBelow;
+    // Vertical: prefer below, flip above if not enough space. An action menu shows every row (TASK-935), so it is
+    // capped only by the room on the side it opens; just a menu taller than that room scrolls.
+    const spaceBelow = window.innerHeight - rect.bottom - gap - edge;
+    const spaceAbove = rect.top - gap - edge;
+    const above = spaceBelow < menu.offsetHeight && spaceAbove > spaceBelow;
     if (above) {
       menu.style.bottom = `${window.innerHeight - rect.top + gap}px`;
     } else {
       menu.style.top = `${rect.bottom + gap}px`;
     }
+    menu.style.maxHeight = `${Math.max(above ? spaceAbove : spaceBelow, 96)}px`;
 
     // Horizontal: align to left or right edge of trigger
     if (align === 'right') {
