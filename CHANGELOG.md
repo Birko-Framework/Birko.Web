@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.13 — 2026-11-15
+
+- **`b-sortable-list`: a mouse wheel over the list scrolls the page again** — Birko TASK-787, found by its human test.
+  The list's scroller always had `overscroll-behavior: contain`, so a wheel over any row of a list with nothing to
+  scroll (no `max-height`, or shorter than it) scrolled nothing at all; the page stuck under the pointer. The
+  containment now applies only while the list really overflows its `max-height`, so a list that scrolls still keeps
+  the wheel to itself.
+
 ## v0.4.12 — 2026-11-15
 
 - **`b-time` and `b-datetime-picker` share one time row: − | 14 | + per number** — Birko TASK-928, the user's pick

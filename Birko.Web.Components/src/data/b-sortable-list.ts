@@ -48,6 +48,8 @@ export class BSortableList extends BaseComponent {
   private _keys = new WeakMap<Element, string>();
   private _limitLine: HTMLLIElement | null = null;
   private _observer: MutationObserver | null = null;
+  /** Watches the scroller and its rows, to set `.overflows` while the list really scrolls. */
+  private _sizeObserver: ResizeObserver | null = null;
   private _grabbed: { id: string; from: number } | null = null;
   private _dropAt: DropAt | null = null;
   private readonly _pointer = new PointerDrag({
@@ -81,8 +83,11 @@ export class BSortableList extends BaseComponent {
       /* Padding plus a matching negative margin, so a capped (scrolling) list does not clip the rows' focus ring. */
       .scroll {
         position: relative; padding: var(--b-space-xs, 0.25rem); margin: calc(-1 * var(--b-space-xs, 0.25rem));
-        max-height: var(--_max-height, none); overflow: auto; overscroll-behavior: contain;
+        max-height: var(--_max-height, none); overflow: auto;
       }
+      /* Only while it really scrolls (a capped list taller than its cap): a list with nothing to scroll that kept
+         overscroll-behavior: contain swallowed the wheel, so the page did not scroll under the pointer (TASK-787). */
+      .scroll.overflows { overscroll-behavior: contain; }
       .items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--_gap); }
 
       .row {
@@ -219,6 +224,8 @@ export class BSortableList extends BaseComponent {
   protected onUnmount(): void {
     this._observer?.disconnect();
     this._observer = null;
+    this._sizeObserver?.disconnect();
+    this._sizeObserver = null;
     this._pointer.finish(true);
   }
 
@@ -229,6 +236,14 @@ export class BSortableList extends BaseComponent {
     this._sync();
     const ol = this.$<HTMLOListElement>('.items');
     if (!ol) return;
+    const scroller = this.$<HTMLElement>('.scroll');
+    this._sizeObserver?.disconnect();
+    if (scroller && typeof ResizeObserver !== 'undefined') {
+      this._sizeObserver = new ResizeObserver(() => this._syncOverflow());
+      this._sizeObserver.observe(scroller);
+      this._sizeObserver.observe(ol);
+    }
+    this._syncOverflow();
     this._pointer.wire(ol, (target, type, fn, options) => this.listen(target, type, fn as EventListener, options));
     this.listen<KeyboardEvent>(ol, 'keydown', (e) => this._onKeyDown(e));
     this.listen<FocusEvent>(ol, 'focusout', () => this._onFocusOut());
@@ -398,6 +413,13 @@ export class BSortableList extends BaseComponent {
     if (focused?.isConnected && this.shadowRoot?.activeElement !== focused) focused.focus({ preventScroll: true });
     this.$('.scroll')!.hidden = n === 0;
     this.$('.empty')!.hidden = n !== 0;
+  }
+
+  /** `.overflows` while the rows are taller than the scroller (a `max-height` the list exceeds). */
+  private _syncOverflow(): void {
+    const scroller = this.$<HTMLElement>('.scroll');
+    if (!scroller) return;
+    scroller.classList.toggle('overflows', scroller.scrollHeight > scroller.clientHeight + 1);
   }
 
   /** Run a change to the children without the observer re-syncing in the middle of it. */
