@@ -4,6 +4,15 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.15 — 2026-11-15
+
+- **`b-form`: conditional fields, `FormField.visibleWhen`** — Birko TASK-925, asked for by Symbio TASK-1090. A field
+  shows only while another field has given values: `{ field, equals }`, `{ field, in: [...] }`, `{ field }` (not
+  empty) or a function of the values. Re-evaluated on any field change and after `setSchema`, `setValues` and `reset`.
+  While hidden it is `display: none` (`b-form-field--hidden`), **not validated** (a `required` hidden field no longer
+  blocks submit) and left out of `validate().data`; `getValues()` still returns it. Additive: `hidden: true` is
+  unchanged. New exported type `FieldCondition`.
+
 ## v0.4.14 — 2026-11-14
 
 - **`b-select` (native, not searchable): the `value` attribute applies after the user has picked** — Birko TASK-924,
