@@ -7,6 +7,11 @@ export interface DropdownItem {
   icon?: string;
   variant?: 'danger';
   divider?: boolean;
+  /**
+   * A non-clickable label rendered before this item (after its divider). It starts a group: this item and the ones
+   * after it, up to the next divider or heading, are a `role="group"` named by the label. HTML, like `label`.
+   */
+  heading?: string;
 }
 
 export class BDropdownMenu extends BaseComponent {
@@ -54,6 +59,16 @@ export class BDropdownMenu extends BaseComponent {
         background: var(--b-border);
         margin: var(--b-space-xs, 0.25rem) 0;
       }
+      .group { display: flex; flex-direction: column; }
+      .heading {
+        padding: var(--b-space-xs, 0.25rem) var(--b-space-md, 0.75rem);
+        font-size: var(--b-text-xs, 0.6875rem);
+        font-weight: 600;
+        color: var(--b-text-muted);
+        white-space: nowrap;
+        cursor: default;
+        user-select: none;
+      }
       .item-icon {
         width: var(--b-icon-base, 1rem);
         text-align: center;
@@ -75,10 +90,28 @@ export class BDropdownMenu extends BaseComponent {
         <slot name="trigger"></slot>
       </div>
       <div class="menu dropdown-panel" id="${menuId}" popover role="menu">
-        ${this._items.map(item => {
-          const parts: string[] = [];
-          if (item.divider) parts.push('<div class="divider" role="separator"></div>');
-          parts.push(`
+        ${this._renderItems(menuId)}
+      </div>
+    `;
+  }
+
+  /** Items, with a `heading` opening a group that runs to the next divider or heading. */
+  private _renderItems(menuId: string): string {
+    let inGroup = false;
+    const html = this._items.map((item, i) => {
+      const parts: string[] = [];
+      if (inGroup && (item.divider || item.heading)) {
+        parts.push('</div>');
+        inGroup = false;
+      }
+      if (item.divider) parts.push('<div class="divider" role="separator"></div>');
+      if (item.heading) {
+        const headingId = `${menuId}-heading-${i}`;
+        parts.push(`<div class="group" role="group" aria-labelledby="${headingId}">`);
+        parts.push(`<div class="heading" id="${headingId}" aria-hidden="true">${item.heading}</div>`);
+        inGroup = true;
+      }
+      parts.push(`
             <button class="item ${item.variant ?? ''}"
                     data-id="${item.id}"
                     type="button"
@@ -87,10 +120,9 @@ export class BDropdownMenu extends BaseComponent {
               <span>${item.label}</span>
             </button>
           `);
-          return parts.join('');
-        }).join('')}
-      </div>
-    `;
+      return parts.join('');
+    }).join('');
+    return inGroup ? html + '</div>' : html;
   }
 
   protected onUpdated() {
