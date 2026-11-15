@@ -11,6 +11,8 @@ export interface MenuItem {
   icon?: string;
   variant?: 'danger';
   divider?: boolean;
+  /** A non-clickable group label before this item (after its divider); see `DropdownItem.heading`. */
+  heading?: string;
 }
 
 export interface ThemeOption {

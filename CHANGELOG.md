@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.15 — 2026-11-15
+
+- **`b-dropdown-menu`: group headings** — Birko TASK-934, asked for by Symbio's user menu (TASK-1071).
+  `DropdownItem.heading` (and Shell's `MenuItem.heading`) renders a small non-clickable label before the item, after
+  its divider. The item and the ones after it, up to the next divider or heading, form a `role="group"` named by the
+  label; the label is never focused and arrow keys skip it. Items without it render as before.
+
 ## v0.4.14 — 2026-11-15
 
 - **`b-form`: a `required` checkbox / switch must be ticked** — Birko TASK-132. The form's emptiness test counted `false`

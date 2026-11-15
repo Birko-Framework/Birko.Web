@@ -1453,7 +1453,11 @@ off — there is no room to travel and the page already scrolls.
 | `show` | `() => void` |
 | `hide` | `() => void` |
 
-**DropdownItem**: `{ id, label, icon?, variant?: 'danger', divider?: boolean }`
+**DropdownItem**: `{ id, label, icon?, variant?: 'danger', divider?: boolean, heading?: string }`
+
+`heading` renders a non-clickable label before the item (after its divider) and starts a group: that item and the
+ones after it, up to the next divider or heading, form a `role="group"` named by the label. The label is never
+focused and arrow keys skip it; the items stay ordinary menu items. Shell's `MenuItem` carries the same field.
 
 | Event | Detail |
 |-------|--------|
