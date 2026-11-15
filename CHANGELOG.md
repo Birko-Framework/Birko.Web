@@ -6,6 +6,12 @@ interchangeable for consumers.
 
 ## v0.4.12 — 2026-11-15
 
+- **`b-time` / `b-datetime-picker`: the panel stays put while you use it** — Birko TASK-927, found by the user in the
+  Playground. A `b-time` arrow, or a date picked in `b-datetime-picker` (whose panel stays open for the time), sets
+  the `value` attribute; the re-render dropped the fixed panel's position, so it jumped far down the page (measured:
+  y 531 → 2232) and the next click landed outside it and closed it. Both now re-place the panel after every render
+  while it is open. `b-date-picker`, `b-date-range-picker`, `b-multi-select` and searchable `b-select` were measured
+  and keep their place.
 - **An open `b-multi-select` list no longer takes every Escape on the page** — Birko TASK-922. Since v0.4.11 (TASK-819)
   an open list took Escape on the document in the capture phase and stopped it, wherever it was aimed: with a list
   left open (tabbed away from), Escape in a `b-time` or date picker panel closed that list and left the picker open,

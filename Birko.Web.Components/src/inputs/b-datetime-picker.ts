@@ -413,6 +413,7 @@ export class BDatetimePicker extends FormControlComponent {
     const input = this.$<HTMLInputElement>('.dp-input');
     const panel = this.$<HTMLElement>('.dp-panel');
     if (!input || !panel) return;
+    if (this._open) this._positionPanel(input, panel);
     guardTyping(input, (el, type, fn) => this.listen(el, type, fn));
 
     this.listen(input, 'click', () => {
@@ -569,7 +570,15 @@ export class BDatetimePicker extends FormControlComponent {
     this._open = true;
     panel.classList.add('open');
     this._refreshPanel();
+    this._positionPanel(input, panel);
+  }
 
+  /**
+   * Below the input, or above it when there is no room. Also run after every render while open: picking a date sets
+   * the `value` attribute while the panel stays open for the time, the re-render drops the panel's inline position,
+   * and the fixed panel jumped away (TASK-927, as in b-time).
+   */
+  private _positionPanel(input: HTMLElement, panel: HTMLElement) {
     const rect = input.getBoundingClientRect();
     const gap = 4;
     panel.style.left = `${rect.left}px`;
