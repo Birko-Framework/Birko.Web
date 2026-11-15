@@ -476,12 +476,22 @@ export class BForm extends BaseComponent {
   validateGroup(groupName: string): FormResult {
     if (!this._schema) return { valid: true, data: {}, errors: {}, groupErrors: {} };
 
-    // Find the group
+    // Find the group, with its field-path prefix in the same form as every other path here: the root's own name is
+    // never part of it (TASK-926 — `_walkGroups` includes it, so a nested group used to read the values at
+    // `root.adv` (none) and report `root.adv.extra`, a path no field has).
     let target: FormGroupDef | null = null;
-    let prefix = '';
-    this._walkGroups(this._schema, (g, p) => {
-      if (g.name === groupName) { target = g; prefix = p; }
-    });
+    let parentPath = '';
+    let groupPath = '';
+    let isRootTarget = false;
+    const groupNames: string[] = [];
+    const find = (g: FormGroupDef, parent: string, isRoot: boolean, inTarget: boolean) => {
+      const path = isRoot ? '' : (parent ? `${parent}.${g.name}` : g.name);
+      const hit = !target && g.name === groupName;
+      if (hit) { target = g; parentPath = parent; groupPath = path; isRootTarget = isRoot; }
+      if (hit || inTarget) groupNames.push(g.name);
+      for (const child of g.children) if (isGroup(child)) find(child, path, false, hit || inTarget);
+    };
+    find(this._schema, '', true, false);
     if (!target) return { valid: true, data: this.getValues(), errors: {}, groupErrors: {} };
 
     // Same collect-then-clear order as validate(), and for the same two reasons.
@@ -489,28 +499,31 @@ export class BForm extends BaseComponent {
     const data = this.getValues();
     for (const path of this._conditionHidden) this._deletePath(data, path);
 
-    // Clear only this group's errors
-    const pfx = prefix ? prefix + '.' : '';
+    // Clear, and later report, only this group's errors.
+    const inGroup = (k: string) => !groupPath || k.startsWith(groupPath + '.');
     for (const k of this._errors.keys()) {
-      if (k.startsWith(pfx)) this._errors.delete(k);
+      if (inGroup(k)) this._errors.delete(k);
     }
     for (const k of this._badInput) {
-      if (k.startsWith(pfx)) this._badInput.delete(k);
+      if (inGroup(k)) this._badInput.delete(k);
     }
-    this._groupErrors.delete(groupName);
+    for (const name of groupNames) this._groupErrors.delete(name);
     this._applyErrors();
 
-    const groupData = prefix ? this._getNestedValue(data, prefix) as Record<string, unknown> : data;
-    this._validateGroup(target, groupData ?? {}, prefix);
+    const groupData = groupPath ? this._getNestedValue(data, groupPath) as Record<string, unknown> : data;
+    this._validateGroup(target, groupData ?? {}, parentPath, isRootTarget);
     for (const path of this._badInput) this._nullPath(data, path);
 
     this._applyErrors();
 
     const errors: Record<string, string> = {};
-    for (const [k, v] of this._errors) errors[k] = v;
+    for (const [k, v] of this._errors) if (inGroup(k)) errors[k] = v;
     const groupErrs: Record<string, string[]> = {};
-    for (const [k, v] of this._groupErrors) groupErrs[k] = v;
-    const valid = this._errors.size === 0 && this._groupErrors.size === 0;
+    for (const name of groupNames) {
+      const errs = this._groupErrors.get(name);
+      if (errs) groupErrs[name] = errs;
+    }
+    const valid = Object.keys(errors).length === 0 && Object.keys(groupErrs).length === 0;
     return { valid, data, errors, groupErrors: groupErrs };
   }
 

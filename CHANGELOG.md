@@ -4,6 +4,15 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.16 — 2026-11-15
+
+- **`b-form.validateGroup()` validates a nested group's own values** — Birko TASK-926, found while building TASK-925.
+  It looked a group up with the root's name in its path, so `validateGroup('adv')` read the values at `root.adv`
+  (none): a filled `required` field was reported missing, under `root.adv.extra`, a path no field has, so the error
+  showed at form level instead of on the field. It now uses the same paths as `validate()`, and its `errors`,
+  `groupErrors` and `valid` cover that group only (they used to include every error the form held). No Birko or
+  Symbio code called it.
+
 ## v0.4.15 — 2026-11-15
 
 - **`b-form`: conditional fields, `FormField.visibleWhen`** — Birko TASK-925, asked for by Symbio TASK-1090. A field
