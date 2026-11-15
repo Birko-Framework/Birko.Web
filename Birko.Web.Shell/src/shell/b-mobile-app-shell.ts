@@ -104,7 +104,10 @@ export abstract class BMobileAppShell extends BCoreAppShell {
         /* Grow by the top safe-area inset and pad the content down, so on a notch /
            Dynamic Island / camera-cutout phone (viewport-fit=cover + a translucent status
            bar in an installed PWA extend the view under the cutout) the bar's content sits
-           BELOW it, not under it. box-sizing:border-box keeps the usable bar at header-height. */
+           BELOW it, not under it. box-sizing:border-box keeps the usable bar at header-height —
+           declared HERE, because reset.css's universal rule does not reach this shadow DOM: without it the
+           bar was content-box and counted the inset twice (TASK-930; iPhone, iOS 27.2: 42 + 50 + 50). */
+        box-sizing: border-box;
         height: calc(var(--b-header-height, 3rem) + env(safe-area-inset-top, 0)); flex-shrink: 0;
         padding: env(safe-area-inset-top, 0) var(--b-space-lg, 1rem) 0;
         background: var(--b-bg-elevated); border-bottom: 1px solid var(--b-border);

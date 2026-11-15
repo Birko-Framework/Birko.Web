@@ -6,6 +6,11 @@ interchangeable for consumers.
 
 ## v0.4.13 — 2026-11-15
 
+- **Shell: the mobile top bar counts the top safe-area inset once** — Birko TASK-930, found on an iPhone (iOS 27.2)
+  while testing TASK-600. `BMobileAppShell`'s `.mobile-topbar` adds the inset to its height and pads its content
+  down by it, which needs `box-sizing: border-box`; `reset.css` sets that with a universal rule that does not reach
+  the shell's shadow DOM, so the bar was `content-box` and came out the inset too tall (measured: 42 + 50 + 50 = 143
+  instead of 92), an empty band under the status bar. Only apps with `viewport-fit=cover` (a non-zero inset) change.
 - **`b-sortable-list`: a mouse wheel over the list scrolls the page again** — Birko TASK-787, found by its human test.
   The list's scroller always had `overscroll-behavior: contain`, so a wheel over any row of a list with nothing to
   scroll (no `max-height`, or shorter than it) scrolled nothing at all; the page stuck under the pointer. The
