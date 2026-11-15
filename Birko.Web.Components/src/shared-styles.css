@@ -370,6 +370,13 @@ input.has-error:focus, select.has-error:focus {
   cursor: not-allowed;
   pointer-events: none;
 }
+/* The `error` line under a b-checkbox / b-switch (TASK-932): the same size and colour as a text field's `.error`. */
+.toggle-error {
+  display: block;
+  margin-top: var(--b-space-2xs, 0.125rem);
+  font-size: var(--b-text-xs, 0.6875rem);
+  color: var(--b-color-danger-text, var(--b-color-danger));
+}
 .toggle-label {
   font-size: var(--b-text-sm, 0.8125rem);
   color: var(--b-text);

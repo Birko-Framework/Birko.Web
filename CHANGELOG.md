@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.14 — 2026-11-15
+
+- **`b-form`: a `required` checkbox / switch must be ticked** — Birko TASK-132. The form's emptiness test counted `false`
+  as a filled value, so a required consent box submitted unticked while the control itself reported `valueMissing`.
+  Emptiness is now decided per field type; a non-required toggle still collects `false`. **Behaviour change:** a form
+  that marks a toggle `required` now blocks while it is unticked (no consumer in this workspace does).
+- **`b-checkbox` / `b-switch` show an `error`** — Birko TASK-932. They ignored the attribute, so the message above
+  failed invisibly; they now render it under the control, linked by `aria-describedby`, like a text field.
+- **`b-form`: `type: 'radio'` fields work** — Birko TASK-133. The members carried no `data-path`, so the field was
+  missing from `getValues()` / `validate().data`, a required group could never pass, and `setValues`, `reset`,
+  `setFieldError`, `setFieldDisabled`, `focusField` and `change` all skipped it. The members now sit in one
+  `role="radiogroup"` element that carries the path, the field's label (with the required mark) and one error line.
+
 ## v0.4.13 — 2026-11-15
 
 - **Shell: the mobile top bar counts the top safe-area inset once** — Birko TASK-930, found on an iPhone (iOS 27.2)

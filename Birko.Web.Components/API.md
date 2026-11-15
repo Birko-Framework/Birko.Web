@@ -831,9 +831,14 @@ validation. Localise the messages by overriding `rangeUnderflowMessage()` / `ran
 `stepMismatchMessage()` / `badDecimalMessage()` on `b-input`; `common.invalidValue` is the fallback for a
 control that reports a flag with no message.
 
-**Known gap, deliberately left open:** an unchecked `required` checkbox still passes. The form's emptiness
-test counts `false` as a filled value, so its `required` rule passes and the control is never consulted.
-Closing it would start blocking forms that have always submitted.
+**`required` on a toggle** (TASK-132, v0.4.14): a `required` `checkbox` / `switch` field fails while unticked and
+passes once ticked; its `false` is the unticked state. A non-required toggle still collects `false` as its value.
+
+**Radio fields** (TASK-133, v0.4.14): a `type: 'radio'` field renders its `options` as `b-radio` members inside one
+`role="radiogroup"` element that carries the field's `data-path`, the field's label and one error line. Its value is
+the checked member's `value` (`''` when none) in `getValues()` / `validate().data`; `required` fails until one is
+picked; `setValues` / `reset` select the member; `setFieldError`, `setFieldDisabled` and `focusField` work on the
+group. Before v0.4.14 a radio field was missing from the data entirely and a required one could never pass.
 
 #### `data` on failure
 

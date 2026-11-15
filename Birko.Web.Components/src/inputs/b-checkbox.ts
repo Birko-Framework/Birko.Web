@@ -1,11 +1,12 @@
 import { FormControlComponent, define } from 'birko-web-core';
+import { escapeHtml } from '../dom-utils';
 import { formToggleSheet } from '../shared-styles';
 // <b-tooltip>: rendered for a `hint`
 import '../layout/b-tooltip.js';
 
 export class BCheckbox extends FormControlComponent {
   static get observedAttributes() {
-    return ['checked', 'indeterminate', 'disabled', 'name', 'label', 'hint', 'value', 'required'];
+    return ['checked', 'indeterminate', 'disabled', 'name', 'label', 'hint', 'value', 'required', 'error'];
   }
 
   static get sharedStyles() {
@@ -71,6 +72,8 @@ export class BCheckbox extends FormControlComponent {
     const disabled = this.boolAttr('disabled');
     const label = this.attr('label');
     const hint = this.attr('hint');
+    // A failed `required` (or a page's setFieldError) from b-form: shown under the toggle like a text field's (TASK-932).
+    const error = this.attr('error');
 
     return `
       <label class="toggle-wrapper ${disabled ? 'disabled' : ''}">
@@ -78,11 +81,13 @@ export class BCheckbox extends FormControlComponent {
                ${checked ? 'checked' : ''}
                ${disabled ? 'disabled' : ''}
                ${this.boolAttr('required') ? 'required' : ''}
+               ${error ? `aria-invalid="true" aria-describedby="${this.uid}-error"` : ''}
                name="${this.attr('name')}"
                ${label ? `aria-label="${label}"` : ''} />
         ${label ? `<span class="toggle-label">${label}</span>` : ''}
         ${hint ? `<b-tooltip text="${hint}"><span class="hint-icon">?</span></b-tooltip>` : ''}
       </label>
+      ${error ? `<span class="toggle-error" id="${this.uid}-error" role="alert">${escapeHtml(error)}</span>` : ''}
     `;
   }
 
