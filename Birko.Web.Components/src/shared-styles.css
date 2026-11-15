@@ -342,7 +342,10 @@ input.has-error:focus, select.has-error:focus {
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
   box-shadow: var(--b-shadow-md);
-  max-height: 12.5rem;
+  /* No fixed cap: b-dropdown-menu (the one user) sizes it to the room on the side it opens (TASK-935). This is the
+     fallback before that runs. Long pick lists (b-select, b-multi-select) keep their own 12.5rem caps. */
+  max-height: calc(100vh - 1rem);
+  box-sizing: border-box; /* the cap includes padding and border, so the panel ends where it was sized to */
   overflow-y: auto;
   z-index: 9999;
 }

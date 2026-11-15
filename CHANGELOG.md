@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.16 — 2026-11-15
+
+- **`b-dropdown-menu` shows every row** — Birko TASK-935, found in Symbio's user menu (TASK-1071). The menu inherited
+  the shared panel's 12.5rem cap, so an ordinary action menu (6 rows, 2 dividers and a heading, ~240 px) scrolled on a
+  desktop screen. It is now capped only by the room on the side it opens; only a menu taller than that room scrolls,
+  and it stays inside the viewport. `b-select` and `b-multi-select` keep their own 12.5rem caps.
+
 ## v0.4.15 — 2026-11-15
 
 - **`b-dropdown-menu`: group headings** — Birko TASK-934, asked for by Symbio's user menu (TASK-1071).
