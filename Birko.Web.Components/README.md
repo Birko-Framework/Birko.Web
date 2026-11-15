@@ -684,8 +684,8 @@ value or pressing **Escape** returns it to the field. The panel is named by the 
 to the `bwc.{date,datetime,time,daterange}.dialog` keys, and the × clear button is named by the clear label
 (`bwc.common.clear`).
 Inside the panel, the ◀/▶ buttons are named ("Previous month", `bwc.date.prevMonth` …), each day carries its
-month and year ("10 September 2026", today marked `aria-current="date"`), and `b-time`'s spinners are named
-("Increase hours", "Hours" … under `bwc.time.*`). The field is deliberately **not** `readonly`: NVDA reads a
+month and year ("10 September 2026", today marked `aria-current="date"`), and the time row's − / + buttons and boxes
+(in `b-time` and `b-datetime-picker`) are named ("Increase hours", "Hours" … under `bwc.time.*`). The field is deliberately **not** `readonly`: NVDA reads a
 read-only combo box as "combo edit" and drops expanded/collapsed. It refuses typed text instead.
 
 ### b-datetime-picker
@@ -696,11 +696,16 @@ Combined date + time picker. Same locale API as `b-date-picker` (`BDatetimePicke
 <b-datetime-picker label="Starts at" name="startsAt" value="2026-04-22T09:00"></b-datetime-picker>
 ```
 
-Attributes: `label`, `name`, `value` (ISO `yyyy-MM-ddTHH:mm`), `min`, `max`, `error`, `disabled`, `required`, `hint`
+Attributes: `label`, `name`, `value` (ISO `yyyy-MM-ddTHH:mm`), `min`, `max`, `step` (minutes per − / +, default 5), `error`, `disabled`, `required`, `hint`
+
+Its time row is `b-time`'s (below), drawn by the same code.
 
 ### b-time
 
-Time-only picker with hour/minute steppers.
+Time-only picker. The hour and the minute are each a joined − | 14 | + control (TASK-928): click or tap − / +, type
+the number, scroll on it, or use ↑ / ↓ in the box. On a touch screen (`pointer: coarse`) the buttons grow to the
+touch-target height (`--b-control-min-height-lg`). `b-datetime-picker` uses the same row. The panel is
+`--b-time-picker-width` wide (13.5rem).
 
 ```html
 <b-time label="Open at" name="openAt" value="08:30" step="15"></b-time>

@@ -97,3 +97,6 @@ export const srOnlySheet = getSheet('srOnly');
 
 /** Scroll-snap viewport, round prev / next arrows and dot row shared by b-carousel and b-gallery. */
 export const slideNavSheet = getSheet('slideNav');
+
+/** The hour : minute − / + row shared by b-time and b-datetime-picker (see `inputs/time-stepper.ts`). */
+export const timeStepperSheet = getSheet('timeStepper');
