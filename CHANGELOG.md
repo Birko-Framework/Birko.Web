@@ -4,7 +4,7 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
-## v0.4.17 — 2026-11-15
+## v0.4.12 — 2026-11-15
 
 - **An open `b-multi-select` list no longer takes every Escape on the page** — Birko TASK-922. Since v0.4.11 (TASK-819)
   an open list took Escape on the document in the capture phase and stopped it, wherever it was aimed: with a list
@@ -13,16 +13,12 @@ interchangeable for consumers.
   fell to the page or a dialog, TASK-819's case); any other Escape goes to its control. This was also the Playground's
   intermittent `picker-popup-smoke` b-time / b-date-range-picker failure.
 
-## v0.4.16 — 2026-11-15
-
 - **`b-form.validateGroup()` validates a nested group's own values** — Birko TASK-926, found while building TASK-925.
   It looked a group up with the root's name in its path, so `validateGroup('adv')` read the values at `root.adv`
   (none): a filled `required` field was reported missing, under `root.adv.extra`, a path no field has, so the error
   showed at form level instead of on the field. It now uses the same paths as `validate()`, and its `errors`,
   `groupErrors` and `valid` cover that group only (they used to include every error the form held). No Birko or
   Symbio code called it.
-
-## v0.4.15 — 2026-11-15
 
 - **`b-form`: conditional fields, `FormField.visibleWhen`** — Birko TASK-925, asked for by Symbio TASK-1090. A field
   shows only while another field has given values: `{ field, equals }`, `{ field, in: [...] }`, `{ field }` (not
@@ -31,22 +27,16 @@ interchangeable for consumers.
   blocks submit) and left out of `validate().data`; `getValues()` still returns it. Additive: `hidden: true` is
   unchanged. New exported type `FieldCondition`.
 
-## v0.4.14 — 2026-11-14
-
 - **`b-select` (native, not searchable): the `value` attribute applies after the user has picked** — Birko TASK-924,
   found by Symbio TASK-1089. Once the user picked from the inner `<select>`, a later `value` attribute change or
   re-render only moved the options' `selected` attribute, which the browser ignores on a select the user has touched,
   so the control kept showing the old pick (Symbio: "All" over a filtered tree). Each render now selects the rendered
   option; with no value it shows the placeholder, else the first enabled option, as an untouched select does.
 
-## v0.4.13 — 2026-11-14
-
 - **`b-tree-menu`: `TreeMenuItem.muted` shows a row for context, not as a result** — Birko TASK-923, asked for by
   Symbio TASK-1089 (a category filter that keeps the ancestors of each match). The row's `.node-row` gets the `muted`
   class and the `--b-text-muted` text colour. Unlike `disabled` it stays selectable and keyboard reachable, has no
   `aria-disabled`, and emits `select`. Additive; nothing else changes.
-
-## v0.4.12 — 2026-11-12
 
 - **Shell: `refreshContextualRibbon({ open: true })` re-raises the contextual tab for the same record AND opens it** —
   Birko TASK-921, asked for by Symbio TASK-1051. A sub-row selected in the detail (an attendee, a production step) can
