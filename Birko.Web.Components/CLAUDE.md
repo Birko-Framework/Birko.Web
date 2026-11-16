@@ -410,7 +410,7 @@ each file alone), on a component with no `exports` entry, and on one missing fro
 | Tag | Class | Key methods | Key attributes |
 |-----|-------|-------------|----------------|
 | `<b-input>` | BInput | — | `label`, `type`, `value`, `name`, `error`, `disabled`, `clearable`; slots `prefix` / `suffix` |
-| `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled`, `no-clear` |
+| `<b-select>` | BSelect | `setOptions([{value,label}])` | `label`, `name`, `value`, `error`, `disabled`, `no-clear`, `clearable` |
 | `<b-button>` | BButton | — | `variant`, `size`, `type`, `disabled`, `loading` |
 | `<b-checkbox>` | BCheckbox | — | `checked`, `indeterminate`, `disabled`, `name`, `label` |
 | `<b-switch>` | BSwitch | — | `checked`, `disabled`, `name`, `label` |

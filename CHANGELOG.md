@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.17 — 2026-11-16
+
+- **A clearable `b-select` can be cleared** — Birko TASK-936, found in Symbio's product filters. A non-searchable
+  `b-select` renders a native `<select>` whose placeholder option was always disabled, and `clearable` (which
+  `BaseCrudPage` / `BaseListPage` put on filter selects) was ignored, so a filter set to a value could never go back
+  to "any". With `clearable` the empty option, labelled by `placeholder`, stays pickable; picking it removes the
+  value and emits `change` with `''`. Without `clearable` nothing changes. The placeholder text is now escaped.
+
 ## v0.4.16 — 2026-11-15
 
 - **`b-dropdown-menu` shows every row** — Birko TASK-935, found in Symbio's user menu (TASK-1071). The menu inherited

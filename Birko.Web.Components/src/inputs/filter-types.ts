@@ -55,7 +55,7 @@ export interface FilterDef {
   value?: string;
   /** Enable type-ahead search inside a select dropdown. */
   searchable?: boolean;
-  /** Show a clear button on a select. */
+  /** Let a select go back to no value: a pickable empty option (native) — the combobox mode always has its ×. */
   clearable?: boolean;
   /** Disable the control (e.g. dependent select waiting for parent). */
   disabled?: boolean;
