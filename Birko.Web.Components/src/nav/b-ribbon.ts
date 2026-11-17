@@ -97,6 +97,8 @@ export interface RibbonField {
   options?: RibbonFieldOption[];
   /** A dropdown that also takes a typed value not in its list (Font size 13). */
   freeText?: boolean;
+  /** A dropdown whose empty choice, labelled by `placeholder`, can be picked to take a value back (TASK-937). */
+  clearable?: boolean;
   placeholder?: string;
   min?: number;
   max?: number;
@@ -1785,7 +1787,7 @@ export class BRibbon extends BaseComponent {
       + `${item.disabled ? ' disabled' : ''} style="--b-ribbon-field-chars:${Math.max(2, Math.min(40, Math.round(f.width ?? 8)))}"`
       + ` data-tab="${tabId}" data-group="${groupId}" data-item="${escapeAttr(item.id)}" data-field-control`;
     const control = f.type === 'select'
-      ? `<b-select ${attrs}${f.freeText ? ' searchable allow-free-text no-clear' : ''}></b-select>`
+      ? `<b-select ${attrs}${f.freeText ? ' searchable allow-free-text no-clear' : ''}${f.clearable ? ' clearable' : ''}></b-select>`
       : `<b-input ${attrs} type="${f.type === 'number' ? 'number' : 'text'}"${num('min', f.min)}${num('max', f.max)}${num('step', f.step)}></b-input>`;
     const cap = caption === 'none' ? '' : `<span class="ribbon-field-caption" aria-hidden="true">${escapeHtml(item.label)}</span>`;
     return `<span class="ribbon-field${mobile ? ' mobile-field' : ''} caption-${caption}">${cap}${control}</span>`;
