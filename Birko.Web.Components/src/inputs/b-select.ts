@@ -11,7 +11,7 @@ interface Option {
 
 export class BSelect extends FormControlComponent {
   static get observedAttributes() {
-    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'creatable', 'allow-free-text', 'label-no-matches', 'label-create', 'hint', 'description', 'bare', 'no-clear'];
+    return ['label', 'name', 'value', 'placeholder', 'error', 'disabled', 'searchable', 'creatable', 'allow-free-text', 'label-no-matches', 'label-create', 'hint', 'description', 'bare', 'no-clear', 'clearable'];
   }
 
   private _options: Option[] = [];
@@ -200,6 +200,12 @@ export class BSelect extends FormControlComponent {
     const description = this.attr('description');
     const bare = this.boolAttr('bare');
     const required = this.boolAttr('required');
+    // `clearable` keeps the empty option pickable, so a picked value can be taken back (TASK-936); without it the
+    // placeholder is a disabled prompt, as a required field wants.
+    const clearable = this.boolAttr('clearable');
+    const emptyOption = placeholder || clearable
+      ? `<option value="" ${clearable ? '' : 'disabled'} ${!value ? 'selected' : ''}>${escapeHtml(placeholder ?? '')}</option>`
+      : '';
     return renderField({
       bare,
       uid: this.uid,
@@ -211,7 +217,7 @@ export class BSelect extends FormControlComponent {
       control: `
         <select name="${this.attr('name')}" ${this.boolAttr('disabled') ? 'disabled' : ''}
                 ${required ? 'required' : ''} ${fieldAria({ uid: this.uid, error, description, bare, label })}>
-          ${placeholder ? `<option value="" disabled ${!value ? 'selected' : ''}>${placeholder}</option>` : ''}
+          ${emptyOption}
           ${this._renderNativeOptions(value)}
         </select>`,
     });
@@ -227,7 +233,8 @@ export class BSelect extends FormControlComponent {
       select.selectedIndex = rendered >= 0 ? rendered : options.findIndex(o => !o.disabled);
       this.listen(select, 'change', (e: Event) => {
         const value = (e.target as HTMLSelectElement).value;
-        this.setAttribute('value', value);
+        if (value) this.setAttribute('value', value);
+        else this.removeAttribute('value');
         this.emit('change', { name: this.attr('name'), value });
         this.syncFormState();
       });

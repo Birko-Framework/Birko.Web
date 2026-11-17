@@ -212,6 +212,7 @@ the schema path adopts and which it deliberately ignores.
 | `label-create` | string — overrides the create row's verb (default: the `bwc.select.create` key) |
 | `allow-free-text` | boolean — the typed text itself is the value, committed on Enter **or on close** (Escape included) |
 | `no-clear` | boolean — no clear (×) button in combobox mode |
+| `clearable` | boolean — native (non-combobox) mode: the empty option (labelled by `placeholder`) stays pickable, so a picked value can be cleared. Without it the placeholder is a disabled prompt. Combobox mode already clears with its × |
 | `description` | string — persistent help text under the control, wired into `aria-describedby` (contrast `hint`, a `?` tooltip) |
 | `bare` | boolean — strip the `.field` wrapper, label row and error row (inline use; see [Inputs](#inputs)) |
 
