@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.18 — 2026-11-17
+
+- **`b-form` and ribbon select fields can be clearable** — Birko TASK-937, follow-up to TASK-936. `b-select` learned
+  `clearable` in v0.4.17, but a `b-form` select field and a `b-ribbon` select field had no way to ask for it, so an
+  optional form select or a ribbon filter could not go back to no value. `FormField.clearable` and
+  `RibbonField.clearable` now pass it through (opt-in; nothing changes without it). A ribbon field emits
+  `item-change` with `''` when its empty choice is picked.
+
 ## v0.4.17 — 2026-11-16
 
 - **A clearable `b-select` can be cleared** — Birko TASK-936, found in Symbio's product filters. A non-searchable

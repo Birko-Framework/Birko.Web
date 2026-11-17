@@ -129,6 +129,11 @@ export interface FormField {
   options?: { value: string; label: FormText }[];
   searchable?: boolean;
   /**
+   * `select`: let the user take a picked value back. A plain (non-searchable) select keeps its empty option, labelled
+   * by `placeholder`, pickable (TASK-937); a searchable one already clears with its ×. Off by default.
+   */
+  clearable?: boolean;
+  /**
    * `select` / `multi-select`: let the user add a value the options lack. Both commit it as the field
    * value. `b-multi-select` first emits a cancelable `create` (`{ name, value }`); a page that mints its
    * own option calls `preventDefault()` and adds it via {@link BForm.addFieldOption}.
@@ -844,6 +849,7 @@ export class BForm extends BaseComponent {
       case 'multi-select':
         if (field.searchable) parts.push('searchable');
         if (field.creatable) parts.push('creatable');
+        if (field.clearable && field.type === 'select') parts.push('clearable');
         break;
       case 'country':
         if (field.multiple) parts.push('multiple');

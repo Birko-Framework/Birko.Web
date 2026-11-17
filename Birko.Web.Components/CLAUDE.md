@@ -817,7 +817,7 @@ live preview, as a token: `--b-ribbon-group-gap` is `var(--b-space-lg)` (16px), 
 ### `b-ribbon` inputs, in three switchable looks (2026-10-22, TASK-741)
 
 `RibbonItem.field` renders a bare, small `b-input` or `b-select` with `data-field-control`. The user kept all three
-caption looks: `field-caption` none (default), beside, above. A dropdown takes free text per item (`freeText`).
+caption looks: `field-caption` none (default), beside, above. A dropdown takes free text per item (`freeText`), and `clearable` lets it go back to no value (TASK-937).
 
 - **Focus.** The box's host is not focusable, so `_focusStop()` focuses the control inside it, and `_applyRoving()`
   puts the roving index there. Every focus move onto a panel stop goes through `_focusStop()`.

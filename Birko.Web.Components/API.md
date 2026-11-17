@@ -769,6 +769,10 @@ neither `equals` nor `in` the field shows while that value is not empty). Re-eva
 its rules and its control's validity are not checked, its error is cleared, and it is left out of `validate().data` /
 `validateGroup().data`; `getValues()` still returns it. See [README § b-form](README.md#b-form).
 
+**Clearable select** (TASK-937, v0.4.18): `FormField.clearable?: boolean` on a `select` renders `b-select clearable`, so an
+optional field can be emptied again (a plain select's empty option, labelled by `placeholder`, stays pickable). Off
+by default.
+
 **A locale switch relabels the form** (TASK-797) in either of two ways:
 
 - **A factory:** `setSchema(() => buildSchema())`, for a schema built in code with `t()`. b-form calls it again on
@@ -1527,6 +1531,9 @@ affordance (the scrollbars are hidden so the ribbon's height never changes with 
 shortcut?, menu?: RibbonMenuEntry[], split?, toggle?, gallery?, field? }`. With `menu` and no `split` the whole button
 opens the menu; with `split` the button runs the command and a ▾ part opens the menu. A command with `href` and no
 `action` is a link, the split main part included (TASK-803, v0.4.1; it was always a `<button>`).
+**RibbonField**: `{ type: 'text' | 'number' | 'select', value?, options?, freeText?, clearable?, placeholder?, min?, max?,
+step?, width?, caption? }`. `clearable` (TASK-937, v0.4.18) makes a `select` box's empty choice, labelled by
+`placeholder`, pickable, so a ribbon filter can go back to no value; picking it emits `item-change` with `''`.
 **RibbonMenuItem**: `{ id, label, icon?, keytip?, shortcut?, disabled?, href? }`; `RibbonMenuEntry` is that or
 `{ separator: true }`. A choice with `href` (and not disabled) is a link menuitem: it navigates by itself, a
 middle-click opens a new tab, Enter and Space follow it, and it still emits `item-click`.
