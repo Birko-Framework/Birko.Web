@@ -935,7 +935,7 @@ Wraps `<b-table>` with auto-fetching, pagination, search, filters, selection, bu
   selectable?: boolean;
   bulkActions?: BulkAction[];  // { id, label, icon?, variant?: 'primary' | 'danger', confirm?, confirmMessage? }
   selectAllMatching?: boolean; // offer "Select all N matching" (see below); off by default
-  rowActions?: RowAction[];  // Dropdown menu actions per row
+  rowActions?: RowAction[];  // { id, label, icon?, variant?: 'danger', permission?, visible?(row) } — the ⋮ menu per row
   exportable?: boolean;
   exportFormats?: ExportOption[];
 }
@@ -948,6 +948,10 @@ one, `'danger'` in red and always last, `icon` (an SVG or glyph) before the labe
 fit stay inline; the rest go into a More menu. `confirm: true` asks in a `b-confirm-dialog` (`confirmMessage`'s
 `{count}` is filled in), no longer the browser's `confirm()`. The bar is a toolbar: one tab stop, arrow keys inside it;
 the count is announced. `.bulk-btn[data-bulk="<id>"]` still selects an inline action in tests.
+
+**Row actions.** Each row gets a `⋮` trigger opening a menu of the `rowActions` whose `visible(row)` is true (no
+`visible` = always). A row where none applies gets an empty cell instead of a trigger (TASK-940, v0.4.19); the column
+stays, so cells stay aligned.
 
 `selectAllMatching: true` offers "Select all N matching" once a whole page is selected and more rows exist. On a
 client-paged table it selects every row's id. On a server-paged one the other pages' ids are not loaded, so the
