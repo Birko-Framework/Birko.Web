@@ -763,6 +763,8 @@ export class BDataTable extends BaseComponent {
         width: '2.5rem',
         align: 'center',
         render: (_v, row) => {
+          // A row no action applies to gets an empty cell, not a trigger that opens an empty menu (TASK-940).
+          if (!(this._config?.rowActions ?? []).some(a => !a.visible || a.visible(row))) return '';
           const id = this._rowId(row);
           return `<b-button variant="secondary" size="sm" class="row-action-trigger" data-id="${id}" aria-label="${this._config?.labels?.actions ?? 'Actions'}"><span class="row-action-trigger-icon">⋮</span></b-button>`;
         },

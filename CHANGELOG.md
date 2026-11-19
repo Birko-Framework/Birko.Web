@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.19 — 2026-11-19
+
+- **A row with no applicable row action shows no `⋮`** — Birko TASK-940, seen in Symbio's Customers → Erasure
+  requests. `b-data-table` drew the row-action trigger on every row and filtered `rowActions` by `visible(row)` only
+  when the menu opened, so a completed or rejected request got a button that opened an empty menu. Such a row now has
+  an empty actions cell; the column stays, so alignment does not change.
+
 ## v0.4.18 — 2026-11-17
 
 - **`b-form` and ribbon select fields can be clearable** — Birko TASK-937, follow-up to TASK-936. `b-select` learned
