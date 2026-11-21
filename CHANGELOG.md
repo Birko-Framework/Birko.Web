@@ -12,6 +12,10 @@ interchangeable for consumers.
   its scheme (`[x](javascript:…)` ran on click). It now escapes quotes too, keeps a target only if it passes `safeHref`
   (http(s), mailto, tel or relative; a refused one stays as its source text), and keeps a fence language only if it is
   a plain name. This covers the editor's own preview and any page that puts the output into `innerHTML`.
+- **`renderMarkdown` lists and code blocks render as written** — Birko TASK-944, reported by DraCode. An indented line
+  continuing a list item now stays in that item (it ended the list); a list right after a paragraph line, with no blank
+  line between, no longer gets `<br>` between its items; a code fence with no language no longer starts with a blank
+  line.
 
 ## v0.4.19 — 2026-11-19
 
