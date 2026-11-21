@@ -1,6 +1,7 @@
 import type { RibbonTab, RibbonItem, BRibbon, BDropdownMenu } from 'birko-web-components';
 import type { TenantItem, ConnectionState } from './shell-types.js';
 import { openCommandPalette } from 'birko-web-components/command';
+import { escapeHtml } from 'birko-web-core';
 import { BSidebarAppShell } from './b-sidebar-app-shell.js';
 import { CONTEXTUAL_RIBBON_EVENT, type ContextualRibbon, type ContextualRibbonRequest } from '../pages/contextual-ribbon.js';
 
@@ -304,7 +305,7 @@ export abstract class BAppShell extends BSidebarAppShell {
 
         <div slot="after-tabs" class="app-actions">
           ${this.showCommandPalette ? `
-            <button class="search-btn" id="search-btn" aria-label="Command palette (Ctrl+K)">
+            <button class="search-btn" id="search-btn" aria-label="${escapeHtml(this.label('label-command-palette', 'bws.shell.commandPalette', 'Command palette (Ctrl+K)'))}">
               <span class="search-btn-icon">&#9906;</span>
               <span class="search-btn-hint">Ctrl K</span>
             </button>

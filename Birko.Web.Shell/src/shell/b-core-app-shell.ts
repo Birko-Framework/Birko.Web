@@ -1,4 +1,4 @@
-import { BaseComponent } from 'birko-web-core';
+import { BaseComponent, t as translate, escapeHtml } from 'birko-web-core';
 import type { BDropdownMenu } from 'birko-web-components';
 import type { MenuItem, ShellRoutes, BreadcrumbItem, ThemeOption } from './shell-types.js';
 import { getRegisteredThemes } from './theme-registry.js';
@@ -109,8 +109,16 @@ export abstract class BCoreAppShell extends BaseComponent {
     return css ? ` style="${css}"` : '';
   }
 
-  /** Accessible label for the theme switcher trigger. Override to localize. */
-  protected get themeMenuLabel(): string { return 'Theme'; }
+  /**
+   * Accessible label for the theme switcher trigger: the `label-theme` attribute, else `bws.shell.theme`, else
+   * "Theme" (TASK-952). Override for anything else.
+   */
+  protected get themeMenuLabel(): string { return this.label('label-theme', 'bws.shell.theme', 'Theme'); }
+
+  /** A theme's name in the switcher: `bws.shell.themes.<id>`, else the registered label (TASK-952). */
+  protected themeLabel(theme: ThemeOption): string {
+    return translate(`bws.shell.themes.${theme.id}`, undefined, theme.label);
+  }
 
   /**
    * Selectable themes for the switcher. Defaults to whatever the app registered
@@ -211,7 +219,7 @@ export abstract class BCoreAppShell extends BaseComponent {
     if (!this.showThemeSwitcher || this.getAvailableThemes().length < 2) return '';
     return `
       <b-dropdown-menu id="theme-dropdown" align="right">
-        <button class="theme-trigger" slot="trigger" aria-label="${this.themeMenuLabel}">
+        <button class="theme-trigger" slot="trigger" aria-label="${escapeHtml(this.themeMenuLabel)}">
           <span id="theme-trigger-icon" aria-hidden="true"></span>
         </button>
       </b-dropdown-menu>
@@ -273,7 +281,7 @@ export abstract class BCoreAppShell extends BaseComponent {
     dropdown.setItems(
       themes.map(th => ({
         id: th.id,
-        label: `${th.id === current ? '&#10003; ' : ''}${th.label}`,
+        label: `${th.id === current ? '&#10003; ' : ''}${escapeHtml(this.themeLabel(th))}`,
         icon: th.icon,
       })),
     );

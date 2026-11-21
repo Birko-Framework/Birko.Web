@@ -264,6 +264,11 @@ Shell base pages (`BaseCrudPage`, `BaseListPage`, `BaseSplitPage`, `BaseDetailPa
 - `bws.pagination.items|page|of|perPage|prev|next|pageSize`
 - `bws.ribbon.selectModule`
 - `bws.tour.button` (the page tour `?` — `BasePage.renderTourButton()`)
+- `bws.shell.commandPalette` (the Ctrl+K button's name), `bws.shell.theme` (the theme switcher's name) and
+  `bws.shell.themes.<id>` (each theme's name in the switcher; defaults to the registered label). The app shell reads
+  these from the global i18n with English fallbacks, not through the app's abstract `t()`, so they need no override;
+  `label-command-palette` / `label-theme` on the shell element still win, and `themeMenuLabel` stays overridable
+  (TASK-952).
 
 `this.t()` auto-interpolates `{entity}` with `this.entityLabel`, so a bundle entry like `"bws.common.new": "Nový {entity}"` with `entityLabel` returning `'Account'` resolves to `"Nový Account"`. If a key is missing in the app's bundle, English defaults from the base class kick in. Override `entityLabel` as a getter: it is an accessor (v0.3.0, TASK-801), so a field is TS2610, and one set from `t()` was read once and never followed a locale switch. The create / edit modal title is `modalTitle`, rendered from state; never set it only in code, or the page's re-render blanks it.
 
