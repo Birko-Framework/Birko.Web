@@ -4,6 +4,15 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.20 — 2026-11-21
+
+- **SECURITY: `BMarkdownEditor.renderMarkdown` no longer lets markdown run script** — Birko TASK-943, reported by
+  DraCode. It escaped only `& < >`, so a link or image target, an image's alt text or a code fence's language could
+  close its attribute and add a handler (`[q](x" onmouseover="…)`), and a link or image target was never checked for
+  its scheme (`[x](javascript:…)` ran on click). It now escapes quotes too, keeps a target only if it passes `safeHref`
+  (http(s), mailto, tel or relative; a refused one stays as its source text), and keeps a fence language only if it is
+  a plain name. This covers the editor's own preview and any page that puts the output into `innerHTML`.
+
 ## v0.4.19 — 2026-11-19
 
 - **A row with no applicable row action shows no `⋮`** — Birko TASK-940, seen in Symbio's Customers → Erasure
