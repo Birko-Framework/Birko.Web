@@ -8,6 +8,11 @@ export interface KanbanColumn {
   color?: string;
   collapsed?: boolean;
   maxCards?: number;
+  /**
+   * A person cannot move a card into or out of this column, by mouse or keyboard (TASK-947). The app's own
+   * `moveCard()` still can: locks govern people, not code.
+   */
+  locked?: boolean;
 }
 
 export interface KanbanCard {
@@ -22,12 +27,29 @@ export interface KanbanCard {
   children?: KanbanCard[];
 }
 
+/** A move a person is making: what `canMove` is asked and what `card-move-request` carries (TASK-947). */
+export interface KanbanMove {
+  card: KanbanCard;
+  fromColumn: string;
+  toColumn: string;
+  fromIndex: number;
+  /** Position among the target siblings; omitted when the card goes to the end. */
+  toIndex?: number;
+  fromParent?: string;
+  toParent?: string;
+}
+
 export interface KanbanConfig {
   columns: KanbanColumn[];
   cards: KanbanCard[];
   renderCard?: (card: KanbanCard, depth: number) => string;
   emptyText?: string;
   maxNestingDepth?: number;
+  /**
+   * Asked before every move a person makes, after the column locks. `false` refuses it; a string refuses it and is
+   * the reason shown and announced. Not asked for the app's own `moveCard()` (TASK-947).
+   */
+  canMove?: (move: KanbanMove) => boolean | string;
 }
 
 export class BKanban extends BaseComponent {
@@ -58,6 +80,10 @@ export class BKanban extends BaseComponent {
         border: var(--b-border-width, 1px) solid var(--b-border);
       }
 
+      .column.drop-refused .column-body { cursor: not-allowed; outline: 2px dashed var(--b-color-danger-text); outline-offset: -2px; }
+      .column-lock { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: var(--b-font-weight-medium, 500);
+        font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted); margin-left: auto; margin-right: var(--b-space-sm, 0.5rem); }
+      .card[draggable="false"] { cursor: default; }
       .column-header {
         display: flex;
         align-items: center;
@@ -216,6 +242,11 @@ export class BKanban extends BaseComponent {
   // Live region text
   private _liveText = '';
 
+  // Where each card's last move by a person took it from, for revertMove (TASK-947).
+  private _lastMoves = new Map<string, { columnId: string; parentId: string; index: number }>();
+  // The column a refusal was last announced for during the current drag, so dragover does not repeat it.
+  private _refusedSaidFor: string | null = null;
+
   render() {
     if (!this._columns.length) {
       return '<div class="empty-placeholder">No columns configured</div>';
@@ -233,9 +264,10 @@ export class BKanban extends BaseComponent {
 
       const accent = col.color ? `border-left: 3px solid ${escapeAttr(col.color)};` : '';
       return `
-        <div class="column" data-column-id="${escapeAttr(col.id)}">
+        <div class="column${col.locked ? ' locked' : ''}" data-column-id="${escapeAttr(col.id)}">
           <div class="column-header" style="${accent}">
             <span class="column-title">${escapeHtml(col.label)}</span>
+            ${col.locked ? `<span class="column-lock"><span aria-hidden="true">&#128274;</span>${escapeHtml(this.label('label-locked', 'bwc.kanban.locked', 'Locked'))}</span>` : ''}
             <span class="column-count">${totalCount}</span>
           </div>
           <div class="column-body" data-column-id="${escapeAttr(col.id)}" role="list" aria-label="${escapeAttr(col.label)}">
@@ -289,7 +321,7 @@ export class BKanban extends BaseComponent {
 
     return `
       <div class="card"
-           draggable="true"
+           draggable="${this._isLocked(columnId) ? 'false' : 'true'}"
            tabindex="-1"
            data-card-id="${escapeAttr(card.id)}"
            data-column-id="${escapeAttr(columnId)}"
@@ -357,12 +389,14 @@ export class BKanban extends BaseComponent {
     this._columns = [...config.columns];
     this._cards = this._flattenCards(config.cards);
     this._liveText = '';
+    this._lastMoves.clear();
     this._collectExpanded(config.cards);
     this.update();
   }
 
   setCards(cards: KanbanCard[]): void {
     this._cards = this._flattenCards(cards);
+    this._lastMoves.clear();
     this._collectExpanded(cards);
     this.update();
   }
@@ -393,7 +427,93 @@ export class BKanban extends BaseComponent {
     this.update();
   }
 
+  /**
+   * Move a card from code. Not limited by locks or `canMove`, which govern what a person can do; it forgets any move
+   * `revertMove` could undo for this card.
+   */
   moveCard(cardId: string, targetColumnId: string, targetIndex?: number, targetParentId?: string): void {
+    this._lastMoves.delete(cardId);
+    this._applyMove(cardId, targetColumnId, targetIndex, targetParentId, false);
+  }
+
+  /**
+   * Put a card back where the last move a person made took it from, for example when saving that move failed
+   * (TASK-947). Fires no `card-move` / `card-reorder`. Returns `false` when there is nothing to undo.
+   */
+  revertMove(cardId: string): boolean {
+    const origin = this._lastMoves.get(cardId);
+    if (!origin || !this._cards.some(c => c.id === cardId)) return false;
+    this._lastMoves.delete(cardId);
+    this._applyMove(cardId, origin.columnId, origin.index, origin.parentId || undefined, true);
+    return true;
+  }
+
+  private _isLocked(columnId: string): boolean {
+    return !!this._columns.find(c => c.id === columnId)?.locked;
+  }
+
+  private _columnLabel(columnId: string): string {
+    return this._columns.find(c => c.id === columnId)?.label ?? columnId;
+  }
+
+  /** Why a person may not make this move, or null when they may: the locks first, then `canMove` (TASK-947). */
+  private _refusal(cardId: string, toColumn: string, toIndex?: number, toParent?: string): string | null {
+    const card = this._cards.find(c => c.id === cardId);
+    if (!card) return null;
+    if (this._isLocked(card.columnId)) {
+      return this.label('label-locked-out', 'bwc.kanban.lockedOut', '{column} is locked: its cards cannot be moved.', { column: this._columnLabel(card.columnId) });
+    }
+    if (toColumn !== card.columnId && this._isLocked(toColumn)) {
+      return this.label('label-locked-in', 'bwc.kanban.lockedIn', '{column} is locked: cards cannot be moved into it.', { column: this._columnLabel(toColumn) });
+    }
+    const rule = this._config?.canMove;
+    if (!rule) return null;
+    const verdict = rule(this._moveOf(card, toColumn, toIndex, toParent));
+    if (verdict === true) return null;
+    if (typeof verdict === 'string' && verdict) return verdict;
+    return this.label('label-refused', 'bwc.kanban.refused', 'This card cannot be moved there.');
+  }
+
+  private _moveOf(card: KanbanCard, toColumn: string, toIndex?: number, toParent?: string): KanbanMove {
+    const fromParent = card.parentId ?? '';
+    const move: KanbanMove = {
+      card, fromColumn: card.columnId, toColumn,
+      fromIndex: this._getOrderedCards(card.columnId, fromParent).findIndex(c => c.id === card.id),
+    };
+    if (toIndex !== undefined) move.toIndex = toIndex;
+    if (fromParent) move.fromParent = fromParent;
+    if (toParent) move.toParent = toParent;
+    return move;
+  }
+
+  /**
+   * The one way a person's move is applied (drop and keyboard): refused by a lock or `canMove`, or by a listener
+   * cancelling `card-move-request`; otherwise applied and remembered for `revertMove`. Returns whether it moved.
+   */
+  private _userMove(cardId: string, toColumn: string, toIndex?: number, toParent?: string): boolean {
+    const card = this._cards.find(c => c.id === cardId);
+    if (!card) return false;
+    const reason = this._refusal(cardId, toColumn, toIndex, toParent);
+    if (reason) { this._say(reason); return false; }
+    const request = new CustomEvent<KanbanMove>('card-move-request', {
+      detail: this._moveOf(card, toColumn, toIndex, toParent), bubbles: true, composed: true, cancelable: true,
+    });
+    if (!this.dispatchEvent(request)) return false;
+    const fromParent = card.parentId ?? '';
+    const origin = { columnId: card.columnId, parentId: fromParent, index: this._getOrderedCards(card.columnId, fromParent).findIndex(c => c.id === cardId) };
+    this._applyMove(cardId, toColumn, toIndex, toParent, false);
+    this._lastMoves.set(cardId, origin);
+    return true;
+  }
+
+  /** Write `text` to the live region now, not at the next render. */
+  private _say(text: string): void {
+    this._liveText = text;
+    const live = this.$<HTMLElement>('[aria-live]');
+    if (live) live.textContent = text;
+  }
+
+  private _applyMove(cardId: string, targetColumnId: string, targetIndex: number | undefined, targetParentId: string | undefined, silent: boolean): void {
     const cardIndex = this._cards.findIndex(c => c.id === cardId);
     if (cardIndex === -1) return;
 
@@ -459,6 +579,7 @@ export class BKanban extends BaseComponent {
     if (targetParentId) detail.toParent = targetParentId;
     if (fromParentId) detail.fromParent = fromParentId;
 
+    if (silent) return;
     if (fromColumnId !== targetColumnId || fromParentId !== (targetParentId ?? '')) {
       this.emit('card-move', detail);
     } else {
@@ -552,9 +673,15 @@ export class BKanban extends BaseComponent {
     const cardId = card.dataset.cardId!;
     const columnId = card.dataset.columnId!;
     const parentId = card.dataset.parentId ?? '';
+    if (this._isLocked(columnId)) {
+      e.preventDefault();
+      this._say(this._refusal(cardId, columnId) ?? '');
+      return;
+    }
     const cards = this._getOrderedCards(columnId, parentId);
     const idx = cards.findIndex(c => c.id === cardId);
 
+    this._refusedSaidFor = null;
     this._dragCardId = cardId;
     this._dragSourceColumnId = columnId;
     this._dragSourceIndex = idx;
@@ -567,6 +694,8 @@ export class BKanban extends BaseComponent {
   }
 
   private _onDragEnd(): void {
+    this._refusedSaidFor = null;
+    this.$$<HTMLElement>('.column.drop-refused').forEach(c => c.classList.remove('drop-refused'));
     this._dragCardId = null;
     this._dragSourceColumnId = null;
     this._dragSourceIndex = -1;
@@ -575,6 +704,15 @@ export class BKanban extends BaseComponent {
 
   private _onDragOver(e: DragEvent, colBody: HTMLElement): void {
     if (!this._dragCardId) return;
+    const toColumn = colBody.dataset.columnId!;
+    const reason = this._refusal(this._dragCardId, toColumn);
+    if (reason) {
+      // No preventDefault: the browser then shows no-drop and fires no drop here.
+      this._clearDropIndicators();
+      colBody.closest('.column')?.classList.add('drop-refused');
+      if (this._refusedSaidFor !== toColumn) { this._refusedSaidFor = toColumn; this._say(reason); }
+      return;
+    }
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
@@ -618,6 +756,7 @@ export class BKanban extends BaseComponent {
 
   private _onDragLeave(e: DragEvent, colBody: HTMLElement): void {
     if (!colBody.contains(e.relatedTarget as Node)) {
+      colBody.closest('.column')?.classList.remove('drop-refused');
       colBody.classList.remove('drag-over');
       this._clearDropIndicators();
     }
@@ -674,7 +813,7 @@ export class BKanban extends BaseComponent {
       targetParentId = undefined;
     }
 
-    this.moveCard(this._dragCardId, targetColumnId, targetIndex, targetParentId);
+    this._userMove(this._dragCardId, targetColumnId, targetIndex, targetParentId);
   }
 
   // ── Keyboard Navigation ──
@@ -806,6 +945,10 @@ export class BKanban extends BaseComponent {
   private _startKeyboardDrag(cardEl: HTMLElement): void {
     const cardId = cardEl.dataset.cardId!;
     const columnId = cardEl.dataset.columnId!;
+    if (this._isLocked(columnId)) {
+      this._say(this._refusal(cardId, columnId) ?? '');
+      return;
+    }
     const parentId = cardEl.dataset.parentId ?? '';
     const cards = this._getOrderedCards(columnId, parentId);
     const idx = cards.findIndex(c => c.id === cardId);
@@ -832,12 +975,28 @@ export class BKanban extends BaseComponent {
 
   private _keyboardMoveColumn(direction: 1 | -1): void {
     const colIdx = this._columns.findIndex(c => c.id === this._keyboardDragColumnId);
-    const newColIdx = Math.max(0, Math.min(this._columns.length - 1, colIdx + direction));
-    if (newColIdx !== colIdx) {
-      this._keyboardDragColumnId = this._columns[newColIdx].id;
-      this._keyboardDragIndex = Math.min(this._keyboardDragIndex, this._getOrderedCards(this._keyboardDragColumnId).length);
-      this._liveText = `Column: ${this._columns[newColIdx].label}, position: ${this._keyboardDragIndex + 1}`;
+    const cardId = this._keyboardDragCardId!;
+    // Step over columns this card may not enter (a lock or canMove), and say which were skipped (TASK-947).
+    const skipped: string[] = [];
+    let newColIdx = colIdx + direction;
+    for (; newColIdx >= 0 && newColIdx < this._columns.length; newColIdx += direction) {
+      const col = this._columns[newColIdx];
+      const index = Math.min(this._keyboardDragIndex, this._getOrderedCards(col.id).length);
+      if (!this._refusal(cardId, col.id, index)) break;
+      skipped.push(col.label);
     }
+    if (newColIdx < 0 || newColIdx >= this._columns.length) {
+      if (skipped.length) {
+        this._say(this.label('label-no-column', 'bwc.kanban.noColumn', 'No column that way accepts this card ({columns} cannot take it).', { columns: skipped.join(', ') }));
+      }
+      return;
+    }
+    this._keyboardDragColumnId = this._columns[newColIdx].id;
+    this._keyboardDragIndex = Math.min(this._keyboardDragIndex, this._getOrderedCards(this._keyboardDragColumnId).length);
+    const where = `Column: ${this._columns[newColIdx].label}, position: ${this._keyboardDragIndex + 1}`;
+    this._say(skipped.length
+      ? `${where}. ${this.label('label-skipped', 'bwc.kanban.skipped', 'Skipped {columns}.', { columns: skipped.join(', ') })}`
+      : where);
   }
 
   private _completeKeyboardDrag(): void {
@@ -850,8 +1009,12 @@ export class BKanban extends BaseComponent {
     this._keyboardDragColumnId = null;
     this._keyboardDragIndex = -1;
 
-    this.moveCard(cardId, targetColumnId, targetIndex);
-    this._liveText = 'Card dropped.';
+    const card = this._cards.find(c => c.id === cardId);
+    const sameSpot = card?.columnId === targetColumnId;
+    // A drop where the card already is counts as a reorder; a refusal or a cancelled request leaves it put and says so.
+    const moved = this._userMove(cardId, targetColumnId, targetIndex, sameSpot ? (card?.parentId || undefined) : undefined);
+    if (moved) this._liveText = 'Card dropped.';
+    else this.update();
 
     requestAnimationFrame(() => {
       const cardEl = this.$<HTMLElement>(`[data-card-id="${cardId}"]`);

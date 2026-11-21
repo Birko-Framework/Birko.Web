@@ -1436,8 +1436,29 @@ board.removeCard('a');            // removes descendants recursively
 
 **Keyboard:** `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`.
 
-Methods: `setColumns()`, `setCards()`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
-Emits: `card-move` → `{ cardId, fromColumnId, toColumnId, parentId, position }`, `card-click` → `{ card }`
+**Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
+
+- `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one
+  up by keyboard is refused, and dragging over it shows no-drop with the reason announced.
+- `KanbanConfig.canMove(move)` — asked after the locks with a `KanbanMove` (`{ card, fromColumn, toColumn, fromIndex,
+  toIndex?, fromParent?, toParent? }`). Return `false` to refuse, or a string: it refuses and is the reason announced.
+- `card-move-request` — a cancelable event with the same `KanbanMove`, fired before a person's move is applied;
+  `preventDefault()` keeps the card put. `card-move` / `card-reorder` are unchanged and still fire after the move.
+- `revertMove(cardId)` — puts a card back where the last move a person made took it from, for example when saving it
+  failed; fires no event; returns `false` when there is nothing to undo.
+
+`moveCard()` is the app's own call and is **not** limited by any of these, so an app (or its agents) can still move
+cards into a locked column. With the keyboard, `←`/`→` skip columns the card may not enter and say which were skipped.
+Strings: `bwc.kanban.*` (`locked`, `lockedIn`, `lockedOut`, `refused`, `noColumn`, `skipped`), or `label-*` attributes.
+
+```typescript
+board.addEventListener('card-move', (e) => {
+  save(e.detail).catch(() => { board.revertMove(e.detail.card.id); toast('Could not save the move'); });
+});
+```
+
+Methods: `setColumns()`, `setCards()`, `moveCard(id, column, index?, parent?)`, `revertMove(id)`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
+Emits: `card-move-request` (cancelable) / `card-move` / `card-reorder` → `{ card, fromColumn, toColumn, fromIndex, toIndex, fromParent?, toParent? }`, `card-click` → `{ cardId, columnId, card }`
 
 ### b-sortable-list
 

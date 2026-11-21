@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.21 — 2026-11-21
+
+- **`b-kanban`: locked columns, a move rule, and refusing or undoing a move** — Birko TASK-947 (FEATURE-022, asked for
+  by DraCode). `KanbanColumn.locked` stops a person moving cards into or out of a column, by mouse or keyboard;
+  `KanbanConfig.canMove(move)` refuses any other move, with a reason that is announced; a new cancelable
+  `card-move-request` fires before a person's move; `revertMove(cardId)` undoes the last one without an event. The
+  app's own `moveCard()` is not limited. Boards that use none of this behave as before, and `card-move` is unchanged.
+
 ## v0.4.20 — 2026-11-21
 
 - **SECURITY: `BMarkdownEditor.renderMarkdown` no longer lets markdown run script** — Birko TASK-943, reported by
