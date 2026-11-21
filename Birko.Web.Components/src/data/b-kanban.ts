@@ -901,6 +901,11 @@ export class BKanban extends BaseComponent {
 
     const hasChildren = !!(cardData.children?.length);
 
+    // A card without sub-cards: → moves focus to the next column, as ← moves it to the previous one (TASK-955).
+    if (!hasChildren) {
+      this._moveFocusColumn(card, 1);
+      return;
+    }
     if (hasChildren) {
       if (!this._expanded.has(cardId)) {
         this._toggleCard(cardId);
@@ -984,6 +989,26 @@ export class BKanban extends BaseComponent {
     this._liveText = `Picked up card: ${card?.title ?? cardId}. Use arrow keys to move, Enter to drop, Escape to cancel.`;
 
     cardEl.classList.add('keyboard-dragging');
+    this._showKeyboardTarget();
+  }
+
+  /**
+   * Show where a keyboard move would land, as a mouse drag does: the target column highlighted and a drop line at the
+   * target position. Without it only the live region changed and the card looked stuck (TASK-955).
+   */
+  private _showKeyboardTarget(): void {
+    this._clearDropIndicators();
+    const columnId = this._keyboardDragColumnId;
+    if (!columnId) return;
+    const body = this.$$<HTMLElement>('.column-body').find(b => b.dataset.columnId === columnId);
+    if (!body) return;
+    body.classList.add('drag-over');
+    const cards = [...body.querySelectorAll<HTMLElement>(':scope > .card')].filter(c => c.dataset.cardId !== this._keyboardDragCardId);
+    if (!cards.length) return;
+    const index = this._keyboardDragIndex;
+    const at = cards[Math.min(index, cards.length - 1)];
+    at.classList.add(index < cards.length ? 'drop-before' : 'drop-after');
+    at.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   private _keyboardMoveCard(direction: 1 | -1): void {
@@ -992,6 +1017,7 @@ export class BKanban extends BaseComponent {
     if (newIdx !== this._keyboardDragIndex) {
       this._keyboardDragIndex = newIdx;
       this._liveText = `Card position: ${newIdx + 1} of ${cards.length}`;
+      this._showKeyboardTarget();
     }
   }
 
@@ -1019,9 +1045,11 @@ export class BKanban extends BaseComponent {
     this._say(skipped.length
       ? `${where}. ${this.label('label-skipped', 'bwc.kanban.skipped', 'Skipped {columns}.', { columns: skipped.join(', ') })}`
       : where);
+    this._showKeyboardTarget();
   }
 
   private _completeKeyboardDrag(): void {
+    this._clearDropIndicators();
     const cardId = this._keyboardDragCardId!;
     const targetColumnId = this._keyboardDragColumnId!;
     const targetIndex = this._keyboardDragIndex;
@@ -1045,6 +1073,7 @@ export class BKanban extends BaseComponent {
   }
 
   private _cancelKeyboardDrag(): void {
+    this._clearDropIndicators();
     const cardId = this._keyboardDragCardId;
     this._keyboardDragging = false;
     this._keyboardDragCardId = null;
