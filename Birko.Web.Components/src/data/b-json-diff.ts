@@ -98,8 +98,10 @@ export class BJsonDiff extends BaseComponent {
       }
       .error { color: var(--b-color-danger-text); font-style: normal; }
       del, ins { text-decoration: none; border-radius: var(--b-radius-sm); padding: 0 var(--b-space-xs, 0.25rem); }
-      del { background: var(--b-color-danger-alpha-bg); color: var(--b-color-danger-text); }
-      ins { background: var(--b-color-success-alpha-bg); color: var(--b-color-success-text); }
+      /* The solid -light tint, not the -alpha-bg wash: -text on -light is the badge pair the token gate holds at 4.5:1
+         in every theme; on the translucent wash the added value fell to 2.80:1 in dark (TASK-951). */
+      del { background: var(--b-color-danger-light); color: var(--b-color-danger-text); }
+      ins { background: var(--b-color-success-light); color: var(--b-color-success-text); }
       del, ins, .val { white-space: pre-wrap; }
       .node { display: block; }
       .row {
