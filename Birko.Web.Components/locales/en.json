@@ -247,6 +247,9 @@
     },
     "dataTable": {
       "selected": "selected",
+      "selectAll": "Select all rows",
+      "selectRow": "Select row",
+      "actions": "Actions",
       "bulkActions": "Bulk actions",
       "clearSelection": "Clear selection",
       "selectAllMatching": "Select all {count} matching",

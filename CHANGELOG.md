@@ -29,6 +29,10 @@ interchangeable for consumers.
   command-palette button's name, the theme switcher's name and the theme names were English in every locale. They now
   read `bws.shell.commandPalette`, `bws.shell.theme` and `bws.shell.themes.<id>` from the app's locale bundle, with the
   same English as before when a key is missing; `label-command-palette` / `label-theme` on the shell still win.
+- **`b-data-table`'s selection and row-action labels can be translated** — Birko TASK-953, reported by Symbio. The
+  select-all and select-row checkboxes and the row-action `⋮` button were English unless a table's config passed
+  labels; they now read `bwc.dataTable.selectAll`, `selectRow` and `actions` like the table's other labels (a config
+  label still wins). A row id containing a quote no longer breaks out of the action button's `data-id`.
 
 ## v0.4.19 — 2026-11-19
 
