@@ -1457,6 +1457,23 @@ board.addEventListener('card-move', (e) => {
 });
 ```
 
+**Lane modes and board-level lanes (v0.4.21, TASK-956).** `KanbanConfig.laneLayout` picks how lanes are shown:
+`'sections'` (default, stacked inside each column), `'rows'` (swimlanes across the whole board) or `'tags'`.
+`KanbanConfig.lanes` (with `defaultLane`) sets lanes for the whole board: a column without its own `lanes` uses them,
+and `lanes: []` opts a column out. In rows mode the rows are the board's lanes, each column is split by them, and an
+opted-out column is one tall cell beside the rows. Moving a card into another column keeps its lane (its row) when
+that column has it; by keyboard, `←`/`→` stay in the row.
+
+```typescript
+board.setConfig({
+  laneLayout: 'rows',
+  lanes: [{ id: 'critical', label: 'Critical' }, { id: 'normal', label: 'Normal' }],
+  defaultLane: 'normal',
+  columns: [{ id: 'todo', label: 'To do' }, { id: 'doing', label: 'Doing' }, { id: 'done', label: 'Done', lanes: [] }],
+  cards,
+});
+```
+
 **Reordering off (v0.4.21, TASK-949).** `KanbanColumn.sortable: false` keeps the app's `order`: the board never
 renumbers it, a card dropped in takes its place by its own `order` (no drop line is shown), and a drag within the same
 lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its edge, on into the lane above or below; in a

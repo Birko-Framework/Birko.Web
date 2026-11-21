@@ -72,6 +72,15 @@ export interface KanbanConfig {
    * the reason shown and announced. Not asked for the app's own `moveCard()` (TASK-947).
    */
   canMove?: (move: KanbanMove) => boolean | string;
+  /**
+   * Lanes for the whole board (TASK-956, D15): every column without its own `lanes` uses them; `lanes: []` on a
+   * column opts it out. In rows mode they are the rows.
+   */
+  lanes?: KanbanLane[];
+  /** The board's default lane, after a column's own `defaultLane` (D14). */
+  defaultLane?: string;
+  /** How lanes are shown (D16): `'sections'` inside each column (default), `'rows'` across the board, or `'tags'`. */
+  laneLayout?: 'sections' | 'rows' | 'tags';
 }
 
 export class BKanban extends BaseComponent {
@@ -103,6 +112,13 @@ export class BKanban extends BaseComponent {
       }
 
       .column.drop-refused .column-body { cursor: not-allowed; outline: 2px dashed var(--b-color-danger-text); outline-offset: -2px; }
+      .board.rows-board { display: grid; align-items: stretch; gap: var(--b-space-xs, 0.25rem); }
+      .rows-board .column { min-width: 0; max-width: none; flex: none; }
+      .rows-board .rows-colhead { border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
+        background: var(--b-bg-secondary); }
+      .rows-board .row-header { align-self: stretch; border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem); background: var(--b-bg-secondary); }
+      .rows-board .column-body { min-height: 3rem; height: 100%; }
       .lanes { display: flex; flex-direction: column; gap: var(--b-space-xs, 0.25rem); padding: var(--b-space-xs, 0.25rem); }
       .lane { border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius, 0.375rem); background: var(--b-bg); }
       .lane-header { display: flex; align-items: center; gap: var(--b-space-xs, 0.25rem); padding: var(--b-space-xs, 0.25rem) var(--b-space-sm, 0.5rem);
@@ -297,7 +313,7 @@ export class BKanban extends BaseComponent {
         ? topLevelCards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
         : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`;
 
-      const lanes = col.lanes ?? [];
+      const lanes = this._lanesOf(col.id);
       const bodyHtml = lanes.length
         ? `<div class="lanes">${lanes.map(lane => {
             const laneCards = this._getOrderedCards(col.id, '', lane.id);
@@ -328,12 +344,64 @@ export class BKanban extends BaseComponent {
       `;
     }).join('');
 
+    const boardLanes = this._config?.lanes ?? [];
+    if (this._laneLayout() === 'rows' && boardLanes.length) {
+      return `
+      <div class="board rows-board" role="group" aria-label="Kanban board"${this._renderStop ? '' : ' tabindex="0"'}
+           style="grid-template-columns: minmax(6rem, max-content) repeat(${this._columns.length}, minmax(var(--b-kanban-col-min-width, 16rem), 1fr));">
+        ${this._renderRows(boardLanes, emptyText)}
+      </div>
+      <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
+    `;
+    }
+
     return `
       <div class="board" role="group" aria-label="Kanban board"${this._renderStop ? '' : ' tabindex="0"'}>
         ${columnsHtml}
       </div>
       <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
     `;
+  }
+
+  /**
+   * Rows mode (TASK-956, D5/D15): a header row of columns, then one row per board lane with a cell per column; a cell
+   * is a `.column` wrapper around a `.column-body` drop target, so locks, refusals and the keyboard work as in columns.
+   */
+  private _renderRows(lanes: KanbanLane[], emptyText: string): string {
+    const lock = this.label('label-locked', 'bwc.kanban.locked', 'Locked');
+    const heads = this._columns.map((col, j) => {
+      const total = this._countAllCards(this._getOrderedCards(col.id));
+      const accent = col.color ? ` border-left: 3px solid ${escapeAttr(col.color)};` : '';
+      return `<div class="column-header rows-colhead" data-column-id="${escapeAttr(col.id)}" style="grid-column: ${j + 2}; grid-row: 1;${accent}">
+          <span class="column-title">${escapeHtml(col.label)}</span>
+          ${col.locked ? `<span class="column-lock"><span aria-hidden="true">&#128274;</span>${escapeHtml(lock)}</span>` : ''}
+          <span class="column-count">${total}</span>
+        </div>`;
+    }).join('');
+    const body = (col: KanbanColumn, lane: KanbanLane | null, cards: KanbanCard[]) => `
+        <div class="column-body" data-column-id="${escapeAttr(col.id)}"${lane ? ` data-lane-id="${escapeAttr(lane.id)}"` : ''} role="list"
+             aria-label="${escapeAttr(lane ? `${col.label}: ${lane.label}` : col.label)}">
+          ${cards.length ? cards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('') : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`}
+        </div>`;
+    const rows = lanes.map((lane, i) => {
+      const count = this._countAllCards(this._cards.filter(c => this._laneOf(c) === lane.id));
+      const dot = lane.color ? ` style="background:${escapeAttr(lane.color)}"` : '';
+      const header = `<div class="row-header lane-header" data-lane-id="${escapeAttr(lane.id)}" style="grid-column: 1; grid-row: ${i + 2};">
+          <span class="lane-dot" aria-hidden="true"${dot}></span><span class="lane-title">${escapeHtml(lane.label)}</span><span class="lane-count">${count}</span>
+        </div>`;
+      const cells = this._columns.map((col, j) => {
+        const cls = `column rows-cell${col.locked ? ' locked' : ''}`;
+        if (!this._lanesOf(col.id).length) {
+          // An opted-out column is one cell beside all the rows.
+          return i === 0
+            ? `<div class="${cls}" data-column-id="${escapeAttr(col.id)}" style="grid-column: ${j + 2}; grid-row: 2 / span ${lanes.length};">${body(col, null, this._getOrderedCards(col.id).filter(c => !c.parentId))}</div>`
+            : '';
+        }
+        return `<div class="${cls}" data-column-id="${escapeAttr(col.id)}" data-lane-id="${escapeAttr(lane.id)}" style="grid-column: ${j + 2}; grid-row: ${i + 2};">${body(col, lane, this._getOrderedCards(col.id, '', lane.id))}</div>`;
+      }).join('');
+      return header + cells;
+    }).join('');
+    return `<div class="rows-corner" style="grid-column: 1; grid-row: 1;"></div>${heads}${rows}`;
   }
 
   private _renderCard(card: KanbanCard, columnId: string, index: number, depth: number): string {
@@ -1169,7 +1237,7 @@ export class BKanban extends BaseComponent {
     const dragged = this._cards.find(c => c.id === cardId)!;
     for (; newColIdx >= 0 && newColIdx < this._columns.length; newColIdx += direction) {
       const col = this._columns[newColIdx];
-      const lane = this._targetLane(dragged, col.id);
+      const lane = this._targetLane(dragged, col.id, this._keyboardDragLaneId || undefined);
       const index = Math.min(this._keyboardDragIndex, this._getOrderedCards(col.id, '', lane || undefined).length);
       if (!this._refusal(cardId, col.id, index, undefined, lane || undefined)) break;
       skipped.push(col.label);
@@ -1181,7 +1249,7 @@ export class BKanban extends BaseComponent {
       return;
     }
     this._keyboardDragColumnId = this._columns[newColIdx].id;
-    this._keyboardDragLaneId = this._targetLane(dragged, this._keyboardDragColumnId);
+    this._keyboardDragLaneId = this._targetLane(dragged, this._keyboardDragColumnId, this._keyboardDragLaneId || undefined);
     this._keyboardDragIndex = Math.min(this._keyboardDragIndex,
       this._getOrderedCards(this._keyboardDragColumnId, '', this._keyboardDragLaneId || undefined).filter(c => c.id !== cardId).length);
     const where = this._whereText(this._keyboardDragColumnId, this._keyboardDragLaneId, this._keyboardDragIndex);
@@ -1253,7 +1321,9 @@ export class BKanban extends BaseComponent {
       ? Math.min(this._columns.length - 1, colIdx + 1)
       : Math.max(0, colIdx - 1);
 
-    const newColumn = this.$$<HTMLElement>('.column').find(c => c.dataset.columnId === this._columns[newColIdx].id);
+    const row = currentColumn.dataset.laneId;
+    const candidates = this.$$<HTMLElement>('.column').filter(c => c.dataset.columnId === this._columns[newColIdx].id);
+    const newColumn = candidates.find(c => row && c.dataset.laneId === row) ?? candidates[0];
     const newColBody = newColumn?.querySelector<HTMLElement>('.column-body') ?? null;
     if (!newColumn || !newColBody) return;
     const cards = newColumn.querySelectorAll<HTMLElement>('.card');
@@ -1299,16 +1369,30 @@ export class BKanban extends BaseComponent {
     return this._lanesOf(columnId).find(l => l.id === laneId)?.label ?? laneId;
   }
 
+  private _laneLayout(): 'sections' | 'rows' | 'tags' {
+    return this._config?.laneLayout ?? 'sections';
+  }
+
+  /**
+   * A column's lanes: its own (`[]` = none), else the board's (TASK-956). In rows mode the rows are the board's lanes,
+   * and only `lanes: []` opts a column out.
+   */
   private _lanesOf(columnId: string): KanbanLane[] {
-    return this._columns.find(c => c.id === columnId)?.lanes ?? [];
+    const own = this._columns.find(c => c.id === columnId)?.lanes;
+    const board = this._config?.lanes ?? [];
+    if (this._laneLayout() === 'rows') return own && own.length === 0 ? [] : board;
+    return own ?? board;
   }
 
   /** A laned column's default lane: `defaultLane` when it names one of its lanes, else the first (D14). */
   private _defaultLane(columnId: string): string {
     const col = this._columns.find(c => c.id === columnId);
-    const lanes = col?.lanes ?? [];
+    const lanes = this._lanesOf(columnId);
     if (!lanes.length) return '';
-    return lanes.some(l => l.id === col?.defaultLane) ? col!.defaultLane! : lanes[0].id;
+    for (const pick of [col?.defaultLane, this._config?.defaultLane]) {
+      if (pick && lanes.some(l => l.id === pick)) return pick;
+    }
+    return lanes[0].id;
   }
 
   /** The lane a card shows in: '' in a column without lanes; a sub-card follows its top-level ancestor (TASK-948). */
@@ -1332,7 +1416,10 @@ export class BKanban extends BaseComponent {
     const lanes = this._lanesOf(toColumn);
     if (!lanes.length) return '';
     if (toLane && lanes.some(l => l.id === toLane)) return toLane;
-    if (toColumn === card.columnId) return this._laneOf(card);
+    const current = this._laneOf(card);
+    if (toColumn === card.columnId) return current;
+    // Into another column the card keeps its lane when that column has it (in rows mode, its row), else the default.
+    if (current && lanes.some(l => l.id === current)) return current;
     return this._defaultLane(toColumn);
   }
 

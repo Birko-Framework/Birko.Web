@@ -20,6 +20,10 @@ interchangeable for consumers.
   `KanbanColumn.sortable: false` keeps the app's `order` (no renumbering, no drop line; a dropped card takes its place
   by its own `order`; a drag within its lane changes nothing). `↑`/`↓` cross lanes by keyboard, skipping refused ones,
   and the announcement names the column, lane and position.
+- **`b-kanban` lanes as rows across the board, and board-level lanes** — Birko TASK-956 (FEATURE-022).
+  `KanbanConfig.laneLayout: 'rows'` draws lanes as swimlanes across all columns (`'sections'` stays the default);
+  `KanbanConfig.lanes` / `defaultLane` set lanes for the whole board, which a column's own `lanes` override and
+  `lanes: []` opts out of. A card moving into another column keeps its lane when that column has it.
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the
