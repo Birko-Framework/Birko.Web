@@ -1,4 +1,4 @@
-import { FormControlComponent, define } from 'birko-web-core';
+import { FormControlComponent, define, escapeHtml as escapeAll, safeHref } from 'birko-web-core';
 import { escapeHtml, escapeAttr } from '../dom-utils';
 import { formFieldSheet, formControlSheet } from '../shared-styles';
 import { renderField, fieldAria } from './label-hint';
@@ -532,8 +532,11 @@ export class BMarkdownEditor extends FormControlComponent {
     work = work.replace(/```[\s\S]*?```/g, (m) => {
       const lines = m.slice(3, -3);
       const firstNewline = lines.indexOf('\n');
-      const lang = firstNewline > 0 ? lines.substring(0, firstNewline).trim() : '';
-      const code = firstNewline > 0 ? lines.substring(firstNewline + 1) : lines;
+      const fenceInfo = firstNewline > 0 ? lines.substring(0, firstNewline).trim() : '';
+      // The language goes into a class attribute, so only a plain name is kept (TASK-943: `"` closed the attribute).
+      const lang = /^[\w+#.-]+$/.test(fenceInfo) ? fenceInfo : '';
+      // `>= 0`: a fence with no language has its newline at 0, and keeping it started the block with a blank line (TASK-944).
+      const code = firstNewline >= 0 ? lines.substring(firstNewline + 1) : lines;
       const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       return mask(`<pre><code${lang ? ` class="language-${lang}"` : ''}>${escaped}</code></pre>`);
     });
@@ -541,8 +544,23 @@ export class BMarkdownEditor extends FormControlComponent {
     // 2. Mask inline code
     work = work.replace(/`([^`]+)`/g, (_m, code) => mask(`<code>${code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>`));
 
-    // 3. Escape HTML
-    work = work.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // 3. Escape HTML, quotes included: link and image targets and alt text land in quoted attributes, and with only
+    //    & < > escaped `[q](x" onmouseover="…)` closed the attribute and added a handler (TASK-943).
+    work = escapeAll(work);
+
+    // 3b. An indented line right after a list item, not itself an item, continues that item (TASK-944). Without this it
+    //     became its own paragraph and split the list in two.
+    const listItemLine = /^\s*(?:[-*+]|\d+\.)\s+/;
+    const merged: string[] = [];
+    for (const line of work.split('\n')) {
+      const last = merged.length - 1;
+      if (last >= 0 && /^\s+\S/.test(line) && !listItemLine.test(line) && listItemLine.test(merged[last])) {
+        merged[last] += ' ' + line.trim();
+        continue;
+      }
+      merged.push(line);
+    }
+    work = merged.join('\n');
 
     // 4. Horizontal rules
     work = work.replace(/^(---|\*\*\*|___)\s*$/gm, '<hr>');
@@ -598,13 +616,20 @@ export class BMarkdownEditor extends FormControlComponent {
     // Subscript: ~text~ (single tilde, not double ~~ which is strikethrough)
     work = work.replace(/(?<!~)~([^~\s]+?)~(?!~)/g, '<sub>$1</sub>');
 
-    // 12. Images (before links)
-    work = work.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img alt="$1" src="$2">');
+    // 12–13. Images (before links), then links. Escaping does nothing to `javascript:` — none of its characters need it —
+    // so each target must pass safeHref's scheme allow-list (TASK-943). A refused one stays as its source text, so the
+    // author can see it was refused rather than getting a dead link. The target is already escaped (step 3); safeHref
+    // is asked about the text the browser would see.
+    const unescape = (s: string) => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+    work = work.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (m, alt, target) =>
+      safeHref(unescape(target)) === null ? m : `<img alt="${alt}" src="${target}">`);
+    work = work.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (m, text, target) =>
+      safeHref(unescape(target)) === null ? m : `<a href="${target}">${text}</a>`);
 
-    // 13. Links
-    work = work.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-
-    // 14. Paragraphs — wrap double-newline-separated blocks
+    // 14. Paragraphs — wrap double-newline-separated blocks. A list is its own block even with no blank line around it:
+    //     otherwise "Components:\n- a" made one block that did not start with <ul, and its newlines became <br> between
+    //     the items (TASK-944).
+    work = work.replace(/([^\n])\n(<(?:ul|ol)>)/g, '$1\n\n$2').replace(/(<\/(?:ul|ol)>)\n?(?=[^\n])/g, '$1\n\n');
     const blocks = work.split(/\n\n+/);
     work = blocks.map(block => {
       const trimmed = block.trim();

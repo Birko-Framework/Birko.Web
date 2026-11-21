@@ -4,6 +4,22 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.20 — 2026-11-21
+
+- **SECURITY: `BMarkdownEditor.renderMarkdown` no longer lets markdown run script** — Birko TASK-943, reported by
+  DraCode. It escaped only `& < >`, so a link or image target, an image's alt text or a code fence's language could
+  close its attribute and add a handler (`[q](x" onmouseover="…)`), and a link or image target was never checked for
+  its scheme (`[x](javascript:…)` ran on click). It now escapes quotes too, keeps a target only if it passes `safeHref`
+  (http(s), mailto, tel or relative; a refused one stays as its source text), and keeps a fence language only if it is
+  a plain name. This covers the editor's own preview and any page that puts the output into `innerHTML`.
+- **`renderMarkdown` lists and code blocks render as written** — Birko TASK-944, reported by DraCode. An indented line
+  continuing a list item now stays in that item (it ended the list); a list right after a paragraph line, with no blank
+  line between, no longer gets `<br>` between its items; a code fence with no language no longer starts with a blank
+  line.
+- **`b-chat` escapes its placeholder and send label** — Birko TASK-945, reported by DraCode. Both went into markup
+  unescaped, so a `"` in the placeholder closed its attribute and a send label could add an element with a handler.
+  **Consumers that escaped these themselves must stop**, or the entities show (`&amp;` instead of `&`).
+
 ## v0.4.19 — 2026-11-19
 
 - **A row with no applicable row action shows no `⋮`** — Birko TASK-940, seen in Symbio's Customers → Erasure

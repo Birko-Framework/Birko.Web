@@ -755,6 +755,11 @@ editor.setRenderer(((md: string) => myRenderer.render(md)) as MarkdownRenderer);
 Attributes: `value`, `mode` (`split` | `source` | `preview`), `placeholder`, `disabled`
 Emits: `change` → `{ name, value }`
 
+**Rendering untrusted text.** `BMarkdownEditor.renderMarkdown(md)` (the default renderer, also callable on its own) escapes
+all HTML in the source, quotes included, and keeps a link or image only if its target passes `safeHref` (http(s),
+mailto, tel, or relative); a refused one stays as its source text (TASK-943, v0.4.20). It emits only its own tags, so its
+output can go into `innerHTML`. A renderer you plug in with `setRenderer` is yours to make safe.
+
 ### b-option-group
 
 Segmented button group for selecting a single value from a small set of options.
@@ -1060,6 +1065,9 @@ chat.addEventListener('send', e => {
   // ... call API, append assistant reply
 });
 ```
+
+`placeholder` (attribute or config) and `sendLabel` are plain text: `b-chat` escapes them, so pass them unescaped —
+escaping them yourself shows the entities (TASK-945, v0.4.20).
 
 Emits: `send` → `{ value }`, `message-click` → `{ message }`
 
