@@ -24,6 +24,11 @@ export interface KanbanColumn {
   lanes?: KanbanLane[];
   /** Where a card with no lane, or a lane this column does not have, shows; else the first lane (D14). */
   defaultLane?: string;
+  /**
+   * `false` turns reordering off (TASK-949, D7): cards keep the app's `order`, a card dropped in takes its place by
+   * its own `order`, and a drag within the same lane changes nothing. Default `true`.
+   */
+  sortable?: boolean;
 }
 
 export interface KanbanCard {
@@ -560,6 +565,10 @@ export class BKanban extends BaseComponent {
   private _userMove(cardId: string, toColumn: string, toIndex?: number, toParent?: string, toLane?: string): boolean {
     const card = this._cards.find(c => c.id === cardId);
     if (!card) return false;
+    if (!this._isSortable(toColumn) && toColumn === card.columnId && !toParent && !card.parentId
+        && this._targetLane(card, toColumn, toLane) === this._laneOf(card)) {
+      return false; // reordering is off here: a drop in the card's own lane changes nothing (D7)
+    }
     const reason = this._refusal(cardId, toColumn, toIndex, toParent, toLane);
     if (reason) { this._say(reason); return false; }
     const request = new CustomEvent<KanbanMove>('card-move-request', {
@@ -625,7 +634,7 @@ export class BKanban extends BaseComponent {
 
     // Re-insert at target position among siblings (within the target lane, TASK-948)
     const siblings = this._getOrderedCards(targetColumnId, targetParentId ?? '', toLane || undefined).filter(c => c.id !== cardId);
-    if (targetIndex !== undefined && targetIndex < siblings.length) {
+    if (this._isSortable(targetColumnId) && targetIndex !== undefined && targetIndex < siblings.length) {
       const insertBeforeId = siblings[targetIndex].id;
       const insertBeforeGlobal = this._cards.findIndex(c => c.id === insertBeforeId);
       this._cards.splice(insertBeforeGlobal, 0, card);
@@ -799,6 +808,7 @@ export class BKanban extends BaseComponent {
 
     this._clearDropIndicators();
     colBody.classList.add('drag-over');
+    if (!this._isSortable(toColumn)) return; // no position to show: the app's order places the card (D7)
 
     const cards = colBody.querySelectorAll<HTMLElement>('.card:not(.dragging)');
     const y = e.clientY;
@@ -894,6 +904,10 @@ export class BKanban extends BaseComponent {
       targetParentId = undefined;
     }
 
+    if (!this._isSortable(targetColumnId)) {
+      this._userMove(this._dragCardId, targetColumnId, undefined, undefined, colBody.dataset.laneId);
+      return;
+    }
     this._userMove(this._dragCardId, targetColumnId, targetIndex, targetParentId, colBody.dataset.laneId);
   }
 
@@ -1071,7 +1085,13 @@ export class BKanban extends BaseComponent {
     body.classList.add('drag-over');
     const children = cardEl.nextElementSibling?.classList.contains('card-children') ? cardEl.nextElementSibling : null;
     const others = [...body.querySelectorAll<HTMLElement>(':scope > .card')].filter(c => c !== cardEl);
-    const before = others[this._keyboardDragIndex] ?? null;
+    let position = this._keyboardDragIndex;
+    if (!this._isSortable(columnId)) {
+      const dragged = this._cards.find(c => c.id === cardId);
+      const own = dragged?.order ?? 0;
+      position = others.filter(el => (this._cards.find(c => c.id === el.dataset.cardId)?.order ?? 0) <= own).length;
+    }
+    const before = others[position] ?? null;
     if (before) body.insertBefore(cardEl, before);
     else {
       const last = others[others.length - 1];
@@ -1085,14 +1105,59 @@ export class BKanban extends BaseComponent {
     cardEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
+  /** The position announcement: column, lane when it has one, position (D9). */
+  private _whereText(columnId: string, laneId: string, index: number): string {
+    return laneId
+      ? this.label('label-in-lane', 'bwc.kanban.inLane', '{column}, {lane}, position {position}.', { column: this._columnLabel(columnId), lane: this._laneLabel(columnId, laneId), position: index + 1 })
+      : `Column: ${this._columnLabel(columnId)}, position: ${index + 1}`;
+  }
+
   private _keyboardMoveCard(direction: 1 | -1): void {
-    const cards = this._getOrderedCards(this._keyboardDragColumnId!, '', this._keyboardDragLaneId || undefined);
-    const newIdx = Math.max(0, Math.min(cards.length - 1, this._keyboardDragIndex + direction));
-    if (newIdx !== this._keyboardDragIndex) {
-      this._keyboardDragIndex = newIdx;
-      this._liveText = `Card position: ${newIdx + 1} of ${cards.length}`;
-      this._showKeyboardTarget();
+    const columnId = this._keyboardDragColumnId!;
+    const cardId = this._keyboardDragCardId!;
+    const lane = this._keyboardDragLaneId;
+    const sortable = this._isSortable(columnId);
+    const others = this._getOrderedCards(columnId, '', lane || undefined).filter(c => c.id !== cardId);
+    // Within the lane first, when reordering is on.
+    if (sortable) {
+      const next = this._keyboardDragIndex + direction;
+      if (next >= 0 && next <= others.length) {
+        this._keyboardDragIndex = next;
+        this._say(this._whereText(columnId, lane, next));
+        this._showKeyboardTarget();
+        return;
+      }
     }
+    // At the lane's edge, or straight away when reordering is off: on into the next lane (TASK-949, D9).
+    const lanes = this._lanesOf(columnId);
+    if (!lanes.length) {
+      if (!sortable) this._say(this.label('label-reorder-off', 'bwc.kanban.reorderOff', 'Reordering is off in {column}.', { column: this._columnLabel(columnId) }));
+      return;
+    }
+    const skipped: string[] = [];
+    let li = lanes.findIndex(l => l.id === lane) + direction;
+    for (; li >= 0 && li < lanes.length; li += direction) {
+      const candidate = lanes[li];
+      const count = this._getOrderedCards(columnId, '', candidate.id).filter(c => c.id !== cardId).length;
+      const index = direction > 0 ? 0 : count;
+      if (!this._refusal(cardId, columnId, index, undefined, candidate.id)) break;
+      skipped.push(candidate.label);
+    }
+    if (li < 0 || li >= lanes.length) {
+      if (skipped.length) {
+        this._say(this.label('label-no-lane', 'bwc.kanban.noLane', 'No lane that way accepts this card ({lanes} cannot take it).', { lanes: skipped.join(', ') }));
+      }
+      return;
+    }
+    const target = lanes[li];
+    const count = this._getOrderedCards(columnId, '', target.id).filter(c => c.id !== cardId).length;
+    this._keyboardDragLaneId = target.id;
+    this._keyboardDragIndex = sortable ? (direction > 0 ? 0 : count) : count;
+    const where = this._whereText(columnId, target.id, this._keyboardDragIndex);
+    this._say(skipped.length
+      ? `${where} ${this.label('label-skipped', 'bwc.kanban.skipped', 'Skipped {columns}.', { columns: skipped.join(', ') })}`
+      : where);
+    this._showKeyboardTarget();
   }
 
   private _keyboardMoveColumn(direction: 1 | -1): void {
@@ -1119,7 +1184,7 @@ export class BKanban extends BaseComponent {
     this._keyboardDragLaneId = this._targetLane(dragged, this._keyboardDragColumnId);
     this._keyboardDragIndex = Math.min(this._keyboardDragIndex,
       this._getOrderedCards(this._keyboardDragColumnId, '', this._keyboardDragLaneId || undefined).filter(c => c.id !== cardId).length);
-    const where = `Column: ${this._columns[newColIdx].label}, position: ${this._keyboardDragIndex + 1}`;
+    const where = this._whereText(this._keyboardDragColumnId, this._keyboardDragLaneId, this._keyboardDragIndex);
     this._say(skipped.length
       ? `${where}. ${this.label('label-skipped', 'bwc.kanban.skipped', 'Skipped {columns}.', { columns: skipped.join(', ') })}`
       : where);
@@ -1226,6 +1291,14 @@ export class BKanban extends BaseComponent {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
+  private _isSortable(columnId: string): boolean {
+    return this._columns.find(c => c.id === columnId)?.sortable !== false;
+  }
+
+  private _laneLabel(columnId: string, laneId: string): string {
+    return this._lanesOf(columnId).find(l => l.id === laneId)?.label ?? laneId;
+  }
+
   private _lanesOf(columnId: string): KanbanLane[] {
     return this._columns.find(c => c.id === columnId)?.lanes ?? [];
   }
@@ -1264,6 +1337,7 @@ export class BKanban extends BaseComponent {
   }
 
   private _reorderGroup(columnId: string, parentId: string, laneId?: string): void {
+    if (!this._isSortable(columnId)) return; // the app's order stands (D7)
     const ordered = this._getOrderedCards(columnId, parentId, laneId || undefined);
     ordered.forEach((card, i) => { card.order = i; });
   }

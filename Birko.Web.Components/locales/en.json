@@ -264,7 +264,10 @@
       "lockedIn": "{column} is locked: cards cannot be moved into it.",
       "refused": "This card cannot be moved there.",
       "noColumn": "No column that way accepts this card ({columns} cannot take it).",
-      "skipped": "Skipped {columns}."
+      "skipped": "Skipped {columns}.",
+      "inLane": "{column}, {lane}, position {position}.",
+      "reorderOff": "Reordering is off in {column}.",
+      "noLane": "No lane that way accepts this card ({lanes} cannot take it)."
     },
     "treeMenu": {
       "hint": "Press Space to pick up and reorder.",

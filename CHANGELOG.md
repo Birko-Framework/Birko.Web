@@ -16,6 +16,10 @@ interchangeable for consumers.
   `defaultLane`, else the first lane). A lane change, even within a column, is a `card-move` with `fromLane` /
   `toLane`; `canMove`, `card-move-request`, `revertMove`, `moveCard(…, lane)` and `getCards(column, lane)` know lanes.
   Columns without lanes are unchanged.
+- **`b-kanban` reordering off per column, and the keyboard across lanes** — Birko TASK-949 (FEATURE-022).
+  `KanbanColumn.sortable: false` keeps the app's `order` (no renumbering, no drop line; a dropped card takes its place
+  by its own `order`; a drag within its lane changes nothing). `↑`/`↓` cross lanes by keyboard, skipping refused ones,
+  and the announcement names the column, lane and position.
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the

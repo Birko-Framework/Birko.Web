@@ -1457,6 +1457,12 @@ board.addEventListener('card-move', (e) => {
 });
 ```
 
+**Reordering off (v0.4.21, TASK-949).** `KanbanColumn.sortable: false` keeps the app's `order`: the board never
+renumbers it, a card dropped in takes its place by its own `order` (no drop line is shown), and a drag within the same
+lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its edge, on into the lane above or below; in a
+column with reordering off they jump straight to the next lane. Lanes the move rule refuses are skipped and named, and
+the announcement says the column, lane and position (`bwc.kanban.inLane`, `reorderOff`, `noLane`).
+
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 
 - `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one
