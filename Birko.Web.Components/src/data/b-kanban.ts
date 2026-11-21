@@ -81,6 +81,12 @@ export interface KanbanConfig {
   defaultLane?: string;
   /** How lanes are shown (D16): `'sections'` inside each column (default), `'rows'` across the board, or `'tags'`. */
   laneLayout?: 'sections' | 'rows' | 'tags';
+  /**
+   * Stack the columns one under another, with no sideways scrolling, while the board's own width is below this CSS
+   * length (TASK-950, D6/D20), e.g. `'44rem'`. Without it the board never stacks. A rows board shows sections while
+   * stacked (D19).
+   */
+  stackBelow?: string;
 }
 
 export class BKanban extends BaseComponent {
@@ -112,6 +118,8 @@ export class BKanban extends BaseComponent {
       }
 
       .column.drop-refused .column-body { cursor: not-allowed; outline: 2px dashed var(--b-color-danger-text); outline-offset: -2px; }
+      :host([stacked]) .board { flex-direction: column; overflow-x: visible; align-items: stretch; }
+      :host([stacked]) .board > .column { min-width: 0; max-width: none; flex: 0 0 auto; width: 100%; box-sizing: border-box; }
       .board.rows-board { display: grid; align-items: stretch; gap: var(--b-space-xs, 0.25rem); }
       .rows-board .column { min-width: 0; max-width: none; flex: none; }
       .rows-board .rows-colhead { border: var(--b-border-width, 1px) solid var(--b-border); border-radius: var(--b-radius, 0.375rem);
@@ -311,6 +319,9 @@ export class BKanban extends BaseComponent {
   private _renderStop: string | null = null;
   // A pointer went down on a lane tag: the drag that may follow from the card must not start (TASK-957).
   private _noDragFromControl = false;
+  // Stacked layout (TASK-950): whether the board is below `stackBelow`, and what watches its width.
+  private _stacked = false;
+  private _resizeObserver: ResizeObserver | null = null;
 
   render() {
     if (!this._columns.length) {
@@ -611,6 +622,40 @@ export class BKanban extends BaseComponent {
 
   // ── Public API ──
 
+  protected onMount(): void {
+    super.onMount?.();
+    this._resizeObserver = new ResizeObserver(() => this._checkStacked());
+    this._resizeObserver.observe(this);
+    this._checkStacked();
+  }
+
+  protected onUnmount(): void {
+    this._resizeObserver?.disconnect();
+    this._resizeObserver = null;
+    super.onUnmount?.();
+  }
+
+  /**
+   * Compare the board's own width with `stackBelow` and set the `stacked` attribute; re-render only when that changes
+   * (TASK-950). The length is resolved through a hidden probe, so rem, em, px and % all work.
+   */
+  private _checkStacked(): void {
+    const below = this._config?.stackBelow;
+    let stacked = false;
+    if (below && this.shadowRoot && this.isConnected) {
+      const probe = document.createElement('div');
+      probe.style.cssText = `position:absolute;visibility:hidden;height:0;width:${below}`;
+      this.shadowRoot.appendChild(probe);
+      const limit = probe.getBoundingClientRect().width;
+      probe.remove();
+      stacked = limit > 0 && this.getBoundingClientRect().width < limit;
+    }
+    if (stacked === this._stacked) return;
+    this._stacked = stacked;
+    this.toggleAttribute('stacked', stacked);
+    this.update();
+  }
+
   setConfig(config: KanbanConfig): void {
     this._config = config;
     this._columns = [...config.columns];
@@ -619,6 +664,7 @@ export class BKanban extends BaseComponent {
     this._lastMoves.clear();
     this._collectExpanded(config.cards);
     this.update();
+    this._checkStacked();
   }
 
   setCards(cards: KanbanCard[]): void {
@@ -1496,7 +1542,8 @@ export class BKanban extends BaseComponent {
   }
 
   private _laneLayout(): 'sections' | 'rows' | 'tags' {
-    return this._config?.laneLayout ?? 'sections';
+    const layout = this._config?.laneLayout ?? 'sections';
+    return layout === 'rows' && this._stacked ? 'sections' : layout;
   }
 
   /**
@@ -1506,7 +1553,8 @@ export class BKanban extends BaseComponent {
   private _lanesOf(columnId: string): KanbanLane[] {
     const own = this._columns.find(c => c.id === columnId)?.lanes;
     const board = this._config?.lanes ?? [];
-    if (this._laneLayout() === 'rows') return own && own.length === 0 ? [] : board;
+    // A rows board's columns take the board's lanes, also while it is stacked and shown as sections (D19).
+    if ((this._config?.laneLayout ?? 'sections') === 'rows') return own && own.length === 0 ? [] : board;
     return own ?? board;
   }
 

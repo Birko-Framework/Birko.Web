@@ -1481,6 +1481,12 @@ menu (current lane checked; ↑/↓, Enter, Escape); a pick goes through the sam
 `card-click`, and is not a tab stop; by keyboard, a picked-up card's `↑`/`↓` cross into the next lane at its end.
 Strings: `bwc.kanban.laneTag`, `laneMenu`. A move with no position now lands at the end of its lane or column.
 
+**Stacked when narrow (v0.4.21, TASK-950).** `KanbanConfig.stackBelow: '44rem'` (any CSS length) stacks the columns
+one under another, full width, with no sideways scrolling, while the board's **own** width is below it (a board
+beside a docked chat stacks too); the host then carries a `stacked` attribute. A rows board shows its lanes as
+sections while stacked and returns to rows when wide; tags stack as plain lists. Without `stackBelow` the board never
+stacks and scrolls sideways as before.
+
 **Reordering off (v0.4.21, TASK-949).** `KanbanColumn.sortable: false` keeps the app's `order`: the board never
 renumbers it, a card dropped in takes its place by its own `order` (no drop line is shown), and a drag within the same
 lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its edge, on into the lane above or below; in a
