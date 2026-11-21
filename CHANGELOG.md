@@ -24,6 +24,10 @@ interchangeable for consumers.
   `KanbanConfig.laneLayout: 'rows'` draws lanes as swimlanes across all columns (`'sections'` stays the default);
   `KanbanConfig.lanes` / `defaultLane` set lanes for the whole board, which a column's own `lanes` override and
   `lanes: []` opts out of. A card moving into another column keeps its lane when that column has it.
+- **`b-kanban` lanes as tags on cards** — Birko TASK-957 (FEATURE-022). `laneLayout: 'tags'` groups a column's cards by
+  lane with no headings; each card's lane tag opens a lane menu that moves it (through the same rules as a drag) and
+  never starts a drag or fires `card-click`. A move given no position (a drop at the end, a lane pick) now lands at the
+  end of its lane or column instead of wherever the card's old `order` sorted it.
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the

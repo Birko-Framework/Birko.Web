@@ -1474,6 +1474,13 @@ board.setConfig({
 });
 ```
 
+**Lanes as tags (v0.4.21, TASK-957).** With `laneLayout: 'tags'` a column has no lane areas: its cards are grouped by
+lane in lane order, and each card in a laned column shows its lane as a small tag button. Clicking the tag opens a lane
+menu (current lane checked; ↑/↓, Enter, Escape); a pick goes through the same rules as a drag (locks, `canMove`,
+`card-move-request`) and fires `card-move` with `fromLane` / `toLane`. The tag never starts a drag or fires
+`card-click`, and is not a tab stop; by keyboard, a picked-up card's `↑`/`↓` cross into the next lane at its end.
+Strings: `bwc.kanban.laneTag`, `laneMenu`. A move with no position now lands at the end of its lane or column.
+
 **Reordering off (v0.4.21, TASK-949).** `KanbanColumn.sortable: false` keeps the app's `order`: the board never
 renumbers it, a card dropped in takes its place by its own `order` (no drop line is shown), and a drag within the same
 lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its edge, on into the lane above or below; in a

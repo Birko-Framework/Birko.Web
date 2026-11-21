@@ -127,6 +127,19 @@ export class BKanban extends BaseComponent {
       .lane-title { flex: 1; }
       .lane-count { font-weight: var(--b-font-weight-medium, 500); color: var(--b-text-muted); }
       .lane .column-body { min-height: 2.5rem; }
+      .lane-tag { display: inline-flex; align-items: center; gap: 0.25rem; margin-top: var(--b-space-xs, 0.25rem);
+        padding: 0 var(--b-space-sm, 0.5rem); border: var(--b-border-width, 1px) solid var(--b-border); border-radius: 999px;
+        background: var(--b-bg-secondary); color: var(--b-text-secondary); font: inherit; font-size: var(--b-text-xs, 0.6875rem); cursor: pointer; }
+      .lane-tag:hover { border-color: var(--b-color-primary); }
+      .lane-tag:focus-visible { box-shadow: var(--b-focus-ring); outline: none; }
+      .lane-menu { position: fixed; z-index: 1000; display: flex; flex-direction: column; min-width: 9rem; padding: var(--b-space-xs, 0.25rem);
+        background: var(--b-bg-elevated, var(--b-bg)); border: var(--b-border-width, 1px) solid var(--b-border);
+        border-radius: var(--b-radius, 0.375rem); box-shadow: var(--b-shadow-md); }
+      .lane-menu [role="menuitemradio"] { display: flex; align-items: center; gap: 0.375rem; padding: 0.25rem var(--b-space-sm, 0.5rem);
+        border: 0; background: none; color: var(--b-text); font: inherit; font-size: var(--b-text-sm, 0.8125rem); text-align: left;
+        border-radius: var(--b-radius-sm, 0.25rem); cursor: pointer; }
+      .lane-menu [role="menuitemradio"]:hover, .lane-menu [role="menuitemradio"]:focus-visible { background: var(--b-bg-tertiary); outline: none; }
+      .lane-menu [aria-checked="true"] { font-weight: var(--b-font-weight-semibold, 600); }
       .column-lock { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: var(--b-font-weight-medium, 500);
         font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted); margin-left: auto; margin-right: var(--b-space-sm, 0.5rem); }
       .card[draggable="false"] { cursor: default; }
@@ -296,6 +309,8 @@ export class BKanban extends BaseComponent {
   // Roving tabindex (TASK-955): the one card Tab lands on — the card last focused, else the first card.
   private _tabStopId: string | null = null;
   private _renderStop: string | null = null;
+  // A pointer went down on a lane tag: the drag that may follow from the card must not start (TASK-957).
+  private _noDragFromControl = false;
 
   render() {
     if (!this._columns.length) {
@@ -313,7 +328,11 @@ export class BKanban extends BaseComponent {
         ? topLevelCards.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
         : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`;
 
-      const lanes = this._lanesOf(col.id);
+      const lanes = this._laneLayout() === 'tags' ? [] : this._lanesOf(col.id);
+      const shown = this._laneLayout() === 'tags' ? this._cardsInDisplayOrder(col.id) : topLevelCards;
+      const listHtml = shown.length
+        ? shown.map((card, idx) => this._renderCard(card, col.id, idx, 0)).join('')
+        : `<div class="empty-placeholder">${escapeHtml(emptyText)}</div>`;
       const bodyHtml = lanes.length
         ? `<div class="lanes">${lanes.map(lane => {
             const laneCards = this._getOrderedCards(col.id, '', lane.id);
@@ -327,7 +346,7 @@ export class BKanban extends BaseComponent {
             </div>`;
           }).join('')}</div>`
         : `<div class="column-body" data-column-id="${escapeAttr(col.id)}" role="list" aria-label="${escapeAttr(col.label)}">
-            ${cardsHtml}
+            ${listHtml}
           </div>`;
 
       const accent = col.color ? `border-left: 3px solid ${escapeAttr(col.color)};` : '';
@@ -404,6 +423,74 @@ export class BKanban extends BaseComponent {
     return `<div class="rows-corner" style="grid-column: 1; grid-row: 1;"></div>${heads}${rows}`;
   }
 
+  /**
+   * Tags mode (TASK-957, D17): a top-level card in a laned column shows its lane as a small button that opens a lane
+   * menu. `tabindex="-1"` keeps the board one tab stop; by keyboard the lane changes by moving the card (D9).
+   */
+  private _renderLaneTag(card: KanbanCard, columnId: string, depth: number): string {
+    if (this._laneLayout() !== 'tags' || depth > 0 || card.parentId) return '';
+    const lanes = this._lanesOf(columnId);
+    if (!lanes.length) return '';
+    const laneId = this._laneOf(card);
+    const lane = lanes.find(l => l.id === laneId);
+    if (!lane) return '';
+    const dot = lane.color ? ` style="background:${escapeAttr(lane.color)}"` : '';
+    const name = this.label('label-lane-tag', 'bwc.kanban.laneTag', 'Lane: {lane}. Change lane', { lane: lane.label });
+    return `<button type="button" class="lane-tag" tabindex="-1" aria-haspopup="menu" aria-label="${escapeAttr(name)}" data-lane-tag="${escapeAttr(card.id)}"><span class="lane-dot" aria-hidden="true"${dot}></span>${escapeHtml(lane.label)}<span aria-hidden="true"> &#9662;</span></button>`;
+  }
+
+  /** The lane menu under a tag (D17): one checked radio item per lane; a pick goes through the person funnel. */
+  private _openLaneMenu(cardId: string, anchor: HTMLElement): void {
+    this._closeLaneMenu();
+    const card = this._cards.find(c => c.id === cardId);
+    if (!card || !this.shadowRoot) return;
+    const current = this._laneOf(card);
+    const menu = document.createElement('div');
+    menu.className = 'lane-menu';
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('aria-label', this.label('label-lane-menu', 'bwc.kanban.laneMenu', 'Change lane'));
+    menu.innerHTML = this._lanesOf(card.columnId).map(l =>
+      `<button type="button" role="menuitemradio" aria-checked="${l.id === current}" data-lane-id="${escapeAttr(l.id)}" tabindex="-1">
+         <span class="lane-dot" aria-hidden="true"${l.color ? ` style="background:${escapeAttr(l.color)}"` : ''}></span>${escapeHtml(l.label)}</button>`).join('');
+    const r = anchor.getBoundingClientRect();
+    menu.style.left = `${Math.round(r.left)}px`;
+    menu.style.top = `${Math.round(r.bottom + 2)}px`;
+    this.shadowRoot.appendChild(menu);
+    const items = [...menu.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
+    (items.find(i => i.dataset.laneId === current) ?? items[0])?.focus();
+    const close = (refocus: boolean) => {
+      this._closeLaneMenu();
+      if (refocus) this.$$<HTMLElement>('.card').find(c => c.dataset.cardId === cardId)?.focus();
+    };
+    menu.addEventListener('click', (e: Event) => {
+      const item = (e.target as HTMLElement).closest<HTMLElement>('[role="menuitemradio"]');
+      if (!item?.dataset.laneId) return;
+      e.stopPropagation();
+      close(true);
+      if (item.dataset.laneId !== current) this._userMove(cardId, card.columnId, undefined, undefined, item.dataset.laneId);
+    });
+    menu.addEventListener('keydown', (e: Event) => {
+      const k = (e as KeyboardEvent).key;
+      const at = items.indexOf(this.shadowRoot!.activeElement as HTMLElement);
+      if (k === 'Escape') { e.preventDefault(); e.stopPropagation(); close(true); }
+      else if (k === 'ArrowDown' || k === 'ArrowUp') {
+        e.preventDefault();
+        items[(at + (k === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+      }
+    });
+    // A press outside the menu closes it.
+    const outside = (e: Event) => {
+      if (e.composedPath().includes(menu)) return;
+      document.removeEventListener('pointerdown', outside, true);
+      if (menu.isConnected) close(false);
+    };
+    setTimeout(() => document.addEventListener('pointerdown', outside, true), 0);
+  }
+
+  private _closeLaneMenu(): void {
+    this.shadowRoot?.querySelectorAll('.lane-menu').forEach(m => m.remove());
+  }
+
   private _renderCard(card: KanbanCard, columnId: string, index: number, depth: number): string {
     const hasChildren = !!(card.children?.length);
     const isExpanded = this._expanded.has(card.id);
@@ -454,6 +541,7 @@ export class BKanban extends BaseComponent {
           ${contentHtml}
           ${countBadge}
         </div>
+        ${this._renderLaneTag(card, columnId, depth)}
       </div>
       ${childrenHtml}
     `;
@@ -474,16 +562,29 @@ export class BKanban extends BaseComponent {
 
     // Mouse drag-and-drop + click
     this.$$<HTMLElement>('.card').forEach(card => {
-      this.listen(card, 'dragstart', (e: Event) => this._onDragStart(e as DragEvent, card));
+      this.listen(card, 'dragstart', (e: Event) => {
+        if (this._noDragFromControl) { this._noDragFromControl = false; e.preventDefault(); return; }
+        this._onDragStart(e as DragEvent, card);
+      });
       this.listen(card, 'dragend', () => this._onDragEnd());
       this.listen(card, 'click', (e: Event) => {
         if (this._dragCardId || this._keyboardDragging) return;
         const tgt = e.target as HTMLElement;
-        if (tgt.closest('.card-toggle')) return;
+        if (tgt.closest('.card-toggle, .lane-tag')) return;
         const cardId = card.dataset.cardId!;
         const columnId = card.dataset.columnId!;
         const cardData = this._cards.find(c => c.id === cardId);
         this.emit('card-click', { cardId, columnId, card: cardData });
+      });
+    });
+
+    // Tags mode: the lane tag opens the lane menu, and a pointer on it starts no drag (TASK-957).
+    this.$$<HTMLElement>('.lane-tag').forEach(tag => {
+      this.listen(tag, 'pointerdown', () => { this._noDragFromControl = true; });
+      this.listen(tag, 'click', (e: Event) => {
+        e.stopPropagation();
+        this._noDragFromControl = false;
+        this._openLaneMenu(tag.dataset.laneTag!, tag);
       });
     });
 
@@ -702,6 +803,10 @@ export class BKanban extends BaseComponent {
 
     // Re-insert at target position among siblings (within the target lane, TASK-948)
     const siblings = this._getOrderedCards(targetColumnId, targetParentId ?? '', toLane || undefined).filter(c => c.id !== cardId);
+    // No position given, in a column the board orders: the end of the group, not wherever a stale `order` sorts it.
+    if (this._isSortable(targetColumnId) && (targetIndex === undefined || targetIndex >= siblings.length)) {
+      card.order = siblings.reduce((m, c) => Math.max(m, c.order ?? 0), -1) + 1;
+    }
     if (this._isSortable(targetColumnId) && targetIndex !== undefined && targetIndex < siblings.length) {
       const insertBeforeId = siblings[targetIndex].id;
       const insertBeforeGlobal = this._cards.findIndex(c => c.id === insertBeforeId);
@@ -876,7 +981,7 @@ export class BKanban extends BaseComponent {
 
     this._clearDropIndicators();
     colBody.classList.add('drag-over');
-    if (!this._isSortable(toColumn)) return; // no position to show: the app's order places the card (D7)
+    if (!this._isSortable(toColumn) || this._laneLayout() === 'tags') return; // no position to show (D7, D18)
 
     const cards = colBody.querySelectorAll<HTMLElement>('.card:not(.dragging)');
     const y = e.clientY;
@@ -972,7 +1077,8 @@ export class BKanban extends BaseComponent {
       targetParentId = undefined;
     }
 
-    if (!this._isSortable(targetColumnId)) {
+    if (!this._isSortable(targetColumnId) || this._laneLayout() === 'tags') {
+      // No position: the app's order (D7), or the card's lane in the grouped list (D18), places the card.
       this._userMove(this._dragCardId, targetColumnId, undefined, undefined, colBody.dataset.laneId);
       return;
     }
@@ -1147,17 +1253,30 @@ export class BKanban extends BaseComponent {
     const cardId = this._keyboardDragCardId;
     if (!columnId || !cardId) return;
     const lane = this._keyboardDragLaneId;
-    const body = this.$$<HTMLElement>('.column-body').find(b => b.dataset.columnId === columnId && (b.dataset.laneId ?? '') === lane);
+    const tags = this._laneLayout() === 'tags';
+    const body = this.$$<HTMLElement>('.column-body').find(b => b.dataset.columnId === columnId && (tags || (b.dataset.laneId ?? '') === lane));
     const cardEl = this.$$<HTMLElement>('.card').find(c => c.dataset.cardId === cardId);
     if (!body || !cardEl) return;
     body.classList.add('drag-over');
     const children = cardEl.nextElementSibling?.classList.contains('card-children') ? cardEl.nextElementSibling : null;
     const others = [...body.querySelectorAll<HTMLElement>(':scope > .card')].filter(c => c !== cardEl);
+    const laneMates = tags && lane
+      ? others.filter(el => { const c = this._cards.find(x => x.id === el.dataset.cardId); return !!c && this._laneOf(c) === lane; })
+      : others;
     let position = this._keyboardDragIndex;
     if (!this._isSortable(columnId)) {
       const dragged = this._cards.find(c => c.id === cardId);
       const own = dragged?.order ?? 0;
-      position = others.filter(el => (this._cards.find(c => c.id === el.dataset.cardId)?.order ?? 0) <= own).length;
+      position = laneMates.filter(el => (this._cards.find(c => c.id === el.dataset.cardId)?.order ?? 0) <= own).length;
+    }
+    if (tags && lane) {
+      // In the grouped list the lane's cards follow those of the lanes before it (D18).
+      const laneIds = this._lanesOf(columnId).map(l => l.id);
+      const before = others.filter(el => {
+        const c = this._cards.find(x => x.id === el.dataset.cardId);
+        return !!c && laneIds.indexOf(this._laneOf(c)) < laneIds.indexOf(lane);
+      }).length;
+      position = before + Math.min(position, laneMates.length);
     }
     const before = others[position] ?? null;
     if (before) body.insertBefore(cardEl, before);
@@ -1359,6 +1478,13 @@ export class BKanban extends BaseComponent {
       .filter(c => c.columnId === columnId && (c.parentId ?? '') === parentId
         && (laneId === undefined || parentId !== '' || this._laneOf(c) === laneId))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }
+
+  /** A column's top-level cards as shown: grouped by lane in lane order when it has lanes (D18), else in order. */
+  private _cardsInDisplayOrder(columnId: string): KanbanCard[] {
+    const lanes = this._lanesOf(columnId);
+    if (!lanes.length) return this._getOrderedCards(columnId).filter(c => !c.parentId);
+    return lanes.flatMap(lane => this._getOrderedCards(columnId, '', lane.id));
   }
 
   private _isSortable(columnId: string): boolean {

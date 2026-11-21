@@ -267,7 +267,9 @@
       "skipped": "Skipped {columns}.",
       "inLane": "{column}, {lane}, position {position}.",
       "reorderOff": "Reordering is off in {column}.",
-      "noLane": "No lane that way accepts this card ({lanes} cannot take it)."
+      "noLane": "No lane that way accepts this card ({lanes} cannot take it).",
+      "laneTag": "Lane: {lane}. Change lane",
+      "laneMenu": "Change lane"
     },
     "treeMenu": {
       "hint": "Press Space to pick up and reorder.",
