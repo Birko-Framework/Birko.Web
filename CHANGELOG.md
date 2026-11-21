@@ -16,6 +16,9 @@ interchangeable for consumers.
   continuing a list item now stays in that item (it ended the list); a list right after a paragraph line, with no blank
   line between, no longer gets `<br>` between its items; a code fence with no language no longer starts with a blank
   line.
+- **`b-chat` escapes its placeholder and send label** — Birko TASK-945, reported by DraCode. Both went into markup
+  unescaped, so a `"` in the placeholder closed its attribute and a send label could add an element with a handler.
+  **Consumers that escaped these themselves must stop**, or the entities show (`&amp;` instead of `&`).
 
 ## v0.4.19 — 2026-11-19
 

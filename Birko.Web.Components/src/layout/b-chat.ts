@@ -291,8 +291,9 @@ export class BChat extends BaseComponent {
 
   render() {
     const disabled = this.boolAttr('disabled');
-    const placeholder = this._config.placeholder ?? this.attr('placeholder', 'Type a message...');
-    const sendLabel = this._config.sendLabel ?? 'Send';
+    // Escaped here, once: both go into markup, and a `"` closed the attribute (TASK-945). Pass them unescaped.
+    const placeholder = escapeHtml(this._config.placeholder ?? this.attr('placeholder', 'Type a message...'));
+    const sendLabel = escapeHtml(this._config.sendLabel ?? 'Send');
     const showTimestamps = this._config.showTimestamps !== false;
 
     const messagesHtml = this._messages.length === 0

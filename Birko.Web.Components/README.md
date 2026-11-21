@@ -1066,6 +1066,9 @@ chat.addEventListener('send', e => {
 });
 ```
 
+`placeholder` (attribute or config) and `sendLabel` are plain text: `b-chat` escapes them, so pass them unescaped —
+escaping them yourself shows the entities (TASK-945, v0.4.20).
+
 Emits: `send` → `{ value }`, `message-click` → `{ message }`
 
 ---
