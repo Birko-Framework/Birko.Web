@@ -1436,6 +1436,27 @@ board.removeCard('a');            // removes descendants recursively
 
 **Keyboard:** the board is one tab stop (a roving tabindex: Tab lands on the first card, or on the card last focused; TASK-955). `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`; `Space`/`Enter` picks a card up, and the card itself travels with the arrows (between columns and positions); `Enter` drops it there, `Escape` puts it back.
 
+**Lanes (v0.4.21, TASK-948).** A column can hold lanes stacked inside it, each with its own label, count and drop area:
+`KanbanColumn.lanes: [{ id, label, color? }]`, and a card names its lane with `laneId`. A card with no lane, or a lane
+the column does not have, shows in `defaultLane` (else the first lane). An empty lane stays visible as a place to drop.
+Moving a card to another lane, even within the same column, fires `card-move` with `fromLane` / `toLane` (and
+`card-move-request` / `canMove` see them); `moveCard(id, column, index?, parent?, lane?)` and `getCards(column, lane)`
+take a lane. Sub-cards follow their parent's lane.
+
+```typescript
+board.setConfig({
+  columns: [
+    { id: 'todo', label: 'To do', defaultLane: 'normal',
+      lanes: [{ id: 'critical', label: 'Critical', color: '#dc2626' }, { id: 'high', label: 'High' }, { id: 'normal', label: 'Normal' }] },
+    { id: 'doing', label: 'In progress', locked: true },
+  ],
+  cards: [{ id: 'a', columnId: 'todo', laneId: 'critical', title: 'Fix login' }],
+});
+board.addEventListener('card-move', (e) => {
+  if (e.detail.toLane !== e.detail.fromLane) setPriority(e.detail.card.id, e.detail.toLane);
+});
+```
+
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 
 - `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one

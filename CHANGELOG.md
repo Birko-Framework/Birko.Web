@@ -11,6 +11,11 @@ interchangeable for consumers.
   `KanbanConfig.canMove(move)` refuses any other move, with a reason that is announced; a new cancelable
   `card-move-request` fires before a person's move; `revertMove(cardId)` undoes the last one without an event. The
   app's own `moveCard()` is not limited. Boards that use none of this behave as before, and `card-move` is unchanged.
+- **`b-kanban` lanes inside a column** — Birko TASK-948 (FEATURE-022). `KanbanColumn.lanes` stacks lanes in a column,
+  each with a label, count and drop area; a card names its lane with `laneId` (none, or an unknown one, goes to
+  `defaultLane`, else the first lane). A lane change, even within a column, is a `card-move` with `fromLane` /
+  `toLane`; `canMove`, `card-move-request`, `revertMove`, `moveCard(…, lane)` and `getCards(column, lane)` know lanes.
+  Columns without lanes are unchanged.
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the
