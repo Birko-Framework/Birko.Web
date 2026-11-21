@@ -246,6 +246,9 @@ export class BKanban extends BaseComponent {
   private _lastMoves = new Map<string, { columnId: string; parentId: string; index: number }>();
   // The column a refusal was last announced for during the current drag, so dragover does not repeat it.
   private _refusedSaidFor: string | null = null;
+  // Roving tabindex (TASK-955): the one card Tab lands on — the card last focused, else the first card.
+  private _tabStopId: string | null = null;
+  private _renderStop: string | null = null;
 
   render() {
     if (!this._columns.length) {
@@ -253,6 +256,7 @@ export class BKanban extends BaseComponent {
     }
 
     const emptyText = this.attr('empty-text', 'No cards');
+    this._renderStop = this._currentTabStop();
 
     const columnsHtml = this._columns.map(col => {
       const cards = this._getOrderedCards(col.id);
@@ -279,7 +283,7 @@ export class BKanban extends BaseComponent {
     }).join('');
 
     return `
-      <div class="board" role="group" aria-label="Kanban board" tabindex="0">
+      <div class="board" role="group" aria-label="Kanban board"${this._renderStop ? '' : ' tabindex="0"'}>
         ${columnsHtml}
       </div>
       <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
@@ -322,7 +326,7 @@ export class BKanban extends BaseComponent {
     return `
       <div class="card"
            draggable="${this._isLocked(columnId) ? 'false' : 'true'}"
-           tabindex="-1"
+           tabindex="${card.id === this._renderStop ? '0' : '-1'}"
            data-card-id="${escapeAttr(card.id)}"
            data-column-id="${escapeAttr(columnId)}"
            data-parent-id="${card.parentId ? escapeAttr(card.parentId) : ''}"
@@ -379,6 +383,14 @@ export class BKanban extends BaseComponent {
     const board = this.$<HTMLElement>('.board');
     if (board) {
       this.listen(board, 'keydown', (e: Event) => this._handleKeyboard(e as KeyboardEvent));
+      // Roving tabindex: whichever card takes focus becomes the board's one tab stop, without a re-render (TASK-955).
+      this.listen(board, 'focusin', (e: Event) => {
+        const card = (e.target as HTMLElement).closest?.<HTMLElement>('.card');
+        if (!card?.dataset.cardId || card.dataset.cardId === this._tabStopId && card.tabIndex === 0) return;
+        this._tabStopId = card.dataset.cardId;
+        this.$$<HTMLElement>('.card[tabindex="0"]').forEach(c => { if (c !== card) c.tabIndex = -1; });
+        card.tabIndex = 0;
+      });
     }
   }
 
@@ -446,6 +458,16 @@ export class BKanban extends BaseComponent {
     this._lastMoves.delete(cardId);
     this._applyMove(cardId, origin.columnId, origin.index, origin.parentId || undefined, true);
     return true;
+  }
+
+  /** The card Tab should land on: the last focused one while it is still on the board, else the first card shown. */
+  private _currentTabStop(): string | null {
+    if (this._tabStopId && this._cards.some(c => c.id === this._tabStopId)) return this._tabStopId;
+    for (const col of this._columns) {
+      const first = this._getOrderedCards(col.id).find(c => !c.parentId);
+      if (first) return first.id;
+    }
+    return null;
   }
 
   private _isLocked(columnId: string): boolean {

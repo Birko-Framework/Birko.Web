@@ -1434,7 +1434,7 @@ board.removeCard('a');            // removes descendants recursively
 
 **3-zone drag targets:** the top 25% of a card is "drop before", the middle 50% is "drop inside" (nest), the bottom 25% is "drop after". Self/descendant nesting is rejected.
 
-**Keyboard:** `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`.
+**Keyboard:** the board is one tab stop (a roving tabindex: Tab lands on the first card, or on the card last focused; TASK-955). `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`; `Space`/`Enter` picks a card up, arrows move it, `Enter` drops, `Escape` cancels.
 
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 
