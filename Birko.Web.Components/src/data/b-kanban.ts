@@ -993,22 +993,33 @@ export class BKanban extends BaseComponent {
   }
 
   /**
-   * Show where a keyboard move would land, as a mouse drag does: the target column highlighted and a drop line at the
-   * target position. Without it only the live region changed and the card looked stuck (TASK-955).
+   * Show a keyboard move on screen: the picked-up card itself travels to where it would land, and the target column is
+   * highlighted (TASK-955, the user's choice over a drop line). Only the DOM moves; the data changes on Enter, and the
+   * re-render after Enter or Escape draws the real state again.
    */
   private _showKeyboardTarget(): void {
     this._clearDropIndicators();
     const columnId = this._keyboardDragColumnId;
-    if (!columnId) return;
+    const cardId = this._keyboardDragCardId;
+    if (!columnId || !cardId) return;
     const body = this.$$<HTMLElement>('.column-body').find(b => b.dataset.columnId === columnId);
-    if (!body) return;
+    const cardEl = this.$$<HTMLElement>('.card').find(c => c.dataset.cardId === cardId);
+    if (!body || !cardEl) return;
     body.classList.add('drag-over');
-    const cards = [...body.querySelectorAll<HTMLElement>(':scope > .card')].filter(c => c.dataset.cardId !== this._keyboardDragCardId);
-    if (!cards.length) return;
-    const index = this._keyboardDragIndex;
-    const at = cards[Math.min(index, cards.length - 1)];
-    at.classList.add(index < cards.length ? 'drop-before' : 'drop-after');
-    at.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const children = cardEl.nextElementSibling?.classList.contains('card-children') ? cardEl.nextElementSibling : null;
+    const others = [...body.querySelectorAll<HTMLElement>(':scope > .card')].filter(c => c !== cardEl);
+    const before = others[this._keyboardDragIndex] ?? null;
+    if (before) body.insertBefore(cardEl, before);
+    else {
+      const last = others[others.length - 1];
+      const after = last?.nextElementSibling?.classList.contains('card-children') ? last.nextElementSibling : last;
+      if (after) after.after(cardEl);
+      else body.prepend(cardEl);
+    }
+    if (children) cardEl.after(children);
+    body.querySelector<HTMLElement>(':scope > .empty-placeholder')?.setAttribute('hidden', '');
+    cardEl.focus({ preventScroll: true });
+    cardEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   private _keyboardMoveCard(direction: 1 | -1): void {
