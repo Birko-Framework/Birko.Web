@@ -958,7 +958,8 @@ client-paged table it selects every row's id. On a server-paged one the other pa
 selection becomes a flag: `bulk-action` carries `allMatching: true` with the current `filters` and `params`, and
 `selected` holds only the loaded ids. Turn it on only where the endpoint can act on filters. Any change to the ticks,
 or new filters, ends it. Labels: `labels.bulkActions`, `clearSelection`, `selectAllMatching` (`{count}`), `onlyThisPage`,
-`moreActions`, `selectionCleared`, `cancel` (i18n `bwc.dataTable.*`).
+`moreActions`, `selectionCleared`, `cancel`, and the checkboxes' and row-action button's `selectAll`, `selectRow`,
+`actions` (i18n `bwc.dataTable.*`; a config label wins over the translation).
 
 | Event | Detail |
 |-------|--------|

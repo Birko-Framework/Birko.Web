@@ -37,7 +37,7 @@ birko-web-shell/dashboard      # BaseDashboardWidget
 
 The shell uses the same global i18n singleton as the rest of the ecosystem. Bootstrap once with `useI18n(myI18n)` (from `birko-web-core`) and every shell surface — ribbon, status bar, user menu, notifications, command palette, page bases — picks up the active locale automatically.
 
-**Canonical key namespace:** `bws.*` (Birko Web Shell). Examples: `bws.common.new`, `bws.common.edit`, `bws.common.delete`, `bws.common.cancel`, `bws.common.save`, `bws.common.confirmDelete`, `bws.pagination.items`, `bws.ribbon.selectModule`, `bws.tour.button`.
+**Canonical key namespace:** `bws.*` (Birko Web Shell). Examples: `bws.common.new`, `bws.common.edit`, `bws.common.delete`, `bws.common.cancel`, `bws.common.save`, `bws.common.confirmDelete`, `bws.pagination.items`, `bws.ribbon.selectModule`, `bws.tour.button`, `bws.shell.commandPalette`, `bws.shell.theme`, `bws.shell.themes.<id>` (e.g. `bws.shell.themes.dark`).
 
 **`{entity}` placeholder.** The shell's `t()` helper (and `BaseCrudPage.t()` etc.) automatically interpolate `{entity}` with the page's `entityLabel`. A single bundle entry produces entity-specific strings across every CRUD page:
 

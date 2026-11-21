@@ -743,13 +743,14 @@ export class BDataTable extends BaseComponent {
 
       columns.push({
         key: '__select',
-        label: this._config?.labels?.selectAll ?? 'Select all rows',
-        headerRender: () => `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${escapeAttr(this._config?.labels?.selectAll ?? 'Select all rows')}" />`,
+        // Through _l like the file's other labels (config label > bwc.dataTable.* > English; TASK-953).
+        label: this._l('selectAll', 'bwc.dataTable.selectAll', 'Select all rows'),
+        headerRender: () => `<input type="checkbox" ${allSelected ? 'checked' : ''} class="select-all" aria-label="${escapeAttr(this._l('selectAll', 'bwc.dataTable.selectAll', 'Select all rows'))}" />`,
         width: '2.5rem',
         align: 'center',
         render: (_v, row) => {
           const id = this._rowId(row);
-          return `<input type="checkbox" class="row-select" data-id="${escapeAttr(id)}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${escapeAttr(this._config?.labels?.selectRow ?? 'Select row')}" />`;
+          return `<input type="checkbox" class="row-select" data-id="${escapeAttr(id)}" ${this._selected.has(id) ? 'checked' : ''} aria-label="${escapeAttr(this._l('selectRow', 'bwc.dataTable.selectRow', 'Select row'))}" />`;
         },
       });
     }
@@ -766,7 +767,7 @@ export class BDataTable extends BaseComponent {
           // A row no action applies to gets an empty cell, not a trigger that opens an empty menu (TASK-940).
           if (!(this._config?.rowActions ?? []).some(a => !a.visible || a.visible(row))) return '';
           const id = this._rowId(row);
-          return `<b-button variant="secondary" size="sm" class="row-action-trigger" data-id="${id}" aria-label="${this._config?.labels?.actions ?? 'Actions'}"><span class="row-action-trigger-icon">⋮</span></b-button>`;
+          return `<b-button variant="secondary" size="sm" class="row-action-trigger" data-id="${escapeAttr(id)}" aria-label="${escapeAttr(this._l('actions', 'bwc.dataTable.actions', 'Actions'))}"><span class="row-action-trigger-icon">⋮</span></b-button>`;
         },
       });
     }
