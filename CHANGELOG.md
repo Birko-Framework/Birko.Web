@@ -19,6 +19,12 @@ interchangeable for consumers.
 - **`b-chat` escapes its placeholder and send label** — Birko TASK-945, reported by DraCode. Both went into markup
   unescaped, so a `"` in the placeholder closed its attribute and a send label could add an element with a handler.
   **Consumers that escaped these themselves must stop**, or the entities show (`&amp;` instead of `&`).
+- **`b-json-diff`'s coloured text is readable in every theme** — Birko TASK-951. Its added, removed and changed text
+  was below 4.5:1 (dark: the added value at 2.80:1; light: 4.23:1; inside an `inverse` box ~3.5:1). The shared
+  data-viewer card (`b-json-diff`, `b-json-viewer`, `b-object-tree`, `b-xml-viewer`, `b-code-block`) now sits on
+  `--b-bg-secondary` instead of `--b-bg-tertiary`; added and removed values use the solid `-light` tint; and the
+  `inverse` theme's success and warning text are lighter (`#4ade80`, `#fbbf24`), as its danger text already was.
+  **Visible:** the data-viewer card is a shade darker in dark mode, and green and amber text inside `inverse` is lighter.
 
 ## v0.4.19 — 2026-11-19
 

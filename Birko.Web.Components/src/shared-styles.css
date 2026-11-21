@@ -494,13 +494,15 @@ input.has-error:focus, select.has-error:focus {
 
 
 /* @sheet dataViewerCard
-   Compact data-viewer card shell: bg-tertiary, border, radius, overflow hidden.
-   Used by b-json-viewer, b-xml-viewer, b-code-block, and b-object-tree (when
-   header is shown). Add class .sticky-page to swap overflow to visible so a
+   Compact data-viewer card shell: bg-secondary, border, radius, overflow hidden.
+   Used by b-json-viewer, b-xml-viewer, b-code-block, b-json-diff and b-object-tree
+   (when header is shown). bg-secondary, not bg-tertiary: the semantic -text
+   colours the viewers paint (b-json-diff's markers) are AA on bg and bg-secondary
+   and fall to ~3.5:1 on dark's tertiary (TASK-951). Add class .sticky-page to swap overflow to visible so a
    nested position:sticky header can pin to the page viewport. */
 
 .data-viewer-card {
-  background: var(--b-bg-tertiary);
+  background: var(--b-bg-secondary);
   border: var(--b-border-width, 1px) solid var(--b-border);
   border-radius: var(--b-radius, 0.375rem);
   overflow: hidden;
