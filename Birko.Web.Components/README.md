@@ -1496,7 +1496,8 @@ the announcement says the column, lane and position (`bwc.kanban.inLane`, `reord
 **Sub-cards (v0.4.22, TASK-961).** `maxNestingDepth` is how deep sub-cards may go: `0` means none (no sub-card strip,
 no toggle), `1` one level, unset no limit. A card dropped on the middle of another becomes its sub-card only within the
 limit, counting the dropped card's own sub-cards; otherwise it lands before or after that card. The column footer
-reads `bwc.kanban.cardCount` (`one` / `other`), overridable with `label-card-count`.
+reads `bwc.kanban.cardCount` (`one` / `other`), overridable with `label-card-count`; `showColumnFooter: false` hides it
+(v0.5.2, TASK-968), since the header shows the same count.
 
 **Controls on a card (v0.4.21, TASK-946).** A `button`, `a`, `input`, `select`, `textarea` or `label` that
 `renderCard` puts on a card, and anything inside an element marked `data-no-drag`, belongs to itself: a click on it
@@ -1513,7 +1514,10 @@ controls is described by a hidden hint (`bwc.kanban.cardControls`).
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 
 - `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one
-  up by keyboard is refused, and dragging over it shows no-drop with the reason announced.
+  up by keyboard is refused, and dragging over it shows no-drop with the reason announced. Its header shows a lock icon,
+  named "Locked" for screen readers and as a tooltip (v0.5.2, TASK-969; the word itself is no longer shown).
+- `KanbanConfig.locked: true` — the whole board is locked, as if every column were (v0.5.2, TASK-970). The lock is
+  shown once, above the board (`bwc.kanban.locked`), not in each column; a refusal says `bwc.kanban.boardLocked`.
 - `KanbanConfig.canMove(move)` — asked after the locks with a `KanbanMove` (`{ card, fromColumn, toColumn, fromIndex,
   toIndex?, fromParent?, toParent? }`). Return `false` to refuse, or a string: it refuses and is the reason announced.
 - `card-move-request` — a cancelable event with the same `KanbanMove`, fired before a person's move is applied;
@@ -1523,7 +1527,7 @@ controls is described by a hidden hint (`bwc.kanban.cardControls`).
 
 `moveCard()` is the app's own call and is **not** limited by any of these, so an app (or its agents) can still move
 cards into a locked column. With the keyboard, `←`/`→` skip columns the card may not enter and say which were skipped.
-Strings: `bwc.kanban.*` (`locked`, `lockedIn`, `lockedOut`, `refused`, `noColumn`, `skipped`), or `label-*` attributes.
+Strings: `bwc.kanban.*` (`locked`, `lockedIn`, `lockedOut`, `boardLocked`, `refused`, `noColumn`, `skipped`), or `label-*` attributes.
 
 ```typescript
 board.addEventListener('card-move', (e) => {

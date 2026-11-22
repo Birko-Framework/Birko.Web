@@ -12,4 +12,5 @@ export {
   unregisterTheme,
   getRegisteredThemes,
 } from './theme-registry.js';
+export { themeBootScript } from './theme-boot.js';
 export type { MenuItem, TenantItem, ShellRoutes, ConnectionState, BreadcrumbItem, ThemeOption } from './shell-types.js';

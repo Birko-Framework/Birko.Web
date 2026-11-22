@@ -88,6 +88,13 @@ export interface KanbanConfig {
    * stacked (D19).
    */
   stackBelow?: string;
+  /** `false` hides the "N cards" footer under each column, which repeats the header count (TASK-968). Default `true`. */
+  showColumnFooter?: boolean;
+  /**
+   * Lock the whole board (TASK-970): a person can move no card, as if every column were locked, and the lock is shown
+   * once for the board instead of in each column. The app's own `moveCard()` still can.
+   */
+  locked?: boolean;
 }
 
 export class BKanban extends BaseComponent {
@@ -149,8 +156,10 @@ export class BKanban extends BaseComponent {
         border-radius: var(--b-radius-sm, 0.25rem); cursor: pointer; }
       .lane-menu [role="menuitemradio"]:hover, .lane-menu [role="menuitemradio"]:focus-visible { background: var(--b-bg-tertiary); outline: none; }
       .lane-menu [aria-checked="true"] { font-weight: var(--b-font-weight-semibold, 600); }
-      .column-lock { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: var(--b-font-weight-medium, 500);
-        font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted); margin-left: auto; margin-right: var(--b-space-sm, 0.5rem); }
+      .column-lock { display: inline-flex; align-items: center; font-size: var(--b-text-xs, 0.6875rem); color: var(--b-text-muted);
+        margin-left: auto; margin-right: var(--b-space-sm, 0.5rem); cursor: default; }
+      .board-lock { display: flex; align-items: center; gap: 0.25rem; margin-bottom: var(--b-space-xs, 0.25rem);
+        font-size: var(--b-text-xs, 0.6875rem); font-weight: var(--b-font-weight-medium, 500); color: var(--b-text-muted); }
       .card[draggable="false"] { cursor: default; }
       .column-header {
         display: flex;
@@ -363,14 +372,14 @@ export class BKanban extends BaseComponent {
 
       const accent = col.color ? `border-left: 3px solid ${escapeAttr(col.color)};` : '';
       return `
-        <div class="column${col.locked ? ' locked' : ''}" data-column-id="${escapeAttr(col.id)}">
+        <div class="column${this._isLocked(col.id) ? ' locked' : ''}" data-column-id="${escapeAttr(col.id)}">
           <div class="column-header" style="${accent}">
             <span class="column-title">${escapeHtml(col.label)}</span>
-            ${col.locked ? `<span class="column-lock"><span aria-hidden="true">&#128274;</span>${escapeHtml(this.label('label-locked', 'bwc.kanban.locked', 'Locked'))}</span>` : ''}
+            ${this._columnLock(col)}
             <span class="column-count">${totalCount}</span>
           </div>
           ${bodyHtml}
-          <div class="column-footer">${escapeHtml(this.label('label-card-count', 'bwc.kanban.cardCount', totalCount === 1 ? '{count} card' : '{count} cards', { count: totalCount }))}</div>
+          ${this._config?.showColumnFooter === false ? '' : `<div class="column-footer">${escapeHtml(this.label('label-card-count', 'bwc.kanban.cardCount', totalCount === 1 ? '{count} card' : '{count} cards', { count: totalCount }))}</div>`}
         </div>
       `;
     }).join('');
@@ -378,6 +387,7 @@ export class BKanban extends BaseComponent {
     const boardLanes = this._config?.lanes ?? [];
     if (this._laneLayout() === 'rows' && boardLanes.length) {
       return `
+      ${this._boardLock()}
       <div class="board rows-board" role="group" aria-label="Kanban board"${this._renderStop ? '' : ' tabindex="0"'}
            style="grid-template-columns: minmax(6rem, max-content) repeat(${this._columns.length}, minmax(var(--b-kanban-col-min-width, 16rem), 1fr));">
         ${this._renderRows(boardLanes, emptyText)}
@@ -388,6 +398,7 @@ export class BKanban extends BaseComponent {
     }
 
     return `
+      ${this._boardLock()}
       <div class="board" role="group" aria-label="Kanban board"${this._renderStop ? '' : ' tabindex="0"'}>
         ${columnsHtml}
       </div>
@@ -401,13 +412,12 @@ export class BKanban extends BaseComponent {
    * is a `.column` wrapper around a `.column-body` drop target, so locks, refusals and the keyboard work as in columns.
    */
   private _renderRows(lanes: KanbanLane[], emptyText: string): string {
-    const lock = this.label('label-locked', 'bwc.kanban.locked', 'Locked');
     const heads = this._columns.map((col, j) => {
       const total = this._countAllCards(this._getOrderedCards(col.id));
       const accent = col.color ? ` border-left: 3px solid ${escapeAttr(col.color)};` : '';
       return `<div class="column-header rows-colhead" data-column-id="${escapeAttr(col.id)}" style="grid-column: ${j + 2}; grid-row: 1;${accent}">
           <span class="column-title">${escapeHtml(col.label)}</span>
-          ${col.locked ? `<span class="column-lock"><span aria-hidden="true">&#128274;</span>${escapeHtml(lock)}</span>` : ''}
+          ${this._columnLock(col)}
           <span class="column-count">${total}</span>
         </div>`;
     }).join('');
@@ -423,7 +433,7 @@ export class BKanban extends BaseComponent {
           <span class="lane-dot" aria-hidden="true"${dot}></span><span class="lane-title">${escapeHtml(lane.label)}</span><span class="lane-count">${count}</span>
         </div>`;
       const cells = this._columns.map((col, j) => {
-        const cls = `column rows-cell${col.locked ? ' locked' : ''}`;
+        const cls = `column rows-cell${this._isLocked(col.id) ? ' locked' : ''}`;
         if (!this._lanesOf(col.id).length) {
           // An opted-out column is one cell beside all the rows.
           return i === 0
@@ -804,7 +814,23 @@ export class BKanban extends BaseComponent {
   }
 
   private _isLocked(columnId: string): boolean {
-    return !!this._columns.find(c => c.id === columnId)?.locked;
+    return !!this._config?.locked || !!this._columns.find(c => c.id === columnId)?.locked;
+  }
+
+  /**
+   * A locked column's lock: the icon only, named "Locked" for screen readers and as a tooltip (TASK-969, FEATURE-023
+   * D2). Not shown when the whole board is locked: the board shows it once (TASK-970, D3).
+   */
+  private _columnLock(col: KanbanColumn): string {
+    if (!col.locked || this._config?.locked) return '';
+    const name = escapeAttr(this.label('label-locked', 'bwc.kanban.locked', 'Locked'));
+    return `<span class="column-lock" role="img" aria-label="${name}" title="${name}">&#128274;</span>`;
+  }
+
+  /** The whole board's lock, shown once above it (TASK-970, D3). */
+  private _boardLock(): string {
+    if (!this._config?.locked) return '';
+    return `<div class="board-lock"><span aria-hidden="true">&#128274;</span>${escapeHtml(this.label('label-locked', 'bwc.kanban.locked', 'Locked'))}</div>`;
   }
 
   private _columnLabel(columnId: string): string {
@@ -815,6 +841,9 @@ export class BKanban extends BaseComponent {
   private _refusal(cardId: string, toColumn: string, toIndex?: number, toParent?: string, toLane?: string): string | null {
     const card = this._cards.find(c => c.id === cardId);
     if (!card) return null;
+    if (this._config?.locked) {
+      return this.label('label-board-locked', 'bwc.kanban.boardLocked', 'The board is locked: its cards cannot be moved.');
+    }
     if (this._isLocked(card.columnId)) {
       return this.label('label-locked-out', 'bwc.kanban.lockedOut', '{column} is locked: its cards cannot be moved.', { column: this._columnLabel(card.columnId) });
     }

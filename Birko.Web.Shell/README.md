@@ -85,6 +85,27 @@ registerThemes([BUILTIN_THEMES.dark, BUILTIN_THEMES.finstat]);
 - `unregisterTheme(id)` — remove one (`'light'` is kept)
 - `getRegisteredThemes()` — current list (`light` first)
 
+**Auto theme** (v0.5.2, FEATURE-024). With dark registered, the switcher lists **Auto** first: it follows the browser's
+light or dark setting (`prefers-color-scheme`) and switches as soon as that setting changes. The shell saves `auto`, not
+the theme it showed. `currentTheme` reports `'auto'`; `appliedTheme` reports `'light'` or `'dark'`; `theme-change` carries
+`{ theme, applied }`, and fires again when the browser setting changes. `setTheme('auto')` works from code too (e.g. an
+app's own Settings page). Auto's label is `bws.shell.themes.auto`, else "Auto".
+
+A user who has not chosen a theme starts with the shell's `defaultTheme` (`'light'`). An app that wants Auto opts in:
+
+```ts
+protected get defaultTheme() { return 'auto'; }
+```
+
+**No flash of light on load.** Until the app's code runs, the page shows the light look. Put this in the page `<head>`,
+after the theme CSS, with your `storagePrefix` and `defaultTheme` filled in; it applies the saved theme (Auto resolved)
+before the first paint. `themeBootScript({ prefix, defaultTheme })` from `birko-web-shell` returns the same script, for
+pages generated at build time.
+
+```html
+<script>(function(){var t;try{t=localStorage.getItem("app-theme")}catch(e){}t=t||"auto";if(t==='auto')t=true&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t!=='light')document.documentElement.setAttribute('data-theme',t)})();</script>
+```
+
 **Project-private theme:** add a `[data-theme="my-brand"]` block in your app's own CSS and `registerTheme({ id: 'my-brand', label: 'My Brand', icon: '…' })` — no framework change.
 
 ### Region accents (dark top bar / footer)
