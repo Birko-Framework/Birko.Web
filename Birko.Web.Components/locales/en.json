@@ -270,7 +270,11 @@
       "noLane": "No lane that way accepts this card ({lanes} cannot take it).",
       "laneTag": "Lane: {lane}. Change lane",
       "laneMenu": "Change lane",
-      "cardControls": "Press Tab to reach its buttons and fields."
+      "cardControls": "Press Tab to reach its buttons and fields.",
+      "cardCount": {
+        "one": "{count} card",
+        "other": "{count} cards"
+      }
     },
     "treeMenu": {
       "hint": "Press Space to pick up and reorder.",

@@ -86,7 +86,7 @@ export abstract class BaseComponent extends HTMLElement {
     // Initial render — populate shadow DOM but skip onUpdated() until after onMount
     try {
       if (this.shadowRoot) {
-        this.shadowRoot.innerHTML = this.render();
+        BaseComponent._renderFresh(this.shadowRoot, this.render());
       }
     } catch (err) {
       console.error(`${this.constructor.name}: render() threw`, err);
@@ -145,7 +145,7 @@ export abstract class BaseComponent extends HTMLElement {
     if (!this.shadowRoot) return;
     try {
       if (!this._initialized) {
-        this.shadowRoot.innerHTML = this.render();
+        BaseComponent._renderFresh(this.shadowRoot, this.render());
       } else {
         const tpl = document.createElement('template');
         tpl.innerHTML = this.render();
@@ -172,7 +172,7 @@ export abstract class BaseComponent extends HTMLElement {
   protected forceRender(): void {
     if (!this.shadowRoot) return;
     try {
-      this.shadowRoot.innerHTML = this.render();
+      BaseComponent._renderFresh(this.shadowRoot, this.render());
     } catch (err) {
       console.error(`${this.constructor.name}: render() threw during forceRender`, err);
       return;
@@ -347,6 +347,49 @@ export abstract class BaseComponent extends HTMLElement {
 
   // ── DOM morphing — update in place without destroying custom elements ──
 
+  /**
+   * The attribute names each element's parent render gave it (TASK-962). A redraw removes an attribute only when the
+   * parent rendered it last time and no longer does, so one a component set on itself (b-kanban `stacked`, b-checkbox
+   * `checked`, b-tabs `active`) survives its parent's redraw. An element with no record keeps the old rule.
+   */
+  private static _rendered = new WeakMap<Element, Set<string>>();
+
+  private static _attrNames(el: Element): Set<string> {
+    return new Set(Array.from(el.attributes, a => a.name));
+  }
+
+  /** Render `html` into `root` from scratch, and record what it rendered on each element. */
+  private static _renderFresh(root: ShadowRoot, html: string): void {
+    root.innerHTML = html;
+    // innerHTML upgrades and connects child components, which may set attributes on themselves at once, so the record
+    // comes from an inert parse of the same markup, walked beside the live tree.
+    const tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    BaseComponent._recordBeside(root, tpl.content);
+  }
+
+  private static _recordBeside(live: ParentNode, fresh: ParentNode): void {
+    const l = Array.from(live.children);
+    const f = Array.from(fresh.children);
+    const n = Math.min(l.length, f.length);
+    for (let i = 0; i < n; i++) {
+      // A child that rearranged its own light DOM on connect: stop here; what is not recorded keeps the old rule.
+      if (l[i].tagName !== f[i].tagName) return;
+      BaseComponent._rendered.set(l[i], BaseComponent._attrNames(f[i]));
+      if (f[i].getAttribute('data-morph') === 'skip') continue;
+      BaseComponent._recordBeside(l[i], f[i]);
+    }
+  }
+
+  /** Record a subtree cloned from a render, before it is inserted (its attributes are all the parent's). */
+  private static _recordClone(node: Node): Node {
+    if (node instanceof Element) BaseComponent._rendered.set(node, BaseComponent._attrNames(node));
+    if (node instanceof Element || node instanceof DocumentFragment) {
+      node.querySelectorAll('*').forEach(el => BaseComponent._rendered.set(el, BaseComponent._attrNames(el)));
+    }
+    return node;
+  }
+
   private static _morphChildren(parent: ParentNode, fresh: ParentNode): void {
     const oldCh = Array.from(parent.childNodes);
     const newCh = Array.from(fresh.childNodes);
@@ -357,7 +400,7 @@ export abstract class BaseComponent extends HTMLElement {
     }
     // Append new nodes
     for (let i = min; i < newCh.length; i++) {
-      parent.appendChild(newCh[i].cloneNode(true));
+      parent.appendChild(BaseComponent._recordClone(newCh[i].cloneNode(true)));
     }
     // Remove excess old nodes (reverse order to avoid index shift)
     for (let i = oldCh.length - 1; i >= min; i--) {
@@ -368,7 +411,7 @@ export abstract class BaseComponent extends HTMLElement {
   private static _morphNode(parent: ParentNode, old: ChildNode, fresh: ChildNode): void {
     // Different node types → replace
     if (old.nodeType !== fresh.nodeType) {
-      parent.replaceChild(fresh.cloneNode(true), old);
+      parent.replaceChild(BaseComponent._recordClone(fresh.cloneNode(true)), old);
       return;
     }
     // Text / comment → update content
@@ -383,12 +426,14 @@ export abstract class BaseComponent extends HTMLElement {
 
     // Different tag → replace entire subtree
     if (oldEl.tagName !== freshEl.tagName) {
-      parent.replaceChild(fresh.cloneNode(true), old);
+      parent.replaceChild(BaseComponent._recordClone(fresh.cloneNode(true)), old);
       return;
     }
-    // Same tag — sync attributes
+    // Same tag — sync attributes. Remove only what the parent rendered last time and no longer does (TASK-962).
+    const rendered = BaseComponent._rendered.get(oldEl);
     for (const a of Array.from(oldEl.attributes)) {
       if (freshEl.hasAttribute(a.name)) continue;
+      if (rendered && !rendered.has(a.name)) continue;
       // A <dialog>'s `open` is set by show() / showModal(), never by render(): removing it closed an open
       // modal whenever its host re-rendered, e.g. on a title change (TASK-791). Close a dialog with close().
       if (a.name === 'open' && oldEl instanceof HTMLDialogElement) continue;
@@ -397,6 +442,7 @@ export abstract class BaseComponent extends HTMLElement {
     for (const a of Array.from(freshEl.attributes)) {
       if (oldEl.getAttribute(a.name) !== a.value) oldEl.setAttribute(a.name, a.value);
     }
+    BaseComponent._rendered.set(oldEl, BaseComponent._attrNames(freshEl));
     // Imperatively-managed subtrees: containers whose children are populated outside
     // render() (e.g. detail panels / drawers filled via `el.innerHTML = ...`) mark
     // themselves with `data-morph="skip"`. Sync their own attributes, but leave their
