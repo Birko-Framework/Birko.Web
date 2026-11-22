@@ -4,6 +4,15 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.23 — 2026-11-22
+
+- **SECURITY: the shell's user menu escapes the user's name** — Birko TASK-965, reported by DraCode.
+  `BCoreAppShell.renderUserDropdown` put `getUserName()` and `getUserInitials()` into its HTML unescaped. The name
+  usually comes from the token's `name` claim, which a GitHub or other federated sign-in lets anyone set, so a name like
+  `<img src=x onerror=…>` ran script in the header of every app using the default user menu. Both are now escaped where
+  they are rendered, and both methods return plain text. An override that escapes its own value (DraCode's, as a
+  workaround) must stop doing so, or names with `&`, `<` or quotes show escaped twice.
+
 ## v0.4.22 — 2026-11-22
 
 - **A component's own attributes survive its parent's re-render** — Birko TASK-962, reported by DraCode. The morph
