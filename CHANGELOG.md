@@ -4,6 +4,23 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.22 — 2026-11-22
+
+- **A component's own attributes survive its parent's re-render** — Birko TASK-962, reported by DraCode. The morph
+  removed every attribute a parent's new render did not contain, so a page re-render unchecked a checked `b-checkbox`
+  and dropped `b-tabs` `active`, `b-sidebar` `collapsed`, `b-sync-status` `hidden`, `b-kanban` `stacked` and the like
+  (DraCode's stacked board un-stacked). Now only an attribute the parent rendered last time and no longer renders is
+  removed; one the parent renders still wins. A page that counted on a re-render to clear such an attribute (to
+  uncheck a box, say) must now clear it itself, e.g. `checkbox.checked = false`.
+- **`b-kanban`: a drop lands where it is dropped** — Birko TASK-964, found at TASK-961; older than v0.4.21. The drop
+  position was worked out against the column's first card only, so a drop anywhere below it landed second; and
+  "before" / "after" a card counted the sub-cards shown above it. Both now use the card under the pointer and its place
+  among its siblings.
+- **`b-kanban`: `maxNestingDepth: 0` means no sub-cards** — Birko TASK-961, reported by DraCode. 0 counted as no limit
+  (an empty strip on every card), and a drop on a card's middle nested it whatever the limit said. Nesting by drop now
+  keeps within the limit, counting the dropped card's own sub-cards.
+- **`b-kanban`: the column footer can be translated** — Birko TASK-963. "N cards" is `bwc.kanban.cardCount`.
+
 ## v0.4.21 — 2026-11-22
 
 - **`b-kanban`: locked columns, a move rule, and refusing or undoing a move** — Birko TASK-947 (FEATURE-022, asked for

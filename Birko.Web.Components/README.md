@@ -1493,6 +1493,11 @@ lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its ed
 column with reordering off they jump straight to the next lane. Lanes the move rule refuses are skipped and named, and
 the announcement says the column, lane and position (`bwc.kanban.inLane`, `reorderOff`, `noLane`).
 
+**Sub-cards (v0.4.22, TASK-961).** `maxNestingDepth` is how deep sub-cards may go: `0` means none (no sub-card strip,
+no toggle), `1` one level, unset no limit. A card dropped on the middle of another becomes its sub-card only within the
+limit, counting the dropped card's own sub-cards; otherwise it lands before or after that card. The column footer
+reads `bwc.kanban.cardCount` (`one` / `other`), overridable with `label-card-count`.
+
 **Controls on a card (v0.4.21, TASK-946).** A `button`, `a`, `input`, `select`, `textarea` or `label` that
 `renderCard` puts on a card, and anything inside an element marked `data-no-drag`, belongs to itself: a click on it
 fires no `card-click`, a press on it starts no drag (mouse or touch; a field's text can be selected), and Space or Enter

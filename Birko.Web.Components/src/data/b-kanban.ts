@@ -66,6 +66,7 @@ export interface KanbanConfig {
   cards: KanbanCard[];
   renderCard?: (card: KanbanCard, depth: number) => string;
   emptyText?: string;
+  /** How deep sub-cards may go: 0 = no sub-cards at all, 1 = one level, and so on; unset = no limit (TASK-961). */
   maxNestingDepth?: number;
   /**
    * Asked before every move a person makes, after the column locks. `false` refuses it; a string refuses it and is
@@ -369,7 +370,7 @@ export class BKanban extends BaseComponent {
             <span class="column-count">${totalCount}</span>
           </div>
           ${bodyHtml}
-          <div class="column-footer">${totalCount} card${totalCount !== 1 ? 's' : ''}</div>
+          <div class="column-footer">${escapeHtml(this.label('label-card-count', 'bwc.kanban.cardCount', totalCount === 1 ? '{count} card' : '{count} cards', { count: totalCount }))}</div>
         </div>
       `;
     }).join('');
@@ -522,7 +523,7 @@ export class BKanban extends BaseComponent {
     const hasChildren = !!(card.children?.length);
     const isExpanded = this._expanded.has(card.id);
     const maxDepth = this._config?.maxNestingDepth;
-    const canNest = !maxDepth || depth < maxDepth;
+    const canNest = maxDepth == null || depth < maxDepth; // 0 = no sub-cards (TASK-961)
     const showToggle = hasChildren || canNest;
     const childrenId = `${this.uid}-kc-${escapeAttr(card.id)}`;
 
@@ -1115,6 +1116,7 @@ export class BKanban extends BaseComponent {
     for (const cardEl of cards) {
       const rect = cardEl.getBoundingClientRect();
       const relY = (y - rect.top) / rect.height;
+      if (relY > 1) continue; // the pointer is below this card: a later one is the target (TASK-964)
 
       if (relY < 0.25) {
         targetCard = cardEl;
@@ -1126,9 +1128,9 @@ export class BKanban extends BaseComponent {
         position = 'after';
         break;
       }
-      // Middle zone — drop inside
+      // Middle zone — drop inside, where the depth limit allows it; else the nearer edge (TASK-961)
       targetCard = cardEl;
-      position = 'inside';
+      position = this._canNestInto(this._dragCardId!, cardEl) ? 'inside' : (relY < 0.5 ? 'before' : 'after');
       break;
     }
 
@@ -1164,20 +1166,30 @@ export class BKanban extends BaseComponent {
     let targetParentId: string | undefined;
     let found = false;
 
+    // A card's place among its own siblings, not in the column's whole card list, which also holds the sub-cards
+    // shown above it (TASK-964).
+    const siblingIndex = (cardEl: HTMLElement): number => {
+      const parent = cardEl.dataset.parentId ?? '';
+      return this._getOrderedCards(targetColumnId, parent, colBody.dataset.laneId)
+        .filter(c => c.id !== this._dragCardId).findIndex(c => c.id === cardEl.dataset.cardId);
+    };
     for (let i = 0; i < cards.length; i++) {
       const rect = cards[i].getBoundingClientRect();
       const relY = (y - rect.top) / rect.height;
+      if (relY > 1) continue; // the pointer is below this card: a later one is the target (TASK-964)
 
-      if (relY < 0.25) {
+      // The middle of a card nests only where the depth limit allows it; else it counts as the nearer edge (TASK-961).
+      const nest = relY >= 0.25 && relY <= 0.75 && this._canNestInto(this._dragCardId, cards[i]);
+      if (!nest && relY < 0.5) {
         // Drop before this card — same parent, same level
-        targetIndex = i;
+        targetIndex = siblingIndex(cards[i]);
         targetParentId = cards[i].dataset.parentId || undefined;
         found = true;
         break;
       }
-      if (relY > 0.75) {
+      if (!nest) {
         // Drop after this card — same parent, same level
-        targetIndex = i + 1;
+        targetIndex = siblingIndex(cards[i]) + 1;
         targetParentId = cards[i].dataset.parentId || undefined;
         found = true;
         break;
@@ -1736,6 +1748,20 @@ export class BKanban extends BaseComponent {
       ids.push(...this._getDescendantIds(child.id));
     }
     return ids;
+  }
+
+  /**
+   * Whether the dragged card may become a sub-card of `targetEl` within `maxNestingDepth` (TASK-961): the target's
+   * depth, plus one, plus how deep the dragged card's own sub-cards go.
+   */
+  private _canNestInto(dragId: string, targetEl: HTMLElement): boolean {
+    const max = this._config?.maxNestingDepth;
+    if (max == null) return true;
+    const height = (id: string): number => {
+      const kids = this._cards.filter(c => c.parentId === id);
+      return kids.length ? 1 + Math.max(...kids.map(k => height(k.id))) : 0;
+    };
+    return Number(targetEl.dataset.depth ?? 0) + 1 + height(dragId) <= max;
   }
 
   private _isDescendant(ancestorId: string, potentialDescendantId: string): boolean {
