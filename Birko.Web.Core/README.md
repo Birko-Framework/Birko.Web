@@ -173,6 +173,12 @@ form.setSchema(() => this.buildSchema());   // not setSchema(this.buildSchema())
 
 A re-render never closes an open `<dialog>`: the morph keeps its `open` (TASK-791). Close one with `close()`.
 
+A re-render removes only the attributes it rendered last time and no longer renders (v0.4.22, TASK-962). An attribute
+a child set on itself, such as `b-checkbox` `checked`, `b-tabs` `active` or `b-kanban` `stacked`, survives its parent's
+re-render. An attribute the parent renders still wins: rendering `active="a"` sets it back to `a` at every re-render.
+The morph matches children by position, so an element inserted before others makes the ones after it new elements;
+put conditional elements last, or give the list a stable shape.
+
 ---
 
 ## Internationalization
