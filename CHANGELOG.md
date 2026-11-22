@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.0 — 2026-11-22
+
+- **BREAKING: the shell's user menu offers Profile only when the app asks for it** — Birko TASK-966, reported by
+  DraCode. `BCoreAppShell.getUserMenuItems()` always included a Profile item going to `#/profile`, a dead link in an
+  app with no profile page. It is now off by default. **Migration:** an app with a profile page that uses the default
+  menu (or builds on `super.getUserMenuItems()`) adds `protected get showProfileMenuItem() { return true; }` to its
+  shell, or Profile disappears from its user menu.
+
 ## v0.4.23 — 2026-11-22
 
 - **SECURITY: the shell's user menu escapes the user's name** — Birko TASK-965, reported by DraCode.

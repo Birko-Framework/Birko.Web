@@ -26,7 +26,7 @@ const SHELL_ACCENTS: Record<string, string> = {
  * Responsibilities:
  * - Theme / layout persistence from localStorage (`data-theme`, `data-layout`)
  * - Online / offline tracking exposed as `isOnline`
- * - Default user dropdown menu (profile / settings / signout)
+ * - Default user dropdown menu (settings / signout; profile when `showProfileMenuItem` is true)
  * - Brand link with configurable target
  * - Breadcrumb event listener for pages using `setBreadcrumbs()`
  * - Default minimal layout (brand + user dropdown + content slot)
@@ -160,10 +160,16 @@ export abstract class BCoreAppShell extends BaseComponent {
     return { dashboard: '#/', profile: '#/profile', settings: '#/settings', login: '#/login' };
   }
 
+  /**
+   * Whether the default user menu offers Profile (going to `getRoutes().profile`). Off by default, since not every app
+   * has a profile page (TASK-966); an app that has one returns `true`.
+   */
+  protected get showProfileMenuItem(): boolean { return false; }
+
   /** User dropdown menu items. */
   protected getUserMenuItems(): MenuItem[] {
     return [
-      { id: 'profile',  label: this.t('nav.profile'),  icon: '&#128100;' },
+      ...(this.showProfileMenuItem ? [{ id: 'profile', label: this.t('nav.profile'), icon: '&#128100;' }] : []),
       { id: 'settings', label: this.t('nav.settings'), icon: '&#9881;' },
       { id: 'signout',  label: this.t('auth.signOut'),  icon: '&#8594;', variant: 'danger', divider: true },
     ];
