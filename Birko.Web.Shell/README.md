@@ -443,7 +443,7 @@ protected override onMount(): void {
 | Method | Source | Returns | Purpose |
 |--------|--------|---------|---------|
 | `brandName` | base | `string` | Brand displayed in ribbon header |
-| `getUserName()` | base | `string` | Current user's display name; return `''` for anonymous apps (hides the user area) |
+| `getUserName()` | base | `string` | Current user's display name as plain text (the shell escapes it); return `''` for anonymous apps (hides the user area) |
 | `t(key, params?)` | base | `string` | Translation function |
 | `onSignOut()` | base | `void` | Handle sign-out action (noop for anonymous apps) |
 | `getRibbonTabs()` | BAppShell | `RibbonTab[]` | Ribbon tabs from module state |
@@ -457,7 +457,7 @@ protected override onMount(): void {
 | `brandHref` | `'#/'` | Brand link target |
 | `version` | `''` (hidden) | Version in status bar |
 | `storagePrefix` | `'app'` | localStorage key prefix for theme/layout/pin |
-| `getUserInitials()` | First 2 chars | Avatar initials |
+| `getUserInitials()` | First 2 chars | Avatar initials, plain text (the shell escapes them) |
 | `getRoutes()` | `{ dashboard, profile, settings, login }` | Shell route paths |
 | `getUserMenuItems()` | Profile, Settings, Sign out | User dropdown items; return `[]` for a static avatar badge with no dropdown |
 | `onUserMenuSelect(id)` | Navigate to routes | User menu handler |

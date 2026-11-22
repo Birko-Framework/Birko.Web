@@ -52,7 +52,7 @@ export abstract class BCoreAppShell extends BaseComponent {
   /** Application brand name displayed in the header. */
   protected abstract get brandName(): string;
 
-  /** Current user's display name. Return '' for anonymous apps — hides the user area entirely. */
+  /** Current user's display name, as plain text (the shell escapes it, TASK-965). Return '' for anonymous apps — hides the user area entirely. */
   protected abstract getUserName(): string;
 
   /** Translation function. */
@@ -150,7 +150,7 @@ export abstract class BCoreAppShell extends BaseComponent {
     this.emit('theme-change', { theme });
   }
 
-  /** User initials for the avatar (default: first 2 chars of userName). */
+  /** User initials for the avatar (default: first 2 chars of userName), as plain text: the shell escapes it. */
   protected getUserInitials(): string {
     return (this.getUserName() ?? '??').slice(0, 2).toUpperCase();
   }
@@ -238,9 +238,10 @@ export abstract class BCoreAppShell extends BaseComponent {
     const userName = this.getUserName();
     if (!userName) return '';
     const initials = this.getUserInitials();
+    // The name is often a federated profile field anyone can set: escape it here (TASK-965).
     const trigger = `
-      <div class="user-avatar">${initials}</div>
-      <span class="user-name">${userName}</span>
+      <div class="user-avatar">${escapeHtml(initials)}</div>
+      <span class="user-name">${escapeHtml(userName)}</span>
     `;
     if (this.getUserMenuItems().length === 0) {
       return `<div class="user-trigger is-static">${trigger}</div>`;
