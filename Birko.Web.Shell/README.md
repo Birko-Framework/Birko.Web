@@ -459,7 +459,8 @@ protected override onMount(): void {
 | `storagePrefix` | `'app'` | localStorage key prefix for theme/layout/pin |
 | `getUserInitials()` | First 2 chars | Avatar initials, plain text (the shell escapes them) |
 | `getRoutes()` | `{ dashboard, profile, settings, login }` | Shell route paths |
-| `getUserMenuItems()` | Profile, Settings, Sign out | User dropdown items; return `[]` for a static avatar badge with no dropdown |
+| `showProfileMenuItem` | `false` | Whether the default user menu offers Profile (to `getRoutes().profile`); return `true` in an app with a profile page |
+| `getUserMenuItems()` | Settings, Sign out (Profile first when `showProfileMenuItem`) | User dropdown items; return `[]` for a static avatar badge with no dropdown |
 | `onUserMenuSelect(id)` | Navigate to routes | User menu handler |
 | `onItemClick(tab, group, item)` | noop | Ribbon item click |
 | `onBreadcrumbsChange(items)` | noop | Called when a page fires `setBreadcrumbs()` |
