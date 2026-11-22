@@ -31,6 +31,11 @@ interchangeable for consumers.
 - **`b-kanban` stacks when narrow, if the page asks** — Birko TASK-950 (FEATURE-022). `KanbanConfig.stackBelow` stacks
   the columns one per row, with no sideways scroll, while the board's own width is below it; rows show as sections
   while stacked. Boards without it are unchanged.
+- **`b-kanban`: buttons, links and fields on a card are not the card** — Birko TASK-946 (FEATURE-022, asked for by
+  DraCode). A click on a `button`, `a`, `input`, `select`, `textarea` or `label` in a card, or inside `[data-no-drag]`,
+  no longer fires `card-click`, and a press on one no longer starts a drag; a control inside a component's shadow root
+  (`b-button`) counts. A board that relied on a click on such an element being a card click must handle the control's
+  own click (Symbio's three boards have none).
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the

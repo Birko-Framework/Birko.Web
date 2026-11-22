@@ -1493,6 +1493,13 @@ lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its ed
 column with reordering off they jump straight to the next lane. Lanes the move rule refuses are skipped and named, and
 the announcement says the column, lane and position (`bwc.kanban.inLane`, `reorderOff`, `noLane`).
 
+**Controls on a card (v0.4.21, TASK-946).** A `button`, `a`, `input`, `select`, `textarea` or `label` that
+`renderCard` puts on a card, and anything inside an element marked `data-no-drag`, belongs to itself: a click on it
+fires no `card-click`, a press on it starts no drag (mouse or touch; a field's text can be selected), and Space or Enter
+on it acts on it rather than picking the card up. A control inside a component's own shadow root (`b-button`) counts.
+Wire the control's own click (e.g. by delegation on the board's `shadowRoot`); anywhere else on the card is still a
+card click and a drag handle.
+
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 
 - `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one

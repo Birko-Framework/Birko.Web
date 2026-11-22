@@ -317,7 +317,7 @@ export class BKanban extends BaseComponent {
   // Roving tabindex (TASK-955): the one card Tab lands on — the card last focused, else the first card.
   private _tabStopId: string | null = null;
   private _renderStop: string | null = null;
-  // A pointer went down on a lane tag: the drag that may follow from the card must not start (TASK-957).
+  // A pointer went down on a control inside a card: the drag that may follow from the card must not start (TASK-946).
   private _noDragFromControl = false;
   // Stacked layout (TASK-950): whether the board is below `stackBelow`, and what watches its width.
   private _stacked = false;
@@ -502,6 +502,20 @@ export class BKanban extends BaseComponent {
     this.shadowRoot?.querySelectorAll('.lane-menu').forEach(m => m.remove());
   }
 
+  /**
+   * Whether the event happened in one of the card's own controls (TASK-946, D8): a button, link, form field or label,
+   * or anything inside an element marked `data-no-drag`. A press there is the control's: no drag and no card click.
+   * The event's path is read up to the card, so a control inside a component's own shadow root (b-button's real
+   * `<button>`) counts too.
+   */
+  private _inCardControl(e: Event, card: HTMLElement): boolean {
+    for (const node of e.composedPath()) {
+      if (node === card) return false;
+      if (node instanceof Element && node.matches('button, a, input, select, textarea, label, [data-no-drag]')) return true;
+    }
+    return false;
+  }
+
   private _renderCard(card: KanbanCard, columnId: string, index: number, depth: number): string {
     const hasChildren = !!(card.children?.length);
     const isExpanded = this._expanded.has(card.id);
@@ -573,15 +587,29 @@ export class BKanban extends BaseComponent {
 
     // Mouse drag-and-drop + click
     this.$$<HTMLElement>('.card').forEach(card => {
+      // A press on a control in the card (TASK-946, D8) starts no drag: the card stops being draggable until the
+      // pointer comes up, so a field's text can be selected, and a dragstart that still arrives is refused.
+      this.listen(card, 'pointerdown', (e: Event) => {
+        const onControl = this._inCardControl(e, card);
+        this._noDragFromControl = onControl;
+        if (!onControl || card.getAttribute('draggable') !== 'true') return;
+        card.setAttribute('draggable', 'false');
+        const restore = () => {
+          document.removeEventListener('pointerup', restore, true);
+          document.removeEventListener('pointercancel', restore, true);
+          card.setAttribute('draggable', 'true');
+        };
+        document.addEventListener('pointerup', restore, true);
+        document.addEventListener('pointercancel', restore, true);
+      });
       this.listen(card, 'dragstart', (e: Event) => {
-        if (this._noDragFromControl) { this._noDragFromControl = false; e.preventDefault(); return; }
+        if (this._noDragFromControl || this._inCardControl(e, card)) { e.preventDefault(); return; }
         this._onDragStart(e as DragEvent, card);
       });
       this.listen(card, 'dragend', () => this._onDragEnd());
       this.listen(card, 'click', (e: Event) => {
         if (this._dragCardId || this._keyboardDragging) return;
-        const tgt = e.target as HTMLElement;
-        if (tgt.closest('.card-toggle, .lane-tag')) return;
+        if (this._inCardControl(e, card)) return;
         const cardId = card.dataset.cardId!;
         const columnId = card.dataset.columnId!;
         const cardData = this._cards.find(c => c.id === cardId);
@@ -589,9 +617,8 @@ export class BKanban extends BaseComponent {
       });
     });
 
-    // Tags mode: the lane tag opens the lane menu, and a pointer on it starts no drag (TASK-957).
+    // Tags mode: the lane tag opens the lane menu; as a control on the card it starts no drag (TASK-957, TASK-946).
     this.$$<HTMLElement>('.lane-tag').forEach(tag => {
-      this.listen(tag, 'pointerdown', () => { this._noDragFromControl = true; });
       this.listen(tag, 'click', (e: Event) => {
         e.stopPropagation();
         this._noDragFromControl = false;
