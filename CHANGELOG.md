@@ -36,6 +36,10 @@ interchangeable for consumers.
   no longer fires `card-click`, and a press on one no longer starts a drag; a control inside a component's shadow root
   (`b-button`) counts. A board that relied on a click on such an element being a card click must handle the control's
   own click (Symbio's three boards have none).
+- **`b-kanban`: a card no longer stays dimmed, and the board no longer stops responding, after a drag** — Birko
+  TASK-959, found by the user testing FEATURE-022. A drag that ended without redrawing the board (refused, dropped in
+  place, released outside it) left the card dimmed; a drop that redrew it lost the drag-end listener, so the board kept
+  thinking a drag was on and ignored every card click. Drag end now always clears both.
 - **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
   `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
   reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the

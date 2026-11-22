@@ -606,7 +606,6 @@ export class BKanban extends BaseComponent {
         if (this._noDragFromControl || this._inCardControl(e, card)) { e.preventDefault(); return; }
         this._onDragStart(e as DragEvent, card);
       });
-      this.listen(card, 'dragend', () => this._onDragEnd());
       this.listen(card, 'click', (e: Event) => {
         if (this._dragCardId || this._keyboardDragging) return;
         if (this._inCardControl(e, card)) return;
@@ -1021,6 +1020,9 @@ export class BKanban extends BaseComponent {
     this._dragSourceIndex = idx;
 
     card.classList.add('dragging');
+    // The browser fires dragend at this element even when a drop has re-rendered the board, and a re-render drops
+    // the listeners onUpdated added; this one is the element's own, once (TASK-959).
+    card.addEventListener('dragend', () => this._onDragEnd(), { once: true });
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', cardId);
@@ -1028,6 +1030,8 @@ export class BKanban extends BaseComponent {
   }
 
   private _onDragEnd(): void {
+    // However the drag ended (dropped, refused, in place, outside the board), no card stays dimmed (TASK-959).
+    this.$$<HTMLElement>('.card.dragging').forEach(c => c.classList.remove('dragging'));
     this._refusedSaidFor = null;
     this.$$<HTMLElement>('.column.drop-refused').forEach(c => c.classList.remove('drop-refused'));
     this._dragCardId = null;
