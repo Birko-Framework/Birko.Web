@@ -4,6 +4,16 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.1 — 2026-11-22
+
+- **A re-render no longer turns one element into another with a different id** — Birko TASK-967, reported by Symbio;
+  older than v0.4.22, which made it worse. The morph pairs children by position, so when a page re-render put more
+  elements before others, a later node was updated in place into the element after it, keeping the listeners and
+  runtime attributes it had before. On Symbio's rooms page `#batch-save-btn` became `#add-save-btn`: Create ran the
+  batch handler (before v0.4.22 both handlers), and since v0.4.22 its kept `data-wired` mark stopped the page from
+  wiring the create handler at all, so Create did nothing. A node whose `id` differs from the new render's is now
+  replaced, so it starts clean.
+
 ## v0.5.0 — 2026-11-22
 
 - **BREAKING: the shell's user menu offers Profile only when the app asks for it** — Birko TASK-966, reported by
