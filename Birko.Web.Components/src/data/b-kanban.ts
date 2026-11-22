@@ -924,13 +924,14 @@ export class BKanban extends BaseComponent {
     if (this._isSortable(targetColumnId) && (targetIndex === undefined || targetIndex >= siblings.length)) {
       card.order = siblings.reduce((m, c) => Math.max(m, c.order ?? 0), -1) + 1;
     }
+    // At a position, in a column the board orders: number the group in its new order. The group is sorted by `order`
+    // afterwards, so a place in the card list alone was undone by the cards' old values (TASK-960).
     if (this._isSortable(targetColumnId) && targetIndex !== undefined && targetIndex < siblings.length) {
-      const insertBeforeId = siblings[targetIndex].id;
-      const insertBeforeGlobal = this._cards.findIndex(c => c.id === insertBeforeId);
-      this._cards.splice(insertBeforeGlobal, 0, card);
-    } else {
-      this._cards.push(card);
+      const group = [...siblings];
+      group.splice(targetIndex, 0, card);
+      group.forEach((c, i) => { c.order = i; });
     }
+    this._cards.push(card);
 
     // Re-order
     const moved = fromColumnId !== targetColumnId || fromParentId !== (targetParentId ?? '') || fromLane !== toLane;

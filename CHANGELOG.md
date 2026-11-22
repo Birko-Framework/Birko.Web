@@ -36,6 +36,10 @@ interchangeable for consumers.
   no longer fires `card-click`, and a press on one no longer starts a drag; a control inside a component's shadow root
   (`b-button`) counts. A board that relied on a click on such an element being a card click must handle the control's
   own click (Symbio's three boards have none).
+- **`b-kanban`: a card dropped at a position among ordered cards lands there** — Birko TASK-960, found testing
+  FEATURE-022, and older than it (v0.4.20 does the same). A drop before or after a card put the card at that place in
+  the list and then sorted the group by the cards' old `order`, so when cards carried their own `order` the card went
+  back where it was, while `card-reorder` reported the new index. The group is now numbered in its new order.
 - **`b-kanban`: the board stays one Tab stop when cards carry buttons** — Birko TASK-958 (FEATURE-022 D21), found at
   TASK-946. Only the focused card's controls are in the Tab order: Tab goes from the card through its controls and out
   of the board, instead of through every card's buttons. Escape on a control returns to its card; a card with controls
