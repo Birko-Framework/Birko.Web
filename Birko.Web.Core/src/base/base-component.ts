@@ -424,8 +424,13 @@ export abstract class BaseComponent extends HTMLElement {
     const oldEl = old as Element;
     const freshEl = fresh as Element;
 
-    // Different tag → replace entire subtree
-    if (oldEl.tagName !== freshEl.tagName) {
+    // Different tag, or a different id: another element, not this one changed → replace the entire subtree. Kept in
+    // place, a node shifted by an earlier sibling became an element with another id and kept what was attached to
+    // the old one: its listeners and the attributes set on it at runtime (TASK-967: Symbio's #batch-save-btn became
+    // #add-save-btn and still ran the batch handler, and its `data-wired` mark kept the page from wiring it again).
+    const oldId = oldEl.getAttribute('id');
+    const freshId = freshEl.getAttribute('id');
+    if (oldEl.tagName !== freshEl.tagName || (oldId && freshId && oldId !== freshId)) {
       parent.replaceChild(BaseComponent._recordClone(fresh.cloneNode(true)), old);
       return;
     }

@@ -177,7 +177,9 @@ A re-render removes only the attributes it rendered last time and no longer rend
 a child set on itself, such as `b-checkbox` `checked`, `b-tabs` `active` or `b-kanban` `stacked`, survives its parent's
 re-render. An attribute the parent renders still wins: rendering `active="a"` sets it back to `a` at every re-render.
 The morph matches children by position, so an element inserted before others makes the ones after it new elements;
-put conditional elements last, or give the list a stable shape.
+put conditional elements last, or give the list a stable shape. Where the element at a position now has a different
+`id` than the one there before, the morph replaces it instead of updating it in place (v0.5.1, TASK-967), so no
+element carries another one's listeners or runtime attributes (a `data-wired` mark, say) into its new identity.
 
 ---
 
