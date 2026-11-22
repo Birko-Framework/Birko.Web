@@ -4,7 +4,7 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
-## v0.4.21 — 2026-11-21
+## v0.4.21 — 2026-11-22
 
 - **`b-kanban`: locked columns, a move rule, and refusing or undoing a move** — Birko TASK-947 (FEATURE-022, asked for
   by DraCode). `KanbanColumn.locked` stops a person moving cards into or out of a column, by mouse or keyboard;
