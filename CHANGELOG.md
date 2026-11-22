@@ -4,6 +4,55 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.4.21 — 2026-11-22
+
+- **`b-kanban`: locked columns, a move rule, and refusing or undoing a move** — Birko TASK-947 (FEATURE-022, asked for
+  by DraCode). `KanbanColumn.locked` stops a person moving cards into or out of a column, by mouse or keyboard;
+  `KanbanConfig.canMove(move)` refuses any other move, with a reason that is announced; a new cancelable
+  `card-move-request` fires before a person's move; `revertMove(cardId)` undoes the last one without an event. The
+  app's own `moveCard()` is not limited. Boards that use none of this behave as before, and `card-move` is unchanged.
+- **`b-kanban` lanes inside a column** — Birko TASK-948 (FEATURE-022). `KanbanColumn.lanes` stacks lanes in a column,
+  each with a label, count and drop area; a card names its lane with `laneId` (none, or an unknown one, goes to
+  `defaultLane`, else the first lane). A lane change, even within a column, is a `card-move` with `fromLane` /
+  `toLane`; `canMove`, `card-move-request`, `revertMove`, `moveCard(…, lane)` and `getCards(column, lane)` know lanes.
+  Columns without lanes are unchanged.
+- **`b-kanban` reordering off per column, and the keyboard across lanes** — Birko TASK-949 (FEATURE-022).
+  `KanbanColumn.sortable: false` keeps the app's `order` (no renumbering, no drop line; a dropped card takes its place
+  by its own `order`; a drag within its lane changes nothing). `↑`/`↓` cross lanes by keyboard, skipping refused ones,
+  and the announcement names the column, lane and position.
+- **`b-kanban` lanes as rows across the board, and board-level lanes** — Birko TASK-956 (FEATURE-022).
+  `KanbanConfig.laneLayout: 'rows'` draws lanes as swimlanes across all columns (`'sections'` stays the default);
+  `KanbanConfig.lanes` / `defaultLane` set lanes for the whole board, which a column's own `lanes` override and
+  `lanes: []` opts out of. A card moving into another column keeps its lane when that column has it.
+- **`b-kanban` lanes as tags on cards** — Birko TASK-957 (FEATURE-022). `laneLayout: 'tags'` groups a column's cards by
+  lane with no headings; each card's lane tag opens a lane menu that moves it (through the same rules as a drag) and
+  never starts a drag or fires `card-click`. A move given no position (a drop at the end, a lane pick) now lands at the
+  end of its lane or column instead of wherever the card's old `order` sorted it.
+- **`b-kanban` stacks when narrow, if the page asks** — Birko TASK-950 (FEATURE-022). `KanbanConfig.stackBelow` stacks
+  the columns one per row, with no sideways scroll, while the board's own width is below it; rows show as sections
+  while stacked. Boards without it are unchanged.
+- **`b-kanban`: buttons, links and fields on a card are not the card** — Birko TASK-946 (FEATURE-022, asked for by
+  DraCode). A click on a `button`, `a`, `input`, `select`, `textarea` or `label` in a card, or inside `[data-no-drag]`,
+  no longer fires `card-click`, and a press on one no longer starts a drag; a control inside a component's shadow root
+  (`b-button`) counts. A board that relied on a click on such an element being a card click must handle the control's
+  own click (Symbio's three boards have none).
+- **`b-kanban`: a card dropped at a position among ordered cards lands there** — Birko TASK-960, found testing
+  FEATURE-022, and older than it (v0.4.20 does the same). A drop before or after a card put the card at that place in
+  the list and then sorted the group by the cards' old `order`, so when cards carried their own `order` the card went
+  back where it was, while `card-reorder` reported the new index. The group is now numbered in its new order.
+- **`b-kanban`: the board stays one Tab stop when cards carry buttons** — Birko TASK-958 (FEATURE-022 D21), found at
+  TASK-946. Only the focused card's controls are in the Tab order: Tab goes from the card through its controls and out
+  of the board, instead of through every card's buttons. Escape on a control returns to its card; a card with controls
+  is described by a hint on how to reach them (`bwc.kanban.cardControls`).
+- **`b-kanban`: a card no longer stays dimmed, and the board no longer stops responding, after a drag** — Birko
+  TASK-959, found by the user testing FEATURE-022. A drag that ended without redrawing the board (refused, dropped in
+  place, released outside it) left the card dimmed; a drop that redrew it lost the drag-end listener, so the board kept
+  thinking a drag was on and ignored every card click. Drag end now always clears both.
+- **`b-kanban` can be used from the keyboard at all** — Birko TASK-955, found testing TASK-947. Every card had
+  `tabindex="-1"` and Tab stopped only on the board, which ignored keys unless a card had focus, so no card could be
+  reached, picked up or moved without a mouse. The board now has a roving tabindex: Tab lands on the first card, or the
+  one last focused, as ACCESSIBILITY.md already promised.
+
 ## v0.4.20 — 2026-11-21
 
 - **SECURITY: `BMarkdownEditor.renderMarkdown` no longer lets markdown run script** — Birko TASK-943, reported by

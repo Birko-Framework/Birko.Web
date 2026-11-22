@@ -258,6 +258,20 @@
       "selectionCleared": "Selection cleared",
       "confirmDefault": "Are you sure?"
     },
+    "kanban": {
+      "locked": "Locked",
+      "lockedOut": "{column} is locked: its cards cannot be moved.",
+      "lockedIn": "{column} is locked: cards cannot be moved into it.",
+      "refused": "This card cannot be moved there.",
+      "noColumn": "No column that way accepts this card ({columns} cannot take it).",
+      "skipped": "Skipped {columns}.",
+      "inLane": "{column}, {lane}, position {position}.",
+      "reorderOff": "Reordering is off in {column}.",
+      "noLane": "No lane that way accepts this card ({lanes} cannot take it).",
+      "laneTag": "Lane: {lane}. Change lane",
+      "laneMenu": "Change lane",
+      "cardControls": "Press Tab to reach its buttons and fields."
+    },
     "treeMenu": {
       "hint": "Press Space to pick up and reorder.",
       "roleDescription": "sortable item",

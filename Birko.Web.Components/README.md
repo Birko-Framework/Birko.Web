@@ -1434,10 +1434,100 @@ board.removeCard('a');            // removes descendants recursively
 
 **3-zone drag targets:** the top 25% of a card is "drop before", the middle 50% is "drop inside" (nest), the bottom 25% is "drop after". Self/descendant nesting is rejected.
 
-**Keyboard:** `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`.
+**Keyboard:** the board is one tab stop (a roving tabindex: Tab lands on the first card, or on the card last focused; TASK-955). `↑`/`↓` move, `→` expand parent / focus first child, `←` collapse / focus parent, `Home`/`End`; `Space`/`Enter` picks a card up, and the card itself travels with the arrows (between columns and positions); `Enter` drops it there, `Escape` puts it back.
 
-Methods: `setColumns()`, `setCards()`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
-Emits: `card-move` → `{ cardId, fromColumnId, toColumnId, parentId, position }`, `card-click` → `{ card }`
+**Lanes (v0.4.21, TASK-948).** A column can hold lanes stacked inside it, each with its own label, count and drop area:
+`KanbanColumn.lanes: [{ id, label, color? }]`, and a card names its lane with `laneId`. A card with no lane, or a lane
+the column does not have, shows in `defaultLane` (else the first lane). An empty lane stays visible as a place to drop.
+Moving a card to another lane, even within the same column, fires `card-move` with `fromLane` / `toLane` (and
+`card-move-request` / `canMove` see them); `moveCard(id, column, index?, parent?, lane?)` and `getCards(column, lane)`
+take a lane. Sub-cards follow their parent's lane.
+
+```typescript
+board.setConfig({
+  columns: [
+    { id: 'todo', label: 'To do', defaultLane: 'normal',
+      lanes: [{ id: 'critical', label: 'Critical', color: '#dc2626' }, { id: 'high', label: 'High' }, { id: 'normal', label: 'Normal' }] },
+    { id: 'doing', label: 'In progress', locked: true },
+  ],
+  cards: [{ id: 'a', columnId: 'todo', laneId: 'critical', title: 'Fix login' }],
+});
+board.addEventListener('card-move', (e) => {
+  if (e.detail.toLane !== e.detail.fromLane) setPriority(e.detail.card.id, e.detail.toLane);
+});
+```
+
+**Lane modes and board-level lanes (v0.4.21, TASK-956).** `KanbanConfig.laneLayout` picks how lanes are shown:
+`'sections'` (default, stacked inside each column), `'rows'` (swimlanes across the whole board) or `'tags'`.
+`KanbanConfig.lanes` (with `defaultLane`) sets lanes for the whole board: a column without its own `lanes` uses them,
+and `lanes: []` opts a column out. In rows mode the rows are the board's lanes, each column is split by them, and an
+opted-out column is one tall cell beside the rows. Moving a card into another column keeps its lane (its row) when
+that column has it; by keyboard, `←`/`→` stay in the row.
+
+```typescript
+board.setConfig({
+  laneLayout: 'rows',
+  lanes: [{ id: 'critical', label: 'Critical' }, { id: 'normal', label: 'Normal' }],
+  defaultLane: 'normal',
+  columns: [{ id: 'todo', label: 'To do' }, { id: 'doing', label: 'Doing' }, { id: 'done', label: 'Done', lanes: [] }],
+  cards,
+});
+```
+
+**Lanes as tags (v0.4.21, TASK-957).** With `laneLayout: 'tags'` a column has no lane areas: its cards are grouped by
+lane in lane order, and each card in a laned column shows its lane as a small tag button. Clicking the tag opens a lane
+menu (current lane checked; ↑/↓, Enter, Escape); a pick goes through the same rules as a drag (locks, `canMove`,
+`card-move-request`) and fires `card-move` with `fromLane` / `toLane`. The tag never starts a drag or fires
+`card-click`, and is not a tab stop; by keyboard, a picked-up card's `↑`/`↓` cross into the next lane at its end.
+Strings: `bwc.kanban.laneTag`, `laneMenu`. A move with no position now lands at the end of its lane or column.
+
+**Stacked when narrow (v0.4.21, TASK-950).** `KanbanConfig.stackBelow: '44rem'` (any CSS length) stacks the columns
+one under another, full width, with no sideways scrolling, while the board's **own** width is below it (a board
+beside a docked chat stacks too); the host then carries a `stacked` attribute. A rows board shows its lanes as
+sections while stacked and returns to rows when wide; tags stack as plain lists. Without `stackBelow` the board never
+stacks and scrolls sideways as before.
+
+**Reordering off (v0.4.21, TASK-949).** `KanbanColumn.sortable: false` keeps the app's `order`: the board never
+renumbers it, a card dropped in takes its place by its own `order` (no drop line is shown), and a drag within the same
+lane changes nothing. By keyboard, `↑`/`↓` move within a lane and, at its edge, on into the lane above or below; in a
+column with reordering off they jump straight to the next lane. Lanes the move rule refuses are skipped and named, and
+the announcement says the column, lane and position (`bwc.kanban.inLane`, `reorderOff`, `noLane`).
+
+**Controls on a card (v0.4.21, TASK-946).** A `button`, `a`, `input`, `select`, `textarea` or `label` that
+`renderCard` puts on a card, and anything inside an element marked `data-no-drag`, belongs to itself: a click on it
+fires no `card-click`, a press on it starts no drag (mouse or touch; a field's text can be selected), and Space or Enter
+on it acts on it rather than picking the card up. A control inside a component's own shadow root (`b-button`) counts.
+Wire the control's own click (e.g. by delegation on the board's `shadowRoot`); anywhere else on the card is still a
+card click and a drag handle.
+Only the focused card's controls are in the Tab order (v0.4.21, TASK-958): Tab goes from the card through its own
+controls and then out of the board, so the board stays one stop however many cards carry buttons; moving to another
+card with the arrows brings that card's controls in. Escape on a control returns to its card. The board sets
+`tabindex="-1"` on other cards' controls and restores their own value later (kept in `data-kb-tab`). A card with
+controls is described by a hidden hint (`bwc.kanban.cardControls`).
+
+**Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
+
+- `KanbanColumn.locked: true` — no card is moved into or out of that column. Its cards are not draggable, picking one
+  up by keyboard is refused, and dragging over it shows no-drop with the reason announced.
+- `KanbanConfig.canMove(move)` — asked after the locks with a `KanbanMove` (`{ card, fromColumn, toColumn, fromIndex,
+  toIndex?, fromParent?, toParent? }`). Return `false` to refuse, or a string: it refuses and is the reason announced.
+- `card-move-request` — a cancelable event with the same `KanbanMove`, fired before a person's move is applied;
+  `preventDefault()` keeps the card put. `card-move` / `card-reorder` are unchanged and still fire after the move.
+- `revertMove(cardId)` — puts a card back where the last move a person made took it from, for example when saving it
+  failed; fires no event; returns `false` when there is nothing to undo.
+
+`moveCard()` is the app's own call and is **not** limited by any of these, so an app (or its agents) can still move
+cards into a locked column. With the keyboard, `←`/`→` skip columns the card may not enter and say which were skipped.
+Strings: `bwc.kanban.*` (`locked`, `lockedIn`, `lockedOut`, `refused`, `noColumn`, `skipped`), or `label-*` attributes.
+
+```typescript
+board.addEventListener('card-move', (e) => {
+  save(e.detail).catch(() => { board.revertMove(e.detail.card.id); toast('Could not save the move'); });
+});
+```
+
+Methods: `setColumns()`, `setCards()`, `moveCard(id, column, index?, parent?)`, `revertMove(id)`, `addSubCard(parentId, card)`, `getChildren(cardId)`, `removeCard(id)`, `toggleCard(id)`, `expandCard(id)`, `collapseCard(id)`, `expandAll()`, `collapseAll()`
+Emits: `card-move-request` (cancelable) / `card-move` / `card-reorder` → `{ card, fromColumn, toColumn, fromIndex, toIndex, fromParent?, toParent? }`, `card-click` → `{ cardId, columnId, card }`
 
 ### b-sortable-list
 
