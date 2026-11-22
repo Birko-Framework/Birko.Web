@@ -1499,6 +1499,11 @@ fires no `card-click`, a press on it starts no drag (mouse or touch; a field's t
 on it acts on it rather than picking the card up. A control inside a component's own shadow root (`b-button`) counts.
 Wire the control's own click (e.g. by delegation on the board's `shadowRoot`); anywhere else on the card is still a
 card click and a drag handle.
+Only the focused card's controls are in the Tab order (v0.4.21, TASK-958): Tab goes from the card through its own
+controls and then out of the board, so the board stays one stop however many cards carry buttons; moving to another
+card with the arrows brings that card's controls in. Escape on a control returns to its card. The board sets
+`tabindex="-1"` on other cards' controls and restores their own value later (kept in `data-kb-tab`). A card with
+controls is described by a hidden hint (`bwc.kanban.cardControls`).
 
 **Move rules (v0.4.21, TASK-947).** What a *person* may do, by mouse or keyboard:
 

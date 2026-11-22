@@ -269,7 +269,8 @@
       "reorderOff": "Reordering is off in {column}.",
       "noLane": "No lane that way accepts this card ({lanes} cannot take it).",
       "laneTag": "Lane: {lane}. Change lane",
-      "laneMenu": "Change lane"
+      "laneMenu": "Change lane",
+      "cardControls": "Press Tab to reach its buttons and fields."
     },
     "treeMenu": {
       "hint": "Press Space to pick up and reorder.",

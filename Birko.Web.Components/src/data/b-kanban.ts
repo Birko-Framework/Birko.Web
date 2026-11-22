@@ -382,6 +382,7 @@ export class BKanban extends BaseComponent {
         ${this._renderRows(boardLanes, emptyText)}
       </div>
       <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
+      ${this._controlsHint()}
     `;
     }
 
@@ -390,6 +391,7 @@ export class BKanban extends BaseComponent {
         ${columnsHtml}
       </div>
       <div class="sr-only" aria-live="polite">${escapeHtml(this._liveText)}</div>
+      ${this._controlsHint()}
     `;
   }
 
@@ -642,8 +644,51 @@ export class BKanban extends BaseComponent {
         this._tabStopId = card.dataset.cardId;
         this.$$<HTMLElement>('.card[tabindex="0"]').forEach(c => { if (c !== card) c.tabIndex = -1; });
         card.tabIndex = 0;
+        this._syncCardControls();
       });
     }
+    this._syncCardControls();
+  }
+
+  /** The hidden hint a card with controls points to (TASK-958, D21). */
+  private _controlsHint(): string {
+    const text = this.label('label-card-controls', 'bwc.kanban.cardControls', 'Press Tab to reach its buttons and fields.');
+    return `<span id="${this.uid}-kc-hint" hidden>${escapeHtml(text)}</span>`;
+  }
+
+  /**
+   * Only the Tab-stop card's own controls are in the Tab order (TASK-958, D21): every focusable element `renderCard`
+   * put on another card gets `tabindex="-1"`, its own value kept in `data-kb-tab` and put back when its card becomes
+   * the Tab stop. A custom element counts when its own shadow root holds a focusable control (b-button). The card's
+   * toggle and lane tag are always out of the Tab order. A card with controls is described by the hint.
+   */
+  private _syncCardControls(): void {
+    const focusable = 'a[href], button, input, select, textarea, [tabindex], [contenteditable=""], [contenteditable="true"]';
+    const hintId = `${this.uid}-kc-hint`;
+    this.$$<HTMLElement>('.card').forEach(card => {
+      const isStop = card.tabIndex === 0;
+      let hasControls = false;
+      card.querySelectorAll<HTMLElement>('*').forEach(el => {
+        if (el.matches('.card-toggle, .lane-tag')) return;
+        const managed = el.hasAttribute('data-kb-tab');
+        if (!managed) {
+          const own = el.matches(focusable) && el.getAttribute('tabindex') !== '-1';
+          if (!own && !el.shadowRoot?.querySelector(focusable)) return;
+        }
+        hasControls = true;
+        if (isStop) {
+          if (!managed) return;
+          const was = el.getAttribute('data-kb-tab')!;
+          if (was === '') el.removeAttribute('tabindex'); else el.setAttribute('tabindex', was);
+          el.removeAttribute('data-kb-tab');
+        } else if (!managed) {
+          el.setAttribute('data-kb-tab', el.getAttribute('tabindex') ?? '');
+          el.setAttribute('tabindex', '-1');
+        }
+      });
+      if (hasControls) card.setAttribute('aria-describedby', hintId);
+      else card.removeAttribute('aria-describedby');
+    });
   }
 
   // ── Public API ──
@@ -1183,7 +1228,15 @@ export class BKanban extends BaseComponent {
       return;
     }
 
-    if (!focused.classList.contains('card')) return;
+    if (!focused.classList.contains('card')) {
+      // Escape on a control in a card goes back to its card, unless the control used it (TASK-958, D21).
+      const owner = focused.closest<HTMLElement>('.card');
+      if (e.key === 'Escape' && owner && !e.defaultPrevented) {
+        e.preventDefault();
+        owner.focus();
+      }
+      return;
+    }
 
     switch (e.key) {
       case 'ArrowUp':
