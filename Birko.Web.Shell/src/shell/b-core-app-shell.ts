@@ -43,6 +43,9 @@ export abstract class BCoreAppShell extends BaseComponent {
   protected _unsubs: (() => void)[] = [];
   private _baseEventsBound = false;
   private _theme = 'light';
+  /** The browser's light/dark preference, followed while the theme is Auto (TASK-971). */
+  private _darkQuery: MediaQueryList | null = null;
+  private readonly _onSchemeChange = () => { if (this._theme === 'auto') this._applyTheme(true); };
   private _isOnline = navigator.onLine;
   private _onlineHandler  = () => { this._isOnline = true;  this.onOnlineChanged(); };
   private _offlineHandler = () => { this._isOnline = false; this.onOnlineChanged(); };
@@ -74,6 +77,12 @@ export abstract class BCoreAppShell extends BaseComponent {
 
   /** Show the theme switcher in the header (default: true). */
   protected get showThemeSwitcher(): boolean { return true; }
+
+  /**
+   * The theme a user who has not chosen one starts with (default `'light'`). Return `'auto'` to follow the browser's
+   * light or dark setting (TASK-971, FEATURE-024 D2); the first-paint snippet in the README takes the same value.
+   */
+  protected get defaultTheme(): string { return 'light'; }
 
   /**
    * Per-region accent (default: none). Return a built-in shell accent key
@@ -134,20 +143,36 @@ export abstract class BCoreAppShell extends BaseComponent {
     return getRegisteredThemes();
   }
 
-  /** The currently applied theme id. */
+  /** The chosen theme id: `'auto'` while the theme follows the browser (TASK-971). */
   get currentTheme(): string { return this._theme; }
+
+  /** The theme shown now: what Auto resolved to, else the chosen theme (TASK-971). */
+  get appliedTheme(): string { return this._resolveTheme(this._theme); }
 
   /**
    * Apply a theme: set `data-theme` on `<html>` (removed for `'light'`),
-   * persist to `{storagePrefix}-theme`, refresh the menu, emit `theme-change`.
+   * persist to `{storagePrefix}-theme`, refresh the menu, emit `theme-change` (`{ theme, applied }`).
+   * `'auto'` follows the browser's light or dark setting, live, and is what is persisted (TASK-971).
    */
   setTheme(theme: string): void {
-    this._theme = theme;
-    if (theme && theme !== 'light') document.documentElement.setAttribute('data-theme', theme);
+    this._theme = theme || 'light';
+    try { localStorage.setItem(`${this.storagePrefix}-theme`, this._theme); } catch { /* storage blocked: not remembered */ }
+    this._applyTheme(true);
+  }
+
+  /** Auto's theme: dark when the browser prefers dark and dark is registered, else light (D3). */
+  private _resolveTheme(theme: string): string {
+    if (theme !== 'auto') return theme;
+    const hasDark = this.getAvailableThemes().some(th => th.id === 'dark');
+    return hasDark && this._darkQuery?.matches ? 'dark' : 'light';
+  }
+
+  private _applyTheme(announce: boolean): void {
+    const applied = this._resolveTheme(this._theme);
+    if (applied !== 'light') document.documentElement.setAttribute('data-theme', applied);
     else document.documentElement.removeAttribute('data-theme');
-    localStorage.setItem(`${this.storagePrefix}-theme`, theme);
     this.refreshThemeMenu();
-    this.emit('theme-change', { theme });
+    if (announce) this.emit('theme-change', { theme: this._theme, applied });
   }
 
   /** User initials for the avatar (default: first 2 chars of userName), as plain text: the shell escapes it. */
@@ -279,20 +304,27 @@ export abstract class BCoreAppShell extends BaseComponent {
     dropdown.setItems(items);
   }
 
+  /** The Auto entry of the theme menu (TASK-971): its label is `bws.shell.themes.auto`, else "Auto". */
+  private _autoTheme(): ThemeOption {
+    return { id: 'auto', label: 'Auto', icon: '&#9680;' };
+  }
+
   /** Re-populate the theme menu (active theme gets a checkmark) and trigger glyph. */
   refreshThemeMenu(): void {
     const dropdown = this.$<BDropdownMenu>('#theme-dropdown');
     if (!dropdown) return;
     const themes = this.getAvailableThemes();
     const current = this._theme;
+    // Auto first, offered only where it has a dark theme to choose (TASK-971, D3/D4).
+    const listed = themes.some(th => th.id === 'dark') ? [this._autoTheme(), ...themes] : themes;
     dropdown.setItems(
-      themes.map(th => ({
+      listed.map(th => ({
         id: th.id,
         label: `${th.id === current ? '&#10003; ' : ''}${escapeHtml(this.themeLabel(th))}`,
         icon: th.icon,
       })),
     );
-    const active = themes.find(th => th.id === current) ?? themes[0];
+    const active = listed.find(th => th.id === current) ?? themes[0];
     const icon = this.$<HTMLElement>('#theme-trigger-icon');
     if (icon && active) icon.innerHTML = active.icon;
   }
@@ -338,10 +370,12 @@ export abstract class BCoreAppShell extends BaseComponent {
     if (savedLayout) document.documentElement.setAttribute('data-layout', savedLayout);
     else document.documentElement.removeAttribute('data-layout');
 
-    const savedTheme = localStorage.getItem(`${prefix}-theme`);
-    this._theme = savedTheme || 'light';
-    if (savedTheme && savedTheme !== 'light') document.documentElement.setAttribute('data-theme', savedTheme);
-    else document.documentElement.removeAttribute('data-theme');
+    let savedTheme: string | null = null;
+    try { savedTheme = localStorage.getItem(`${prefix}-theme`); } catch { /* storage blocked: the default */ }
+    this._theme = savedTheme || this.defaultTheme || 'light';
+    this._darkQuery = typeof matchMedia === 'function' ? matchMedia('(prefers-color-scheme: dark)') : null;
+    this._darkQuery?.addEventListener('change', this._onSchemeChange);
+    this._applyTheme(false);
 
     // Online / offline
     window.addEventListener('online',  this._onlineHandler);
@@ -368,6 +402,8 @@ export abstract class BCoreAppShell extends BaseComponent {
   protected onUnmount() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    this._darkQuery?.removeEventListener('change', this._onSchemeChange);
+    this._darkQuery = null;
     window.removeEventListener('online',  this._onlineHandler);
     window.removeEventListener('offline', this._offlineHandler);
   }

@@ -4,6 +4,22 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.2 — 2026-11-22
+
+- **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.
+  - A locked column shows only its lock icon, named "Locked" for screen readers and as a tooltip; the "Locked" word is
+    gone from every board (TASK-969).
+  - `showColumnFooter: false` hides the "N cards" footer, which repeats the header count; boards that do not set it
+    keep it (TASK-968).
+  - `locked: true` on the board locks every column. The lock is shown once above the board instead of in each column,
+    and a refusal says "The board is locked: its cards cannot be moved." (`bwc.kanban.boardLocked`) (TASK-970).
+- **App shell: an Auto theme** — Birko FEATURE-024, asked for by DraCode. With dark registered, the theme menu lists
+  Auto first: it follows the browser's light or dark setting, live, and is saved as `auto`. `currentTheme` reports
+  `auto`, the new `appliedTheme` what it shows; `theme-change` now carries `{ theme, applied }`. Apps opt in to Auto as
+  the starting theme with `defaultTheme` (default `'light'`) (TASK-971). `themeBootScript()` and the README snippet
+  apply the theme before the first paint, so a dark page does not flash light (TASK-972). A theme menu with dark now
+  has one more item, first.
+
 ## v0.5.1 — 2026-11-22
 
 - **A re-render no longer turns one element into another with a different id** — Birko TASK-967, reported by Symbio;
