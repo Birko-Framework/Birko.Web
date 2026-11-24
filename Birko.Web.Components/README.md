@@ -1010,6 +1010,15 @@ Master-detail split layout with responsive collapse.
 ```
 
 Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`, `resizable`, `persist-key`, `resize-label`
+
+**Animating a size change.** Set `--b-split-transition` on the panel to animate its columns when `sizes` (or
+`master-width` / `detail-width`) change, e.g. widening a side panel while it has focus. The default is `0s`, no
+animation. A pointer drag of the separator is never animated, so the column follows the pointer, and
+`prefers-reduced-motion: reduce` turns it off (TASK-979).
+
+```css
+b-split-panel.workspace { --b-split-transition: 150ms ease; }
+```
 Slots: `master`, `detail`
 
 With `resizable`, a separator (`role="separator"`) between the columns can be dragged, or moved with the arrow keys

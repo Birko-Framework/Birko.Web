@@ -12,6 +12,10 @@ export interface SplitSizes {
  * the arrow keys (Shift for bigger steps, Home/End for the limits); each change emits `split-resize`
  * with `{ sizes }`. `persist-key` saves the sizes in localStorage under that key and restores them on
  * mount; `sizes` reads and sets them (TASK-525). Save a whole layout with `captureLayout`.
+ *
+ * A change of sizes can animate: set `--b-split-transition` on the panel (e.g. `150ms ease`; default `0s`, no
+ * animation). A pointer drag of the separator is never animated, so it does not lag behind the pointer, and
+ * `prefers-reduced-motion: reduce` turns it off (TASK-979).
  */
 export class BSplitPanel extends BaseComponent {
   static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key']; }
@@ -42,7 +46,11 @@ export class BSplitPanel extends BaseComponent {
         grid-template-columns: var(--_master-w, 18rem) var(--_detail-w, 1fr);
         gap: var(--_gap, var(--b-space-lg, 1rem));
         align-items: start;
+        transition: grid-template-columns var(--b-split-transition, 0s);
       }
+      /* A dragged separator follows the pointer: no transition while it moves (TASK-979). */
+      .split.resizing { transition: none; }
+      @media (prefers-reduced-motion: reduce) { .split { transition: none; } }
       .split.no-detail {
         grid-template-columns: 1fr;
       }
@@ -159,6 +167,7 @@ export class BSplitPanel extends BaseComponent {
       // Capture keeps the drag going outside the handle; it throws for a pointer the browser no longer tracks.
       try { handle.setPointerCapture?.(pe.pointerId); } catch { /* the drag still works while over the handle */ }
       handle.classList.add('dragging');
+      split.classList.add('resizing');
       start = { x: pe.clientX, width: master.getBoundingClientRect().width };
     });
     this.listen(handle, 'pointermove', (e: Event) => {
@@ -173,7 +182,9 @@ export class BSplitPanel extends BaseComponent {
       const px = clamp(start.width + (e as PointerEvent).clientX - start.x);
       start = null;
       handle.classList.remove('dragging');
+      // Commit while still marked resizing, so the width the drag left is not animated to again.
       this._commit(px);
+      this.$<HTMLElement>('.split')?.classList.remove('resizing');
     };
     this.listen(handle, 'pointerup', end);
     this.listen(handle, 'pointercancel', end);
