@@ -894,7 +894,8 @@ define('devices-page', DevicesPage);
 | `mapFromForm(data, isEdit)` | identity | Transform form values to request body |
 | `editFormSchema` | `formSchema` | Separate form schema for edit mode |
 | `t(key, params?)` | `() => key` | i18n translation function |
-| `onRowClick(row)` | noop | Handle row click |
+| `onRowClick(row)` | noop | Handle row click. Overriding it also makes the rows reachable and openable by keyboard (Enter / Space) |
+| `clickableRows` | split page: `true`; list page: whether `onRowClick` is overridden | Rows open something, so they join the keyboard order (TASK-978); override only for a page that wires `row-click` itself |
 | `onToolbarAction(id)` | noop | Handle extra toolbar action buttons |
 | `onRowAction(actionId, row)` | noop | Handle extra per-row action buttons |
 | `extraToolbarActions` | `[]` | Additional toolbar buttons (getter) |

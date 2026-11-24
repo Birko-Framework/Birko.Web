@@ -86,6 +86,14 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   /** Field used as the row identifier. Default: `'id'`. */
   protected idField = 'id';
 
+  /**
+   * Whether a row opens something, so the table puts its rows in the keyboard order and Enter or Space on a row
+   * acts like a click (`<b-table clickable-rows>`, TASK-978). The base pages answer it: a split page always (a row
+   * opens its detail), a list page when it overrides `onRowClick`. Override only for a page that wires `row-click`
+   * itself.
+   */
+  protected get clickableRows(): boolean { return false; }
+
   /** Default page size for the data table. */
   protected declare pageSize?: number;
 
@@ -617,6 +625,7 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
       flatArray: this.flatArray,
       rowActions: rowActions.length ? rowActions : undefined,
       idField: this.idField,
+      clickableRows: this.clickableRows,
       paginationLabels: this._getPaginationLabels(),
     });
   }

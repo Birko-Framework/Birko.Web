@@ -1080,7 +1080,23 @@ Emits: `send` → `{ value }`, `message-click` → `{ message }`
 Client-side data table with sort, row-click, and per-row action buttons.
 Use for local data (detail sub-tables, dashboard, preview). For server-side paginated data, use `b-data-table`.
 
-**Attributes:** `striped`, `hoverable`, `label-no-data`, `loading`
+**Attributes:** `striped`, `hoverable`, `label-no-data`, `loading`, `clickable-rows`
+
+**Opening a row by keyboard (`clickable-rows`).** Set it when `row-click` opens something. The rows then join the
+keyboard order as one tab stop (the row last focused, else the active row, else the first), with a visible focus
+ring. On a focused row:
+
+| Key | Does |
+|---|---|
+| Enter | emits `row-click`, as a click does |
+| Space | the same, or toggles the row's checkbox when it has one (a selectable `b-data-table`) |
+| ↑ / ↓ | previous / next row |
+| Home / End | first / last row |
+
+Keys pressed inside a control in the row (a button, link, input, row menu) stay that control's. A re-render keeps
+focus on the row that had it. Without the attribute rows are not focusable, as a row that opens nothing should not
+be a tab stop (TASK-978). `b-data-table` sets it from `clickableRows`; the Shell's split pages, and list pages that
+override `onRowClick`, turn that on themselves.
 
 **Methods:** `setColumns(columns)`, `setData(data)`, `setIdField(field)`
 
@@ -1167,6 +1183,7 @@ Auto-fetching table with toolbar, search, filters, pagination, bulk actions, and
     { id: 'edit', label: 'Edit' },
     { id: 'delete', label: 'Delete', variant: 'danger' },
   ],
+  clickableRows: true,   // row-click opens something: rows are reachable and opened by keyboard (b-table clickable-rows)
 });
 el.load();
 ```

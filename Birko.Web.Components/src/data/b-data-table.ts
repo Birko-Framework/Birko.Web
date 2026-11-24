@@ -74,6 +74,12 @@ export interface DataTableConfig {
   // Row actions
   rowActions?: RowAction[];
 
+  /**
+   * A row opens something (the page acts on `row-click`): rows join the keyboard order, and Enter or Space on a
+   * focused row emits `row-click` as a click does. See `<b-table clickable-rows>` (TASK-978).
+   */
+  clickableRows?: boolean;
+
   // Labels (i18n)
   paginationLabels?: PaginationLabels;
   labels?: DataTableLabels;
@@ -450,7 +456,7 @@ export class BDataTable extends BaseComponent {
 
     return `
       <div class="data-table${hasBulk ? ' selecting' : ''}">
-        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.labels?.noData ? ` label-no-data="${escapeAttr(this._config.labels.noData)}"` : ''}></b-table>
+        <b-table ${this._loading ? 'loading' : ''} hoverable striped${this._config.clickableRows ? ' clickable-rows' : ''}${this._config.labels?.noData ? ` label-no-data="${escapeAttr(this._config.labels.noData)}"` : ''}></b-table>
         <div class="footer">
           <span></span>
           ${hasBulk ? this._renderBulkBar() : ''}

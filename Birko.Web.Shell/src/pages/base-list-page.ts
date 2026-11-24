@@ -243,6 +243,11 @@ export abstract class BaseListPage<T extends Record<string, unknown>> extends Ba
    */
   protected onRowClick(_id: string, _row: T): void {}
 
+  /** Rows open something exactly when a subclass handles `onRowClick` (TASK-978). */
+  protected override get clickableRows(): boolean {
+    return this.onRowClick !== BaseListPage.prototype.onRowClick;
+  }
+
   /**
    * Called for extra row actions beyond the built-in 'edit' and 'delete'.
    * Default: no-op.
