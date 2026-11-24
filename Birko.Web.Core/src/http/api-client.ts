@@ -30,6 +30,11 @@ export interface ActionMeta {
    * the full contract, including when **not** to set it.
    */
   idPinned?: boolean;
+  /**
+   * Sending this write twice has the same effect as once (its endpoint upserts by the id in the body), so a send
+   * that was interrupted may be sent again. See `ActionMetadata.replaySafe` in `offline/action-queue.ts`.
+   */
+  replaySafe?: boolean;
 }
 
 export interface ApiClientOptions {

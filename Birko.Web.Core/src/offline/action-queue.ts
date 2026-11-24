@@ -46,6 +46,21 @@ export interface ActionMetadata {
    * Irrelevant on `PUT`/`DELETE`, which are addressed by id and idempotent already.
    */
   idPinned?: boolean;
+  /**
+   * Sending this write twice has the same effect as sending it once, so a send that was interrupted may simply be
+   * sent again.
+   *
+   * Set it on a `POST` or `PATCH` whose endpoint **upserts**: the body names its own target (a client-minted id),
+   * and a second arrival overwrites the first. Without it, `SyncManager` makes an interrupted `POST`/`PATCH` `dead`,
+   * because it cannot tell whether the first send was applied and a second could apply it twice. With it, the
+   * interrupted write is put back in line instead.
+   *
+   * Not the same claim as {@link idPinned}, which says what the endpoint's **409** means: an upsert never answers
+   * 409, so it has nothing to pin. **Do not set it** on a write that appends or increments (a counter, a list entry
+   * without its own id, a transfer): re-sending that changes the result. Irrelevant on `PUT`/`DELETE`, which are
+   * re-sent anyway.
+   */
+  replaySafe?: boolean;
 }
 
 export interface SyncResult {
@@ -85,6 +100,7 @@ function tx(db: IDBDatabase, mode: IDBTransactionMode): IDBObjectStore {
 
 export class ActionQueue {
   private _pendingCount = signal(0);
+  private _deadCount = signal(0);
   private _changeListeners = new Set<(count: number) => void>();
   private _dbName: string;
   private _dbVersion: number;
@@ -109,6 +125,13 @@ export class ActionQueue {
    * recovers it (TASK-598).
    */
   get pendingCount(): number { return this._pendingCount.value; }
+
+  /**
+   * Reactive count of `dead` writes: ones `SyncManager` stopped sending, which wait for `retry()` or `discard()`.
+   * Kept apart from {@link pendingCount} because nothing will send them on its own; refreshed with it, and announced
+   * by the same {@link onChange} notification.
+   */
+  get deadCount(): number { return this._deadCount.value; }
 
   /** Add an action to the offline queue. Returns the action ID. */
   async enqueue(action: Omit<QueuedAction, 'id' | 'timestamp' | 'status' | 'retries'>): Promise<string> {
@@ -179,6 +202,7 @@ export class ActionQueue {
     await idbRequest(tx(db, 'readwrite').clear());
     db.close();
     this._pendingCount.value = 0;
+    this._deadCount.value = 0;
     this._notifyChange();
   }
 
@@ -197,6 +221,7 @@ export class ActionQueue {
   private async _refreshCount(): Promise<void> {
     const all = await this.getAll();
     this._pendingCount.value = all.filter(a => a.status === 'pending' || a.status === 'failed' || a.status === 'syncing').length;
+    this._deadCount.value = all.filter(a => a.status === 'dead').length;
     this._notifyChange();
   }
 
