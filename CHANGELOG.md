@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.3 — 2026-11-24
+
+- **`SyncManager`: coming back online sends a write that is backing off** — Birko TASK-973, reported by Reps (its
+  TASK-194). Since v0.1.6 the `online` event's sync skipped a `failed` write until its backoff ran out, so a write
+  queued on a dead network landed up to the backoff plus the 30 s interval after the reconnect (15 min after a long
+  outage). The `online` event now clears `nextAttemptAt` on every `failed` action first; the retry count is kept, a
+  `dead` action stays dead, and a plain `sync()` still honours the schedule.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

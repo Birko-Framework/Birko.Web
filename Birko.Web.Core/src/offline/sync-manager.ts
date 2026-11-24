@@ -96,7 +96,10 @@ export class SyncManager {
   private _intervalId: ReturnType<typeof setInterval> | null = null;
   // Retained so dispose() can unregister it — an inline arrow can't be removed and would keep the
   // disposed SyncManager (and its captured `this`) alive, firing sync() on every reconnect.
-  private _onlineHandler = () => { this.sync(); };
+  // A reconnect makes every backing-off write due now (TASK-973): backoff answers a server that keeps refusing, and
+  // coming back online is new evidence about the network that made the write fail. Retry counts are kept.
+  // If clearing the schedule fails, still sync: the due writes go, as they did before this rule.
+  private _onlineHandler = () => { void this._makeFailedDue().catch(() => undefined).then(() => this.sync()); };
 
   constructor(queue: ActionQueue, api: ApiClient, options: SyncManagerOptions = {}) {
     this._queue = queue;
@@ -325,6 +328,18 @@ export class SyncManager {
     // The opt-out above says this API's 404 on DELETE is something a retry can fix.
     if (action.method === 'DELETE' && status === 404) return 'failed';
     return isUnrecoverable(status) ? 'dead' : 'failed';
+  }
+
+  /** Clear the schedule of every `failed` action, keeping its retry count. A `dead` one stays dead. */
+  private async _makeFailedDue(): Promise<void> {
+    for (const { id } of await this._queue.getAll()) {
+      // Re-read each one just before writing it: a drain already running may have moved it to `syncing`, and writing
+      // back the snapshot would put a write that is in flight back in line to be sent twice.
+      const action = await this._queue.get(id);
+      if (!action || action.status !== 'failed' || action.nextAttemptAt === undefined) continue;
+      action.nextAttemptAt = undefined;
+      await this._queue.update(action);
+    }
   }
 
   /** Record a failed attempt: schedule the next one, or make the action dead. Returns true when it died. */

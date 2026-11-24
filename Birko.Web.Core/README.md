@@ -521,6 +521,11 @@ A `DELETE` answered 404 is *already applied* and drains (`deleteMissingIsApplied
 `entityId` is set): while one write to an entity backs off or is dead, later writes to it wait, and writes to other
 entities go ahead. `pendingCount` counts `pending`, `failed` and `syncing`, not `dead`.
 
+**A reconnect makes a backing-off write due now.** The `online` event clears `nextAttemptAt` on every `failed` action
+before it syncs, so a write that failed while the network was down is sent on the reconnect rather than after its
+backoff and the next interval tick. Its retry count is kept, so a write that fails again backs off from where it was;
+a `dead` action stays dead. A plain `sync()` call, the interval tick included, still honours `nextAttemptAt`.
+
 **A tab closed mid-send** leaves its action `syncing`, and it may or may not have reached the server. The next sync
 recovers it: a `PUT`, a `DELETE` or an `idPinned` `POST` is sent again with its retry count kept (a replay that already
 landed reads as applied); a plain `POST` or a `PATCH` becomes `dead` with *"it may have been applied"*, because
