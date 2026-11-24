@@ -11,6 +11,13 @@ interchangeable for consumers.
   queued on a dead network landed up to the backoff plus the 30 s interval after the reconnect (15 min after a long
   outage). The `online` event now clears `nextAttemptAt` on every `failed` action first; the retry count is kept, a
   `dead` action stays dead, and a plain `sync()` still honours the schedule.
+- **Toasts: a screen reader hears the first toast of a page, once and cleanly** — Birko TASK-976, found with NVDA at
+  TASK-545's test. The toast container was a live region created together with the first toast, so NVDA said nothing
+  for it (an undo-delete, a save, an error: whatever came first after a page load); later toasts were read with their
+  buttons run into the message ("Item deletedUndo ×"). The toast manager now adds two empty, visually hidden live
+  regions before any toast (polite, and assertive for errors), moves them into an open modal dialog, and says each
+  toast there: its message, and for an action toast "… Undo is available." (`bwc.toast.actionAvailable`). The
+  container and the toast are no longer live regions, and the × is hidden from screen readers.
 
 ## v0.5.2 — 2026-11-22
 

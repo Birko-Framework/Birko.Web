@@ -20,6 +20,9 @@
       "error": "Error",
       "pending": "Pending"
     },
+    "toast": {
+      "actionAvailable": "{action} is available."
+    },
     "stat": {
       "up": "increased",
       "down": "decreased",
