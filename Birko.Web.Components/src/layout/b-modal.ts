@@ -3,7 +3,7 @@ import {
   dialogBaseSheet, closeButtonSheet,
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
-import { escapeHtml } from '../dom-utils';
+import { escapeHtml, hideEmptyFooter } from '../dom-utils';
 import { showModal } from '../modal-stack';
 
 export class BModal extends BaseComponent {
@@ -89,6 +89,7 @@ export class BModal extends BaseComponent {
   protected onUpdated() {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     if (!dlg) return;
+    hideEmptyFooter(this.shadowRoot!, (t, ev, h) => this.listen(t, ev, h));
 
     const closeBtn = this.$('.close-btn');
     if (closeBtn) this.listen(closeBtn, 'click', () => this.close());

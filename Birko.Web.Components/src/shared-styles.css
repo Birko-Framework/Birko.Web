@@ -118,6 +118,9 @@ dialog:not([open]) {
 /* @sheet overlayFooter
    Flex footer bar: actions right-aligned, top border. */
 
+/* Nothing slotted: no band, no border (set by hideEmptyFooter, TASK-980). */
+.overlay-footer[hidden] { display: none; }
+
 .overlay-footer {
   padding: var(--b-space-lg, 1rem) var(--b-space-xl, 1.5rem);
   border-top: var(--b-border-width, 1px) solid var(--b-border);

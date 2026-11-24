@@ -3,7 +3,7 @@ import {
   dialogBaseSheet, closeButtonSheet,
   overlayHeaderSheet, overlayBodySheet, overlayFooterSheet,
 } from '../shared-styles';
-import { escapeHtml } from '../dom-utils';
+import { escapeHtml, hideEmptyFooter } from '../dom-utils';
 import { showModal } from '../modal-stack';
 
 export class BDrawer extends BaseComponent {
@@ -58,7 +58,6 @@ export class BDrawer extends BaseComponent {
         dialog { inset: 0; width: auto; }
         .drawer { width: 100% !important; }
       }
-      .overlay-footer:empty { display: none; }
     `;
   }
 
@@ -88,6 +87,7 @@ export class BDrawer extends BaseComponent {
   protected onUpdated() {
     const dlg = this.$<HTMLDialogElement>('#dlg');
     if (!dlg) return;
+    hideEmptyFooter(this.shadowRoot!, (t, ev, h) => this.listen(t, ev, h));
 
     const closeBtn = this.$('.close-btn');
     if (closeBtn) this.listen(closeBtn, 'click', () => this.close());
