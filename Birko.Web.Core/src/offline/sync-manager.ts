@@ -31,6 +31,7 @@ export interface SyncManagerOptions {
   /**
    * Attempts after which a failing action becomes `dead` instead of being retried (default: 10). A response that a
    * retry cannot fix makes it `dead` at once — see {@link SyncManager} for which ones.
+   * `Infinity` means a network error or a retryable status never kills a write; it keeps backing off at `retryMaxMs`.
    */
   maxRetries?: number;
   /**
@@ -73,8 +74,9 @@ const NOTHING: SyncResult = { synced: 0, failed: 0, conflicts: 0, dead: 0 };
  * `metadata.entityId`, or the action's `path` when no `entityId` is declared.
  *
  * An action is stored `syncing` while it is sent. One a closed tab left `syncing` (it may or may not have reached the
- * server) is recovered by the next sync: a PUT, a DELETE or an `idPinned` POST is sent again, keeping its retry count,
- * because a replay that already landed reads as applied; a plain POST or a PATCH becomes `dead`, because sending it
+ * server) is recovered by the next sync: a PUT, a DELETE, an `idPinned` POST or a `replaySafe` POST or PATCH is sent
+ * again, keeping its retry count, because a replay that already landed reads as applied or overwrites itself; any
+ * other POST or PATCH becomes `dead`, because sending it
  * again could apply it twice, and the user decides through {@link retry} / {@link discard}. One tab drains at a time,
  * under a Web Lock; without Web Locks, a `syncing` action is abandoned once it is older than `syncLeaseMs`.
  */
@@ -230,7 +232,9 @@ export class SyncManager {
   private async _recover(action: QueuedAction): Promise<boolean> {
     action.syncingSince = undefined;
     action.nextAttemptAt = undefined;
-    const safe = action.method === 'PUT' || action.method === 'DELETE' || (action.method === 'POST' && !!action.metadata?.idPinned);
+    const safe = action.method === 'PUT' || action.method === 'DELETE'
+      || (action.method === 'POST' && !!action.metadata?.idPinned)
+      || ((action.method === 'POST' || action.method === 'PATCH') && !!action.metadata?.replaySafe);
     if (safe) {
       action.status = 'failed';   // due now, with its retry count
       await this._queue.update(action);

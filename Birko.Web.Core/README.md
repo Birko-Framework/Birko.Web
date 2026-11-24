@@ -520,6 +520,9 @@ A `DELETE` answered 404 is *already applied* and drains (`deleteMissingIsApplied
 `POST` answered 409 likewise. **Order is kept per entity** (`metadata.entityType` + `entityId`, or the `path` when no
 `entityId` is set): while one write to an entity backs off or is dead, later writes to it wait, and writes to other
 entities go ahead. `pendingCount` counts `pending`, `failed` and `syncing`, not `dead`.
+`deadCount` counts the `dead` ones, refreshed with it and announced by the same `onChange`, so a chip can show them
+(`<b-sync-status>` does). `maxRetries: Infinity` means a network error or a retryable status never kills a write: it
+keeps backing off at `retryMaxMs`.
 
 **A reconnect makes a backing-off write due now.** The `online` event clears `nextAttemptAt` on every `failed` action
 before it syncs, so a write that failed while the network was down is sent on the reconnect rather than after its
@@ -527,8 +530,9 @@ backoff and the next interval tick. Its retry count is kept, so a write that fai
 a `dead` action stays dead. A plain `sync()` call, the interval tick included, still honours `nextAttemptAt`.
 
 **A tab closed mid-send** leaves its action `syncing`, and it may or may not have reached the server. The next sync
-recovers it: a `PUT`, a `DELETE` or an `idPinned` `POST` is sent again with its retry count kept (a replay that already
-landed reads as applied); a plain `POST` or a `PATCH` becomes `dead` with *"it may have been applied"*, because
+recovers it: a `PUT`, a `DELETE`, an `idPinned` `POST`, or a `POST` or `PATCH` declaring `replaySafe` (its endpoint
+upserts by the id in the body, so a second arrival overwrites the first) is sent again with its retry count kept; any
+other `POST` or `PATCH` becomes `dead` with *"it may have been applied"*, because
 sending it again could apply it twice, and the user decides through `retry` / `discard`. **One tab drains at a time**:
 `sync()` holds a Web Lock named after the queue, and another tab's `sync()` sends nothing while it is held. Where Web
 Locks is missing (`locks: null`, or a non-secure context), a `syncing` action counts as abandoned once it is older

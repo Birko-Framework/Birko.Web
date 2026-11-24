@@ -19,6 +19,18 @@ interchangeable for consumers.
   toast there: its message, and for an action toast "… Undo is available." (`bwc.toast.actionAvailable`). The
   container and the toast are no longer live regions, and the × is hidden from screen readers.
 
+- **A write the sync layer gave up on is visible, and an interrupted upsert is resent** — Birko TASK-977, asked for by
+  Reps (its TASK-196, FEATURE-001 D19).
+  - `ActionQueue.deadCount` counts `dead` writes, refreshed with `pendingCount` and announced by the same `onChange`.
+  - `<b-sync-status>` shows them beside its offline or syncing state, online or offline: a red button reading "N not saved"
+    (`deadLabel`) that dispatches a bubbling, composed `b-sync-dead` event, for the app to open its own list of them.
+    Before, the chip cleared the moment a write died. `SyncSource.deadCount` is optional, so a source without it binds
+    as before.
+  - `replaySafe` on a queued `POST` or `PATCH` (`ActionMeta` / `ActionMetadata`) says its endpoint upserts, so a send
+    interrupted by a closed tab is put back in line instead of being made `dead`. It is a separate claim from
+    `idPinned`, which is about what a 409 means.
+  - `maxRetries: Infinity` is documented and tested: a network error or a retryable status then never kills a write.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

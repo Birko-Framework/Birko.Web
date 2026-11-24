@@ -1839,6 +1839,24 @@ if (response.fromCache) banner.show(response.cachedAt);
 Attributes: `message`, `hidden`
 Methods: `show(cachedAt: Date | string)`
 
+### b-sync-status
+
+The write outbox's status chip: "Offline · N unsynced" / "Syncing N…", hidden when online with nothing queued. Bind
+it to an `ActionQueue` (or any `SyncSource`: `pendingCount`, optional `deadCount`, `onChange`).
+
+```typescript
+const chip = this.$<BSyncStatus>('#sync');
+chip.bind(queue);
+chip.addEventListener('b-sync-dead', () => openUnsavedList()); // the app's own list: getDead() / retry() / discard()
+```
+
+A write the sync layer gave up on (`deadCount > 0`) adds a red button beside the chip, online or offline, reading
+"N not saved"; it dispatches a bubbling, composed `b-sync-dead` event (`detail: { count }`). The chip keeps saying
+"Offline" or "Syncing" next to it, so a device with writes waiting still says so. Before, the chip cleared the moment a
+write died (TASK-977).
+
+Labels (`{count}` placeholder, set from your i18n): `offlineLabel`, `offlinePendingLabel`, `syncingLabel`, `deadLabel`.
+
 ---
 
 ## Navigation
