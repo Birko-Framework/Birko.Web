@@ -39,6 +39,11 @@ interchangeable for consumers.
   keeps focus on the row. The Shell turns it on for split pages and for list pages that override `onRowClick`, so
   consumers change nothing; rows that open nothing stay out of the tab order.
 
+- **`b-split-panel`: a size change can animate** — Birko TASK-979, asked for by DraCode (its TASK-058). An app that
+  set its own column transition lost it when the grid moved into the panel's shadow root. `--b-split-transition`
+  (default `0s`) now animates the columns when the sizes change; a dragged separator is never animated, and
+  `prefers-reduced-motion: reduce` turns it off.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.
