@@ -31,6 +31,14 @@ interchangeable for consumers.
     `idPinned`, which is about what a 409 means.
   - `maxRetries: Infinity` is documented and tested: a network error or a retryable status then never kills a write.
 
+- **Tables: a row can be opened by keyboard** — Birko TASK-978, found at TASK-545's keyboard test on Symbio HR →
+  Positions. `b-table` emitted `row-click` only from a mouse click and its rows were not focusable, so a split page's
+  detail, with its Edit and Delete, was out of a keyboard user's reach. With the new `clickable-rows` attribute
+  (`b-data-table`: `clickableRows`) rows join the keyboard order as one tab stop with a focus ring; Enter or Space opens
+  a row (Space toggles its checkbox in a selectable table), arrows and Home/End move between rows, and a re-render
+  keeps focus on the row. The Shell turns it on for split pages and for list pages that override `onRowClick`, so
+  consumers change nothing; rows that open nothing stay out of the tab order.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

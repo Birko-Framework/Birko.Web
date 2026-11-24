@@ -52,8 +52,19 @@ export interface TableColumn {
   getOptions?: (row: Record<string, unknown>) => TableColumnOption[];
 }
 
+/**
+ * A data table: sortable headers, `row-click` / `action-click` / `sort` events.
+ *
+ * **`clickable-rows`** says a row opens something (`row-click` has a listener that acts on it). The rows then take
+ * part in the keyboard order, as one tab stop with a roving tabindex: the row last focused, else the active row
+ * ({@link setActiveRow}), else the first. On a focused row, **Enter** emits `row-click` exactly as a click does,
+ * and so does **Space**, unless the row holds a checkbox (a selectable `<b-data-table>`), which Space then toggles.
+ * **Up / Down** move between rows and **Home / End** go to the first / last. Keys pressed inside a control in the
+ * row (a button, link, input, row menu) are that control's own. Without the attribute rows stay out of the tab
+ * order, because a focusable row that does nothing is a dead stop (TASK-978).
+ */
 export class BTable extends BaseComponent {
-  static get observedAttributes() { return ['loading', 'empty-text', 'striped', 'hoverable', 'sortable', 'label-no-data']; }
+  static get observedAttributes() { return ['loading', 'empty-text', 'striped', 'hoverable', 'sortable', 'label-no-data', 'clickable-rows']; }
 
   private _columns: TableColumn[] = [];
   private _data: Record<string, unknown>[] = [];
@@ -61,6 +72,8 @@ export class BTable extends BaseComponent {
   private _sortKey: string | null = null;
   private _sortDesc = false;
   private _activeRowId: string | null = null;
+  /** The row that holds the body's tab stop (the one last focused), while it is still shown. */
+  private _focusRowId: string | null = null;
 
   static get styles() {
     return `
@@ -120,6 +133,10 @@ export class BTable extends BaseComponent {
       td.cell-editable { cursor: text; }
       td.cell-editable:hover:not(:has(input, select)) { background: color-mix(in srgb, var(--b-color-primary) 6%, transparent); }
       .cell-val { display: block; min-height: 1em; }
+      /* Rows that open something (TASK-978) */
+      :host([clickable-rows]) tbody tr[data-id] { cursor: pointer; }
+      tbody tr[data-id]:focus { outline: none; }
+      tbody tr[data-id]:focus-visible { outline: 2px solid var(--b-color-primary); outline-offset: -2px; }
     `;
   }
 
@@ -158,6 +175,13 @@ export class BTable extends BaseComponent {
 
     const showSkeleton = loading && sorted.length === 0;
 
+    // The body's one tab stop, when rows open something: the row last focused, else the active row, else the first.
+    let tabStopId: string | null = null;
+    if (this.boolAttr('clickable-rows') && sorted.length > 0) {
+      const ids = sorted.map(r => this._rowId(r));
+      tabStopId = [this._focusRowId, this._activeRowId].find(id => id !== null && ids.includes(id)) ?? ids[0];
+    }
+
     return `
       ${loading && !showSkeleton ? '<div class="loading-bar"></div>' : ''}
       <div class="table-wrap">
@@ -191,9 +215,10 @@ export class BTable extends BaseComponent {
               : sorted.length === 0
                 ? `<tr><td colspan="${this._columns.length}" class="empty">${emptyText}</td></tr>`
                 : sorted.map(row => {
-                    const rowId = String(this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? ''));
+                    const rowId = this._rowId(row);
                     const isActive = this._activeRowId !== null && rowId === this._activeRowId;
-                    return `<tr data-id="${rowId}"${isActive ? ' aria-selected="true"' : ''}>${
+                    const tabindex = tabStopId === null ? '' : ` tabindex="${rowId === tabStopId ? 0 : -1}"`;
+                    return `<tr data-id="${escapeAttr(rowId)}"${isActive ? ' aria-selected="true"' : ''}${tabindex}>${
                     this._columns.map(c => {
                       const val = row[c.key];
                       const rendered = c.render ? c.render(val, row) : this._escape(val);
@@ -244,6 +269,62 @@ export class BTable extends BaseComponent {
         this.emit('row-click', { id: tr.dataset.id });
       });
     });
+
+    if (!this.boolAttr('clickable-rows')) return;
+    const rows = this.$$<HTMLElement>('tbody tr[data-id]');
+    rows.forEach((tr, i) => {
+      this.listen(tr, 'focus', () => this._takeTabStop(tr));
+      this.listen<KeyboardEvent>(tr, 'keydown', (e) => {
+        // A key pressed inside a control in the row is that control's.
+        if (e.target !== tr || e.altKey || e.ctrlKey || e.metaKey) return;
+        let to: HTMLElement | undefined;
+        switch (e.key) {
+          case 'Enter':
+            e.preventDefault();
+            this.emit('row-click', { id: tr.dataset.id });
+            return;
+          case ' ': {
+            e.preventDefault();
+            const check = tr.querySelector<HTMLInputElement>('input[type="checkbox"]');
+            if (check) check.click();
+            else this.emit('row-click', { id: tr.dataset.id });
+            return;
+          }
+          case 'ArrowDown': to = rows[i + 1]; break;
+          case 'ArrowUp': to = rows[i - 1]; break;
+          case 'Home': to = rows[0]; break;
+          case 'End': to = rows[rows.length - 1]; break;
+          default: return;
+        }
+        e.preventDefault();
+        if (to) { this._takeTabStop(to); to.focus(); }
+      });
+    });
+
+    // A re-render (new data, a sort) may replace the focused row: put focus back on the row holding the tab stop.
+    if (this._refocusRow) {
+      this._refocusRow = false;
+      this.$<HTMLElement>('tbody tr[tabindex="0"]')?.focus();
+    }
+  }
+
+  /** Set when focus was on a row as a re-render started, so {@link onUpdated} can put it back. */
+  private _refocusRow = false;
+
+  override update(): void {
+    const focused = this.shadowRoot?.activeElement;
+    this._refocusRow = !!focused && (focused as Element).matches?.('tbody tr[data-id]');
+    super.update();
+  }
+
+  /** Make `tr` the body's one tab stop. */
+  private _takeTabStop(tr: HTMLElement): void {
+    this._focusRowId = tr.dataset.id ?? null;
+    this.$$<HTMLElement>('tbody tr[data-id]').forEach(r => r.setAttribute('tabindex', r === tr ? '0' : '-1'));
+  }
+
+  private _rowId(row: Record<string, unknown>): string {
+    return String(this._idField ? (row[this._idField] ?? '') : (row['id'] ?? row['guid'] ?? ''));
   }
 
   private _escape(val: unknown): string {

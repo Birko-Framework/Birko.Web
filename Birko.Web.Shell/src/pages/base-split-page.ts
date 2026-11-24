@@ -156,6 +156,9 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
   // ── Optional — override to customise ─────────────────────────────────────
 
+  /** A row opens its detail, so rows are reachable and openable by keyboard (TASK-978). */
+  protected override get clickableRows(): boolean { return true; }
+
   /** Master panel CSS width. Default: `'2fr'`. */
   protected masterWidth = '2fr';
 
