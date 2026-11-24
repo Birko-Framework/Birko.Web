@@ -43,6 +43,9 @@ interchangeable for consumers.
   set its own column transition lost it when the grid moved into the panel's shadow root. `--b-split-transition`
   (default `0s`) now animates the columns when the sizes change; a dragged separator is never animated, and
   `prefers-reduced-motion: reduce` turns it off.
+  Also fixed, found by DraCode testing it: with a flexible master and a fixed-length detail (a side panel), dragging
+  the separator moved only the master, so the detail kept its width and an empty strip opened beside it until the
+  drop (since TASK-525). The separator and the arrow keys now resize the fixed-length column.
 
 ## v0.5.2 — 2026-11-22
 

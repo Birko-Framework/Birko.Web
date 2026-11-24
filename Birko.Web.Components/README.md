@@ -1016,6 +1016,10 @@ Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail
 animation. A pointer drag of the separator is never animated, so the column follows the pointer, and
 `prefers-reduced-motion: reduce` turns it off (TASK-979).
 
+The separator resizes the column with the fixed length: with `master-width="1fr"` and a fixed `detail-width`
+(a side panel), dragging or the arrow keys change the detail's width and the master keeps filling, and
+`split-resize` reports `{ master: '1fr', detail: 'Npx' }`. Otherwise they change the master's width.
+
 ```css
 b-split-panel.workspace { --b-split-transition: 150ms ease; }
 ```

@@ -148,7 +148,7 @@ export class BSplitPanel extends BaseComponent {
 
     const limits = () => {
       const total = split.getBoundingClientRect().width;
-      return { min: MIN_COLUMN_PX, max: Math.max(MIN_COLUMN_PX, total - MIN_COLUMN_PX) };
+      return { min: MIN_COLUMN_PX, max: Math.max(MIN_COLUMN_PX, total - this._gapPx(split) - MIN_COLUMN_PX) };
     };
     const clamp = (px: number) => { const { min, max } = limits(); return Math.round(Math.min(max, Math.max(min, px))); };
     const describe = (px: number) => {
@@ -173,8 +173,10 @@ export class BSplitPanel extends BaseComponent {
     this.listen(handle, 'pointermove', (e: Event) => {
       if (!start) return;
       const px = clamp(start.width + (e as PointerEvent).clientX - start.x);
-      // Live feedback without a re-render: only the variable moves until the drag ends.
-      split.style.setProperty('--_master-w', `${px}px`);
+      // Live feedback without a re-render: only the variable moves until the drag ends. It is the fixed-length
+      // column's: moving the other would leave the fixed one at its size and open a strip beside it (TASK-979).
+      if (this._resizesDetail()) split.style.setProperty('--_detail-w', `${this._detailFor(split, px)}px`);
+      else split.style.setProperty('--_master-w', `${px}px`);
       describe(px);
     });
     const end = (e: Event) => {
@@ -201,15 +203,35 @@ export class BSplitPanel extends BaseComponent {
     });
   }
 
-  /** Applies a master width chosen by the user: sets it, saves it under `persist-key`, emits `split-resize`. */
+  /**
+   * Applies a master width chosen by the user: sets it, saves it under `persist-key`, emits `split-resize`.
+   * When the master is flexible (`fr`) and the detail is a fixed length, the detail is the column that changes:
+   * the master keeps filling, so the panel stays full and the sizes keep the shape the app chose (TASK-979).
+   */
   private _commit(px: number): void {
-    this.setAttribute('master-width', `${px}px`);
+    const split = this.$<HTMLElement>('.split');
+    if (split && this._resizesDetail()) this.setAttribute('detail-width', `${this._detailFor(split, px)}px`);
+    else this.setAttribute('master-width', `${px}px`);
     const sizes = this.sizes;
     const key = this.attr('persist-key');
     if (key) {
       try { localStorage.setItem(storageKey(key), JSON.stringify(sizes)); } catch { /* storage full or blocked */ }
     }
     this.emit('split-resize', { sizes });
+  }
+
+  /** Whether a resize changes the detail column: the master is flexible (`fr`) and the detail is a fixed length. */
+  private _resizesDetail(): boolean {
+    return /fr$/.test(this.attr('master-width', '18rem').trim()) && !/fr$/.test(this.attr('detail-width', '1fr').trim());
+  }
+
+  /** The detail width that leaves the master `masterPx` wide. */
+  private _detailFor(split: HTMLElement, masterPx: number): number {
+    return Math.max(MIN_COLUMN_PX, Math.round(split.getBoundingClientRect().width - this._gapPx(split) - masterPx));
+  }
+
+  private _gapPx(split: HTMLElement): number {
+    return parseFloat(getComputedStyle(split).columnGap) || 0;
   }
 
   /** Restores sizes saved under `persist-key`. A stored value that is not a CSS length is ignored. */
