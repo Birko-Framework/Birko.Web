@@ -1,4 +1,4 @@
-import { BaseComponent, define, escapeHtml } from 'birko-web-core';
+import { BaseComponent, define, escapeHtml, t } from 'birko-web-core';
 import { onModalChange, topModal } from '../modal-stack';
 
 export type ToastVariant = 'success' | 'error' | 'warning' | 'info';
@@ -37,6 +37,17 @@ export interface ToastConfig {
   bottomOffset?: string;
 }
 
+/** How long the announcer stays empty before a message is written into it, so the change is heard as one. */
+const ANNOUNCE_DELAY_MS = 100;
+/** The same, after the announcer has just moved (into or out of a modal), so it is in the tree before its text. */
+const ANNOUNCE_MOVED_DELAY_MS = 250;
+
+/** Visually hidden, still read by screen readers. */
+const SR_ONLY = {
+  position: 'fixed', width: '1px', height: '1px', margin: '-1px', padding: '0', border: '0', overflow: 'hidden',
+  clip: 'rect(0 0 0 0)', clipPath: 'inset(50%)', whiteSpace: 'nowrap',
+};
+
 /** Global toast manager — call toast.show() / toast.notify() from anywhere. */
 class ToastManager {
   private _containers = new Map<string, HTMLElement>();
@@ -44,10 +55,73 @@ class ToastManager {
   private _systemPosition: ToastPosition = 'bottom-right';
   private _notifyPosition: ToastPosition = 'top-right';
   private _bottomOffset = '2.75rem';
+  /**
+   * What screen readers hear (TASK-976): two empty live regions, polite and assertive, made before the first toast.
+   * A live region that arrives together with its text is not announced (NVDA said nothing for the first toast of a
+   * page, measured), and the toast itself holds buttons whose text ran into the message ("Item deletedUndo ×").
+   */
+  private _announcers: { polite: HTMLElement; assertive: HTMLElement } | null = null;
 
   constructor() {
     // A modal opening or closing moves the shown toasts too, so none is left behind a dialog or shut inside one.
-    onModalChange(() => this._containers.forEach(c => this._home(c)));
+    onModalChange(() => {
+      this._containers.forEach(c => this._home(c));
+      if (this._announcers) Object.values(this._announcers).forEach(a => this._homeAnnouncer(a));
+    });
+    // Ahead of any toast, so the regions are in the page when the first message is written.
+    if (typeof document !== 'undefined') {
+      if (document.body) this._ensureAnnouncers();
+      else document.addEventListener('DOMContentLoaded', () => this._ensureAnnouncers(), { once: true });
+    }
+  }
+
+  private _ensureAnnouncers(): { polite: HTMLElement; assertive: HTMLElement } {
+    if (!this._announcers) {
+      const make = (id: string, role: string, live: string) => {
+        const el = document.createElement('div');
+        el.id = id;
+        el.setAttribute('role', role);
+        el.setAttribute('aria-live', live);
+        el.setAttribute('aria-atomic', 'true');
+        Object.assign(el.style, SR_ONLY);
+        this._homeAnnouncer(el);
+        return el;
+      };
+      this._announcers = {
+        polite: make('b-toast-announce', 'status', 'polite'),
+        assertive: make('b-toast-announce-alert', 'alert', 'assertive'),
+      };
+    }
+    return this._announcers;
+  }
+
+  /**
+   * In the newest modal dialog while one is open, else on <body>: everything outside a modal dialog is inert, and an
+   * inert live region is not read. Returns true when it had to move.
+   */
+  private _homeAnnouncer(el: HTMLElement): boolean {
+    const target = topModal() ?? document.body;
+    if (el.parentElement === target) return false;
+    target.appendChild(el);
+    return true;
+  }
+
+  /** Say `text` once: errors assertively, everything else politely. */
+  private _announce(text: string, assertive: boolean): void {
+    if (!text) return;
+    const announcers = this._ensureAnnouncers();
+    const el = assertive ? announcers.assertive : announcers.polite;
+    const moved = this._homeAnnouncer(el);
+    el.textContent = '';
+    setTimeout(() => { el.textContent = text; }, moved ? ANNOUNCE_MOVED_DELAY_MS : ANNOUNCE_DELAY_MS);
+  }
+
+  /** The message, and for an action toast that its action is available ("Item deleted. Undo is available."). */
+  private _announcement(message: string, action?: ToastAction): string {
+    if (!action) return message;
+    const label = action.label ?? t('bwc.common.undo', undefined, 'Undo');
+    const available = t('bwc.toast.actionAvailable', { action: label }, '{action} is available.');
+    return `${message}${/[.!?…]$/.test(message.trim()) ? ' ' : '. '}${available}`;
   }
 
   /** Configure toast positions. Call once during app boot. */
@@ -66,9 +140,7 @@ class ToastManager {
     if (!container) {
       container = document.createElement('div');
       container.id = id;
-      container.setAttribute('role', 'status');
-      container.setAttribute('aria-live', id === 'b-toast-system' ? 'polite' : 'polite');
-      container.setAttribute('aria-atomic', 'false');
+      // Not a live region: the announcers say each toast once (TASK-976).
 
       // The box and colours are all set, and _place() sets every side, so the UA [popover] sheet (inset 0, auto
       // margin, border, padding, Canvas background) changes nothing when _home() makes this a popover.
@@ -138,6 +210,7 @@ class ToastManager {
     if (action) el.action = action;
     container.appendChild(el);
     el.autoDismiss(durationMs);
+    this._announce(this._announcement(message, action), variant === 'error');
     return el;
   }
 
@@ -270,14 +343,13 @@ export class BToastItem extends BaseComponent {
   render() {
     const icon = this.attr('icon');
     const variant = this.attr('variant', 'info');
-    const role = variant === 'error' ? 'alert' : 'status';
-    const live = variant === 'error' ? 'assertive' : 'polite';
+    // No role or live region here: the toast manager's announcers speak the message (TASK-976).
     return `
-      <div class="toast ${variant}" role="${role}" aria-live="${live}">
+      <div class="toast ${variant}">
         ${icon ? `<span class="icon" aria-hidden="true">${escapeHtml(icon)}</span>` : ''}
         <span class="msg">${escapeHtml(this.attr('message'))}</span>
         ${this.action ? `<button type="button" class="action">${escapeHtml(this.action.label ?? this.label('label-action', 'bwc.common.undo', 'Undo'))}</button>` : ''}
-        <button class="close" aria-label="${this.label('label-dismiss', 'bwc.common.dismiss', 'Dismiss')}">&times;</button>
+        <button class="close" aria-label="${escapeHtml(this.label('label-dismiss', 'bwc.common.dismiss', 'Dismiss'))}"><span aria-hidden="true">&times;</span></button>
       </div>
     `;
   }

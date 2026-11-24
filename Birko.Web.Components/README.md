@@ -1758,7 +1758,7 @@ toast.notify('Door sensor triggered', {
   duration: 8000,
 });
 
-// An action beside the message — a real <button>, inside the live region. Clicking it dismisses the toast,
+// An action beside the message — a real <button>. Clicking it dismisses the toast,
 // then runs onClick. The label defaults to "Undo" (bwc.common.undo); a toast with an action lives 10 s by default.
 const item = toast.show('Invoice archived', 'success', undefined, {
   action: { onClick: () => api.post(`api/invoices/${id}/unarchive`) },
@@ -1769,6 +1769,12 @@ item.focusAction(); // only when the control that had focus is gone (e.g. its ro
 The message and `icon` are **text**: markup in them is shown, never parsed, so a server error or a user-supplied
 name is safe to pass (TASK-597). `icon` is a glyph (an emoji or a character). No toast disappears while it is hovered or holds focus; when the pointer or focus leaves, it gets what was left of
 its time, never less than 1 s. `show()` and `notify()` return the `<b-toast-item>`.
+
+**What a screen reader hears.** Each toast is said once, through two visually hidden live regions the toast manager
+adds to the page before any toast (`#b-toast-announce`, polite; `#b-toast-announce-alert`, assertive, for errors),
+and moves into an open modal dialog. It says the message; for a toast with an action, also that the action is
+available: "Item deleted. Undo is available." (`bwc.toast.actionAvailable`). The toast itself is not a live region,
+so its buttons are never read into the message (TASK-976).
 
 **An Undo action must really undo.** Offer it only where the operation can be reversed on the server (a soft delete,
 an archive). For a whole CRUD page, use the Shell's `deleteMode: 'undo'` rather than wiring this by hand.
