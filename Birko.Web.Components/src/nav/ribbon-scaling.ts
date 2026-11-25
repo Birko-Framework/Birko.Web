@@ -26,7 +26,12 @@ const rank = (size: RibbonGroupSize): number => RIBBON_SIZE_LADDER.indexOf(size)
 
 /** What the degrade pass needs to know about one group. Mirrors C# `RibbonGroupMetrics`. */
 export interface RibbonGroupMetrics {
-  /** Rendered width at each variant. A variant absent from the map is treated as unmeasured. */
+  /**
+   * Rendered width at each variant. A variant absent from the map is read as the nearest roomier one measured. With
+   * per-item sizes (TASK-121, FEATURE-015 D14) the key is still the group's step and the width is that of the step's
+   * resolved layout (`ribbonItemSizes`), so a group still has at most four widths and the pass is unchanged. Layouts
+   * never get roomier at a tighter step (refused otherwise), which keeps that fallback an over-estimate.
+   */
   widths: Partial<Record<RibbonGroupSize, number>>;
   /** Importance — a **lower** value degrades **first**. */
   scalingPriority?: number;
@@ -159,9 +164,17 @@ export function ribbonItemSizes(
   }
   if (start === 'popup') throw new Error("A group's starting step cannot be popup: the ladder starts groups at large, medium or small.");
 
-  const at: RibbonItemSize = step === 'popup' ? 'large' : step;
-  const declared = group.layouts?.[at];
   const clamp = (r: number) => RIBBON_SIZE_LADDER[Math.min(rank('small'), Math.max(rank('large'), r))] as RibbonItemSize;
-  return group.items.map((item) => declared?.[item.id]
+  const resolve = (at: RibbonItemSize) => group.items.map((item) => group.layouts?.[at]?.[item.id]
     ?? (item.size === undefined ? at : clamp(rank(at) + rank(item.size) - rank(start))));
+  // Monotony (TASK-121): an item is the same size or smaller at each tighter step, so the roomier-fallback in
+  // widthOf stays an over-estimate. The anchor rule is monotone by construction; a declared layout that breaks it is
+  // refused. Mirrors C# RibbonItemSizing.SizesAt.
+  const large = resolve('large'), medium = resolve('medium'), small = resolve('small');
+  group.items.forEach((item, i) => {
+    if (rank(medium[i]) < rank(large[i]) || rank(small[i]) < rank(medium[i]))
+      throw new Error(`Group '${group.label}': item '${item.id}' is ${large[i]}, ${medium[i]}, ${small[i]} at the large, medium and `
+        + 'small steps; an item may only stay the same or get smaller at a tighter step.');
+  });
+  return step === 'medium' ? medium : step === 'small' ? small : large; // large, and popup's flyout
 }
