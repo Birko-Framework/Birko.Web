@@ -9,6 +9,7 @@ import { toast } from 'birko-web-components/feedback';
 import type { BDataTable } from 'birko-web-components/data';
 import { BaseCrudPage } from './base-crud-page.js';
 import { entityUrl } from './endpoint-utils.js';
+import { deepActiveElement, focusFirstIn } from './focus-utils.js';
 import { ContextualRibbonLink, type ContextualRibbon } from './contextual-ribbon.js';
 
 /**
@@ -372,7 +373,10 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     if (table) {
       this.listen(table as unknown as EventTarget, 'row-click', ((e: CustomEvent) => {
         const id = (e.detail?.id ?? e.detail?.row?.[this.idField]) as string | undefined;
-        if (id) this._selectEntity(id);
+        // A row opened from the keyboard (Enter on a focused row, TASK-978) hands focus to the panel it opened
+        // (TASK-992), so the panel's actions are one key away rather than past the pager. A click leaves focus alone.
+        const fromKeyboard = deepActiveElement()?.matches(':focus-visible') === true;
+        if (id) this._selectEntity(id, fromKeyboard);
       }) as EventListener);
 
       this.listen(table as unknown as EventTarget, 'row-action', ((e: CustomEvent) => {
@@ -381,7 +385,17 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
     }
 
     if (closeDetailBtn) {
-      this.listen(closeDetailBtn, 'click', () => this.deselectEntity());
+      this.listen(closeDetailBtn, 'click', () => this._closeDetailToRow());
+    }
+    const card = this.$<HTMLElement>('#detail-card');
+    if (card) {
+      this.listen(card, 'keydown', (e: Event) => {
+        const ke = e as KeyboardEvent;
+        // Only an Escape nothing inside the panel used (an open menu or picker closes itself first).
+        if (ke.key !== 'Escape' || ke.defaultPrevented || card.hidden) return;
+        ke.preventDefault();
+        this._closeDetailToRow();
+      });
     }
     // Detail-panel edit/delete buttons are owned and wired by _selectEntity — they
     // only exist after a row is selected (created via innerHTML there) and are
@@ -390,7 +404,18 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
   // ── Detail selection ──────────────────────────────────────────────────────
 
-  private async _selectEntity(id: string): Promise<void> {
+  /**
+   * Close the detail panel and put focus back on the row it showed (TASK-992), so closing never drops focus to
+   * <body>: the close button that had it is hidden with the panel. The row takes focus when the table's rows are
+   * focusable (clickable rows, TASK-978), else the table's tab-stop row.
+   */
+  private _closeDetailToRow(): void {
+    const id = this._selectedId;
+    this.deselectEntity();
+    if (id) this.$<BDataTable>('#table')?.focusRow(id);
+  }
+
+  private async _selectEntity(id: string, focusDetail = false): Promise<void> {
     const token = ++this._selectToken;
     const resp = await this.api.get<T>(this.detailEndpoint(id));
     // Latest-wins: a newer selection started while this fetch was in flight → discard this stale
@@ -441,6 +466,16 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
     this._ctxRibbon.raise(resp.data, id);
     this.onDetailUpdated(resp.data);
+
+    // Opened from the keyboard: focus the panel's first control (its first link or action), else its close button.
+    // A frame later: b-split-panel reveals its detail column from a MutationObserver, so until then the panel's controls
+    // have no layout and cannot take focus. A newer selection in between wins.
+    if (focusDetail) {
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      if (token !== this._selectToken) return;
+      const detailBody = this.$<HTMLElement>('#detail-body');
+      if (!(detailBody && focusFirstIn(detailBody))) closeBtnFocus(this.$<HTMLElement>('#btn-close-detail'));
+    }
   }
 
   /**
@@ -540,4 +575,9 @@ export abstract class BaseSplitPage<T extends Record<string, unknown>> extends B
 
   /** Handle extra row actions. */
   protected onRowAction(_action: string, _id: string, _row: T): void {}
+}
+
+/** Focus a close button (a `b-button` host does not take focus; its inner <button> does). */
+function closeBtnFocus(btn: HTMLElement | null): boolean {
+  return !!btn && focusFirstIn(btn.shadowRoot ?? btn);
 }

@@ -997,6 +997,11 @@ out); otherwise on the page itself, so Tab carries on from the top of the page. 
 
 Provides a master-detail split-panel page: data table on the left, entity detail on the right. Supports optional create/edit modal and delete confirmation — same CRUD model as BaseListPage but with an integrated detail panel.
 
+**Keyboard (TASK-992).** A row opened from the keyboard (Enter on a focused row) hands focus to the detail panel: its
+first link or action (Edit), else its close button, so the panel is one key away rather than past the table's pager.
+Escape inside the panel, or its close button, closes it and puts focus back on the row. A click opens a row without
+moving focus.
+
 ```typescript
 import { BaseSplitPage } from 'birko-web-shell/pages';
 import { define } from 'birko-web-core';
