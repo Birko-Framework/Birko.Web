@@ -1018,7 +1018,9 @@ animation. A pointer drag of the separator is never animated, so the column foll
 
 The separator resizes the column with the fixed length: with `master-width="1fr"` and a fixed `detail-width`
 (a side panel), dragging or the arrow keys change the detail's width and the master keeps filling, and
-`split-resize` reports `{ master: '1fr', detail: 'Npx' }`. Otherwise they change the master's width.
+`split-resize` reports `{ master: '1fr', detail: '20rem' }`. Otherwise they change the master's width. A drag or a key
+commits the new width in rem (two decimals), the library's unit, so it scales with the reader's font size; a px width
+saved under `persist-key` before still loads.
 
 ```css
 b-split-panel.workspace { --b-split-transition: 150ms ease; }
@@ -1026,8 +1028,8 @@ b-split-panel.workspace { --b-split-transition: 150ms ease; }
 Slots: `master`, `detail`
 
 With `resizable`, a separator (`role="separator"`) between the columns can be dragged, or moved with the arrow keys
-(Shift for 64px steps, Home/End for the limits). Each column stops at its minimum: `master-min` / `detail-min`
-(px, rem or em; default 120px each), during the drag as well, so a drop already respects it (TASK-981). When the
+(1rem steps, Shift for 4rem, Home/End for the limits). Each column stops at its minimum: `master-min` / `detail-min`
+(rem, em or px; default 7.5rem each), during the drag as well, so a drop already respects it (TASK-981). When the
 panel is too narrow for both, the minimum of the column the separator resizes wins and the other gets what is left. Each change
 emits `split-resize` → `{ sizes }`. `persist-key` saves the sizes in localStorage and restores them on mount. `sizes`
 reads `{ master, detail }` and sets them; only CSS lengths are accepted (`320px`, `18rem`, `1fr`), anything else throws.
