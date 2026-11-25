@@ -997,12 +997,13 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     this._afterDelete(id);
 
     const item = toast.show(this.t('bws.common.deleted'), 'success', undefined, {
-      action: { onClick: () => this._restore(id) },
+      // Read at the Undo, before the toast that holds focus is replaced (TASK-989).
+      action: { onClick: () => this._restore(id, deepActiveElement()?.matches(':focus-visible') === true) },
     });
     if (fromKeyboard) item.focusAction();
   }
 
-  private async _restore(id: string): Promise<void> {
+  private async _restore(id: string, fromKeyboard = false): Promise<void> {
     let resp: ApiResponse;
     try {
       resp = await this.restoreDeleted!(id);
@@ -1016,6 +1017,23 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
     }
     toast.success(this.t('bws.common.restored'));
     await this._afterRestore(id);
+    if (fromKeyboard) await this._focusRestored(id);
+  }
+
+  /**
+   * After a keyboard Undo the toast that held focus is gone, so focus would fall to <body> (TASK-989). It goes to the
+   * restored row; if that row is not shown (another page, filtered out) to the table's tab-stop row; if the table has no
+   * focusable rows, or the page has no table, to the page itself, so Tab carries on from the top of the page.
+   */
+  private async _focusRestored(id: string): Promise<void> {
+    const table = this.$<BDataTable>('#table');
+    if (table?.focusRow(id)) return;
+    // The reload may render its rows a frame later.
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    if (table?.focusRow(id)) return;
+    if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '-1');
+    this.style.outline = 'none';
+    this.focus({ preventScroll: true });
   }
 
   /** Hook called after an Undo restored an entity. Default: reload the table. */

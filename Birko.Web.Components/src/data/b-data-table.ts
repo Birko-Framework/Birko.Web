@@ -400,6 +400,16 @@ export class BDataTable extends BaseComponent {
 
   getActiveRow(): string | null { return this._activeRowId; }
 
+  /**
+   * Focus the row whose id is `id` (needs `clickableRows`), else the row holding the table's tab stop (TASK-989).
+   * Returns `false` when neither can take focus: no focusable rows, or nothing rendered yet.
+   */
+  focusRow(id: string): boolean {
+    const table = this.$('b-table') as (HTMLElement & { focusRow?(id: string): boolean; focusTabStop?(): boolean }) | null;
+    if (!table?.focusRow || !table.focusTabStop) return false;
+    return table.focusRow(String(id)) || table.focusTabStop();
+  }
+
   // ── Selection API ──
 
   getSelected(): string[] { return [...this._selected]; }

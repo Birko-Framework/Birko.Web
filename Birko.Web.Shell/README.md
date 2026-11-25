@@ -983,7 +983,10 @@ class DevicesPage extends BaseListPage<Device> {
 
 The row leaves the view, a `bws.common.deleted` toast offers Undo for 10 s, and Undo calls `restoreDeleted`: on
 success a `bws.common.restored` toast and a reload (`_afterRestore(id)`), on failure an error toast and the row
-stays gone. A delete started from the keyboard moves focus to Undo, since its row (and the control) is gone.
+stays gone. A delete started from the keyboard moves focus to Undo, since its row (and the control) is gone. An Undo
+pressed from the keyboard puts focus back after the reload (TASK-989): on the restored row when the table's rows are
+focusable (`clickableRows`); on the table's tab-stop row when the restored one is not shown (another page, filtered
+out); otherwise on the page itself, so Tab carries on from the top of the page. Never on `<body>`.
 
 - `deleteMode: 'undo'` **without** `restoreDeleted` throws when the page connects. There is no fallback to an Undo
   that only redraws the row.

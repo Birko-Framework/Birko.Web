@@ -317,6 +317,26 @@ export class BTable extends BaseComponent {
     super.update();
   }
 
+  /**
+   * Focus the row whose id is `id` and make it the body's tab stop (TASK-989). Rows are focusable only with
+   * `clickable-rows`; returns `false` when no such row is rendered (not on this page, filtered out, or not focusable).
+   */
+  focusRow(id: string): boolean {
+    const tr = this.$$<HTMLElement>('tbody tr[data-id]').find(r => r.dataset.id === id);
+    if (!tr || !tr.hasAttribute('tabindex')) return false;
+    this._takeTabStop(tr);
+    tr.focus();
+    return true;
+  }
+
+  /** Focus the row holding the body's tab stop (TASK-989); `false` when the body has no focusable row. */
+  focusTabStop(): boolean {
+    const tr = this.$<HTMLElement>('tbody tr[tabindex="0"]');
+    if (!tr) return false;
+    tr.focus();
+    return true;
+  }
+
   /** Make `tr` the body's one tab stop. */
   private _takeTabStop(tr: HTMLElement): void {
     this._focusRowId = tr.dataset.id ?? null;

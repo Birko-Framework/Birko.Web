@@ -1099,6 +1099,10 @@ Use for local data (detail sub-tables, dashboard, preview). For server-side pagi
 
 **Attributes:** `striped`, `hoverable`, `label-no-data`, `loading`, `clickable-rows`
 
+**Putting focus on a row (TASK-989).** `focusRow(id)` focuses that row and makes it the tab stop; `focusTabStop()`
+focuses the row holding the tab stop. Both need `clickable-rows` and return `false` when no such row is rendered.
+`b-data-table.focusRow(id)` tries the row, then the tab stop.
+
 **Opening a row by keyboard (`clickable-rows`).** Set it when `row-click` opens something. The rows then join the
 keyboard order as one tab stop (the row last focused, else the active row, else the first), with a visible focus
 ring. On a focused row:
