@@ -4,6 +4,19 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.6 — 2026-11-25
+
+- **Ribbon: per-item sizes in the model** — Birko TASK-120 (FEATURE-015 D13 / D14, decided at TASK-119). A
+  `RibbonItem` may carry `size` (`large` / `medium` / `small`), an anchor kept as an offset from its group's starting
+  step, and a `RibbonGroup` may declare `layouts` per step. `ribbonItemSizes(group, step, start)` in `ribbon-scaling`
+  resolves them, mirroring C# `RibbonItemSizing`. A ribbon that sets neither is unchanged.
+- **Ribbon: mixed command sizes, drawn** — Birko TASK-121 / TASK-122. A mixed group draws its step's resolved layout:
+  a Large command spans the three rows (Word's big Paste beside stacked Cut / Copy / Format Painter), each command
+  looks as its own size, and the ladder measures each step from that layout, so it degrades through Small (Paste
+  Medium, the rest icons) to a lossless Popup. Layouts that make a command bigger at a tighter step are refused, which
+  keeps a missing measurement an over-estimate. ArrowRight from a Large command of a mixed group goes to the top of the
+  next column. Uniform groups render byte-identically.
+
 ## v0.5.5 — 2026-11-25
 
 - **Undo from the keyboard keeps your place** — Birko TASK-989, seen at TASK-545's keyboard test (Playground and

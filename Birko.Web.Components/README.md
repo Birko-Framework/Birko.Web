@@ -1955,6 +1955,17 @@ Attributes: `collapse-shortcut` (default `Ctrl+F1`; `none` turns it off; e.g. `C
 Methods: `setTabs()`, `setContextActions()`, `pin()`, `unpin()`, `toggleRibbon()`, `setPressed(itemId, pressed, tabId?)`, `isPressed(itemId, tabId?)`, `setQuickAccess(items)`, `getQuickAccess()`, `setContextualSets(sets)`, `showContextual(id, { select? })`, `hideContextual(id)`, `isContextualShown(id)`, `setGallerySelection(itemId, choiceId)`, `getGallerySelection(itemId)`, `setFieldValue(itemId, value)`, `getFieldValue(itemId)`
 Emits: `tab-change` → `{ tab }`, `item-click` → `{ tabId?, groupId?, itemId, parentId?, pressed?, source? }`, `pin` → `{ pinned }`, `quick-access-change` → `{ refs }`, `group-launcher` → `{ tabId, groupId }`, `item-change` → `{ tabId, groupId, itemId, value }`
 
+**Mixed command sizes (TASK-120–122, FEATURE-015 D13 / D14).** A command may set `size` (`'large'`, `'medium'` or
+`'small'`): Word's Clipboard is `{ id: 'paste', label: 'Paste', size: 'large' }` beside Cut, Copy and Format Painter, drawn
+as a big Paste spanning the three rows with the rest stacked beside it. The size is an **anchor**: the command keeps its
+offset from where its group starts (`preferred-group-size`, raised by `minSize`) as the group degrades, so at the next
+step Paste is Medium and the rest icons. A group can declare exact layouts per step with `layouts`, e.g.
+`layouts: { small: { paste: 'large' } }` keeps Paste Large one step longer; a layout that makes a command bigger at a
+tighter step is refused. The arrows walk it in visual order (Right from Paste goes to the top of the next column). A
+group that sets neither is drawn exactly as before. `ribbonItemSizes(group, step, start)` (from `nav`) is the one
+resolver, mirrored by C# `RibbonItemSizing` in Birko.Xaml.Core. Inputs and galleries in a mixed group keep their usual
+look.
+
 **Quick Access Toolbar.** `setQuickAccess([{ id: 'save', label: 'Save', icon: '💾' }, …])` shows favourite commands as
 icon buttons in the tab row, before the tabs. `qat-position="above"` puts them on their own row above the tabs and
 `"below"` under the ribbon. Each button emits `item-click` with `source: 'qat'`. A link command (`href`, no `action`),

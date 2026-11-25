@@ -1,4 +1,4 @@
-import type { RibbonGroupSize } from './b-ribbon.js';
+import type { RibbonGroup, RibbonGroupSize, RibbonItemSize } from './b-ribbon.js';
 
 /**
  * Office-style progressive group scaling: choose a variant per group so the row fits the available
@@ -26,7 +26,12 @@ const rank = (size: RibbonGroupSize): number => RIBBON_SIZE_LADDER.indexOf(size)
 
 /** What the degrade pass needs to know about one group. Mirrors C# `RibbonGroupMetrics`. */
 export interface RibbonGroupMetrics {
-  /** Rendered width at each variant. A variant absent from the map is treated as unmeasured. */
+  /**
+   * Rendered width at each variant. A variant absent from the map is read as the nearest roomier one measured. With
+   * per-item sizes (TASK-121, FEATURE-015 D14) the key is still the group's step and the width is that of the step's
+   * resolved layout (`ribbonItemSizes`), so a group still has at most four widths and the pass is unchanged. Layouts
+   * never get roomier at a tighter step (refused otherwise), which keeps that fallback an over-estimate.
+   */
   widths: Partial<Record<RibbonGroupSize, number>>;
   /** Importance — a **lower** value degrades **first**. */
   scalingPriority?: number;
@@ -124,4 +129,52 @@ export function resolveRibbonSizes(
   }
 
   return chosen;
+}
+
+/**
+ * The size of every item of `group` at `step`, in item order, for a group whose ladder starts at `start` (TASK-120,
+ * FEATURE-015 D13 / D14). **A deliberate mirror of `RibbonItemSizing.SizesAt` in
+ * `Birko.Xaml.Core/Ribbon/RibbonItemSizing.cs`**; the playground's `ribbon-scaling-smoke` asserts the C# cases.
+ *
+ * - **Anchor (D13):** an item with a `size` keeps its offset from `start` and moves with the group: at `step` it is
+ *   `step` shifted by that offset, clamped between `large` and `small`. An item with no `size` renders at `step`.
+ * - **Declared layouts (D14):** `group.layouts[step]` overrides the rule for the items it lists.
+ * - At `popup` the flyout holds the items as at `large`, so the `large` sizes are returned.
+ *
+ * Throws on what the model cannot mean: an item or declared size of `popup`, a layout for `popup`, a layout naming an
+ * item the group does not have, a `start` of `popup`. Depends only on its arguments.
+ */
+export function ribbonItemSizes(
+  group: Pick<RibbonGroup, 'label' | 'items' | 'layouts'>,
+  step: RibbonGroupSize,
+  start: RibbonGroupSize,
+): RibbonItemSize[] {
+  for (const item of group.items) {
+    if ((item.size as RibbonGroupSize | undefined) === 'popup')
+      throw new Error(`Ribbon item '${item.id}' in group '${group.label}' cannot be popup: popup is a group step, not an item size.`);
+  }
+  const ids = new Set(group.items.map((i) => i.id));
+  for (const [s, layout] of Object.entries(group.layouts ?? {})) {
+    if (s === 'popup') throw new Error(`Group '${group.label}' declares a layout for popup: the popup flyout shows the large layout.`);
+    for (const [id, size] of Object.entries(layout ?? {})) {
+      if (!ids.has(id)) throw new Error(`Group '${group.label}' declares a ${s} layout for '${id}', which is not one of its items.`);
+      if ((size as RibbonGroupSize) === 'popup')
+        throw new Error(`Group '${group.label}' declares '${id}' as popup at ${s}: popup is a group step, not an item size.`);
+    }
+  }
+  if (start === 'popup') throw new Error("A group's starting step cannot be popup: the ladder starts groups at large, medium or small.");
+
+  const clamp = (r: number) => RIBBON_SIZE_LADDER[Math.min(rank('small'), Math.max(rank('large'), r))] as RibbonItemSize;
+  const resolve = (at: RibbonItemSize) => group.items.map((item) => group.layouts?.[at]?.[item.id]
+    ?? (item.size === undefined ? at : clamp(rank(at) + rank(item.size) - rank(start))));
+  // Monotony (TASK-121): an item is the same size or smaller at each tighter step, so the roomier-fallback in
+  // widthOf stays an over-estimate. The anchor rule is monotone by construction; a declared layout that breaks it is
+  // refused. Mirrors C# RibbonItemSizing.SizesAt.
+  const large = resolve('large'), medium = resolve('medium'), small = resolve('small');
+  group.items.forEach((item, i) => {
+    if (rank(medium[i]) < rank(large[i]) || rank(small[i]) < rank(medium[i]))
+      throw new Error(`Group '${group.label}': item '${item.id}' is ${large[i]}, ${medium[i]}, ${small[i]} at the large, medium and `
+        + 'small steps; an item may only stay the same or get smaller at a tighter step.');
+  });
+  return step === 'medium' ? medium : step === 'small' ? small : large; // large, and popup's flyout
 }

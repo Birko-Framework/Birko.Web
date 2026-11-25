@@ -5,7 +5,7 @@ import type { BTooltip, TooltipContent } from '../layout/b-tooltip.js';
 import '../inputs/b-input.js';
 import '../inputs/b-select.js';
 import type { BSelect } from '../inputs/b-select.js';
-import { resolveRibbonSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
+import { resolveRibbonSizes, ribbonItemSizes, RIBBON_SIZE_LADDER, type RibbonGroupMetrics } from './ribbon-scaling.js';
 import { showModal } from '../modal-stack';
 
 // ── Interfaces ───────────────────────────────────────────────────────────────
@@ -50,7 +50,10 @@ export interface RibbonTab {
  * renders every item as `medium` while the Avalonia `Ribbon` renders every item as `large` — a
  * pre-existing parity gap named here so TASK-099 reconciles it deliberately.
  *
- * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step.
+ * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step. Since TASK-120 it is
+ * a group's **step**; an item may also carry its own `size` (`RibbonItemSize`: large / medium / small, never popup),
+ * an anchor kept as an offset from the group's starting step, and a group may declare `layouts` per step. Both are
+ * resolved by `ribbonItemSizes` in `ribbon-scaling.ts`, mirroring C# `RibbonItemSizing` (FEATURE-015 D13 / D14).
  */
 /** One tile of a gallery: `preview` is a short text or glyph drawn large (Aa, H1); text, never markup. */
 export interface RibbonGalleryItem {
@@ -124,6 +127,9 @@ export interface RibbonContextualSet {
 
 export type RibbonGroupSize = 'large' | 'medium' | 'small' | 'popup';
 
+/** An item's own size (TASK-120): a group step other than `popup`, which only a whole group can be. */
+export type RibbonItemSize = Exclude<RibbonGroupSize, 'popup'>;
+
 export interface RibbonGroup {
   id: string;
   label: string;
@@ -153,6 +159,13 @@ export interface RibbonGroup {
    */
   minSize?: RibbonGroupSize;
   /**
+   * Declared layouts (TASK-120, FEATURE-015 D14): for a step (`large`, `medium` or `small`), the size of each listed
+   * item by `id`. A listed item takes that size at that step; an unlisted one, or any item at a step with no layout,
+   * takes the anchor rule of its `size`. Office's "Paste stays large while the rest shrink" is a layout for the
+   * tighter step. Unset: every step comes from the anchor rule. Mirrors C# `RibbonGroup.Layouts`.
+   */
+  layouts?: Partial<Record<RibbonItemSize, Record<string, RibbonItemSize>>>;
+  /**
    * A small ↘ button at the group's bottom-right corner (Office's dialog launcher), for "more options" the group's
    * commands have no room for. A click emits `group-launcher` with `{ tabId, groupId }`; the app decides what opens.
    * `launcherLabel` names it (tooltip and screen readers); default "More {label} options".
@@ -173,6 +186,12 @@ export interface RibbonItem {
   disabled?: boolean;
   active?: boolean;
   variant?: 'primary' | 'danger';
+  /**
+   * This command's own size (TASK-120, FEATURE-015 D13), an **anchor**: the item keeps its offset from the group's
+   * starting step as the group degrades ("Paste is one step bigger than the rest"). Unset: the item follows its group,
+   * as before. Resolved by `ribbonItemSizes`; mirrors C# `RibbonItem.Size`.
+   */
+  size?: RibbonItemSize;
   /**
    * Options this command opens as a menu. Without `split` the whole button opens it (a menu button, shown with ▾);
    * with `split` the button runs the command and a separate ▾ part opens the menu (Office's "Paste ▾"). A choice
@@ -233,6 +252,9 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
   const a = from.getBoundingClientRect();
   const ax = a.left + a.width / 2;
   const ay = a.top + a.height / 2;
+  // A Large command of a mixed group spans the three rows (TASK-122): sideways from it, measure from its top row, so
+  // Right lands on the top of the next column (Cut beside Paste), as in Office, not on its middle row.
+  const spansRows = (dir === 'left' || dir === 'right') && from.closest('.ribbon-group.mixed .item-large') !== null;
   let best: HTMLElement | null = null;
   let bestScore = Infinity;
   for (const el of stops) {
@@ -240,7 +262,7 @@ function nearestInDirection(from: HTMLElement, stops: HTMLElement[], dir: 'left'
     const b = el.getBoundingClientRect();
     if (b.width === 0 && b.height === 0) continue;
     const dx = b.left + b.width / 2 - ax;
-    const dy = b.top + b.height / 2 - ay;
+    const dy = b.top + b.height / 2 - (spansRows ? a.top + Math.min(a.height, b.height) / 2 : ay);
     let score: number;
     if (dir === 'left' || dir === 'right') {
       // Wholly beyond `from`, not merely centred past it: a wider command BELOW (Copy under Cut) has its centre a
@@ -514,7 +536,7 @@ export class BRibbon extends BaseComponent {
       /* Gap tightens as the row does, mirroring the Avalonia panel's EffectiveGap. Not cosmetic: the gap
          sets the row's hard minimum, so collapsed chunks sitting a full group-gap apart waste exactly the
          width the collapse just bought. The tightest variant present wins, so the popup rule comes last. */
-      .ribbon-panel-inner:has(> .ribbon-group.size-small) { --b-ribbon-gap-now: calc(var(--b-ribbon-group-gap, var(--b-space-lg, 1rem)) * 0.5); }
+      .ribbon-panel-inner:has(> .ribbon-group.size-small), .ribbon-panel-inner:has(> .ribbon-group.mixed[data-step="small"]) { --b-ribbon-gap-now: calc(var(--b-ribbon-group-gap, var(--b-space-lg, 1rem)) * 0.5); }
       .ribbon-panel-inner:has(> .ribbon-group.size-popup) { --b-ribbon-gap-now: calc(var(--b-ribbon-group-gap, var(--b-space-lg, 1rem)) * 0.25); }
 
       /* ── Groups ── */
@@ -579,6 +601,26 @@ export class BRibbon extends BaseComponent {
          command with no accessible name trades "unreachable" for "unnameable". */
       .ribbon-group.size-small .ribbon-item-label { display: none; }
       .ribbon-group.size-small .ribbon-item { padding: var(--b-space-xs, 0.25rem); }
+
+      /* Mixed item sizes (TASK-122, FEATURE-015 D13 / D14): the group renders its step's resolved layout and each
+         command carries its own size, so the group-wide size-* rules are not applied (the group has no size class;
+         its step is data-step). Three equal rows as Medium and Small; a Large command spans them, a column of its own,
+         which is Office's "big Paste beside stacked Cut / Copy / Format Painter". */
+      .ribbon-group.mixed .ribbon-group-items {
+        display: grid; grid-auto-flow: column;
+        grid-template-rows: repeat(3, 1fr);
+        justify-items: start; align-items: stretch;
+      }
+      .ribbon-group.mixed .item-large { grid-row: 1 / -1; }
+      .ribbon-group.mixed .ribbon-item.item-large {
+        flex-direction: column; justify-content: flex-start; gap: var(--b-space-2xs, 0.125rem);
+        min-width: var(--b-ribbon-item-min-width, 3.25rem); text-align: center;
+      }
+      .ribbon-group.mixed .item-large .ribbon-item-icon { font-size: var(--b-ribbon-icon-large); }
+      .ribbon-group.mixed .item-medium .ribbon-item-icon,
+      .ribbon-group.mixed .item-small .ribbon-item-icon { font-size: var(--b-ribbon-icon-small); }
+      .ribbon-group.mixed .item-small .ribbon-item-label { display: none; }
+      .ribbon-group.mixed .ribbon-item.item-small { padding: var(--b-space-xs, 0.25rem); }
 
       /* Popup: the whole group folded into one chunk button whose flyout holds it at Large. Lossless --
          the group keeps its identity AND its position, which is what separates this from a flat
@@ -650,14 +692,16 @@ export class BRibbon extends BaseComponent {
       .ribbon-split-arrow[aria-disabled="true"] { opacity: var(--b-disabled-opacity, 0.5); pointer-events: none; }
       .ribbon-split-arrow-label { display: none; }
       .ribbon-caret { font-size: 0.7em; color: var(--b-text-muted); }
-      .ribbon-group.size-large .ribbon-split, .ribbon-flyout .ribbon-split { flex-direction: column; }
+      .ribbon-group.size-large .ribbon-split, .ribbon-group.mixed .ribbon-split.item-large, .ribbon-flyout .ribbon-split { flex-direction: column; }
       .ribbon-group.size-large .ribbon-split > .ribbon-split-main,
+      .ribbon-group.mixed .ribbon-split.item-large > .ribbon-split-main,
       .ribbon-flyout .ribbon-split > .ribbon-split-main {
         border-radius: var(--b-radius, 0.375rem) var(--b-radius, 0.375rem) 0 0; padding-bottom: 0;
       }
       .ribbon-group.size-large .ribbon-split-main .ribbon-item-label,
+      .ribbon-group.mixed .ribbon-split.item-large .ribbon-split-main .ribbon-item-label,
       .ribbon-flyout .ribbon-split-main .ribbon-item-label { display: none; }
-      .ribbon-group.size-large .ribbon-split-arrow, .ribbon-flyout .ribbon-split-arrow {
+      .ribbon-group.size-large .ribbon-split-arrow, .ribbon-group.mixed .ribbon-split.item-large .ribbon-split-arrow, .ribbon-flyout .ribbon-split-arrow {
         border-left: 0; border-top: var(--b-border-width, 1px) solid transparent;
         border-radius: 0 0 var(--b-radius, 0.375rem) var(--b-radius, 0.375rem);
         padding: var(--b-space-2xs, 0.125rem) var(--b-space-sm, 0.5rem) var(--b-space-xs, 0.25rem);
@@ -665,9 +709,11 @@ export class BRibbon extends BaseComponent {
       }
       .ribbon-group.size-large .ribbon-split:hover > .ribbon-split-arrow,
       .ribbon-group.size-large .ribbon-split:focus-within > .ribbon-split-arrow,
+      .ribbon-group.mixed .ribbon-split.item-large:hover > .ribbon-split-arrow,
+      .ribbon-group.mixed .ribbon-split.item-large:focus-within > .ribbon-split-arrow,
       .ribbon-flyout .ribbon-split:hover > .ribbon-split-arrow,
       .ribbon-flyout .ribbon-split:focus-within > .ribbon-split-arrow { border-top-color: var(--b-border); }
-      .ribbon-group.size-large .ribbon-split-arrow-label, .ribbon-flyout .ribbon-split-arrow-label { display: inline; }
+      .ribbon-group.size-large .ribbon-split-arrow-label, .ribbon-group.mixed .ribbon-split.item-large .ribbon-split-arrow-label, .ribbon-flyout .ribbon-split-arrow-label { display: inline; }
       /* An active split button is active as a whole (TASK-808): both parts take the tint, also on hover, as an active
          plain command does. Stacked, the ▾ part carries the label, so a tint on the main part alone lit only the icon. */
       .ribbon-split.active > .ribbon-split-main, .ribbon-split.active > .ribbon-split-arrow {
@@ -1610,7 +1656,13 @@ export class BRibbon extends BaseComponent {
    * its items at `large` — lossless, and the group keeps its position in the row.
    */
   private _renderGroup(tabId: string, group: RibbonGroup, size: string, compactChunk = false): string {
-    const items = this._renderGroupItems(tabId, group);
+    // A mixed group (TASK-122) draws its step's resolved layout, one size per command; any other group is drawn as it
+    // always was, so a ribbon that sets no item size and no layout renders byte-identically. The flyout of a collapsed
+    // group keeps its Large look either way.
+    const mixed = size !== 'popup' && this._isMixed(group);
+    const items = mixed
+      ? this._renderGroupItems(tabId, group, ribbonItemSizes(group, size as RibbonGroupSize, this._groupStart(group)))
+      : this._renderGroupItems(tabId, group);
 
     if (size === 'popup') {
       // Explicit argument, NEVER this._compactChunks. The measure pass renders through here, and reading the
@@ -1636,7 +1688,7 @@ export class BRibbon extends BaseComponent {
     }
 
     return `
-      <div class="ribbon-group size-${size}${group.launcher ? ' has-launcher' : ''}" role="group" aria-label="${group.label}" data-group="${group.id}">
+      <div class="ribbon-group ${mixed ? 'mixed' : `size-${size}`}${group.launcher ? ' has-launcher' : ''}"${mixed ? ` data-step="${size}"` : ''} role="group" aria-label="${group.label}" data-group="${group.id}">
         <span class="ribbon-group-label">${group.label}</span>
         <div class="ribbon-group-items">${items}</div>
         ${this._renderLauncher(tabId, group)}
@@ -1880,11 +1932,15 @@ export class BRibbon extends BaseComponent {
     this.$<HTMLElement>(`#ribbon-tab-${this.attr('active')}`)?.focus();
   }
 
-  private _renderItem(tabId: string, groupId: string, item: RibbonItem): string {
+  private _renderItem(tabId: string, groupId: string, item: RibbonItem, size?: RibbonGroupSize): string {
     if (item.gallery?.items.length) return this._renderGallery(tabId, groupId, item);
     if (item.field) return this._renderField(tabId, groupId, item);
+    // In a mixed group (TASK-122) the command's own size, as a class on its root: the grid places a Large one across
+    // the three rows, and its look comes from it rather than from the group. Elsewhere nothing is added.
+    const sized = size ? `item-${size}` : '';
     const cls = [
       'ribbon-item',
+      sized,
       item.active ? 'active' : '',
       item.variant ? `variant-${item.variant}` : '',
     ].filter(Boolean).join(' ');
@@ -1917,7 +1973,7 @@ export class BRibbon extends BaseComponent {
       const main = item.href && !item.action
         ? `<a class="${cls} ribbon-split-main" href="${item.href}" ${disabled} ${data} ${named}>${body}</a>`
         : `<button class="${cls} ribbon-split-main" ${disabled} ${data} ${named}>${body}</button>`;
-      return `<span class="ribbon-split${item.active ? ' active' : ''}">`
+      return `<span class="ribbon-split${sized ? ` ${sized}` : ''}${item.active ? ' active' : ''}">`
         + main
         + `<button class="ribbon-split-arrow" ${disabled} data-tab="${tabId}" data-group="${groupId}" data-arrow="${item.id}" ${trigger} aria-label="${escapeAttr(more)}">`
         + `<span class="ribbon-split-arrow-label" aria-hidden="true">${item.label}</span><span class="ribbon-caret" aria-hidden="true">&#9662;</span></button>`
@@ -2475,16 +2531,32 @@ export class BRibbon extends BaseComponent {
    * A group's commands. Consecutive members of one `toggleGroup` are wrapped in a radiogroup with display: contents,
    * so they keep their grid cells (and their place in the arrow-key order) while a screen reader hears a set.
    */
-  private _renderGroupItems(tabId: string, group: RibbonGroup): string {
+  /** Whether a group uses per-item sizes or declared layouts (TASK-122); only such a group is drawn as mixed. */
+  private _isMixed(group: RibbonGroup): boolean {
+    return group.items.some((i) => i.size !== undefined) || Object.keys(group.layouts ?? {}).length > 0;
+  }
+
+  /**
+   * The step the ladder starts `group` at: the ribbon's preferred step, made roomier by the group's floor, exactly as
+   * resolveRibbonSizes starts it. An item's anchored size is an offset from this (FEATURE-015 D13).
+   */
+  private _groupStart(group: RibbonGroup): RibbonGroupSize {
+    const preferred = (this.attr('preferred-group-size') || 'medium') as RibbonGroupSize;
+    const floor = group.minSize ?? 'popup';
+    const start = RIBBON_SIZE_LADDER.indexOf(floor) < RIBBON_SIZE_LADDER.indexOf(preferred) ? floor : preferred;
+    return start === 'popup' ? 'small' : start;
+  }
+
+  private _renderGroupItems(tabId: string, group: RibbonGroup, sizes?: RibbonGroupSize[]): string {
     let out = '';
     let i = 0;
     while (i < group.items.length) {
       const set = group.items[i].toggleGroup;
-      if (!set || group.items[i].menu?.length) { out += this._renderItem(tabId, group.id, group.items[i]); i++; continue; }
+      if (!set || group.items[i].menu?.length) { out += this._renderItem(tabId, group.id, group.items[i], sizes?.[i]); i++; continue; }
       let j = i;
       let members = '';
       while (j < group.items.length && group.items[j].toggleGroup === set && !group.items[j].menu?.length) {
-        members += this._renderItem(tabId, group.id, group.items[j]); j++;
+        members += this._renderItem(tabId, group.id, group.items[j], sizes?.[j]); j++;
       }
       out += `<span class="ribbon-radiogroup" role="radiogroup" aria-label="${escapeAttr(group.label)}">${members}</span>`;
       i = j;
