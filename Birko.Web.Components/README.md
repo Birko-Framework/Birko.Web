@@ -2119,6 +2119,30 @@ retune it. Shared ones (`--b-space-*`, `--b-text-*`, `--b-border-width*`, `--b-r
 the `@media` breakpoints (a media query cannot read a custom property), `em` sizes that scale with their own text,
 and the 92vw cap that keeps a flyout on a phone screen.
 
+**`--b-ribbon-panel-height` is a ceiling, so size it for the tallest step the ribbon can reach** (TASK-123). The panel is
+as tall as what it shows, up to this token; anything taller is cut off. The ribbon changes step as the window narrows, so
+the number that matters is the tallest group at **any** step it can reach (from where it starts a group, the preferred
+size raised by `minSize`, down to `popup`), plus the panel's padding. The step it shows at your width does not count.
+With mixed command sizes the tallest column depends on the step, so do not work it out by hand: the ribbon measures it.
+`ribbon.requiredPanelHeight` is the open tab's number in px (`null` before the first measurement), and the ribbon logs
+one `console.warn` when the token is below it.
+
+Worked example, the Playground's Word-style Clipboard (a `large` Paste beside Cut / Copy / Format Painter) at the
+default tokens:
+
+| Step | Clipboard | Panel needs (+ 7px padding top and bottom) |
+|---|---|---|
+| `large` | one row, 71px | 85px |
+| `medium` | Paste spans three rows beside the other three stacked, 98px | 112px |
+| `small` | Paste `medium`, the rest icons in three rows, 98px | 112px |
+| `popup` | one button | never the tallest |
+
+So the token must be at least 112px (the default is), even for a ribbon whose `preferred-group-size` is `large`: at a
+wide window it shows an 85px panel, yet once it narrows to `medium` it needs 112px. Symbio shipped exactly that (its
+TASK-306: fine at 1600px, two links cut off at 1024px). Check `requiredPanelHeight` on your tallest tab rather than
+looking at one comfortable width. The Avalonia `Ribbon` has no ceiling (its panel is as tall as the tallest group it
+picked), so it cannot clip and has no such property.
+
 ### b-tree-menu
 
 Hierarchical tree menu with unlimited nesting depth, expand/collapse, keyboard navigation, and guide lines.

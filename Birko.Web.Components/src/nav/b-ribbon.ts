@@ -46,9 +46,9 @@ export interface RibbonTab {
  * - `popup`  — the whole group collapses to one button (group icon + label + ▾) whose flyout holds
  *              its items at `large`. Lossless: the group keeps its identity and its position.
  *
- * **Neither skin renders all four yet** — TASK-099/TASK-100 build them. As of TASK-098 `b-ribbon`
- * renders every item as `medium` while the Avalonia `Ribbon` renders every item as `large` — a
- * pre-existing parity gap named here so TASK-099 reconciles it deliberately.
+ * Both skins render all four (TASK-099 / TASK-100) and both start a group at `medium` (`preferred-group-size` here,
+ * `PreferredGroupSize` on the Avalonia `Ribbon`). An app that starts at `large` (Symbio does) is choosing a look, not
+ * fixing a parity gap; there is none left.
  *
  * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step. Since TASK-120 it is
  * a group's **step**; an item may also carry its own `size` (`RibbonItemSize`: large / medium / small, never popup),
@@ -3144,6 +3144,7 @@ export class BRibbon extends BaseComponent {
     probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;left:-9999px;top:0;';
     track.appendChild(probe);
 
+    let tallest = 0; // the tallest group at any step it can reach (TASK-123)
     const metrics: RibbonGroupMetrics[] = tab.groups.map(group => {
       const widths: RibbonGroupMetrics['widths'] = {};
       for (const size of RIBBON_SIZE_LADDER) {
@@ -3151,7 +3152,12 @@ export class BRibbon extends BaseComponent {
         // measurement stays independent of whether the row is currently compact.
         probe.innerHTML = this._renderGroup(tab.id, group, size, false);
         const measured = probe.firstElementChild as HTMLElement | null;
-        widths[size] = measured ? measured.getBoundingClientRect().width : 0;
+        const box = measured?.getBoundingClientRect();
+        widths[size] = box ? box.width : 0;
+        // Only steps the ladder can REACH: from where it starts the group (preferred, raised by minSize) down. A floor
+        // only ever gives way tighter, so nothing roomier than the start is ever drawn.
+        if (RIBBON_SIZE_LADDER.indexOf(size) >= RIBBON_SIZE_LADDER.indexOf(this._groupStart(group)))
+          tallest = Math.max(tallest, box ? box.height : 0);
       }
       return { widths, scalingPriority: group.scalingPriority ?? 0, minSize: group.minSize ?? 'popup' };
     });
@@ -3162,6 +3168,11 @@ export class BRibbon extends BaseComponent {
     probe.innerHTML = '';
     probe.style.width = 'var(--b-ribbon-group-gap, var(--b-space-lg, 1rem))';
     const tokenGap = probe.getBoundingClientRect().width;
+    // The panel's ceiling, read from the token rather than from the panel: its max-height animates (opening, a token
+    // change), and a value read mid-animation warned about a ceiling nobody set (measured: 101px of 112px).
+    probe.style.width = '';
+    probe.style.height = 'var(--b-ribbon-panel-height, 8rem)';
+    const panelCeiling = probe.getBoundingClientRect().height;
     probe.remove();
 
     // The FULL token gap, not the live computed one: the rendered gap tightens once groups collapse, and
@@ -3173,6 +3184,7 @@ export class BRibbon extends BaseComponent {
     // untidy. Charged to the gap rather than deducted from the available width, since that is where the cost lives.
     const ROUNDING_SLACK = 3;
     const gap = (tokenGap || parseFloat(getComputedStyle(track).columnGap || '0') || 0) + ROUNDING_SLACK;
+    this._checkPanelHeight(track, tallest, panelCeiling);
     const preferred = (this.attr('preferred-group-size') || 'medium') as never;
     const next = resolveRibbonSizes(metrics, available, preferred, gap);
 
@@ -3191,6 +3203,36 @@ export class BRibbon extends BaseComponent {
     this._compactChunks = compact;
     this._measuring = true;
     try { this._showTabContent(tab.id); } finally { this._measuring = false; }
+  }
+
+  /**
+   * The panel height the open tab can need (TASK-123): its tallest group at ANY step the ladder can reach, plus the
+   * panel's padding, in px. `--b-ribbon-panel-height` is a ceiling on the panel, so it has to be at least this, or a
+   * group is cut off at some width even though it fits at the width you looked at (Symbio TASK-306: perfect at 1600px,
+   * two links clipped at 1024px). With mixed command sizes the tallest column depends on the step, which is why this is
+   * measured, not derived by hand. `null` until the open tab has been measured.
+   */
+  get requiredPanelHeight(): number | null { return this._requiredPanelHeight; }
+  private _requiredPanelHeight: number | null = null;
+  private _warnedPanelHeight = '';
+
+  /**
+   * Record the required panel height, and warn once per (needed, ceiling) pair when the ceiling is below it (TASK-123).
+   * `ceiling` is the token's resolved value, not the panel's animated max-height.
+   */
+  private _checkPanelHeight(track: HTMLElement, tallestGroup: number, ceiling: number): void {
+    const panel = track.closest<HTMLElement>('.ribbon-panel');
+    if (!panel) return;
+    const t = getComputedStyle(track);
+    const p = getComputedStyle(panel);
+    let required = tallestGroup + parseFloat(t.paddingTop || '0') + parseFloat(t.paddingBottom || '0');
+    if (p.boxSizing === 'border-box') required += parseFloat(p.borderTopWidth || '0') + parseFloat(p.borderBottomWidth || '0');
+    this._requiredPanelHeight = Math.round(required);
+    const key = `${this._requiredPanelHeight}/${Math.round(ceiling)}`;
+    if (!(ceiling > 0) || ceiling + 0.5 >= required || this._warnedPanelHeight === key) return;
+    this._warnedPanelHeight = key;
+    console.warn(`b-ribbon: --b-ribbon-panel-height is ${Math.round(ceiling)}px, but this tab needs ${this._requiredPanelHeight}px `
+      + '(its tallest group at any width it can reach): a group will be cut off at some width. See requiredPanelHeight.');
   }
 
   /**

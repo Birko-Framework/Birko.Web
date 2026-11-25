@@ -1310,6 +1310,12 @@ variant the ribbon can REACH, not the one it prefers.** `large` is one row (~70p
 degrade to `medium`/`small`, which are three-row grids (~107px). A consumer that sized the token for `large`
 clipped commands as soon as a group degraded. Symbio hit exactly this; guard:
 `tests/ui-e2e/ribbon-clipping-check.spec.ts` in that repo sweeps tabs, token values **and widths**.
+Since TASK-123 the ribbon computes the number itself: `_measureAndScale` already renders every group at every step to get
+its widths, so it also records the tallest group over the steps the ladder can reach (`_groupStart` down; a step roomier
+than that is never shown), adds the panel's padding and exposes it as `requiredPanelHeight`. It warns once per
+(needed, ceiling) pair when the token is lower. The ceiling is read from the token through the probe, **not** from the
+panel's `max-height`, which animates for 300ms on expand; read mid-animation it gave a false warning.
+`ribbon-mixed-check` sweeps 900→200px asserting nothing is cut off, and sets a 60px token to see the warning and the cut.
 
 ### `b-ribbon` scaling: the measurement must not read the applied layout (2026-07-29)
 
