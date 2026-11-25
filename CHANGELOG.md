@@ -52,6 +52,12 @@ interchangeable for consumers.
   `:empty` rule meant to hide it never matched (the footer always holds its slot). Both now hide the footer while
   nothing is slotted and show it when something is (`hideEmptyFooter` in dom-utils).
 
+- **Split panel: a minimum width per column** — Birko TASK-981, asked for by DraCode (its TASK-197). New
+  `master-min` / `detail-min` attributes (px, rem or em; default 120px, the fixed limit until now) stop the separator's
+  drag and arrow keys at a column's minimum, so a drop already respects it and a consumer no longer corrects the width
+  afterwards (which, with `--b-split-transition`, animated). When the panel is too narrow for both minimums, the column
+  the separator resizes keeps its minimum and the other gets what is left.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

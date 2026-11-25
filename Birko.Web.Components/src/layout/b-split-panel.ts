@@ -16,9 +16,14 @@ export interface SplitSizes {
  * A change of sizes can animate: set `--b-split-transition` on the panel (e.g. `150ms ease`; default `0s`, no
  * animation). A pointer drag of the separator is never animated, so it does not lag behind the pointer, and
  * `prefers-reduced-motion: reduce` turns it off (TASK-979).
+ *
+ * `master-min` / `detail-min` (px, rem or em; default 120px each) stop the drag and the keys at a column's minimum,
+ * so a drop already respects it and nothing moves afterwards (TASK-981).
  */
 export class BSplitPanel extends BaseComponent {
-  static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key']; }
+  static get observedAttributes() {
+    return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key', 'master-min', 'detail-min'];
+  }
 
   /** The current sizes (the attributes, or their defaults). */
   get sizes(): SplitSizes {
@@ -146,10 +151,7 @@ export class BSplitPanel extends BaseComponent {
     const master = this.$<HTMLElement>('.master');
     if (!handle || !split || !master) return;
 
-    const limits = () => {
-      const total = split.getBoundingClientRect().width;
-      return { min: MIN_COLUMN_PX, max: Math.max(MIN_COLUMN_PX, total - this._gapPx(split) - MIN_COLUMN_PX) };
-    };
+    const limits = () => this._limits(split);
     const clamp = (px: number) => { const { min, max } = limits(); return Math.round(Math.min(max, Math.max(min, px))); };
     const describe = (px: number) => {
       const { min, max } = limits();
@@ -225,9 +227,32 @@ export class BSplitPanel extends BaseComponent {
     return /fr$/.test(this.attr('master-width', '18rem').trim()) && !/fr$/.test(this.attr('detail-width', '1fr').trim());
   }
 
+  /**
+   * The range the master's width may be dragged or keyed through: from `master-min` to what leaves the detail its
+   * `detail-min` (TASK-981; both default to 120px). When the panel is too narrow for both, the minimum of the column
+   * the separator resizes wins — the detail's when it is the fixed-length one, else the master's — and the other
+   * column gets what is left. Never negative.
+   */
+  private _limits(split: HTMLElement): { min: number; max: number } {
+    const masterMin = this._minPx('master-min');
+    const max = Math.max(0, split.getBoundingClientRect().width - this._gapPx(split) - this._minPx('detail-min'));
+    if (masterMin <= max) return { min: masterMin, max };
+    return this._resizesDetail() ? { min: max, max } : { min: masterMin, max: masterMin };
+  }
+
+  /** `master-min` / `detail-min` in px: a px length or bare number, or rem / em; anything else is the 120px default. */
+  private _minPx(name: 'master-min' | 'detail-min'): number {
+    const m = /^(\d*\.?\d+)(px|rem|em)?$/.exec(this.attr(name, '').trim());
+    if (!m) return MIN_COLUMN_PX;
+    const n = parseFloat(m[1]);
+    if (m[2] === 'rem') return n * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+    if (m[2] === 'em') return n * (parseFloat(getComputedStyle(this).fontSize) || 16);
+    return n;
+  }
+
   /** The detail width that leaves the master `masterPx` wide. */
   private _detailFor(split: HTMLElement, masterPx: number): number {
-    return Math.max(MIN_COLUMN_PX, Math.round(split.getBoundingClientRect().width - this._gapPx(split) - masterPx));
+    return Math.max(0, Math.round(split.getBoundingClientRect().width - this._gapPx(split) - masterPx));
   }
 
   private _gapPx(split: HTMLElement): number {
@@ -297,7 +322,7 @@ export class BSplitPanel extends BaseComponent {
   }
 }
 
-/** The narrowest a column can be dragged to. */
+/** The narrowest a column can be dragged to unless `master-min` / `detail-min` say otherwise. */
 const MIN_COLUMN_PX = 120;
 
 const storageKey = (key: string) => `birko-split:${key}`;

@@ -1009,7 +1009,7 @@ Master-detail split layout with responsive collapse.
 </b-split-panel>
 ```
 
-Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`, `resizable`, `persist-key`, `resize-label`
+Attributes: `master-width`, `detail-width`, `collapse-at`, `gap`, `static-detail`, `resizable`, `persist-key`, `resize-label`, `master-min`, `detail-min`
 
 **Animating a size change.** Set `--b-split-transition` on the panel to animate its columns when `sizes` (or
 `master-width` / `detail-width`) change, e.g. widening a side panel while it has focus. The default is `0s`, no
@@ -1026,7 +1026,9 @@ b-split-panel.workspace { --b-split-transition: 150ms ease; }
 Slots: `master`, `detail`
 
 With `resizable`, a separator (`role="separator"`) between the columns can be dragged, or moved with the arrow keys
-(Shift for 64px steps, Home/End for the limits); the master column stays at least 120px, as does the rest. Each change
+(Shift for 64px steps, Home/End for the limits). Each column stops at its minimum: `master-min` / `detail-min`
+(px, rem or em; default 120px each), during the drag as well, so a drop already respects it (TASK-981). When the
+panel is too narrow for both, the minimum of the column the separator resizes wins and the other gets what is left. Each change
 emits `split-resize` → `{ sizes }`. `persist-key` saves the sizes in localStorage and restores them on mount. `sizes`
 reads `{ master, detail }` and sets them; only CSS lengths are accepted (`320px`, `18rem`, `1fr`), anything else throws.
 
