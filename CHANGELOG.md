@@ -11,6 +11,11 @@ interchangeable for consumers.
   Delete. Opened from the keyboard, the panel now takes focus (its first link or action, else its close button), and
   Escape or the close button puts focus back on the row. A click is unchanged. The shared `focus-utils`
   (`deepActiveElement`, `focusFirstIn`) serves the CRUD and split pages.
+- **Ribbon: the panel height it needs, measured** — Birko TASK-123 (STORY-056). `--b-ribbon-panel-height` is a ceiling,
+  and a group taller than it at some width is cut off, though it looks fine at the width you checked (Symbio's TASK-306).
+  The ribbon now reports `requiredPanelHeight`: the open tab's tallest group at any step it can reach, plus padding,
+  in px. It logs one `console.warn` when the token is lower. README: the rule beside the token, with the Clipboard
+  example worked through. Comments only: the `RibbonGroupSize` note no longer claims the skins differ (TASK-124).
 
 ## v0.5.6 — 2026-11-25
 
