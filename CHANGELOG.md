@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.5 — 2026-11-25
+
+- **Undo from the keyboard keeps your place** — Birko TASK-989, seen at TASK-545's keyboard test (Playground and
+  Symbio). After Enter on a toast's Undo (`deleteMode: 'undo'`), the toast holding focus was replaced and focus fell to
+  `<body>`. It now goes to the restored row (rows focusable with `clickable-rows`), else the table's tab-stop row, else
+  the page itself. New `b-table.focusRow(id)` / `focusTabStop()` and `b-data-table.focusRow(id)`.
+
 ## v0.5.4 — 2026-11-25
 
 - **Carousel and gallery: a slide change always arrives** — Birko TASK-985, found chasing a flaky Playground check. On a
