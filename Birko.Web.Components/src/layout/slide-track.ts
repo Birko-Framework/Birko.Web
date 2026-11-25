@@ -33,8 +33,15 @@ const SETTLE_MS = 150;
  * (TASK-745, measured under the Playground's grid benchmark and locale switches).
  */
 const HAS_SCROLLEND = typeof window !== 'undefined' && 'onscrollend' in window;
-/** How many times a programmatic scroll that the engine ended short of its slide is re-issued before settling there. */
+/** How many times a programmatic scroll that the engine ended short of its slide is re-issued before landing it at once. */
 const MAX_RESUMES = 3;
+/**
+ * How long a smooth programmatic scroll may take before it is finished at once. Measured (TASK-985): on a busy page
+ * Chrome can leave a smooth scroll part-way with no further `scrollend`, so nothing settled it and the carousel kept
+ * the index it was sent to while showing an earlier slide (2 of 20 full Playground runs). A smooth scroll takes well
+ * under this.
+ */
+const WATCHDOG_MS = 1000;
 
 export function prefersReducedMotion(): boolean {
   return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -51,8 +58,28 @@ export class SlideTrack {
    * with no user input since, re-issues the scroll instead.
    */
   private _pending: { index: number; resumes: number } | null = null;
+  private _watchdog: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private readonly o: SlideTrackOptions) {}
+
+  /** Re-arm the watchdog for the pending smooth scroll (TASK-985). */
+  private armWatchdog(): void {
+    if (this._watchdog) clearTimeout(this._watchdog);
+    this._watchdog = setTimeout(() => {
+      this._watchdog = null;
+      const pending = this._pending;
+      if (pending && this.nearestIndex() !== pending.index) this.land(pending.index);
+    }, WATCHDOG_MS);
+  }
+
+  /** Finish a programmatic scroll at once on the slide it was sent to, and settle there. */
+  private land(index: number): void {
+    const slide = this.o.slides()[index];
+    this._pending = null;
+    if (this._watchdog) { clearTimeout(this._watchdog); this._watchdog = null; }
+    if (slide) this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior: 'auto' });
+    this.o.onSettle(index);
+  }
 
   get count(): number { return this.o.slides().length; }
 
@@ -90,6 +117,7 @@ export class SlideTrack {
     if (!slide) return;
     const behavior: ScrollBehavior = smooth && !prefersReducedMotion() ? 'smooth' : 'auto';
     this._pending = behavior === 'smooth' ? { index: i, resumes: 0 } : null;
+    if (this._pending) this.armWatchdog();
     this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior });
     if (behavior === 'auto') this.scheduleSettle(0);
   }
@@ -156,12 +184,19 @@ export class SlideTrack {
       const at = this.nearestIndex();
       const pending = this._pending;
       const slide = pending ? this.o.slides()[pending.index] : undefined;
-      if (pending && slide && at !== pending.index && pending.resumes < MAX_RESUMES) {
-        pending.resumes++;
-        this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+      if (pending && slide && at !== pending.index) {
+        if (pending.resumes < MAX_RESUMES) {
+          pending.resumes++;
+          this.armWatchdog();
+          this.o.viewport.scrollTo({ left: this.offsetOf(slide), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+        } else {
+          // Out of resumes: land on the slide that was asked for rather than settle on one nobody chose (TASK-985).
+          this.land(pending.index);
+        }
         return;
       }
       this._pending = null;
+      if (this._watchdog) { clearTimeout(this._watchdog); this._watchdog = null; }
       this.o.onSettle(at);
     }, ms);
   }
@@ -169,5 +204,7 @@ export class SlideTrack {
   dispose(): void {
     if (this._settleTimer) clearTimeout(this._settleTimer);
     this._settleTimer = null;
+    if (this._watchdog) clearTimeout(this._watchdog);
+    this._watchdog = null;
   }
 }
