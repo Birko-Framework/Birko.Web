@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.4 — 2026-11-25
+
+- **Carousel and gallery: a slide change always arrives** — Birko TASK-985, found chasing a flaky Playground check. On a
+  busy page Chrome could leave a smooth scroll to a slide part-way and never fire `scrollend`, so `b-carousel` kept the
+  index it was sent to while showing an earlier slide (2 of 20 full Playground runs). The shared slide track now finishes
+  a programmatic scroll at once on its slide if it has not arrived within a second, or once its three resumes run out,
+  instead of settling on a slide nobody chose.
+
 ## v0.5.3 — 2026-11-24
 
 - **`SyncManager`: coming back online sends a write that is backing off** — Birko TASK-973, reported by Reps (its
