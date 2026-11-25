@@ -16,9 +16,15 @@ export interface SplitSizes {
  * A change of sizes can animate: set `--b-split-transition` on the panel (e.g. `150ms ease`; default `0s`, no
  * animation). A pointer drag of the separator is never animated, so it does not lag behind the pointer, and
  * `prefers-reduced-motion: reduce` turns it off (TASK-979).
+ *
+ * `master-min` / `detail-min` (rem, em or px; default 7.5rem each) stop the drag and the keys at a column's minimum,
+ * so a drop already respects it and nothing moves afterwards. A drag or a key commits the new width in rem
+ * (`split-resize` → `{ master: '1fr', detail: '20rem' }`), and the arrow keys step 1rem (Shift: 4rem) (TASK-981).
  */
 export class BSplitPanel extends BaseComponent {
-  static get observedAttributes() { return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key']; }
+  static get observedAttributes() {
+    return ['master-width', 'detail-width', 'collapse-at', 'gap', 'resizable', 'persist-key', 'master-min', 'detail-min'];
+  }
 
   /** The current sizes (the attributes, or their defaults). */
   get sizes(): SplitSizes {
@@ -146,10 +152,7 @@ export class BSplitPanel extends BaseComponent {
     const master = this.$<HTMLElement>('.master');
     if (!handle || !split || !master) return;
 
-    const limits = () => {
-      const total = split.getBoundingClientRect().width;
-      return { min: MIN_COLUMN_PX, max: Math.max(MIN_COLUMN_PX, total - this._gapPx(split) - MIN_COLUMN_PX) };
-    };
+    const limits = () => this._limits(split);
     const clamp = (px: number) => { const { min, max } = limits(); return Math.round(Math.min(max, Math.max(min, px))); };
     const describe = (px: number) => {
       const { min, max } = limits();
@@ -193,7 +196,7 @@ export class BSplitPanel extends BaseComponent {
     this.listen(handle, 'keydown', (e: Event) => {
       const ke = e as KeyboardEvent;
       const width = master.getBoundingClientRect().width;
-      const step = ke.shiftKey ? 64 : 16;
+      const step = (ke.shiftKey ? 4 : 1) * rootFontPx();
       const target = ke.key === 'ArrowRight' ? width + step : ke.key === 'ArrowLeft' ? width - step
         : ke.key === 'Home' ? limits().min : ke.key === 'End' ? limits().max : null;
       if (target === null) return;
@@ -207,11 +210,12 @@ export class BSplitPanel extends BaseComponent {
    * Applies a master width chosen by the user: sets it, saves it under `persist-key`, emits `split-resize`.
    * When the master is flexible (`fr`) and the detail is a fixed length, the detail is the column that changes:
    * the master keeps filling, so the panel stays full and the sizes keep the shape the app chose (TASK-979).
+   * The width is committed in rem, the library's unit, so it scales with the reader's font size (TASK-981).
    */
   private _commit(px: number): void {
     const split = this.$<HTMLElement>('.split');
-    if (split && this._resizesDetail()) this.setAttribute('detail-width', `${this._detailFor(split, px)}px`);
-    else this.setAttribute('master-width', `${px}px`);
+    if (split && this._resizesDetail()) this.setAttribute('detail-width', toRem(this._detailFor(split, px)));
+    else this.setAttribute('master-width', toRem(px));
     const sizes = this.sizes;
     const key = this.attr('persist-key');
     if (key) {
@@ -225,9 +229,32 @@ export class BSplitPanel extends BaseComponent {
     return /fr$/.test(this.attr('master-width', '18rem').trim()) && !/fr$/.test(this.attr('detail-width', '1fr').trim());
   }
 
+  /**
+   * The range the master's width may be dragged or keyed through: from `master-min` to what leaves the detail its
+   * `detail-min` (TASK-981; both default to 7.5rem). When the panel is too narrow for both, the minimum of the column
+   * the separator resizes wins — the detail's when it is the fixed-length one, else the master's — and the other
+   * column gets what is left. Never negative.
+   */
+  private _limits(split: HTMLElement): { min: number; max: number } {
+    const masterMin = this._minPx('master-min');
+    const max = Math.max(0, split.getBoundingClientRect().width - this._gapPx(split) - this._minPx('detail-min'));
+    if (masterMin <= max) return { min: masterMin, max };
+    return this._resizesDetail() ? { min: max, max } : { min: masterMin, max: masterMin };
+  }
+
+  /** `master-min` / `detail-min` in px: a rem, em or px length (a bare number is px); anything else is the default. */
+  private _minPx(name: 'master-min' | 'detail-min'): number {
+    const m = /^(\d*\.?\d+)(px|rem|em)?$/.exec(this.attr(name, '').trim());
+    if (!m) return MIN_COLUMN_REM * rootFontPx();
+    const n = parseFloat(m[1]);
+    if (m[2] === 'rem') return n * rootFontPx();
+    if (m[2] === 'em') return n * (parseFloat(getComputedStyle(this).fontSize) || 16);
+    return n;
+  }
+
   /** The detail width that leaves the master `masterPx` wide. */
   private _detailFor(split: HTMLElement, masterPx: number): number {
-    return Math.max(MIN_COLUMN_PX, Math.round(split.getBoundingClientRect().width - this._gapPx(split) - masterPx));
+    return Math.max(0, Math.round(split.getBoundingClientRect().width - this._gapPx(split) - masterPx));
   }
 
   private _gapPx(split: HTMLElement): number {
@@ -297,8 +324,14 @@ export class BSplitPanel extends BaseComponent {
   }
 }
 
-/** The narrowest a column can be dragged to. */
-const MIN_COLUMN_PX = 120;
+/** The narrowest a column can be dragged to unless `master-min` / `detail-min` say otherwise (120px at 16px). */
+const MIN_COLUMN_REM = 7.5;
+
+/** The root font size in px: what one rem is now. */
+const rootFontPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+
+/** A px width as a rem length, to two decimals (`20rem`, `21.43rem`). */
+const toRem = (px: number) => `${Number((px / rootFontPx()).toFixed(2))}rem`;
 
 const storageKey = (key: string) => `birko-split:${key}`;
 
