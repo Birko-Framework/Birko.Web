@@ -2229,6 +2229,7 @@ For shell chrome (ribbon/header/footer) the shell renders for you, use the `head
 | Data table | `--b-table-header-bg`, `--b-table-header-text`, `--b-table-header-text-hover`, `--b-row-hover-bg` (hoverable rows), `--b-table-row-height` (uniform header+body band height; defaults to `--b-control-min-height` = 38px) |
 | Card | `--b-card-header-bg`, `--b-card-header-text` (override per instance for an accent header band), `--b-card-shadow` (elevation; defaults to `--b-shadow-sm`, set `none` for a flat card) |
 | Shadows | `--b-shadow-sm` → `--b-shadow-xl` |
+| Focus ring | `--b-focus-ring`, `--b-focus-ring-danger` (a 1px line with a tight glow, around the control); `--b-focus-ring-inset`, `--b-focus-ring-danger-inset` (the same ring drawn inside it, for a control whose outside is clipped or crowded, such as a tab in a bar). Use the inset token rather than `inset var(--b-focus-ring)`: `inset` applies only to the first of the ring's two shadows |
 | Z-index | `--b-z-sticky` (200), `--b-z-dropdown` (220 — overlays sticky bars), `--b-z-modal` (400), `--b-z-toast` (500) |
 
 ---

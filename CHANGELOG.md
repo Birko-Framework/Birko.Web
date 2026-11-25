@@ -12,6 +12,12 @@ interchangeable for consumers.
   a programmatic scroll at once on its slide if it has not arrived within a second, or once its three resumes run out,
   instead of settling on a slide nobody chose.
 
+- **Focus ring: an inset form** — Birko TASK-986, asked for by DraCode. New `--b-focus-ring-inset` and
+  `--b-focus-ring-danger-inset` in every theme draw TASK-983's ring inside the control, line and glow both. Since
+  TASK-983 the ring is two shadows, so `inset var(--b-focus-ring)` put only the line inside and the glow outside, where
+  a tab bar clipped it or it spilled onto the next tab. Nothing in Birko.Web changes; a consumer drawing its ring inside
+  switches to the token.
+
 ## v0.5.3 — 2026-11-24
 
 - **`SyncManager`: coming back online sends a write that is backing off** — Birko TASK-973, reported by Reps (its
