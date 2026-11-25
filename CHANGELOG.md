@@ -52,6 +52,11 @@ interchangeable for consumers.
   `:empty` rule meant to hide it never matched (the footer always holds its slot). Both now hide the footer while
   nothing is slotted and show it when something is (`hideEmptyFooter` in dom-utils).
 
+- **Sync status: the "not saved" button shows where focus is** — Birko TASK-982, reported by Reps. Focused, the
+  button drew only `--b-focus-ring-danger`, a 3px wash at 15% red that on the pink chip was barely different from the
+  unfocused button (1.26:1 against the page in the base theme). It now draws a 2px solid outline in its own text
+  colour, 2px clear of the chip: 4.5–7.9:1 against the chip and the page in every shipped theme.
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

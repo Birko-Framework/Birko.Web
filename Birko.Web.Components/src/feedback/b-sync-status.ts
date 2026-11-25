@@ -93,9 +93,12 @@ export class BSyncStatus extends BaseComponent {
         color: var(--b-color-danger-text, var(--b-color-danger, #dc2626));
         background: var(--b-color-danger-light, rgba(220, 38, 38, 0.12));
       }
+      /* A solid ring in the button's own text colour (TASK-982): the shared --b-focus-ring-danger is a 15% wash that
+         all but vanishes on this pink chip. The text colour already has to read on the chip, so the ring does too, in
+         every theme; the 2px offset keeps it clear of the chip's own border. */
       button.dead:focus-visible {
-        outline: none;
-        box-shadow: var(--b-focus-ring-danger, 0 0 0 3px rgba(220, 38, 38, 0.25));
+        outline: 2px solid currentColor;
+        outline-offset: 2px;
       }
     `;
   }
