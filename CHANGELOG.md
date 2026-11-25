@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.7 — 2026-11-25
+
+- **Split page: an opened row's detail is one key away** — Birko TASK-992, seen by Symbio at TASK-989's test. The
+  detail panel comes after the table's pager in the page, so from a row opened with Enter it took five Tabs to reach
+  Delete. Opened from the keyboard, the panel now takes focus (its first link or action, else its close button), and
+  Escape or the close button puts focus back on the row. A click is unchanged. The shared `focus-utils`
+  (`deepActiveElement`, `focusFirstIn`) serves the CRUD and split pages.
+
 ## v0.5.6 — 2026-11-25
 
 - **Ribbon: per-item sizes in the model** — Birko TASK-120 (FEATURE-015 D13 / D14, decided at TASK-119). A

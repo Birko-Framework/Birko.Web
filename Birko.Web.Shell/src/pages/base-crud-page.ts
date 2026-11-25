@@ -11,6 +11,7 @@ import type { FilterDef } from 'birko-web-components/inputs';
 import { toast } from 'birko-web-components/feedback';
 import { showFormError } from 'birko-web-components/form-utils';
 import { BasePage } from './base-page.js';
+import { deepActiveElement } from './focus-utils.js';
 import { entityUrl } from './endpoint-utils.js';
 
 // ── BaseCrudPage ────────────────────────────────────────────────────────────
@@ -1111,11 +1112,4 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
   protected reload(): Promise<void> {
     return this.$<BDataTable>('#table')?.load() ?? Promise.resolve();
   }
-}
-
-/** The focused element, looking through open shadow roots. */
-function deepActiveElement(): Element | null {
-  let el: Element | null = document.activeElement;
-  while (el?.shadowRoot?.activeElement) el = el.shadowRoot.activeElement;
-  return el;
 }
