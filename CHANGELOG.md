@@ -47,6 +47,11 @@ interchangeable for consumers.
   the separator moved only the master, so the detail kept its width and an empty strip opened beside it until the
   drop (since TASK-525). The separator and the arrow keys now resize the fixed-length column.
 
+- **Modal and drawer: an empty footer takes no space** — Birko TASK-980, reported by Reps (its TASK-196). With nothing
+  in `slot="footer"`, `<b-modal>` still drew the footer's padding and top border under the body, and `<b-drawer>`'s
+  `:empty` rule meant to hide it never matched (the footer always holds its slot). Both now hide the footer while
+  nothing is slotted and show it when something is (`hideEmptyFooter` in dom-utils).
+
 ## v0.5.2 — 2026-11-22
 
 - **`b-kanban`: quieter column headers** — Birko FEATURE-023, asked for by DraCode.

@@ -79,3 +79,22 @@ export function announce(from: Element, text: string, fallback: Element | null):
   }
   if (fallback) fallback.textContent = text;
 }
+
+/**
+ * Hides an overlay's `.overlay-footer` while nothing is slotted into its footer slot, and shows it once something is
+ * (TASK-980). The footer always holds its `<slot>`, so CSS cannot tell it is empty (`:empty` never matches), and an
+ * empty one still drew its padding and top border under the body. `listen` is the component's own, so the
+ * `slotchange` listener is dropped with the render that made it. A footer with no slot (buttons of its own) is left
+ * as it is.
+ */
+export function hideEmptyFooter(
+  root: ParentNode,
+  listen: (target: EventTarget, event: string, handler: (e: Event) => void) => void,
+): void {
+  const footer = root.querySelector<HTMLElement>('.overlay-footer');
+  const slot = footer?.querySelector<HTMLSlotElement>(':scope > slot');
+  if (!footer || !slot) return;
+  const sync = () => footer.toggleAttribute('hidden', slot.assignedElements().length === 0);
+  sync();
+  listen(slot, 'slotchange', sync);
+}
