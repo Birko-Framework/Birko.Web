@@ -52,6 +52,14 @@ interchangeable for consumers.
   `:empty` rule meant to hide it never matched (the footer always holds its slot). Both now hide the footer while
   nothing is slotted and show it when something is (`hideEmptyFooter` in dom-utils).
 
+- **Focus rings you can see** — Birko TASK-983, found at TASK-982 (reported by Reps). **Visual change to every
+  focusable control.** `--b-focus-ring` / `--b-focus-ring-danger` were a 3px wash at 15–30%, 1.2–2.0:1 against the page
+  in every theme, under the 3:1 a focus indicator needs. They are now a 1px solid line with a tight soft glow
+  (`0 0 0 1px <colour>, 0 0 4px 1px <colour at 50%>`), chosen by the user from a preview: 3.6–15.5:1 against the page
+  and the secondary surface in every theme. Finstat's line is a deeper shade of its focus blue and red (`#1c86b8`,
+  `#d9482a`; its lighter blue failed 3:1), and the inverse area sets its own lighter ring, since the inherited one was
+  too dark on its charcoal. The ~35 components that use the tokens change without code edits.
+
 - **Split panel: a minimum width per column** — Birko TASK-981, asked for by DraCode (its TASK-197). New
   `master-min` / `detail-min` attributes (rem, em or px; default 7.5rem, the fixed 120px until now) stop the separator's
   drag and arrow keys at a column's minimum, so a drop already respects it and a consumer no longer corrects the width

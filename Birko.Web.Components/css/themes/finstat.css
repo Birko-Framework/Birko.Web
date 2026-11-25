@@ -107,6 +107,6 @@
   --b-shadow-xl: 0 20px 70px -25px rgba(0, 0, 0, 0.3); /* @box-shadow-dropdown */
 
   /* Blue focus glow (Finstat focuses inputs with @clr-bg-blue) */
-  --b-focus-ring: 0 0 0 3px rgba(84, 185, 232, 0.3);
-  --b-focus-ring-danger: 0 0 0 3px rgba(242, 109, 79, 0.25);
+  --b-focus-ring: 0 0 0 1px #1c86b8, 0 0 4px 1px rgba(84, 185, 232, 0.5);
+  --b-focus-ring-danger: 0 0 0 1px #d9482a, 0 0 4px 1px rgba(242, 109, 79, 0.5);
 }

@@ -65,8 +65,8 @@
      depth scale inverted at its deepest step. Alpha continues this theme's own progression. */
   --b-shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.6);
 
-  --b-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
-  --b-focus-ring-danger: 0 0 0 3px rgba(239, 68, 68, 0.25);
+  --b-focus-ring: 0 0 0 1px #3b82f6, 0 0 4px 1px rgba(59, 130, 246, 0.5);
+  --b-focus-ring-danger: 0 0 0 1px #ef4444, 0 0 4px 1px rgba(239, 68, 68, 0.5);
 
   --b-backdrop-bg: rgba(0, 0, 0, 0.6);
   --b-backdrop-bg-light: rgba(0, 0, 0, 0.3);
