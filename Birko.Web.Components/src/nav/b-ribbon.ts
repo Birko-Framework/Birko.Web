@@ -50,7 +50,10 @@ export interface RibbonTab {
  * renders every item as `medium` while the Avalonia `Ribbon` renders every item as `large` — a
  * pre-existing parity gap named here so TASK-099 reconciles it deliberately.
  *
- * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step.
+ * Mirrors `RibbonGroupSize` in `Birko.Xaml.Core/Ribbon/RibbonModels.cs`; keep the two in step. Since TASK-120 it is
+ * a group's **step**; an item may also carry its own `size` (`RibbonItemSize`: large / medium / small, never popup),
+ * an anchor kept as an offset from the group's starting step, and a group may declare `layouts` per step. Both are
+ * resolved by `ribbonItemSizes` in `ribbon-scaling.ts`, mirroring C# `RibbonItemSizing` (FEATURE-015 D13 / D14).
  */
 /** One tile of a gallery: `preview` is a short text or glyph drawn large (Aa, H1); text, never markup. */
 export interface RibbonGalleryItem {
@@ -124,6 +127,9 @@ export interface RibbonContextualSet {
 
 export type RibbonGroupSize = 'large' | 'medium' | 'small' | 'popup';
 
+/** An item's own size (TASK-120): a group step other than `popup`, which only a whole group can be. */
+export type RibbonItemSize = Exclude<RibbonGroupSize, 'popup'>;
+
 export interface RibbonGroup {
   id: string;
   label: string;
@@ -153,6 +159,13 @@ export interface RibbonGroup {
    */
   minSize?: RibbonGroupSize;
   /**
+   * Declared layouts (TASK-120, FEATURE-015 D14): for a step (`large`, `medium` or `small`), the size of each listed
+   * item by `id`. A listed item takes that size at that step; an unlisted one, or any item at a step with no layout,
+   * takes the anchor rule of its `size`. Office's "Paste stays large while the rest shrink" is a layout for the
+   * tighter step. Unset: every step comes from the anchor rule. Mirrors C# `RibbonGroup.Layouts`.
+   */
+  layouts?: Partial<Record<RibbonItemSize, Record<string, RibbonItemSize>>>;
+  /**
    * A small ↘ button at the group's bottom-right corner (Office's dialog launcher), for "more options" the group's
    * commands have no room for. A click emits `group-launcher` with `{ tabId, groupId }`; the app decides what opens.
    * `launcherLabel` names it (tooltip and screen readers); default "More {label} options".
@@ -173,6 +186,12 @@ export interface RibbonItem {
   disabled?: boolean;
   active?: boolean;
   variant?: 'primary' | 'danger';
+  /**
+   * This command's own size (TASK-120, FEATURE-015 D13), an **anchor**: the item keeps its offset from the group's
+   * starting step as the group degrades ("Paste is one step bigger than the rest"). Unset: the item follows its group,
+   * as before. Resolved by `ribbonItemSizes`; mirrors C# `RibbonItem.Size`.
+   */
+  size?: RibbonItemSize;
   /**
    * Options this command opens as a menu. Without `split` the whole button opens it (a menu button, shown with ▾);
    * with `split` the button runs the command and a separate ▾ part opens the menu (Office's "Paste ▾"). A choice

@@ -1,4 +1,4 @@
-import type { RibbonGroupSize } from './b-ribbon.js';
+import type { RibbonGroup, RibbonGroupSize, RibbonItemSize } from './b-ribbon.js';
 
 /**
  * Office-style progressive group scaling: choose a variant per group so the row fits the available
@@ -124,4 +124,44 @@ export function resolveRibbonSizes(
   }
 
   return chosen;
+}
+
+/**
+ * The size of every item of `group` at `step`, in item order, for a group whose ladder starts at `start` (TASK-120,
+ * FEATURE-015 D13 / D14). **A deliberate mirror of `RibbonItemSizing.SizesAt` in
+ * `Birko.Xaml.Core/Ribbon/RibbonItemSizing.cs`**; the playground's `ribbon-scaling-smoke` asserts the C# cases.
+ *
+ * - **Anchor (D13):** an item with a `size` keeps its offset from `start` and moves with the group: at `step` it is
+ *   `step` shifted by that offset, clamped between `large` and `small`. An item with no `size` renders at `step`.
+ * - **Declared layouts (D14):** `group.layouts[step]` overrides the rule for the items it lists.
+ * - At `popup` the flyout holds the items as at `large`, so the `large` sizes are returned.
+ *
+ * Throws on what the model cannot mean: an item or declared size of `popup`, a layout for `popup`, a layout naming an
+ * item the group does not have, a `start` of `popup`. Depends only on its arguments.
+ */
+export function ribbonItemSizes(
+  group: Pick<RibbonGroup, 'label' | 'items' | 'layouts'>,
+  step: RibbonGroupSize,
+  start: RibbonGroupSize,
+): RibbonItemSize[] {
+  for (const item of group.items) {
+    if ((item.size as RibbonGroupSize | undefined) === 'popup')
+      throw new Error(`Ribbon item '${item.id}' in group '${group.label}' cannot be popup: popup is a group step, not an item size.`);
+  }
+  const ids = new Set(group.items.map((i) => i.id));
+  for (const [s, layout] of Object.entries(group.layouts ?? {})) {
+    if (s === 'popup') throw new Error(`Group '${group.label}' declares a layout for popup: the popup flyout shows the large layout.`);
+    for (const [id, size] of Object.entries(layout ?? {})) {
+      if (!ids.has(id)) throw new Error(`Group '${group.label}' declares a ${s} layout for '${id}', which is not one of its items.`);
+      if ((size as RibbonGroupSize) === 'popup')
+        throw new Error(`Group '${group.label}' declares '${id}' as popup at ${s}: popup is a group step, not an item size.`);
+    }
+  }
+  if (start === 'popup') throw new Error("A group's starting step cannot be popup: the ladder starts groups at large, medium or small.");
+
+  const at: RibbonItemSize = step === 'popup' ? 'large' : step;
+  const declared = group.layouts?.[at];
+  const clamp = (r: number) => RIBBON_SIZE_LADDER[Math.min(rank('small'), Math.max(rank('large'), r))] as RibbonItemSize;
+  return group.items.map((item) => declared?.[item.id]
+    ?? (item.size === undefined ? at : clamp(rank(at) + rank(item.size) - rank(start))));
 }
