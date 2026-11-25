@@ -146,6 +146,8 @@
   /* ── Focus rings (px — fixed ring size for precision) ── */
   --b-focus-ring: 0 0 0 1px #2563eb, 0 0 4px 1px rgba(37, 99, 235, 0.5);
   --b-focus-ring-danger: 0 0 0 1px #dc2626, 0 0 4px 1px rgba(220, 38, 38, 0.5);
+  --b-focus-ring-inset: inset 0 0 0 1px #2563eb, inset 0 0 4px 1px rgba(37, 99, 235, 0.5);
+  --b-focus-ring-danger-inset: inset 0 0 0 1px #dc2626, inset 0 0 4px 1px rgba(220, 38, 38, 0.5);
 
   /* ── Opacity ── */
   --b-disabled-opacity: 0.5;

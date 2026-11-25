@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.4 — 2026-11-25
+
+- **Focus ring: an inset form** — Birko TASK-986, asked for by DraCode. New `--b-focus-ring-inset` and
+  `--b-focus-ring-danger-inset` in every theme draw TASK-983's ring inside the control, line and glow both. Since
+  TASK-983 the ring is two shadows, so `inset var(--b-focus-ring)` put only the line inside and the glow outside, where
+  a tab bar clipped it or it spilled onto the next tab. Nothing in Birko.Web changes; a consumer drawing its ring inside
+  switches to the token.
+
 ## v0.5.3 — 2026-11-24
 
 - **`SyncManager`: coming back online sends a write that is backing off** — Birko TASK-973, reported by Reps (its

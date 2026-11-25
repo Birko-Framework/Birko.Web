@@ -109,4 +109,6 @@
   /* Blue focus glow (Finstat focuses inputs with @clr-bg-blue) */
   --b-focus-ring: 0 0 0 1px #1c86b8, 0 0 4px 1px rgba(84, 185, 232, 0.5);
   --b-focus-ring-danger: 0 0 0 1px #d9482a, 0 0 4px 1px rgba(242, 109, 79, 0.5);
+  --b-focus-ring-inset: inset 0 0 0 1px #1c86b8, inset 0 0 4px 1px rgba(84, 185, 232, 0.5);
+  --b-focus-ring-danger-inset: inset 0 0 0 1px #d9482a, inset 0 0 4px 1px rgba(242, 109, 79, 0.5);
 }
