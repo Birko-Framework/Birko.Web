@@ -77,21 +77,23 @@ export class BSyncStatus extends BaseComponent {
         background: currentColor;
         flex-shrink: 0;
       }
+      /* TASK-994: each state is painted exactly as the b-badge of the same meaning (offline = warning, syncing = info,
+         not saved = danger), never a base colour on its tint: offline was 2.86:1 in light and 1.54:1 in finstat. */
       .chip.offline {
-        color: var(--b-color-warning, #f59e0b);
-        background: var(--b-color-warning-light, rgba(245, 158, 11, 0.12));
+        color: var(--b-badge-warning-text, var(--b-color-warning-text, var(--b-color-warning)));
+        background: var(--b-badge-warning-bg, var(--b-color-warning-light));
       }
       .chip.syncing {
-        color: var(--b-color-info, var(--b-color-primary));
-        background: var(--b-color-info-light, rgba(59, 130, 246, 0.12));
+        color: var(--b-color-info-text, var(--b-color-info, var(--b-color-primary)));
+        background: var(--b-color-info-light);
       }
       button.dead {
         font: inherit;
         font-size: var(--b-text-sm);
         border: 1px solid var(--b-color-danger-alpha-border, rgba(220, 38, 38, 0.3));
         cursor: pointer;
-        color: var(--b-color-danger-text, var(--b-color-danger, #dc2626));
-        background: var(--b-color-danger-light, rgba(220, 38, 38, 0.12));
+        color: var(--b-badge-danger-text, var(--b-color-danger-text, var(--b-color-danger)));
+        background: var(--b-badge-danger-bg, var(--b-color-danger-light));
       }
       /* A solid ring in the button's own text colour (TASK-982): the shared --b-focus-ring-danger is a 15% wash that
          all but vanishes on this pink chip. The text colour already has to read on the chip, so the ring does too, in

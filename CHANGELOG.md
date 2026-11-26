@@ -4,6 +4,13 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.8 — 2026-11-26
+
+- **Sync status chips are readable** — Birko TASK-994, measured by WorkoutTracker (Reps). The offline and syncing chips
+  painted the base colour on its own tint: offline 2.86:1 in light, 1.54:1 in finstat; syncing 3.29:1 and 1.84:1.
+  Each state is now painted as the `b-badge` of the same meaning: offline as warning, syncing as info, "not saved" as
+  danger (so it gains the stronger TASK-599 red). AA in every theme; the device check renders all three in every theme.
+
 ## v0.5.7 — 2026-11-25
 
 - **Split page: an opened row's detail is one key away** — Birko TASK-992, seen by Symbio at TASK-989's test. The
