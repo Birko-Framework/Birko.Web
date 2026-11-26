@@ -24,6 +24,10 @@
   --b-color-success-light: #14352a;
   --b-color-warning-light: #3d2c0a;
   --b-color-danger-light: #3f1d1d;
+  --b-badge-warning-bg: var(--b-color-warning-light);
+  --b-badge-warning-text: var(--b-color-warning-text);
+  --b-badge-danger-bg: var(--b-color-danger-light);
+  --b-badge-danger-text: var(--b-color-danger-text);
   --b-color-info-light: #0e3438;
   --b-color-primary-text: #70a4f8;
   --b-color-success-text: #4ade80;

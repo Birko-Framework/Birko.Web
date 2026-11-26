@@ -29,6 +29,14 @@
   --b-color-danger-text: #ca2323;
   --b-color-danger-hover: #b91c1c;
   --b-color-danger-light: #fee2e2;
+  /* b-badge danger / warning (TASK-599): a stronger tint and a deeper text than the shared -light / -text pair,
+     so an alert badge reads as urgent, not merely legible (seen on a phone in daylight). The shared pair is
+     unchanged for diffs, banners, menus and stats. A theme that does not set these must point them at its own
+     pair, or it inherits these light values. */
+  --b-badge-warning-bg: #fde68a;
+  --b-badge-warning-text: #7c3a03;
+  --b-badge-danger-bg: #fecaca;
+  --b-badge-danger-text: #a11a1a;
   --b-color-info: #0891b2;
   --b-color-info-light: #cffafe;
   --b-color-info-text: #077893;

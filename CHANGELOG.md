@@ -16,6 +16,10 @@ interchangeable for consumers.
   The ribbon now reports `requiredPanelHeight`: the open tab's tallest group at any step it can reach, plus padding,
   in px. It logs one `console.warn` when the token is lower. README: the rule beside the token, with the Clipboard
   example worked through. Comments only: the `RibbonGroupSize` note no longer claims the skins differ (TASK-124).
+- **Badges: danger and warning read as urgent** — Birko TASK-599, seen on a phone in daylight: both passed AA but looked
+  subtle. They now paint their own stronger pair, `--b-badge-{danger,warning}-{bg,text}`: in light a saturated red / amber
+  tint with a deeper text (5.4:1 and 6.8:1), in dark a deeper tint with a light text (8.8:1 and 6.9:1). Neon, finstat and inverse keep their own
+  colours. The shared `--b-color-*-light` / `-text` tokens are unchanged, so diffs, banners, menus and stats look as before.
 
 ## v0.5.6 — 2026-11-25
 

@@ -28,6 +28,10 @@
   --b-color-warning-light: #3d2c0a;
   --b-color-warning-text: #dc8117;
   --b-color-danger-light: #3f1d1d;
+  --b-badge-warning-bg: #5c3d06;
+  --b-badge-warning-text: #fcd34d;
+  --b-badge-danger-bg: #5f1a1a;
+  --b-badge-danger-text: #fecaca;
   --b-color-info-light: #0e3438;
   --b-color-info-text: #32a4bf;
   --b-color-danger-hover: #ef4444;
