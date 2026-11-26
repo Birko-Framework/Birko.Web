@@ -1894,6 +1894,10 @@ chip.bind(queue);
 chip.addEventListener('b-sync-dead', () => openUnsavedList()); // the app's own list: getDead() / retry() / discard()
 ```
 
+Each state looks exactly like the `b-badge` of the same meaning (TASK-994): offline as the warning badge, syncing as the
+info badge, "not saved" as the danger badge, so retuning `--b-badge-warning-*` / `--b-badge-danger-*` retunes the chip
+too. All three are AA in every theme.
+
 A write the sync layer gave up on (`deadCount > 0`) adds a red button beside the chip, online or offline, reading
 "N not saved"; it dispatches a bubbling, composed `b-sync-dead` event (`detail: { count }`). The chip keeps saying
 "Offline" or "Syncing" next to it, so a device with writes waiting still says so. Before, the chip cleared the moment a
