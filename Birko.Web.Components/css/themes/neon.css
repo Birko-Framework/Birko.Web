@@ -30,6 +30,10 @@
   --b-color-danger: #ff4466;
   --b-color-danger-hover: #ff6680;
   --b-color-danger-light: #551018;
+  --b-badge-warning-bg: var(--b-color-warning-light);
+  --b-badge-warning-text: var(--b-color-warning-text);
+  --b-badge-danger-bg: var(--b-color-danger-light);
+  --b-badge-danger-text: var(--b-color-danger-text);
   --b-color-danger-text: #ff5372;
   --b-color-info: #66e0ff;
   --b-color-info-light: #0e2a3a;

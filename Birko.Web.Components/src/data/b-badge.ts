@@ -13,8 +13,10 @@ export class BBadge extends BaseComponent {
       }
       .primary { background: var(--b-color-primary-light); color: var(--b-color-primary-text, var(--b-color-primary)); }
       .success { background: var(--b-color-success-light); color: var(--b-color-success-text, var(--b-color-success)); }
-      .warning { background: var(--b-color-warning-light); color: var(--b-color-warning-text, var(--b-color-warning)); }
-      .danger { background: var(--b-color-danger-light); color: var(--b-color-danger-text, var(--b-color-danger)); }
+      /* TASK-599: danger and warning read their own, stronger pair, so an alert badge looks urgent; the shared
+         -light / -text pair other components use is unchanged. Falls back to it where a theme sets neither. */
+      .warning { background: var(--b-badge-warning-bg, var(--b-color-warning-light)); color: var(--b-badge-warning-text, var(--b-color-warning-text, var(--b-color-warning))); }
+      .danger { background: var(--b-badge-danger-bg, var(--b-color-danger-light)); color: var(--b-badge-danger-text, var(--b-color-danger-text, var(--b-color-danger))); }
       .info { background: var(--b-color-info-light); color: var(--b-color-info-text, var(--b-color-info)); }
       .neutral { background: var(--b-bg-tertiary); color: var(--b-text-secondary); }
       :host([size="sm"]) .badge { padding: 0 var(--b-space-xs); font-size: var(--b-text-2xs, 0.625rem); }

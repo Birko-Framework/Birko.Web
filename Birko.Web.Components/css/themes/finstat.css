@@ -40,6 +40,10 @@
   --b-color-danger-text: #b3391a;
   --b-color-danger-hover: #e05335;   /* derived (darken) */
   --b-color-danger-light: #fcdfd7;   /* derived */
+  --b-badge-warning-bg: var(--b-color-warning-light);
+  --b-badge-warning-text: var(--b-color-warning-text);
+  --b-badge-danger-bg: var(--b-color-danger-light);
+  --b-badge-danger-text: var(--b-color-danger-text);
   --b-color-info: #54b9e8;           /* @clr-blue */
   --b-color-info-light: #d7eef9;     /* derived */
   --b-color-info-text: #33708c;

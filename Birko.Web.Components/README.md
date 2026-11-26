@@ -1356,6 +1356,12 @@ Emits: `page-change` → `{ page }`
 <b-badge variant="secondary">Offline</b-badge>
 ```
 
+`danger` and `warning` paint their own, stronger pair so an alert reads as urgent and not merely legible: `--b-badge-danger-bg` /
+`--b-badge-danger-text` and `--b-badge-warning-bg` / `--b-badge-warning-text` (TASK-599). The light and dark themes give them a
+saturated tint and a deeper text; neon, finstat and inverse point them at their own `--b-color-*-light` / `-text`. The shared
+tokens, which diffs, banners, menus and stats also use, are not changed. A theme that sets none of these falls back to the shared
+pair. Set them in `tokens.json` (Birko.DesignTokens), never in the generated CSS.
+
 ### b-chart
 
 ```typescript
