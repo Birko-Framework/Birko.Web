@@ -35,7 +35,9 @@ export class BPagination extends BaseComponent {
     const showSizePicker = pageSize > 0 && pageSizes.length > 0;
 
     // Translatable labels — attribute override > global i18n > English fallback
-    const lItems = this.label('label-items', 'bwc.pagination.items', 'items');
+    // With the count, so a bundle may give `bwc.pagination.items` plural forms ({ one, few, many, other }).
+    const count = Number(totalCount);
+    const lItems = this.label('label-items', 'bwc.pagination.items', count === 1 ? 'item' : 'items', { count });
     const lPage = this.label('label-page', 'bwc.pagination.page', 'Page');
     const lOf = this.label('label-of', 'bwc.pagination.of', 'of');
     const lPerPage = this.label('label-per-page', 'bwc.pagination.perPage', '/ page');

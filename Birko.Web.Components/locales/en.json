@@ -65,9 +65,20 @@
       "save": "Save",
       "required": "This field is required"
     },
+    "chat": {
+      "placeholder": "Type a message...",
+      "send": "Send",
+      "empty": "No messages yet",
+      "typing": "Typing",
+      "sending": "Sending...",
+      "failed": "Failed. Click to retry."
+    },
     "pagination": {
       "title": "Pagination",
-      "items": "items",
+      "items": {
+        "one": "item",
+        "other": "items"
+      },
       "page": "Page",
       "of": "of",
       "perPage": "/ page",
@@ -157,7 +168,8 @@
     },
     "select": {
       "create": "Create “{value}”",
-      "created": "Created “{value}”"
+      "created": "Created “{value}”",
+      "noMatches": "No matches"
     },
     "country": {
       "groupEu": "EU"

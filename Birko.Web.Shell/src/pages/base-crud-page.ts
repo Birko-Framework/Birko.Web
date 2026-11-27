@@ -337,7 +337,9 @@ export abstract class BaseCrudPage<T extends Record<string, unknown>> extends Ba
    */
   protected _getPaginationLabels() {
     return {
-      items: this.t('bws.pagination.items'),
+      // A function of the count, so a bundle may give `bws.pagination.items` plural forms ({ one, few, many, other }).
+      items: (count: number) =>
+        globalT('bws.pagination.items', { entity: this.entityLabel, count }, count === 1 ? 'item' : 'items'),
       page: this.t('bws.pagination.page'),
       of: this.t('bws.pagination.of'),
       perPage: this.t('bws.pagination.perPage'),

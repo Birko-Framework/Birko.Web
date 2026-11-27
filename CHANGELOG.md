@@ -4,6 +4,22 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.9 — 2026-11-27
+
+- **A Czech screen in an English browser reads Czech** — Birko TASK-1009, found by Symbio (its TASK-1140).
+  - `b-chat` formatted a message's time with the browser's locale, so it showed "03:19 PM". It now uses the app's locale.
+    Its placeholder, send button, empty, typing, sending and failed texts come from `bwc.chat.*`.
+  - `b-pagination` had one word for any count, so Czech read "1 položek" and English "1 items". `bwc.pagination.items`
+    is now resolved with the count. A bundle may give it plural forms (`{ one, few, many, other }`), and the English
+    bundle reads "1 item". A plain string still works.
+  - `b-data-table`'s `paginationLabels.items` may be a function of the count. `base-crud-page` passes one over
+    `bws.pagination.items`, so a CRUD list gets the plural forms from the app's bundle. The `label-*` values it passes are
+    now attribute-escaped.
+  - `b-select`'s "No matches" comes from `bwc.select.noMatches`, as `b-multi-select`'s does. A `b-form` select field
+    had no way to translate it.
+  - New keys in `locales/en.json`: `bwc.chat.*` and `bwc.select.noMatches`. `bwc.pagination.items` is now
+    `{ one, other }`.
+
 ## v0.5.8 — 2026-11-26
 
 - **Sync status chips are readable** — Birko TASK-994, measured by WorkoutTracker (Reps). The offline and syncing chips

@@ -327,6 +327,9 @@ Emits: `change` → `{ name, value }`
 <b-select label="Exercise" name="exercise" searchable label-no-matches="No matches"></b-select>
 ```
 
+Unset, `label-no-matches` comes from `bwc.select.noMatches`, as `b-multi-select`'s does, so a `b-form` select field is
+translated through the bundle (TASK-1009).
+
 ```typescript
 (el as BSelect).setOptions([
   { value: 'active', label: 'Active' },
@@ -1084,7 +1087,9 @@ chat.addEventListener('send', e => {
 ```
 
 `placeholder` (attribute or config) and `sendLabel` are plain text: `b-chat` escapes them, so pass them unescaped —
-escaping them yourself shows the entities (TASK-945, v0.4.20).
+escaping them yourself shows the entities (TASK-945, v0.4.20). Unset, they and the chat's other texts come from
+`bwc.chat.*` (`placeholder`, `send`, `empty`, `typing`, `sending`, `failed`). A message's time is formatted in the app's
+locale (`getFormatter().time`), not the browser's (TASK-1009).
 
 Emits: `send` → `{ value }`, `message-click` → `{ message }`
 
@@ -1345,6 +1350,12 @@ Inputs fire `cell-change` on every keystroke (`input` event) and select/checkbox
 ```
 
 Emits: `page-change` → `{ page }`
+
+The word after the count is `bwc.pagination.items`, resolved with the count, so a bundle may give it plural forms:
+`"items": { "one": "položka", "few": "položky", "many": "položky", "other": "položek" }`. These are the categories of
+`Intl.PluralRules` for the app's locale. A plain string still works, and a `label-items` attribute wins over the bundle.
+In `b-data-table`, `paginationLabels.items` may be a function of the count; `base-crud-page` passes one over
+`bws.pagination.items` (TASK-1009).
 
 ### b-badge
 
