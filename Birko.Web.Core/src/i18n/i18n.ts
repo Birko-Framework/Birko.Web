@@ -96,23 +96,17 @@ export class I18n {
   t(key: string, params?: Record<string, string | number>): string {
     const locale = this._locale.value;
 
-    // Try plural resolution first (when params has 'count')
+    // The locale, then its fallbacks in order; the first locale that has the key wins, in either shape: with a count,
+    // its plural forms (the count's category, else `other`), and in any case a plain string. Walking the whole chain
+    // for plural forms first let a fallback's forms beat the locale's own string: a cs "položek" rendered sk
+    // "položiek" (TASK-1010).
+    const hasCount = !!params && typeof params === 'object' && 'count' in params;
     let value: string | null = null;
-    if (params && typeof params === 'object' && 'count' in params) {
-      for (const l of [locale, ...this._chainFor(locale)]) {
-        value = this._resolvePlural(key, l, Number(params.count));
-        if (value !== null) break;
-      }
+    for (const l of [locale, ...this._chainFor(locale)]) {
+      value = (hasCount ? this._resolvePlural(key, l, Number(params!.count)) : null) ?? this._resolve(key, l);
+      if (value !== null) break;
     }
-
-    // Standard resolution: the locale, then its fallbacks in order; the first hit wins
-    if (value === null) {
-      for (const l of [locale, ...this._chainFor(locale)]) {
-        value = this._resolve(key, l);
-        if (value !== null) break;
-      }
-      value ??= key;
-    }
+    value ??= key;
 
     return interpolate(value, params);
   }
