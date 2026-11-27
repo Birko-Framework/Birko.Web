@@ -4,6 +4,14 @@ One entry per tag, newest first. Versioning rules: [README.md § Versions](READM
 **MINOR** bump is a breaking change and its entry carries a **BREAKING** migration; PATCH versions of one MINOR are
 interchangeable for consumers.
 
+## v0.5.10 — 2026-11-27
+
+- **A locale's own translation wins over a fallback's plural forms** — Birko TASK-1010, measured by Symbio (its
+  TASK-1140). With a count, `t()` searched the whole fallback chain for plural forms before it looked for a plain
+  string. So a Czech bundle with the string "položek" lost to Slovak's plural forms and showed "položiek". Each locale is
+  now asked in chain order, and the first that has the key wins, in either shape. This corrects v0.5.9's "a plain string
+  still works", which held only when no fallback locale had plural forms for the key.
+
 ## v0.5.9 — 2026-11-27
 
 - **A Czech screen in an English browser reads Czech** — Birko TASK-1009, found by Symbio (its TASK-1140).
