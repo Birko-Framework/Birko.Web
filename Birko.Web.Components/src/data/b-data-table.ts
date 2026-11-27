@@ -86,7 +86,8 @@ export interface DataTableConfig {
 }
 
 export interface PaginationLabels {
-  items?: string;
+  /** The word after the total count. A function gets the count, so a language with plural forms picks the right one. */
+  items?: string | ((count: number) => string);
   page?: string;
   of?: string;
   perPage?: string;
@@ -1065,7 +1066,7 @@ export class BDataTable extends BaseComponent {
     const l = this._config?.paginationLabels;
     if (!l) return '';
     const map: Record<string, string | undefined> = {
-      'label-items': l.items,
+      'label-items': typeof l.items === 'function' ? l.items(this._totalCount) : l.items,
       'label-page': l.page,
       'label-of': l.of,
       'label-per-page': l.perPage,
@@ -1075,7 +1076,7 @@ export class BDataTable extends BaseComponent {
     };
     return Object.entries(map)
       .filter(([, v]) => v != null)
-      .map(([k, v]) => ` ${k}="${v}"`)
+      .map(([k, v]) => ` ${k}="${escapeAttr(v as string)}"`)
       .join('');
   }
 }

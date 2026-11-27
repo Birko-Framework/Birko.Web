@@ -1,4 +1,4 @@
-import { BaseComponent, define } from 'birko-web-core';
+import { BaseComponent, define, getFormatter, t } from 'birko-web-core';
 import { escapeHtml } from '../dom-utils';
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -292,19 +292,20 @@ export class BChat extends BaseComponent {
   render() {
     const disabled = this.boolAttr('disabled');
     // Escaped here, once: both go into markup, and a `"` closed the attribute (TASK-945). Pass them unescaped.
-    const placeholder = escapeHtml(this._config.placeholder ?? this.attr('placeholder', 'Type a message...'));
-    const sendLabel = escapeHtml(this._config.sendLabel ?? 'Send');
+    // Config wins, then the attribute, then the `bwc.chat.*` key, then English.
+    const placeholder = escapeHtml(this._config.placeholder ?? this.label('placeholder', 'bwc.chat.placeholder', 'Type a message...'));
+    const sendLabel = escapeHtml(this._config.sendLabel ?? t('bwc.chat.send', undefined, 'Send'));
     const showTimestamps = this._config.showTimestamps !== false;
 
     const messagesHtml = this._messages.length === 0
-      ? '<div class="empty-state">No messages yet</div>'
+      ? `<div class="empty-state">${escapeHtml(t('bwc.chat.empty', undefined, 'No messages yet'))}</div>`
       : this._messages.map(m => this._renderMessage(m, showTimestamps)).join('');
 
     return `
       <div class="chat-header"><slot name="header"></slot></div>
       <div class="chat-messages" id="msgs">
         ${messagesHtml}
-        <div class="typing ${this._typing ? '' : 'hidden'}" aria-live="polite" aria-label="Typing">
+        <div class="typing ${this._typing ? '' : 'hidden'}" aria-live="polite" aria-label="${escapeHtml(t('bwc.chat.typing', undefined, 'Typing'))}">
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
           <span class="typing-dot"></span>
@@ -329,15 +330,15 @@ export class BChat extends BaseComponent {
 
     let statusHtml = '';
     if (m.status === 'sending') {
-      statusHtml = '<div class="message-status sending">Sending...</div>';
+      statusHtml = `<div class="message-status sending">${escapeHtml(t('bwc.chat.sending', undefined, 'Sending...'))}</div>`;
     } else if (m.status === 'error') {
-      statusHtml = `<div class="message-status error" data-retry="${m.id}">Failed. Click to retry.</div>`;
+      statusHtml = `<div class="message-status error" data-retry="${m.id}">${escapeHtml(t('bwc.chat.failed', undefined, 'Failed. Click to retry.'))}</div>`;
     }
 
     let timeHtml = '';
     if (showTimestamps && m.timestamp) {
-      const time = new Date(m.timestamp);
-      timeHtml = `<div class="message-time">${time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>`;
+      // The app's locale, as every other control formats (a Czech screen in an English browser showed "02:19 PM").
+      timeHtml = `<div class="message-time">${escapeHtml(getFormatter().time(m.timestamp))}</div>`;
     }
 
     const metaHtml = m.meta ? `<div class="message-meta"><slot name="message-meta-${m.id}"></slot></div>` : '';

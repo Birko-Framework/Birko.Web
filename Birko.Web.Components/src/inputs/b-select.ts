@@ -561,7 +561,7 @@ export class BSelect extends FormControlComponent {
     // A disabled option, not bare text: a listbox child must be an option or a group, and a disabled one is
     // announced but never highlighted by the arrow keys (see _navOptions).
     if (options.length === 0)
-      return createRow || `<div class="no-results" role="option" aria-disabled="true" aria-selected="false">${escapeHtml(this.attr('label-no-matches', 'No matches'))}</div>`;
+      return createRow || `<div class="no-results" role="option" aria-disabled="true" aria-selected="false">${escapeHtml(this.label('label-no-matches', 'bwc.select.noMatches', 'No matches'))}</div>`;
 
     // Labels and values are escaped: option data routinely comes from user-authored records (a catalogue the
     // user can rename), where a name like `Bench <b>press</b>` would otherwise render as markup and a quote in
